@@ -1,0 +1,347 @@
+*,
+*::before,
+*::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  line-height: 1.45;
+  background: var(--raisin-black);
+  color: var(--text);
+  /* Prevent horizontal jiggle during board scroll */
+  overflow-y: scroll;
+}
+
+:root {
+  /* CSS HEX */
+  --rich-black: #02111bff;
+  --onyx: #3f4045ff;
+  --raisin-black: #30292fff;
+  --paynes-gray: #5d737eff;
+  --white: #fcfcfcff;
+
+  /* Surface & text */
+  --bg: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #0f172a;              /* slate-900 */
+  --muted: #636e7b;
+
+  /* Borders & shadows */
+  --border: #e6e8ec;
+  --shadow: rgba(15, 23, 42, .04);
+  --shadow-card: rgba(15, 23, 42, .08);
+
+  /* Accent / radius / spacing / type sizes */
+  --accent: #0b5fff;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --spacing: 12px;
+  --font-xs: 12px;
+  --font-sm: 14px;
+  --font-md: 16px;
+  --font-lg: 18px;
+
+  /* Column sizing */
+  --list-min: 280px;
+  --list-max: 340px;
+  --card-gap: 10px;
+
+  /* Card sizing */
+  --card-spacing: 14px;
+}
+
+
+:root[data-theme="dark"] {
+  --bg: #091102;                /* deep forest base */
+  --bg-card: #12200a;           /* slightly lighter for cards */
+  --text: #e8f0e5;              /* soft off-white with a hint of green */
+  --muted: #a0b3a3;             /* muted sage-gray for secondary text */
+  --border: #1f2e17;            /* dark olive for borders */
+  --shadow: rgba(0, 0, 0, 0.45);
+  --shadow-card: rgba(0, 0, 0, 0.55);
+  --accent: #6fcf97;            /* fresh green accent */
+}
+
+/* 3) App chrome */
+header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing);
+  padding: var(--spacing);
+  background: var(--paynes-gray);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  backdrop-filter: saturate(1.2) blur(6px);
+}
+
+header h1 {
+  color: var(--white);
+  font-size: var(--font-lg);
+  margin: 0px;
+}
+
+/* Switch board group */
+#boardPathWrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+#labelBoardPath {
+  font-size: var(--font-sm);
+  color: var(--muted);
+}
+#boardPath {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 12px;
+}
+
+/* Theme toggle button (uses your existing button element) */
+#themeToggle {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02);
+  transition: background .12s ease, transform .1s ease, border-color .12s ease;
+}
+#themeToggle:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)); }
+#themeToggle:active { transform: translateY(1px); }
+#themeToggle:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%, white); }
+
+/* 4) Board layout */
+main#board {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  height: calc(100vh - 64px); /* header approx */
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Lists (columns) */
+.list {
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+  min-width: var(--list-min);
+  max-width: var(--list-max);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: 0 6px 18px var(--shadow);
+  flex: 0 0 auto; /* don’t stretch; behave like a column */
+}
+
+/* List header row */
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 2px 10px 2px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, var(--bg));
+  font-weight: 600;
+  letter-spacing: .2px;
+  color: var(--text);
+}
+
+/* Add-card button shown in list headers */
+.btnOpenAddCardModal {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02);
+}
+.btnOpenAddCardModal:hover {
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
+}
+.btnOpenAddCardModal:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 40%, white);
+}
+
+.cards {
+  min-height: 125px;
+  padding-top: 15px;
+  padding-bottom: 50px;
+}
+
+/* 5) Cards */
+.card {
+  background: var(--bg-card);
+  margin-bottom: var(--card-spacing);
+  color: var(--text);
+  border: 1px solid color-mix(in oklab, var(--border) 90%, var(--bg-card));
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  box-shadow: 0 2px 10px var(--shadow-card);
+  cursor: grab;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.card:active { cursor: grabbing; }
+.card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--border) 70%, var(--paynes-gray));
+  box-shadow: 0 6px 18px var(--shadow-card);
+}
+
+.card h3 {
+  margin: 0 0 6px 0;
+  font-size: var(--font-md);
+  font-weight: 400;
+}
+.card-body {
+  font-size: var(--font-sm);
+  color: var(--muted);
+}
+
+/* 6) Generic buttons (fallback) */
+button {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02);
+}
+button:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)); }
+button:active { transform: translateY(1px); }
+button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%, white); }
+
+/* 7) Modals (Add Card, Add Card To List) */
+.modal {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px rgba(16, 24, 40, .12);
+  padding: 16px;
+  max-width: 520px;
+}
+.modal h2 {
+  margin: 15px 0 10px 0;
+  font-size: var(--font-lg);
+}
+.modal textarea,
+.modal input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: var(--font-md);
+}
+
+/* Specific modal bits you used */
+#modalAddCardToList button { margin-top: 10px; }
+
+#modalEditCard {
+  position: absolute;
+  top: 100px;
+  left: calc( 60vw - 30vw);
+  background: var(--bg-card);
+  width: 50vw;
+  max-width: 750px;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px rgba(16, 24, 40, .12);
+  padding: 16px 16px 50px 35px;
+}
+
+#modalEditCard #cardEditorCardID { margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
+
+#modalEditCard .cardEditorHeader { border-bottom: 1px solid var(--border); height: 30px; text-align: right; }
+#modalEditCard .cardEditorHeader a { color: var(--muted); margin-left: 20px; }
+#modalEditCard .cardEditorHeader a svg { height: 18px; }
+
+#modalEditCard h4.label { font-size: var(--font-sm); text-transform: uppercase; color: var(--muted); margin-bottom: 1px; }
+#modalEditCard #cardEditorContents { background: var(--bg); border-radius: var(--radius); padding: 8px 10px; font-size: var(--font-lg); max-width: 75%; border: 1px solid transparent; }
+#modalEditCard #cardEditorContents:focus { border: 1px solid var(--border); }
+
+/* Dropdowns */
+select {
+  appearance: none; /* Hide native arrow */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  background: var(--bg-card)
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="none" stroke="%23636e7b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M1 1l5 5 5-5"/></svg>')
+    no-repeat right 12px center;
+  background-size: 12px 8px;
+
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 36px 8px 12px; /* room for arrow */
+  font-size: var(--font-md);
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .02);
+  transition: background .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+
+select:hover {
+  background-color: color-mix(in oklab, var(--bg-card) 94%, var(--border));
+}
+
+select:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 40%, white);
+  outline-offset: 1px;
+}
+
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 8) Utilities */
+.hidden { display: none; }
+
+/* Nice, unobtrusive scrollbars (Chromium/WebKit) */
+*::-webkit-scrollbar { height: 10px; width: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: #d7dae0; border-radius: 20px; border: 2px solid transparent;
+}
+*::-webkit-scrollbar-thumb:hover { background: #c8cbd2; }
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb { background: #475569; }
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+[contenteditable] {
+  outline: none;
+}
+
+/* 9) Small screens */
+@media (max-width: 700px) {
+  :root { --list-min: 260px; }
+  header { position: static; }
+  main#board {
+    height: auto;
+    min-height: calc(100vh - 56px);
+    padding: 12px;
+  }
+}
+
+/* 10) Print – simple, text-first */
+@media print {
+  header, #themeToggle { display: none !important; }
+  main#board { overflow: visible; height: auto; }
+  .list { box-shadow: none; border-color: #bbb; }
+  .card { box-shadow: none; border-color: #bbb; }
+}

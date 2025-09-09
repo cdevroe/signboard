@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Signboard</title>
+  <link rel="stylesheet" href="static/styles.css">
+  <script src="static/vendor/marked-12.0.2.min.js"></script>
+  <script src="static/vendor/turndown-7.1.3.js"></script>
+  <script src="static/vendor/sortable-1.15.2.min.js"></script>
+  <script src="static/vendor/feather-4.29.2.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1 id="boardName">BoardName</h1>
+    <div id="boardPathWrapper">
+      <button id="pickFolder">Choose Board Folder</button>
+      <input id="boardPath" type="text" class="hidden" readonly>
+      <script>
+        
+      </script>
+      <button id="themeToggle" title="Toggle dark mode">🌙</button>
+    </div>
+    <div id="boardAddNewListWrapper">
+      <button id="btnAddNewList">+ Add List</button>
+    </div>
+  </header>
+
+  <main id="board"></main>
+
+  <div id="modalAddList" class="modal hidden">
+    <input id="userInputListName" type="text" placeholder="Backlog">
+    <button id="btnAddList">Add List</button>
+  </div>
+
+  <div id="modalAddCard" class="modal hidden">
+    <input id="userInput" type="text" placeholder="A small task">
+    <input id="hiddenListPath" type="hidden" value="">
+    <button id="btnAddCard">Add card</button>
+  </div>
+
+  <div id="modalAddCardToList" class="modal hidden">
+     <p><select id="userInputListPath"></select></p>
+    <p><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"> <button id="btnAddCardToList">Add</button></p>
+  </div>
+
+  <div id="modalEditCard" class="modal hidden">
+    <div class="cardEditorHeader">
+      <a href="#" id="cardEditorArchiveLink" title="Archive"><i data-feather="archive"></i></a>
+      <a href="#" id="cardEditorDupeLink" title="Duplicate"><i data-feather="copy"></i></a>
+      <a href="#" id="cardEditorClose" title="Close"><i data-feather="x"></i></a>
+    </div>
+    <span id="cardEditorCardID"></span>
+    <div>
+      <h2 id="cardEditorTitle" contenteditable="true"></h2>
+    </div>
+    
+    <div id="cardEditorContents" contenteditable="true">Notes...</div>
+    <input type="hidden" id="cardEditorCardPath"> 
+  </div>
+  
+  <script src="app/signboard.js"></script>
+</body>
+</html>
