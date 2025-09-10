@@ -1,13 +1,16 @@
 {
   "name": "signboard",
-  "productName": "Signboard",
   "version": "0.1.0",
-  "license": "MIT",
-  "author": "Colin Devroe - cdevroe.com",
   "main": "main.js",
   "build": {
+    "appId": "com.cdevroe.signboard",
+    "productName": "Signboard",
+    "files": [
+      "dist/**",
+      "main.js",
+      "!**/*.map"
+    ],
     "mac": {
-      "artifactName": "${productName}.${ext}",
       "category": "public.app-category.productivity",
       "target": ["dmg", "zip"],
       "icon": "build/icon.icns",
@@ -26,21 +29,5 @@
         "releaseType": "draft"
       }
     ]
-  },
-  "private": true,
-  "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder --mac",
-    "dist:arm64": "electron-builder --mac --arm64",
-    "dist:x64": "electron-builder --mac --x64",
-    "dist:universal": "electron-builder --mac --universal"
-  },
-  "devDependencies": {
-    "dotenv": "^17.2.2",
-    "electron": "^31.0.0",
-    "electron-builder": "^26.0.12"
-  },
-  "dependencies": {
-    "turndown": "^7.2.0"
   }
 }
