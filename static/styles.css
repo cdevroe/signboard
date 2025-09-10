@@ -2,14 +2,6 @@
 *::before,
 *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body {
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
-  line-height: 1.45;
-  background: var(--raisin-black);
-  color: var(--text);
-  /* Prevent horizontal jiggle during board scroll */
-  overflow-y: scroll;
-}
 
 :root {
   /* CSS HEX */
@@ -49,7 +41,6 @@ body {
   --card-spacing: 14px;
 }
 
-
 :root[data-theme="dark"] {
   --bg: #091102;                /* deep forest base */
   --bg-card: #12200a;           /* slightly lighter for cards */
@@ -61,13 +52,22 @@ body {
   --accent: #6fcf97;            /* fresh green accent */
 }
 
+body {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  line-height: 1.45;
+  background: var(--bg);
+  color: var(--text);
+  /* Prevent horizontal jiggle during board scroll */
+  overflow-y: scroll;
+}
+
 /* 3) App chrome */
 header {
   display: flex;
   align-items: center;
   gap: var(--spacing);
   padding: var(--spacing);
-  background: var(--paynes-gray);
+  background: var(--border);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -76,7 +76,7 @@ header {
 }
 
 header h1 {
-  color: var(--white);
+  color: var(--text);
   font-size: var(--font-lg);
   margin: 0px;
 }
