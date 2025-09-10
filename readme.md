@@ -10,7 +10,7 @@ A local-first kanban-style app built with a web stack. Signboard stores your boa
 
 ## ✨ Features
 - 📂 Boards saved as Markdown files (portable & future-proof)
-- 🖥 Runs as a desktop app (Windows, macOS, Linux)
+- 🖥 Runs as a desktop app (macOS only currently)
 - 🪶 Minimal dependencies, just straight JavaScript + Electron
 - 🔒 Local-first
 
@@ -20,9 +20,9 @@ A local-first kanban-style app built with a web stack. Signboard stores your boa
 
 1. Go to the [Releases page](../../releases).
 2. On the latest releae, download the installer for your operating system:  
-   - **Windows**: `.exe`
+   - **Windows**: `.exe` (coming soon?)
    - **macOS**: `.dmg`
-   - **Linux**: `.AppImage`
+   - **Linux**: `.AppImage` (coming soon?)
 
 ---
 
