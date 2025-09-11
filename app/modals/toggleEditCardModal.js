@@ -85,23 +85,25 @@ async function toggleEditCardModal( cardPath ) {
     cardEditorDupeLink.addEventListener('click', handleClickDuplicateCard, {once:true});
 
     const cardEditorClose = document.getElementById('cardEditorClose');
-
-    cardEditorClose.addEventListener('click', async (e) => {
-        e.target.id = 'board';
-        e.stopPropagation();
-        await closeAllModals(e);
-        
-        return;
-    }, { once: true });
+    cardEditorClose.removeEventListener('click', handleClickCloseCard, { once: true });
+    cardEditorClose.addEventListener('click', handleClickCloseCard, {once:true});
 
     document.getElementById('board').style = 'filter: blur(3px)';
     
-
     // if ( modalEditCard.style.display && modalEditCard.style.display == 'block' ) {
     //     modalEditCard.style.display = 'none';
     // } else {
     //     modalEditCard.style.display = 'block';        
     // }
+
+    return;
+}
+
+async function handleClickCloseCard( e ) {
+    e.target.id = 'board';
+    e.stopPropagation();
+    await closeAllModals(e);
+    return;
 }
 
 async function handleClickDuplicateCard( e ) {
