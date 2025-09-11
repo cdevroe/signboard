@@ -5,12 +5,13 @@ A local-first kanban-style desktop app built with a web stack. Signboard stores 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](../../issues)
 [![GitHub pull requests](https://img.shields.io/github/issues-pr/cdevroe/signboard)](../../pulls)
+[![Donate](https://img.shields.io/badge/Donate-388307)](https://cdevroe.com/donate)
 
 ---
 
 ## ✨ Highlights
 - 📂 Cards saved as Markdown files (portable & future-proof)
-- 🖥 Runs as a desktop app (macOS only currently)
+- 🖥 Runs as a desktop app
 - 🪶 Minimal dependencies, just plain JavaScript + Electron
 
 ---
@@ -19,7 +20,7 @@ A local-first kanban-style desktop app built with a web stack. Signboard stores 
 
 1. Go to the [Releases page](../../releases).
 2. On the latest releae, download the installer for your operating system:  
-   - **Windows**: `.exe` (coming soon?)
+   - **Windows**: `.exe`
    - **macOS**: `.dmg`
    - **Linux**: `.AppImage` (coming soon?)
 
@@ -61,9 +62,9 @@ Contributions in all forms are welcome!
 
 ## 💖 Support the Project
 
-If you find Signboard useful and want to support development, you can donate here:  
+If you find Signboard useful and want to support development, you can donate here:
 
-👉 [https://cdevroe.com/donate](https://cdevroe.com/donate)  
+👉 [https://cdevroe.com/donate](https://cdevroe.com/donate)
 
 Thank you!
 

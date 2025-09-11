@@ -1,33 +1,37 @@
 {
-  "name": "signboard",
-  "version": "0.2.0",
-  "main": "main.js",
-  "build": {
-    "appId": "com.cdevroe.signboard",
-    "productName": "Signboard",
-    "files": [
-      "dist/**",
-      "main.js",
-      "!**/*.map"
+  "appId": "com.cdevroe.signboard",
+  "productName": "Signboard",
+  "files": [
+    "dist/**",
+    "main.js",
+    "!**/*.map"
+  ],
+  "win": {
+    "target": [
+      { "target": "nsis", "arch": ["x64","arm64"] }
     ],
-    "mac": {
-      "category": "public.app-category.productivity",
-      "target": ["dmg", "zip"],
-      "icon": "build/icon.icns",
-      "hardenedRuntime": true,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "gatekeeperAssess": false
-    },
-    "afterSign": "scripts/notarize.js",
-    "asar": true,
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "cdevroe",
-        "repo": "signboard",
-        "releaseType": "draft"
-      }
-    ]
-  }
+    "icon": "build/icon.ico"
+  },
+  "nsis": {
+    "artifactName": "Signboard Setup-${arch}.${ext}"
+  },
+  "mac": {
+    "category": "public.app-category.productivity",
+    "target": ["dmg", "zip"],
+    "icon": "build/icon.icns",
+    "hardenedRuntime": true,
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.plist",
+    "gatekeeperAssess": false
+  },
+  "afterSign": "scripts/notarize.js",
+  "asar": true,
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "cdevroe",
+      "repo": "signboard",
+      "releaseType": "draft"
+    }
+  ]
 }
