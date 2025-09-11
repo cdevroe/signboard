@@ -1,6 +1,6 @@
 # Signboard
 
-A local-first kanban-style app built with a web stack. Signboard stores your boards as Markdown files on disk, so you own your data. With as few dependencies as possible, it’s lightweight, transparent, and open source.
+A local-first kanban-style desktop app built with a web stack. Signboard stores your lists as directories and cards as Markdown files on disk, so you own your data. Built with as few dependencies as possible 😅, it’s lightweight, transparent, and open source.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](../../issues)
@@ -8,11 +8,10 @@ A local-first kanban-style app built with a web stack. Signboard stores your boa
 
 ---
 
-## ✨ Features
-- 📂 Boards saved as Markdown files (portable & future-proof)
+## ✨ Highlights
+- 📂 Cards saved as Markdown files (portable & future-proof)
 - 🖥 Runs as a desktop app (macOS only currently)
-- 🪶 Minimal dependencies, just straight JavaScript + Electron
-- 🔒 Local-first
+- 🪶 Minimal dependencies, just plain JavaScript + Electron
 
 ---
 
@@ -30,7 +29,7 @@ A local-first kanban-style app built with a web stack. Signboard stores your boa
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOURUSERNAME/signboard.git
+git clone https://github.com/cdevroe/signboard.git
 cd signboard
 
 # Install dependencies
