@@ -272,8 +272,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%,
 #modalEditCard .cardEditorHeader a svg { height: 18px; }
 
 #modalEditCard h4.label { font-size: var(--font-sm); text-transform: uppercase; color: var(--muted); margin-bottom: 1px; }
-#modalEditCard #cardEditorContents { background: var(--bg); border-radius: var(--radius); padding: 8px 10px; font-size: var(--font-lg); max-width: 75%; border: 1px solid transparent; }
-#modalEditCard #cardEditorContents:focus { border: 1px solid var(--border); }
+#modalEditCard #cardEditorContents { background: var(--bg); border-radius: var(--radius); min-height: 75px; padding: 8px 10px; font-size: var(--font-lg); max-width: 75%; border: 1px solid transparent; }
+#modalEditCard #cardEditorContents:focus { border: 1px solid var(--border); min-height: 75px; }
 
 /* Dropdowns */
 select {

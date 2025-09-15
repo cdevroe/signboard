@@ -35,7 +35,7 @@ async function toggleEditCardModal( cardPath ) {
         const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
 
-        let cleanedContents = ( cardEditorContents.innerHTML == 'Notes...' ) ? '' : cardEditorContents.innerHTML;
+        let cleanedContents = ( cardEditorContents.innerHTML == '<p>Notes...</p>' ) ? '' : cardEditorContents.innerHTML;
         
         window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + turndown.turndown(cleanedContents));
     });
@@ -46,9 +46,10 @@ async function toggleEditCardModal( cardPath ) {
         
         const cardEditorContents = document.getElementById('cardEditorContents');
 
-        if ( cardEditorContents.innerHTML == 'Notes...' ) {
-            cardEditorContents.innerHTML = '';
-        }
+        // if ( cardEditorContents.innerHTML == '<p>Notes...</p>' ) {
+        //     cardEditorContents.innerHTML = '<p>Notes...</p>';
+        //     this.selectionStart = this.selectionEnd = 10000;
+        // }
         
         return;
     });
@@ -61,7 +62,7 @@ async function toggleEditCardModal( cardPath ) {
         const cardEditorContents = document.getElementById('cardEditorContents');
         const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
-        if ( cardEditorContents.innerHTML.length > 0 && cardEditorContents.innerHTML != 'Notes...' ) {
+        if ( cardEditorContents.innerHTML.length > 0 && cardEditorContents.innerHTML != '<p>Notes...</p>' ) {
             await window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + turndown.turndown(cardEditorContents));
         }
         

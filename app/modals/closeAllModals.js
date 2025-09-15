@@ -13,7 +13,7 @@ async function closeAllModals(e){
             modalEditCard.style.display = 'none';
             const cardEditorTitle = document.getElementById('cardEditorTitle');
             const cardEditorContents = document.getElementById('cardEditorContents');
-            cardEditorContents.innerHTML = 'Notes...';
+            cardEditorContents.innerHTML = '<p>Notes...</p>';
             cardEditorTitle.textContent = '';
             document.getElementById('board').style = 'filter: none';
         }
