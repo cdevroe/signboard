@@ -35,7 +35,7 @@ async function toggleEditCardModal( cardPath ) {
         const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
 
-        let cleanedContents = ( cardEditorContents.innerHTML == 'Notes...' ) ? '' : cardEditorContents.innerHTML;
+        let cleanedContents = ( cardEditorContents.innerHTML == '<p>Notes...</p>' ) ? '' : cardEditorContents.innerHTML;
         
         window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + turndown.turndown(cleanedContents));
     });
@@ -46,9 +46,10 @@ async function toggleEditCardModal( cardPath ) {
         
         const cardEditorContents = document.getElementById('cardEditorContents');
 
-        if ( cardEditorContents.innerHTML == 'Notes...' ) {
-            cardEditorContents.innerHTML = '';
-        }
+        // if ( cardEditorContents.innerHTML == '<p>Notes...</p>' ) {
+        //     cardEditorContents.innerHTML = '<p>Notes...</p>';
+        //     this.selectionStart = this.selectionEnd = 10000;
+        // }
         
         return;
     });
@@ -61,7 +62,7 @@ async function toggleEditCardModal( cardPath ) {
         const cardEditorContents = document.getElementById('cardEditorContents');
         const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
-        if ( cardEditorContents.innerHTML.length > 0 && cardEditorContents.innerHTML != 'Notes...' ) {
+        if ( cardEditorContents.innerHTML.length > 0 && cardEditorContents.innerHTML != '<p>Notes...</p>' ) {
             await window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + turndown.turndown(cardEditorContents));
         }
         
@@ -85,23 +86,25 @@ async function toggleEditCardModal( cardPath ) {
     cardEditorDupeLink.addEventListener('click', handleClickDuplicateCard, {once:true});
 
     const cardEditorClose = document.getElementById('cardEditorClose');
-
-    cardEditorClose.addEventListener('click', async (e) => {
-        e.target.id = 'board';
-        e.stopPropagation();
-        await closeAllModals(e);
-        
-        return;
-    }, { once: true });
+    cardEditorClose.removeEventListener('click', handleClickCloseCard, { once: true });
+    cardEditorClose.addEventListener('click', handleClickCloseCard, {once:true});
 
     document.getElementById('board').style = 'filter: blur(3px)';
     
-
     // if ( modalEditCard.style.display && modalEditCard.style.display == 'block' ) {
     //     modalEditCard.style.display = 'none';
     // } else {
     //     modalEditCard.style.display = 'block';        
     // }
+
+    return;
+}
+
+async function handleClickCloseCard( e ) {
+    e.target.id = 'board';
+    e.stopPropagation();
+    await closeAllModals(e);
+    return;
 }
 
 async function handleClickDuplicateCard( e ) {
