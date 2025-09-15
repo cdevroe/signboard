@@ -19,7 +19,7 @@ A local-first kanban-style desktop app built with a web stack. Signboard stores 
 ## 🚀 Installation
 
 1. Go to the [Releases page](../../releases).
-2. On the latest releae, download the installer for your operating system:  
+2. On the latest release, download the installer for your operating system:  
    - **Windows**: `.exe`
    - **macOS**: `.dmg`
    - **Linux**: `.AppImage` (coming soon?)
@@ -55,7 +55,7 @@ Contributions in all forms are welcome!
 
 ### Contribution Guidelines
 - Keep PRs focused: one change per PR makes reviews faster.
-- Follow existing code style where possible (or, please, suggest new code styles)
+- Follow existing code style where possible (or, please, suggest new code styles!)
 - Be respectful and constructive in discussions.
 
 ---
@@ -78,7 +78,7 @@ Thank you!
 
 My thanks to [John Gruber](https://daringfireball.net/) for creating [Markdown](https://daringfireball.net/projects/markdown/) and to [Steph Ango](https://stephango.com/), CEO of [Obsidian](https://obsidian.md/), for his [File over app philosophy](https://stephango.com/file-over-app).
 
-Signboard includes static versions the following open source libraries:
+Signboard includes static versions of the following open source libraries:
 
 - [Marked](https://github.com/markedjs/marked) – [MIT License](https://github.com/markedjs/marked/blob/master/LICENSE.md)
 - [Turndown](https://github.com/mixmark-io/turndown) – [MIT License](https://github.com/mixmark-io/turndown/blob/master/LICENSE)
