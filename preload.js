@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, shell } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -150,6 +150,10 @@ contextBridge.exposeInMainWorld('board', {
 
 contextBridge.exposeInMainWorld('chooser', {
   pickDirectory: (opts = {}) => ipcRenderer.invoke('choose-directory', opts),
+});
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  openExternal: (url) => shell.openExternal(url),
 });
 
 // Remove characters that are not allowed in filenames

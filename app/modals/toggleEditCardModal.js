@@ -42,6 +42,13 @@ async function toggleEditCardModal( cardPath ) {
 
     cardEditorContents.addEventListener( 'click', async (e) => {
 
+        // If the click was on a link
+        if (e.target.tagName === "A") {
+            e.preventDefault(); // prevent caret placement
+             window.electronAPI.openExternal(e.target.href);
+            //window.open(e.target.href, "_blank"); // open in new tab/window
+        }
+
         if ( e.code == 'Escape' ) { e.preventDefault(); return; }
         
         const cardEditorContents = document.getElementById('cardEditorContents');
