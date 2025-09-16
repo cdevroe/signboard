@@ -51,12 +51,34 @@ async function toggleEditCardModal( cardPath ) {
     });
 
     cardEditorContents.addEventListener( 'keyup', async (e) => {
-
+        //console.log(e.key);
         if ( e.code == 'Escape' ) { e.preventDefault(); return; }
-        
+
         const cardEditorTitle = document.getElementById('cardEditorTitle');
         const cardEditorContents = document.getElementById('cardEditorContents');
         const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+        
+        if ( e.key == " " ) {
+            let currentCharacterCount = cardEditorContents.textContent.length;
+            let previousCharacter = cardEditorContents.textContent.slice(currentCharacterCount-3,currentCharacterCount-2);
+            
+            if ( previousCharacter == "-" ) {
+                let currentContents = cardEditorContents.innerHTML.slice(0,currentCharacterCount-3);
+                currentContents += '<ul><li></li></ul>';
+                cardEditorContents.innerHTML = currentContents;
+
+                let li = cardEditorContents.querySelector('li');
+                if (li) {
+                    let range = document.createRange();
+                    range.setStart(li, 0);
+                    range.collapse(true);
+
+                    let sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            }
+        }
 
         if ( cardEditorContents.innerHTML.length > 0 && cardEditorContents.innerHTML != '<p>Notes...</p>' ) {
             await window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + turndown.turndown(cardEditorContents));
