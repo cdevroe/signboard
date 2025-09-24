@@ -23,7 +23,7 @@ async function sanitizeFileName(rawName) {
   const finalBase = truncatedBase.replace(/[ .]+$/g, '');
 
   // 5. Return combined result
-  const finalName = finalBase.slice(0,25) + ext;
+  const finalName = finalBase + ext;
   return finalName || '999-untitled.md'; // fallback if everything was stripped
 }
 

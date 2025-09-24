@@ -13,8 +13,8 @@ async function closeAllModals(e){
             modalEditCard.style.display = 'none';
             const cardEditorTitle = document.getElementById('cardEditorTitle');
             OverType.destroyAll();
-            const cardEditorContents = document.getElementById('cardEditorOverType');
-            cardEditorContents.value = '';
+            const cardEditorContents = document.getElementsByClassName('overtype-input');
+            cardEditorContents[0].value = '';
             cardEditorTitle.textContent = '';
             document.getElementById('board').style = 'filter: none';
         }
@@ -35,8 +35,8 @@ async function closeAllModals(e){
             modalEditCard.style.display = 'none';
             const cardEditorTitle = document.getElementById('cardEditorTitle');
             OverType.destroyAll();
-            const cardEditorContents = document.getElementById('cardEditorOverType');
-            cardEditorContents.value = '';
+            const cardEditorContents = document.getElementsByClassName('overtype-input');
+            cardEditorContents[0].value = '';
             cardEditorTitle.textContent = '';
             document.getElementById('board').style = 'filter: none';
         }
