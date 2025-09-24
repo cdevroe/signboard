@@ -75,35 +75,6 @@ async function toggleEditCardModal( cardPath ) {
         window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + cardEditorContents[0].value);
     });
 
-    // cardEditorContents.addEventListener( 'click', async (e) => {
-
-    //     if ( e.code == 'Escape' ) { e.preventDefault(); return; }
-        
-    //     const cardEditorContents = document.getElementById('cardEditorContents');
-
-    //     // if ( cardEditorContents.innerHTML == '<p>Notes...</p>' ) {
-    //     //     cardEditorContents.innerHTML = '<p>Notes...</p>';
-    //     //     this.selectionStart = this.selectionEnd = 10000;
-    //     // }
-        
-    //     return;
-    // });
-
-    // cardEditorContents.addEventListener( 'keyup', async (e) => {
-
-    //     if ( e.code == 'Escape' ) { e.preventDefault(); return; }
-        
-    //     const cardEditorTitle = document.getElementById('cardEditorTitle');
-    //     const cardEditorContents = document.getElementById('cardEditorContents');
-    //     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
-
-    //     if ( cardEditorContents.innerHTML.length > 0 && cardEditorContents.innerHTML != '<p>Notes...</p>' ) {
-    //         await window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + turndown.turndown(cardEditorContents));
-    //     }
-        
-    //     return;
-    // });
-
     const cardEditorArchiveLink = document.getElementById('cardEditorArchiveLink');
     cardEditorArchiveLink.addEventListener('click', async (e) => {
         const cardEditorCardPath = document.getElementById('cardEditorCardPath');
@@ -125,19 +96,11 @@ async function toggleEditCardModal( cardPath ) {
     cardEditorClose.addEventListener('click', handleClickCloseCard, {once:true});
 
     document.getElementById('board').style = 'filter: blur(3px)';
-    
-    // if ( modalEditCard.style.display && modalEditCard.style.display == 'block' ) {
-    //     modalEditCard.style.display = 'none';
-    // } else {
-    //     modalEditCard.style.display = 'block';        
-    // }
 
     return;
 }
 
-async function handleNotesSave(value,instance) {
-    //if ( e.code == 'Escape' ) { e.preventDefault(); return; }
-    
+async function handleNotesSave(value,instance) {    
     const cardEditorTitle = document.getElementById('cardEditorTitle');
     const cardEditorContents = value;
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
