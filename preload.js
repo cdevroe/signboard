@@ -154,6 +154,10 @@ contextBridge.exposeInMainWorld('chooser', {
   pickDirectory: (opts = {}) => ipcRenderer.invoke('choose-directory', opts),
 });
 
+contextBridge.exposeInMainWorld("electronAPI", {
+  openExternal: (url) => shell.openExternal(url),
+});
+
 // Remove characters that are not allowed in filenames
 function sanitize(str) {
   return str.replace(/[<>:"/\\|?*\x00-\x1F]/g, '').trim() || 'untitled';

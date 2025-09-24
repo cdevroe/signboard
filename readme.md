@@ -1,6 +1,6 @@
 # Signboard
 
-A local-first kanban-style desktop app built with a web stack. Signboard stores your lists as directories and cards as Markdown files on disk, so you own your data. Built with as few dependencies as possible 😅, it’s lightweight, transparent, and open source.
+A local-first kanban desktop app built with HTML, CSS, and plain JavaScript. Signboard stores your lists as directories and cards as Markdown files on disk, so you own your data.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](../../issues)
