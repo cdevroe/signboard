@@ -8,6 +8,7 @@
   <script src="static/vendor/turndown-7.1.3.js"></script>
   <script src="static/vendor/sortable-1.15.2.min.js"></script>
   <script src="static/vendor/feather-4.29.2.min.js"></script>
+  <script src="static/vendor/overtype-1.26.0.min.js"></script>
 </head>
 <body>
   <header>
@@ -49,12 +50,11 @@
       <a href="#" id="cardEditorDupeLink" title="Duplicate"><i data-feather="copy"></i></a>
       <a href="#" id="cardEditorClose" title="Close"><i data-feather="x"></i></a>
     </div>
-    <span id="cardEditorCardID"></span>
+    <span id="cardEditorCardID" title="Open this card's file"></span>
     <div>
       <h2 id="cardEditorTitle" contenteditable="true"></h2>
     </div>
-    
-    <div id="cardEditorContents" contenteditable="true"><p>Notes...</p></div>
+    <div id="cardEditorOverType" style="height: calc(100% - 50px);"></div>
     <input type="hidden" id="cardEditorCardPath"> 
   </div>
   

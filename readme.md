@@ -12,7 +12,7 @@ A local-first kanban-style desktop app built with a web stack. Signboard stores 
 ## ✨ Highlights
 - 📂 Cards saved as Markdown files (portable & future-proof)
 - 🖥 Runs as a desktop app
-- 🪶 Minimal dependencies, just plain JavaScript + Electron
+- 🪶 Minimal dependencies 😅, just plain JavaScript + Electron
 
 ---
 
@@ -82,5 +82,6 @@ Signboard includes static versions of the following open source libraries:
 
 - [Marked](https://github.com/markedjs/marked) – [MIT License](https://github.com/markedjs/marked/blob/master/LICENSE.md)
 - [Turndown](https://github.com/mixmark-io/turndown) – [MIT License](https://github.com/mixmark-io/turndown/blob/master/LICENSE)
+- [OverType](https://github.com/panphora/overtype) - [MIT License](https://github.com/panphora/overtype/blob/main/LICENSE)
 - [SortableJS](https://github.com/SortableJS/Sortable) – [MIT License](https://github.com/SortableJS/Sortable/blob/master/LICENSE)
 - [Feather Icons](https://github.com/feathericons/feather) – [MIT License](https://github.com/feathericons/feather/blob/master/LICENSE)

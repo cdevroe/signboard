@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, shell } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -53,6 +53,8 @@ contextBridge.exposeInMainWorld('board', {
     let directories = dirs.filter(d => d.isDirectory()).map(d => d.name);
     return directories;
   },
+
+  openCard: async (filePath) => await shell.showItemInFolder(filePath),
 
   readCard: async (filePath) => await fs.readFile(filePath, 'utf8'),
 
