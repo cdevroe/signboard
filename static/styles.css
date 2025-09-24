@@ -258,6 +258,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%,
   background: var(--bg-card);
   width: 50vw;
   max-width: 750px;
+  height: 75vh;
+  max-height: 1000px;
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -265,7 +267,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%,
   padding: 16px 16px 50px 35px;
 }
 
-#modalEditCard #cardEditorCardID { margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
+#modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
 
 #modalEditCard .cardEditorHeader { border-bottom: 1px solid var(--border); height: 30px; text-align: right; }
 #modalEditCard .cardEditorHeader a { color: var(--muted); margin-left: 20px; }
@@ -325,6 +327,11 @@ select:disabled {
 
 [contenteditable] {
   outline: none;
+}
+
+.overtype-wrapper .overtype-preview pre {
+  border-radius: none !important;
+  padding: 8px important!;
 }
 
 /* 9) Small screens */

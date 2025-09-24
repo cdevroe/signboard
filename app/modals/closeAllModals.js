@@ -12,8 +12,9 @@ async function closeAllModals(e){
         if ( modalEditCard.style.display === 'block' ) {
             modalEditCard.style.display = 'none';
             const cardEditorTitle = document.getElementById('cardEditorTitle');
-            const cardEditorContents = document.getElementById('cardEditorContents');
-            cardEditorContents.innerHTML = '<p>Notes...</p>';
+            OverType.destroyAll();
+            const cardEditorContents = document.getElementById('cardEditorOverType');
+            cardEditorContents.value = '';
             cardEditorTitle.textContent = '';
             document.getElementById('board').style = 'filter: none';
         }
@@ -33,8 +34,9 @@ async function closeAllModals(e){
         if ( modalEditCard.style.display === 'block' && !modalEditCard.contains(e.target) ) {
             modalEditCard.style.display = 'none';
             const cardEditorTitle = document.getElementById('cardEditorTitle');
-            const cardEditorContents = document.getElementById('cardEditorContents');
-            cardEditorContents.innerHTML = '';
+            OverType.destroyAll();
+            const cardEditorContents = document.getElementById('cardEditorOverType');
+            cardEditorContents.value = '';
             cardEditorTitle.textContent = '';
             document.getElementById('board').style = 'filter: none';
         }
