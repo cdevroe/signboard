@@ -25,6 +25,12 @@ async function init() {
         btnAddCardToList.click();
     });
     document.addEventListener('click', async (e) => {
+        if (e.target.offsetParent && e.target.offsetParent.className && e.target.offsetParent.className == 'overtype-preview' && e.target.tagName === "A") {
+            e.preventDefault();
+            window.electronAPI.openExternal(e.target.href);
+            return;
+        }
+
         await closeAllModals(e);
     });
     document.getElementById('btnAddNewList').addEventListener('click', async () => {
