@@ -31,11 +31,12 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --mac",
-    "dist:arm64": "electron-builder --mac --arm64",
-    "dist:x64": "electron-builder --mac --x64",
-    "dist:universal": "electron-builder --mac --universal",
+    "dist:macarm64": "electron-builder --mac --arm64",
+    "dist:macx64": "electron-builder --mac --x64",
+    "dist:macuniversal": "electron-builder --mac --universal",
     "dist:winarm64": "electron-builder --win nsis --arm64",
-    "dist:winx64": "electron-builder --win nsis --x64"
+    "dist:winx64": "electron-builder --win nsis --x64",
+    "dist:linux": "electron-builder --linux"
   },
   "devDependencies": {
     "dotenv": "^17.2.2",
