@@ -115,7 +115,11 @@ async function toggleEditCardModal( cardPath ) {
         datepicker.setDate(new Date(year, month - 1, day));
     }
 
-    datepicker.update({onSelect: async (value) => { await handleMetadataSave(value,'Due-date')}});
+    datepicker.update({
+        format: 'Y-m-d',
+        autoClose: true,
+        onSelect: async (value) => { await handleMetadataSave(value,'Due-date')}
+    });
 
     datepickerInput.addEventListener( 'change', (e) => {
         //console.log(e);
@@ -214,8 +218,6 @@ async function handleMetadataSave(value,metaName) {
             cardEditorCardMetadata.value += metaName+": "+value+"\n";
         }
     }
-
-    //console.log(cardEditorCardMetadata.value);
 
     if ( cardEditorCardMetadata.value.length > 0 ) {
         await window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + cardEditorCardMetadata.value + "\n" + "**********\n\n" + cardEditorContents[0].value);
