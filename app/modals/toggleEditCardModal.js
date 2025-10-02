@@ -193,7 +193,6 @@ async function handleMetadataSave(value,metaName) {
 
                 if ( key.trim() === metaName ) {
                     if ( data.trim().length > 0 && value.length > 0 ) { // Erase if setting as blank
-                        console.log(value.length);
                         changedMetalines += key + ': ' + value + "\n";
                     }
                     metaNameFound = true;
@@ -219,9 +218,7 @@ async function handleMetadataSave(value,metaName) {
         }
     }
 
-    if ( cardEditorCardMetadata.value.length > 0 ) {
-        await window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + cardEditorCardMetadata.value + "\n" + "**********\n\n" + cardEditorContents[0].value);
-    }
+    await window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + cardEditorCardMetadata.value + "\n" + "**********\n\n" + cardEditorContents[0].value);
 
     if ( metaName == 'Due-date' ) {
         const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
