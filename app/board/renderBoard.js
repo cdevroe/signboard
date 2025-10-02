@@ -48,6 +48,6 @@ async function renderBoard() {
         
     }
   });
-
+  feather.replace();
   return;
 }

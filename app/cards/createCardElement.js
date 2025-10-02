@@ -1,13 +1,40 @@
 async function createCardElement(cardPath) {
-    const fullMarkdown = await window.board.readCard(cardPath);
-    const lines = fullMarkdown.split(/\r?\n/);
-    const titleContent = lines[0];
-    const md = lines.slice(1).join("\n");
+  const fullMarkdown = await window.board.readCard(cardPath);
+  const titleContent = fullMarkdown.split(/\r?\n/)[0];
+  let frontMatter     = fullMarkdown.split('**********');
+  let isFrontMatter   = frontMatter.length > 1 ? true : false; // True means there is frontmatter
+  let metadataArray = [];
+
+  if ( isFrontMatter ) { // Handle metadata
+      let metalines = frontMatter[0].split(/\r?\n/);
+      
+      
+      metalines = metalines.filter((line, index) =>{
+          if ( index === 0 ) { // Removes card title
+              return false;
+          }
+          if ( line.trim() === "") { // Removes empty lines
+              return false;
+          }
+          metadataArray[line.split(': ')[0]] = line.split(': ')[1].trim();
+      });
+  }
+
+  let lines           = isFrontMatter ? frontMatter[1].split(/\r?\n/) : fullMarkdown.split(/\r?\n/);
+  lines = lines.filter((line, index) => {
+        if ( !isFrontMatter && index === 0) { // Removes card title
+            return false;
+        }
+        if (line.trim() === "") { // Removes leading empty lines
+            return false;
+        }
+        return true;
+    });
+  let previewText = isFrontMatter ? lines[0] : fullMarkdown.split(/\r?\n/)[1];
 
   const cardEl = document.createElement('div');
   cardEl.className = 'card';
-    cardEl.dataset.path = cardPath;
-  
+  cardEl.dataset.path = cardPath;
 
   const title = document.createElement('h3');
   title.textContent = titleContent.replace('# ', '');
@@ -15,9 +42,21 @@ async function createCardElement(cardPath) {
 
   const body = document.createElement('div');
   body.className = 'card-body';
-  let cardPreview = ( md.length > 50 ) ? md.slice(1,35) + '...' : md;
+  let cardPreview = ( previewText.length > 50 ) ? previewText.slice(0,35) + '...' : previewText;
+
+  let cardIcons = '';
+
+  if ( metadataArray['Due-date'] ) {
+    cardIcons += '<span title="' + metadataArray['Due-date'] + '"><i data-feather="clock"></i></span>'
+  }
+
+  if ( metadataArray['Labels'] ) {
+    metadataArray['Labels'].split(',').forEach((label) => {
+      cardIcons += '<span class="label-'+label+'" title="' + label + '"><i data-feather="tag"></i></span>'
+    });
+  }
   
-  body.innerHTML = renderMarkdown(cardPreview);
+  body.innerHTML = '<p>' + cardPreview + '</p>' + '<div>' + cardIcons + '</div>';
     
   cardEl.appendChild(body);
 
