@@ -8,7 +8,6 @@ async function createCardElement(cardPath) {
   if ( isFrontMatter ) { // Handle metadata
       let metalines = frontMatter[0].split(/\r?\n/);
       
-      
       metalines = metalines.filter((line, index) =>{
           if ( index === 0 ) { // Removes card title
               return false;
@@ -20,7 +19,7 @@ async function createCardElement(cardPath) {
       });
   }
 
-  let lines           = isFrontMatter ? frontMatter[1].split(/\r?\n/) : fullMarkdown.split(/\r?\n/);
+  let lines = isFrontMatter ? frontMatter[1].split(/\r?\n/) : fullMarkdown.split(/\r?\n/);
   lines = lines.filter((line, index) => {
         if ( !isFrontMatter && index === 0) { // Removes card title
             return false;
@@ -30,7 +29,7 @@ async function createCardElement(cardPath) {
         }
         return true;
     });
-  let previewText = ( isFrontMatter && lines.length > 1 ) ? lines[0] : fullMarkdown.split(/\r?\n/)[1];
+  let previewText = lines[0];
 
   if ( !previewText ) {
     previewText = '';

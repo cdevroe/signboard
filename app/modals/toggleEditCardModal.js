@@ -27,11 +27,10 @@ async function toggleEditCardModal( cardPath ) {
             metadataArray[line.split(': ')[0]] = line.split(': ')[1].trim();
         });
 
-        
     }
     
     lines = lines.filter((line, index) => {
-        if ( !isFrontMatter && index === 0) { // Removes card title
+        if ( !lineHasContents && !isFrontMatter && index === 0) { // Removes card title
             return false;
         }
         if (!lineHasContents && line.trim() === "") { // Removes leading empty lines
@@ -40,7 +39,7 @@ async function toggleEditCardModal( cardPath ) {
         lineHasContents = true;
         return true;
     });
-    const md = isFrontMatter ? lines.join("\n") : lines.slice(1).join("\n");
+    const md = isFrontMatter ? lines.join("\n") : lines.slice(0).join("\n");
 
     const cardID = window.board.getCardID(cardPath);
     const cardEditorCardID = document.getElementById('cardEditorCardID');
