@@ -30,7 +30,7 @@ html, body { margin: 0; height: 100%; }
   --font-xs: 12px;
   --font-sm: 14px;
   --font-md: 16px;
-  --font-lg: 18px;
+  --font-lg: 22px;
 
   /* Column sizing */
   --list-min: 280px;
@@ -208,6 +208,12 @@ main#board {
   font-size: var(--font-sm);
   color: var(--muted);
 }
+.card-body span.due-date {
+  margin-right: 10px;
+}
+.card-body span.label {
+  margin-right: -7px;
+}
 .card-body svg {
   height: 18px;
 }
@@ -345,6 +351,10 @@ select:disabled {
 
 [contenteditable] {
   outline: none;
+}
+
+#cardEditorOverType {
+  margin-top: 20px;
 }
 
 .overtype-wrapper .overtype-preview pre {

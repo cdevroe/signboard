@@ -30,7 +30,11 @@ async function createCardElement(cardPath) {
         }
         return true;
     });
-  let previewText = isFrontMatter ? lines[0] : fullMarkdown.split(/\r?\n/)[1];
+  let previewText = ( isFrontMatter && lines.length > 1 ) ? lines[0] : fullMarkdown.split(/\r?\n/)[1];
+
+  if ( !previewText ) {
+    previewText = '';
+  }
 
   const cardEl = document.createElement('div');
   cardEl.className = 'card';
@@ -42,21 +46,21 @@ async function createCardElement(cardPath) {
 
   const body = document.createElement('div');
   body.className = 'card-body';
-  let cardPreview = ( previewText.length > 50 ) ? previewText.slice(0,35) + '...' : previewText;
+  let cardPreview = ( previewText && previewText.length > 50 ) ? previewText.slice(0,35) + '...' : previewText;
 
   let cardIcons = '';
 
-  if ( metadataArray['Due-date'] ) {
-    cardIcons += '<span title="' + metadataArray['Due-date'] + '"><i data-feather="clock"></i></span>'
+  if ( metadataArray && metadataArray['Due-date'] ) {
+    cardIcons += '<span class="due-date" title="' + metadataArray['Due-date'] + '"><i data-feather="clock"></i></span>'
   }
 
-  if ( metadataArray['Labels'] ) {
+  if ( metadataArray && metadataArray['Labels'] ) {
     metadataArray['Labels'].split(',').forEach((label) => {
-      cardIcons += '<span class="label-'+label+'" title="' + label + '"><i data-feather="tag"></i></span>'
+      cardIcons += '<span class="label label-'+label+'" title="' + label + '"><i data-feather="tag"></i></span>'
     });
   }
   
-  body.innerHTML = '<p>' + cardPreview + '</p>' + '<div>' + cardIcons + '</div>';
+  body.innerHTML = '<p>' + cardPreview + '</p>' + '<div class="metadata">' + cardIcons + '</div>';
     
   cardEl.appendChild(body);
 

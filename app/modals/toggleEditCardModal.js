@@ -47,14 +47,14 @@ async function toggleEditCardModal( cardPath ) {
     cardEditorCardID.textContent = cardID;
 
     if ( metadataArray && metadataArray['Due-date'] ) {
-        const cardEditorCardDueDate = document.getElementById('cardEditorCardDueDateDisplay');
+        const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
         const [year, month, day] = metadataArray['Due-date'].split("-").map(Number);
         const dateToDisplay = new Date(year, month -1, day);
 
         const dateOptions = { month: "short", day: "numeric" };
         const formattedDate = new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
 
-        cardEditorCardDueDate.textContent = formattedDate;
+        cardEditorCardDueDateDisplay.textContent = formattedDate;
     }
 
     cardEditorCardID.addEventListener('click',(e) => {
@@ -66,7 +66,6 @@ async function toggleEditCardModal( cardPath ) {
     const cardEditorCardMetadata = document.getElementById('cardEditorCardMetadata');
     cardEditorCardMetadata.value = isFrontMatter && metadataString.length > 0 ? metadataString : '';
 
-    console.log(cardEditorCardMetadata.value);
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
     cardEditorCardPath.value = cardPath;
 
@@ -112,14 +111,19 @@ async function toggleEditCardModal( cardPath ) {
         autoClose: true,
     });
 
-    if ( metadataArray && metadataArray['Due-date'] ) {
+    if ( metadataArray && metadataArray['Due-date'] && metadataArray['Due-date'].length > 0 ) {
         const [year, month, day] = metadataArray['Due-date'].split("-").map(Number);
         datepicker.setDate(new Date(year, month - 1, day));
-
-        // Now that we've set the initial date
-        // Add an onSelect
-        datepicker.update({onSelect: async (value) => { await handleMetadataSave(value,'Due-date')}})
     }
+
+    datepicker.update({onSelect: async (value) => { await handleMetadataSave(value,'Due-date')}});
+
+    datepickerInput.addEventListener( 'change', (e) => {
+        //console.log(e);
+        if ( e.target.value === "" ) {
+            handleMetadataSave('','Due-date');
+        }
+    });
 
     cardEditorSetDueDateLink.addEventListener('click', (e) => {
         e.preventDefault();
@@ -185,7 +189,10 @@ async function handleMetadataSave(value,metaName) {
                 data = line.split(': ')[1];
 
                 if ( key.trim() === metaName ) {
-                    changedMetalines += key + ': ' + value + "\n";
+                    if ( data.trim().length > 0 && value.length > 0 ) { // Erase if setting as blank
+                        console.log(value.length);
+                        changedMetalines += key + ': ' + value + "\n";
+                    }
                     metaNameFound = true;
                 } else {
                     changedMetalines += key + ': ' + data.trim() + "\n";
@@ -199,10 +206,14 @@ async function handleMetadataSave(value,metaName) {
         if ( metaNameFound ) {
             cardEditorCardMetadata.value = changedMetalines;
         } else {
-            cardEditorCardMetadata.value += metaName+": "+value+"\n";
+            if ( value.length > 0 ) {
+                cardEditorCardMetadata.value += metaName+": "+value+"\n";
+            }
         }
     } else {
-        cardEditorCardMetadata.value = metaName+": "+value+"\n";
+        if ( value.length > 0 ) {
+            cardEditorCardMetadata.value += metaName+": "+value+"\n";
+        }
     }
 
     //console.log(cardEditorCardMetadata.value);
@@ -212,14 +223,19 @@ async function handleMetadataSave(value,metaName) {
     }
 
     if ( metaName == 'Due-date' ) {
-        const cardEditorCardDueDate = document.getElementById('cardEditorCardDueDateDisplay');
-        const [year, month, day] = value.split("-").map(Number);
-        const dateToDisplay = new Date(year, month -1, day);
+        const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
 
-        const dateOptions = { month: "short", day: "numeric" };
-        const formattedDate = new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
+        if ( value.length > 0 ) {
+            const [year, month, day] = value.split("-").map(Number);
+            const dateToDisplay = new Date(year, month -1, day);
 
-        cardEditorCardDueDate.textContent = formattedDate;
+            const dateOptions = { month: "short", day: "numeric" };
+            const formattedDate = new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
+
+            cardEditorCardDueDateDisplay.textContent = formattedDate;
+        } else {
+            cardEditorCardDueDateDisplay.textContent = '';
+        }
     }
     
     return;

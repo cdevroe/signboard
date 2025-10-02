@@ -18,6 +18,8 @@ async function closeAllModals(e){
             cardEditorTitle.textContent = '';
             const cardEditorCardMetadata = document.getElementById('cardEditorCardMetadata');
             cardEditorCardMetadata.value = '';
+            const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
+            cardEditorCardDueDateDisplay.textContent = '';
             document.getElementById('board').style = 'filter: none';
         }
         if ( modalAddCardToList.style.display === 'block' ) {
@@ -42,6 +44,8 @@ async function closeAllModals(e){
             cardEditorTitle.textContent = '';
             const cardEditorCardMetadata = document.getElementById('cardEditorCardMetadata');
             cardEditorCardMetadata.value = '';
+            const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
+            cardEditorCardDueDateDisplay.textContent = '';
             document.getElementById('board').style = 'filter: none';
         }
 
