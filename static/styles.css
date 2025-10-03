@@ -34,7 +34,7 @@ html, body { margin: 0; height: 100%; }
 
   /* Column sizing */
   --list-min: 280px;
-  --list-max: 340px;
+  --list-max: 280px;
   --card-gap: 10px;
 
   /* Card sizing */
