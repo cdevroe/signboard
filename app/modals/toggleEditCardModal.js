@@ -8,6 +8,7 @@ async function toggleEditCardModal( cardPath ) {
     let isFrontMatter   = frontMatter.length > 1 ? true : false; // True means there is frontmatter
     let lines           = isFrontMatter ? frontMatter[1].split(/\r?\n/) : fullMarkdown.split(/\r?\n/);
 
+    // TODO: Refactor all of this (see also createCardElement 8-37)
     // Using OverType would result in line breaks being added
     // to the card notes. This removes them.
     let lineHasContents = false;
@@ -41,7 +42,7 @@ async function toggleEditCardModal( cardPath ) {
     });
     const md = isFrontMatter ? lines.join("\n") : lines.slice(0).join("\n");
 
-    const cardID = window.board.getCardID(cardPath);
+    const cardID = await window.board.getCardID(cardPath);
     const cardEditorCardID = document.getElementById('cardEditorCardID');
     cardEditorCardID.textContent = cardID;
 

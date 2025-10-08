@@ -3,7 +3,7 @@ async function renderBoard() {
   if (!boardRoot) return;
 
   const boardName = document.getElementById('boardName');
-  boardName.textContent = window.board.getBoardName( boardRoot );
+  boardName.textContent = await window.board.getBoardName( boardRoot );
 
   const lists = await window.board.listLists(boardRoot);
   const boardEl = document.getElementById('board');

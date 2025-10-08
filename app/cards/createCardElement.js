@@ -1,10 +1,11 @@
 async function createCardElement(cardPath) {
   const fullMarkdown = await window.board.readCard(cardPath);
-  const titleContent = fullMarkdown.split(/\r?\n/)[0];
-  let frontMatter     = fullMarkdown.split('**********');
-  let isFrontMatter   = frontMatter.length > 1 ? true : false; // True means there is frontmatter
-  let metadataArray = [];
+  const titleContent = await window.board.getCardTitle(fullMarkdown);
+  let frontMatter    = fullMarkdown.split('**********');
+  let isFrontMatter  = frontMatter.length > 1 ? true : false; // True means there is frontmatter
+  let metadataArray  = [];
 
+  // TODO: Refactor all of this (see also toggleEditCardModal 11-42)
   if ( isFrontMatter ) { // Handle metadata
       let metalines = frontMatter[0].split(/\r?\n/);
       
@@ -50,12 +51,7 @@ async function createCardElement(cardPath) {
   let cardIcons = '';
 
   if ( metadataArray && metadataArray['Due-date'] ) {
-    const [year, month, day] = metadataArray['Due-date'].split("-").map(Number);
-    const dateToDisplay = new Date(year, month -1, day);
-
-    const dateOptions = { month: "short", day: "numeric" };
-    const formattedDate = new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
-    cardIcons += '<span class="due-date" title="' + metadataArray['Due-date'] + '"><i data-feather="clock"></i> <span class="formatted-date">'+formattedDate+'</span></span>'
+    cardIcons += '<span class="due-date" title="' + metadataArray['Due-date'] + '"><i data-feather="clock"></i> <span class="formatted-date">'+await window.board.formatDueDate(metadataArray['Due-date'])+'</span></span>'
   }
 
   if ( metadataArray && metadataArray['Labels'] ) {
