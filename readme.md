@@ -22,7 +22,7 @@ A local-first kanban desktop app built with HTML, CSS, and plain JavaScript. Sig
 2. On the latest release, download the installer for your operating system:  
    - **Windows**: `.exe`
    - **macOS**: `.dmg`
-   - **Linux**: `.AppImage` (coming soon?)
+   - **Linux**: `.AppImage`
 
 ---
 

@@ -32,8 +32,8 @@ ipcMain.handle('choose-directory', async (event, { defaultPath } = {}) => {
     buttonLabel: 'Choose',
     defaultPath,
     properties: [
-      'openDirectory',     // pick a directory
-      'createDirectory',   // allow creating a new folder
+      'openDirectory',
+      'createDirectory',
       // 'dontAddToRecent', // optional
     ],
   });
