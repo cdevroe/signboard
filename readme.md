@@ -22,7 +22,7 @@ A local-first kanban desktop app built with HTML, CSS, and plain JavaScript. Sig
 2. On the latest release, download the installer for your operating system:  
    - **Windows**: `.exe`
    - **macOS**: `.dmg`
-   - **Linux**: `.AppImage` (coming soon?)
+   - **Linux**: `.AppImage`
 
 ---
 
@@ -85,3 +85,4 @@ Signboard includes static versions of the following open source libraries:
 - [OverType](https://github.com/panphora/overtype) - [MIT License](https://github.com/panphora/overtype/blob/main/LICENSE)
 - [SortableJS](https://github.com/SortableJS/Sortable) – [MIT License](https://github.com/SortableJS/Sortable/blob/master/LICENSE)
 - [Feather Icons](https://github.com/feathericons/feather) – [MIT License](https://github.com/feathericons/feather/blob/master/LICENSE)
+- [fDatepicker](https://github.com/liedekef/fdatepicker) – [MIT License](https://github.com/liedekef/fdatepicker/blob/master/LICENSE.md)

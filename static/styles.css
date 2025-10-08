@@ -30,11 +30,11 @@ html, body { margin: 0; height: 100%; }
   --font-xs: 12px;
   --font-sm: 14px;
   --font-md: 16px;
-  --font-lg: 18px;
+  --font-lg: 22px;
 
   /* Column sizing */
   --list-min: 280px;
-  --list-max: 340px;
+  --list-max: 280px;
   --card-gap: 10px;
 
   /* Card sizing */
@@ -208,6 +208,30 @@ main#board {
   font-size: var(--font-sm);
   color: var(--muted);
 }
+.card-body span.due-date {
+  margin-right: 10px;
+}
+.card-body span.due-date .formatted-date {
+  vertical-align: top;
+}
+.card-body span.label {
+  margin-right: -7px;
+}
+.card-body svg {
+  height: 18px;
+}
+
+.card-body span.label-red svg {
+  stroke: rgb(249, 58, 58);
+}
+
+.card-body span.label-blue svg {
+  stroke: rgb(0, 110, 255);
+}
+
+.card-body span.label-green svg {
+  stroke: rgb(1, 162, 1);
+}
 
 /* 6) Generic buttons (fallback) */
 button {
@@ -268,10 +292,14 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%,
 }
 
 #modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
+#modalEditCard #cardEditorCardDueDateDisplay { font-size: var(--font-sm); color: var(--muted); }
+#modalEditCard #cardEditorSetDueDateLink { text-decoration: none; }
 
 #modalEditCard .cardEditorHeader { border-bottom: 1px solid var(--border); height: 30px; text-align: right; }
 #modalEditCard .cardEditorHeader a { color: var(--muted); margin-left: 20px; }
-#modalEditCard .cardEditorHeader a svg { height: 18px; }
+#modalEditCard .cardEditorMetadataButtons a { color: var(--muted); }
+#modalEditCard .cardEditorMetadataButtons span { vertical-align: top; margin-right: 15px; }
+#modalEditCard .cardEditorHeader a svg, #modalEditCard .cardEditorMetadataButtons a svg { height: 18px; }
 
 #modalEditCard h4.label { font-size: var(--font-sm); text-transform: uppercase; color: var(--muted); margin-bottom: 1px; }
 #modalEditCard #cardEditorContents { background: var(--bg); border-radius: var(--radius); min-height: 75px; padding: 8px 10px; font-size: var(--font-lg); max-width: 75%; border: 1px solid transparent; }
@@ -329,9 +357,18 @@ select:disabled {
   outline: none;
 }
 
+#cardEditorOverType {
+  margin-top: 20px;
+}
+
 .overtype-wrapper .overtype-preview pre {
   border-radius: none !important;
   padding: 8px important!;
+}
+
+.fdatepicker-popup {
+  top: 235px !important;
+  left: calc( 60vw - 30vw) !important;
 }
 
 /* 9) Small screens */

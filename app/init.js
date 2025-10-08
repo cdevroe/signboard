@@ -9,7 +9,7 @@ async function init() {
         labelBoardPath.textContent = 'Switch Board';
         
         window.boardRoot = previousOpenedBoard;
-        renderBoard();
+        await renderBoard();
     }
 
     const userInput = document.getElementById('userInput');
@@ -69,6 +69,5 @@ async function init() {
             await openBoard(dir);
         }
     });
-    feather.replace();
 }
 init();

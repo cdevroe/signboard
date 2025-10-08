@@ -33,15 +33,26 @@ contextBridge.exposeInMainWorld('board', {
                 .map(f => f.name).length;
   },
 
-  getBoardName: (filePath) => {
+  getBoardName: async (filePath) => {
     const parts = filePath.split('/').filter(Boolean);
     const lastDir = parts[parts.length - 1];
     return lastDir;
   },
 
-  getCardID: (filePath) => { 
+  getCardID: async (filePath) => { 
     const cardFileName = filePath.split(/[\\/]/).pop(); 
     return cardFileName.slice(cardFileName.length-8,cardFileName.length-3);
+  },
+
+  getCardTitle: async (fileContents) => {
+    return fileContents.split(/\r?\n/)[0];
+  },
+
+  formatDueDate: async (dateString) => { // 2025-10-06 > Oct 6
+    const [year, month, day] = dateString.split("-").map(Number);
+    const dateToDisplay = new Date(year, month -1, day);
+    const dateOptions = { month: "short", day: "numeric" };
+    return new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
   },
 
   getCardFileName: (filePath) => { return filePath.split(/[\\/]/).pop(); },
