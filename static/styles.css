@@ -211,6 +211,9 @@ main#board {
 .card-body span.due-date {
   margin-right: 10px;
 }
+.card-body span.due-date .formatted-date {
+  vertical-align: top;
+}
 .card-body span.label {
   margin-right: -7px;
 }
@@ -290,6 +293,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%,
 
 #modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
 #modalEditCard #cardEditorCardDueDateDisplay { font-size: var(--font-sm); color: var(--muted); }
+#modalEditCard #cardEditorSetDueDateLink { text-decoration: none; }
 
 #modalEditCard .cardEditorHeader { border-bottom: 1px solid var(--border); height: 30px; text-align: right; }
 #modalEditCard .cardEditorHeader a { color: var(--muted); margin-left: 20px; }

@@ -50,7 +50,12 @@ async function createCardElement(cardPath) {
   let cardIcons = '';
 
   if ( metadataArray && metadataArray['Due-date'] ) {
-    cardIcons += '<span class="due-date" title="' + metadataArray['Due-date'] + '"><i data-feather="clock"></i></span>'
+    const [year, month, day] = metadataArray['Due-date'].split("-").map(Number);
+    const dateToDisplay = new Date(year, month -1, day);
+
+    const dateOptions = { month: "short", day: "numeric" };
+    const formattedDate = new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
+    cardIcons += '<span class="due-date" title="' + metadataArray['Due-date'] + '"><i data-feather="clock"></i> <span class="formatted-date">'+formattedDate+'</span></span>'
   }
 
   if ( metadataArray && metadataArray['Labels'] ) {
@@ -65,14 +70,19 @@ async function createCardElement(cardPath) {
 
   cardEl.addEventListener('click', async () => {
 
+    let modalEditCard = document.getElementById('modalEditCard');
+    if ( modalEditCard.style.display == 'block' ) {
+      return;
+    }
+
     toggleEditCardModal( cardPath );
-        
-        // if (newMd !== null) {
-        //   await window.board.writeCard(cardPath, newMd);
-        //   const updatedCard = await createCardElement(cardPath);
-        //   cardEl.parentNode.replaceChild(updatedCard, cardEl);
-        // }
-      });
+      
+      // if (newMd !== null) {
+      //   await window.board.writeCard(cardPath, newMd);
+      //   const updatedCard = await createCardElement(cardPath);
+      //   cardEl.parentNode.replaceChild(updatedCard, cardEl);
+      // }
+    });
 
   // Drop zone for attachments
   cardEl.addEventListener('dragover', e => e.preventDefault());
