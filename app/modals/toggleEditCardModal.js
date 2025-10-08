@@ -204,8 +204,6 @@ async function handleMetadataSave(value,metaName) {
             }
         });
 
-        //console.log(changedMetalines);
-
         if ( metaNameFound ) {
             cardEditorCardMetadata.value = changedMetalines;
         } else {
@@ -225,13 +223,7 @@ async function handleMetadataSave(value,metaName) {
         const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
 
         if ( value.length > 0 ) {
-            const [year, month, day] = value.split("-").map(Number);
-            const dateToDisplay = new Date(year, month -1, day);
-
-            const dateOptions = { month: "short", day: "numeric" };
-            const formattedDate = new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
-
-            cardEditorCardDueDateDisplay.textContent = formattedDate;
+            cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(value);
         } else {
             cardEditorCardDueDateDisplay.textContent = '';
         }

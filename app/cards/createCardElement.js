@@ -72,15 +72,9 @@ async function createCardElement(cardPath) {
     }
 
     toggleEditCardModal( cardPath );
-      
-      // if (newMd !== null) {
-      //   await window.board.writeCard(cardPath, newMd);
-      //   const updatedCard = await createCardElement(cardPath);
-      //   cardEl.parentNode.replaceChild(updatedCard, cardEl);
-      // }
-    });
+  });
 
-  // Drop zone for attachments
+  // Not used yet! Drop zone for attachments
   cardEl.addEventListener('dragover', e => e.preventDefault());
   cardEl.addEventListener('drop', async e => {
     e.preventDefault();
