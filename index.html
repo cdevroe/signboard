@@ -4,11 +4,14 @@
   <meta charset="utf-8">
   <title>Signboard</title>
   <link rel="stylesheet" href="static/styles.css">
+  <link rel="stylesheet" href="static/vendor/fdatepicker-3.0.24.min.css">
   <script src="static/vendor/marked-12.0.2.min.js"></script>
   <script src="static/vendor/turndown-7.1.3.js"></script>
   <script src="static/vendor/sortable-1.15.2.min.js"></script>
   <script src="static/vendor/feather-4.29.2.min.js"></script>
   <script src="static/vendor/overtype-1.26.0.min.js"></script>
+  <script src="static/vendor/fdatepicker-3.0.24.min.js"></script>
+  <script src="static/vendor/fdatepicker.en-3.0.24.js"></script>
 </head>
 <body>
   <header>
@@ -51,11 +54,18 @@
       <a href="#" id="cardEditorClose" title="Close"><i data-feather="x"></i></a>
     </div>
     <span id="cardEditorCardID" title="Open this card's file"></span>
+    
     <div>
       <h2 id="cardEditorTitle" contenteditable="true"></h2>
+      <div class="cardEditorMetadataButtons">
+        <a href="#" id="cardEditorSetDueDateLink" title="Edit Due Date"><i data-feather="clock"></i> <span id="cardEditorCardDueDateDisplay" title="This card's due date"></span></a>
+        <!-- <a href="#" id="cardEditorSetLabelsLink" title="Edit Labels"><i data-feather="tag"></i></a> <span id="cardEditorCardLabels" title="This card's labels"></span> -->
+      </div>
     </div>
-    <div id="cardEditorOverType" style="height: calc(100% - 50px);"></div>
-    <input type="hidden" id="cardEditorCardPath"> 
+    <div id="cardEditorOverType" style="height: calc(100% - 90px);"></div>
+    <input type="hidden" id="cardEditorCardPath">
+    <input type="hidden" id="cardEditorCardMetadata">
+    <input type="hidden" id="cardEditorCardDueDate">
   </div>
   
   <script src="app/signboard.js"></script>

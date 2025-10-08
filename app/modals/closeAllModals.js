@@ -12,10 +12,14 @@ async function closeAllModals(e){
         if ( modalEditCard.style.display === 'block' ) {
             modalEditCard.style.display = 'none';
             const cardEditorTitle = document.getElementById('cardEditorTitle');
-            OverType.destroyAll();
+            
             const cardEditorContents = document.getElementsByClassName('overtype-input');
             cardEditorContents[0].value = '';
             cardEditorTitle.textContent = '';
+            const cardEditorCardMetadata = document.getElementById('cardEditorCardMetadata');
+            cardEditorCardMetadata.value = '';
+            const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
+            cardEditorCardDueDateDisplay.textContent = '';
             document.getElementById('board').style = 'filter: none';
         }
         if ( modalAddCardToList.style.display === 'block' ) {
@@ -34,10 +38,14 @@ async function closeAllModals(e){
         if ( modalEditCard.style.display === 'block' && !modalEditCard.contains(e.target) ) {
             modalEditCard.style.display = 'none';
             const cardEditorTitle = document.getElementById('cardEditorTitle');
-            OverType.destroyAll();
+            
             const cardEditorContents = document.getElementsByClassName('overtype-input');
             cardEditorContents[0].value = '';
             cardEditorTitle.textContent = '';
+            const cardEditorCardMetadata = document.getElementById('cardEditorCardMetadata');
+            cardEditorCardMetadata.value = '';
+            const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
+            cardEditorCardDueDateDisplay.textContent = '';
             document.getElementById('board').style = 'filter: none';
         }
 
@@ -46,5 +54,9 @@ async function closeAllModals(e){
             document.getElementById('board').style = 'filter: none';
         }
     }
+
+    FDatepicker.destroyAll();
+    OverType.destroyAll();
+
     await renderBoard();
 }
