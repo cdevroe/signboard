@@ -64,9 +64,11 @@ async function createListElement(name, listPath, cardNames) {
   cardsEl.dataset.path = listPath;
   listEl.appendChild(cardsEl);
 
-  for (const cardName of cardNames) {
-    const cardPath = listPath + '/' + cardName;
-    const cardEl = await createCardElement(cardPath);
+  const cardElements = await Promise.all(
+    cardNames.map((cardName) => createCardElement(listPath + '/' + cardName))
+  );
+
+  for (const cardEl of cardElements) {
     cardsEl.appendChild(cardEl);
   }
 

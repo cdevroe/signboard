@@ -2,6 +2,17 @@ const { contextBridge, ipcRenderer, shell } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
 const cardFrontmatter = require('./lib/cardFrontmatter');
+const cardFileSortCollator = new Intl.Collator(undefined, {
+  usage: 'sort',
+  sensitivity: 'base',
+  numeric: true,
+  ignorePunctuation: true,
+  localeMatcher: 'lookup'
+});
+const dueDateFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+});
 
 contextBridge.exposeInMainWorld('board', {
   listLists: async (root) => {
@@ -13,17 +24,10 @@ contextBridge.exposeInMainWorld('board', {
 
   listCards: async (listPath) => {
     const files = await fs.readdir(listPath, { withFileTypes: true });
-    const collator = new Intl.Collator(undefined, {
-        usage: 'sort',
-        sensitivity:'base',
-        numeric: true,
-        ignorePunctuation: true,
-        localeMatcher: 'lookup'
-    });
 
     let sortedFiles = files.filter(f => f.isFile() && f.name.endsWith('.md')).map(f => f.name);
 
-    sortedFiles.sort((a, b) => collator.compare(a, b));
+    sortedFiles.sort((a, b) => cardFileSortCollator.compare(a, b));
 
     return sortedFiles;
   },
@@ -51,8 +55,7 @@ contextBridge.exposeInMainWorld('board', {
   formatDueDate: async (dateString) => { // 2025-10-06 > Oct 6
     const [year, month, day] = dateString.split("-").map(Number);
     const dateToDisplay = new Date(year, month -1, day);
-    const dateOptions = { month: "short", day: "numeric" };
-    return new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
+    return dueDateFormatter.format(dateToDisplay);
   },
 
   getCardFileName: (filePath) => path.basename(path.normalize(filePath)),

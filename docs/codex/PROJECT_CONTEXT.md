@@ -16,6 +16,10 @@ File: `main.js`
 - Creates a single `BrowserWindow` and loads `index.html`.
 - Registers IPC handler `choose-directory` to open native folder picker.
 - Uses `preload.js` for renderer API exposure.
+- Security-related window settings are:
+  - `contextIsolation: true`
+  - `nodeIntegration: false`
+  - `sandbox: false` (required because `preload.js` currently uses Node `fs`/`path` APIs directly)
 
 ### Preload Bridge
 File: `preload.js`
@@ -23,12 +27,15 @@ File: `preload.js`
 - Exposes `window.board` (filesystem + card operations), `window.chooser`, and `window.electronAPI`.
 - Wraps card reads/writes through `lib/cardFrontmatter.js`.
 - Handles operations like list/card enumerate, move, create, and Trello import.
+- Uses `path.basename(path.normalize(...))` for cross-platform path parsing.
+- Reuses shared `Intl.Collator` and `Intl.DateTimeFormat` instances for faster repeated sorting/date formatting.
+- Trello import writes cards with awaited loops to avoid race conditions.
 
 ### Renderer
 Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 - UI is vanilla HTML/CSS/JS.
-- `index.html` loads vendored libraries and then `app/signboard.js`.
+- `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
 - `app/signboard.js` is concatenated from source modules by `buildjs.sh`.
 
 ## Data Model and Naming Conventions
@@ -58,13 +65,17 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/board/openBoard.js`:
   - Creates starter lists/cards when board folder is empty.
   - Sets `window.boardRoot` and renders board.
+  - Updates the folder picker label to `Switch Board` after successful board open.
 
 ### Rendering board/lists/cards
 - `app/board/renderBoard.js`:
   - Reads lists, builds columns, enables list drag-and-drop reorder.
+  - Fetches each list's card names concurrently for faster initial render.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior.
   - Enables card drag-and-drop reorder and cross-list move.
+  - Sanitizes list names before filesystem rename.
+  - Builds card DOM for a list concurrently to reduce list render time.
 - `app/cards/createCardElement.js`:
   - Reads card frontmatter/body preview.
   - Opens edit modal on click.
@@ -75,9 +86,12 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/modals/toggleEditCardModal.js`:
   - Loads card into OverType editor.
   - Saves title/body/frontmatter through `window.board.writeCard`.
+  - Debounces editor body writes and serializes save order to prevent stale overwrite races.
   - Handles due date picker, duplicate, and archive actions.
 - `app/modals/*.js` and `app/modals/closeAllModals.js`:
   - Modal open/close, cleanup, and board rerender.
+  - Disables board interaction (click/drag/select) while edit modal is open.
+  - Re-renders board only when needed (instead of every modal close).
 
 ### Keyboard shortcuts
 - `app/listeners/window.js`:
@@ -134,6 +148,7 @@ File: `lib/cardFrontmatter.js`
 
 - Prefer editing `app/**` source modules, not `app/signboard.js` directly.
 - Rebuild with `./buildjs.sh` whenever `app/**` module files change.
+- Always update Codex docs (`CODEX.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`) when behavior/architecture/tooling changes.
 - Keep list/card filename conventions intact; drag/drop logic depends on numeric prefixes.
 - Avoid refactoring path concatenation casually; many flows assume trailing `/`.
 - For content/parsing changes, update both `lib/cardFrontmatter.js` and `scripts/test-frontmatter.js`.
@@ -145,4 +160,3 @@ Ignore these unless task explicitly requires them:
 - `node_modules/` (dependencies)
 - `static/vendor/` (vendored third-party libraries)
 - `package-lock.json` (unless dependency updates are requested)
-

@@ -9,7 +9,9 @@ async function init() {
         labelBoardPath.textContent = 'Switch Board';
         
         window.boardRoot = previousOpenedBoard;
-        await renderBoard();
+        renderBoard().catch((error) => {
+            console.error('Failed to render board on startup.', error);
+        });
     }
 
     const userInput = document.getElementById('userInput');
