@@ -94,18 +94,18 @@ async function toggleEditCardModal( cardPath ) {
 
     const card = await window.board.readCard(cardPath);
 
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
     const cardID = await window.board.getCardID(cardPath);
     const cardEditorCardID = document.getElementById('cardEditorCardID');
     cardEditorCardID.textContent = cardID;
     cardEditorCardID.onclick = (e) => {
         e.preventDefault();
-        window.board.openCard(cardPath);
+        window.board.openCard(cardEditorCardPath.value);
     };
 
     const cardEditorTitle = document.getElementById('cardEditorTitle');
     const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
     const cardEditorSetLabelsLink = document.getElementById('cardEditorSetLabelsLink');
-    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
     setEditorFrontmatter(card.frontmatter);
     cardEditorCardPath.value = cardPath;
@@ -189,7 +189,7 @@ async function toggleEditCardModal( cardPath ) {
 
         toggleCardLabelSelector(
             cardEditorSetLabelsLink,
-            cardPath,
+            cardEditorCardPath.value,
             selectedLabels,
             async (nextLabelIds) => {
                 const currentFrontmatter = getEditorFrontmatter();
@@ -224,6 +224,13 @@ async function toggleEditCardModal( cardPath ) {
     const cardEditorDupeLink = document.getElementById('cardEditorDupeLink');
     cardEditorDupeLink.removeEventListener('click', handleClickDuplicateCard, { once: true });
     cardEditorDupeLink.addEventListener('click', handleClickDuplicateCard, {once:true});
+
+    const cardEditorMoveListLink = document.getElementById('cardEditorMoveListLink');
+    if (cardEditorMoveListLink) {
+        cardEditorMoveListLink.removeEventListener('click', handleClickMoveCard);
+        cardEditorMoveListLink.addEventListener('click', handleClickMoveCard);
+        await updateCardEditorMoveLink(cardEditorCardPath.value);
+    }
 
     const cardEditorClose = document.getElementById('cardEditorClose');
     cardEditorClose.removeEventListener('click', handleClickCloseCard, { once: true });
@@ -288,6 +295,137 @@ async function handleMetadataSave(value,metaName) {
 
     return;
 };
+
+function getCardListPath(cardPath) {
+    const normalized = String(cardPath || '');
+    const lastSlash = normalized.lastIndexOf('/');
+    if (lastSlash === -1) {
+        return '';
+    }
+    return normalized.slice(0, lastSlash);
+}
+
+async function getOrderedListPaths() {
+    if (!window.boardRoot) {
+        return [];
+    }
+    const listNames = await window.board.listLists(window.boardRoot);
+    return listNames.map((listName) => window.boardRoot + listName);
+}
+
+async function resolveCardMoveTarget(cardPath) {
+    const listPaths = await getOrderedListPaths();
+    const currentListPath = getCardListPath(cardPath);
+    const currentIndex = listPaths.indexOf(currentListPath);
+
+    if (currentIndex === -1) {
+        return {
+            listPaths,
+            currentIndex,
+            targetIndex: -1,
+            targetPath: '',
+            isRightmost: false,
+        };
+    }
+
+    const isRightmost = currentIndex === listPaths.length - 1;
+    const targetIndex = isRightmost ? currentIndex - 1 : currentIndex + 1;
+    const targetPath = (targetIndex >= 0 && targetIndex < listPaths.length)
+        ? listPaths[targetIndex]
+        : '';
+
+    return {
+        listPaths,
+        currentIndex,
+        targetIndex,
+        targetPath,
+        isRightmost,
+    };
+}
+
+async function getNextCardNumber(listPath) {
+    const cards = await window.board.listCards(listPath);
+    let maxNumber = -1;
+
+    for (const name of cards) {
+        const match = name.match(/^(\d{3})/);
+        if (match) {
+            maxNumber = Math.max(maxNumber, Number(match[1]));
+        }
+    }
+
+    const nextNumber = maxNumber + 1;
+    return nextNumber.toLocaleString('en-US', {
+        minimumIntegerDigits: 3,
+        useGrouping: false
+    });
+}
+
+function setCardEditorMoveIcon(moveLink, iconName) {
+    if (!moveLink || !window.feather || !window.feather.icons || !window.feather.icons[iconName]) {
+        return;
+    }
+
+    moveLink.innerHTML = window.feather.icons[iconName].toSvg();
+}
+
+async function updateCardEditorMoveLink(cardPath) {
+    const moveLink = document.getElementById('cardEditorMoveListLink');
+    if (!moveLink) {
+        return null;
+    }
+
+    const moveInfo = await resolveCardMoveTarget(cardPath);
+    const isRightmost = moveInfo.listPaths.length > 0 && moveInfo.isRightmost;
+    const iconName = isRightmost ? 'arrow-left' : 'arrow-right';
+    const title = isRightmost ? 'Move to previous list' : 'Move to next list';
+
+    setCardEditorMoveIcon(moveLink, iconName);
+    moveLink.title = title;
+    moveLink.setAttribute('aria-label', title);
+    moveLink.dataset.targetPath = moveInfo.targetPath || '';
+    moveLink.dataset.direction = isRightmost ? 'left' : 'right';
+
+    return moveInfo;
+}
+
+async function handleClickMoveCard(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    if (!cardEditorCardPath || !cardEditorCardPath.value) {
+        return;
+    }
+
+    await flushEditorSaveIfNeeded();
+
+    const moveInfo = await resolveCardMoveTarget(cardEditorCardPath.value);
+    if (!moveInfo || !moveInfo.targetPath) {
+        await updateCardEditorMoveLink(cardEditorCardPath.value);
+        return;
+    }
+
+    const fileName = await window.board.getCardFileName(cardEditorCardPath.value);
+    const suffix = fileName.replace(/^\d{3}/, '');
+    const nextNumber = await getNextCardNumber(moveInfo.targetPath);
+    const newFileName = nextNumber + suffix;
+    const newPath = moveInfo.targetPath + '/' + newFileName;
+
+    await window.board.moveCard(cardEditorCardPath.value, newPath);
+
+    cardEditorCardPath.value = newPath;
+
+    const cardEditorCardID = document.getElementById('cardEditorCardID');
+    if (cardEditorCardID) {
+        cardEditorCardID.textContent = await window.board.getCardID(newPath);
+    }
+
+    await renderBoard();
+    await updateCardEditorMoveLink(newPath);
+
+    return;
+}
 
 async function handleClickCloseCard( e ) {
     e.target.id = 'board';
