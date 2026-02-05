@@ -30,6 +30,8 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "test:frontmatter": "node scripts/test-frontmatter.js",
+    "migrate:legacy-cards": "node scripts/migrate-legacy-cards.js",
     "dist": "electron-builder --mac",
     "dist:macarm64": "electron-builder --mac --arm64",
     "dist:macx64": "electron-builder --mac --x64",
@@ -44,6 +46,7 @@
     "electron-builder": "^26.0.12"
   },
   "dependencies": {
+    "js-yaml": "^4.1.0",
     "turndown": "^7.2.0"
   }
 }

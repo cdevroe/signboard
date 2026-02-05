@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer, shell } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
+const cardFrontmatter = require('./lib/cardFrontmatter');
 
 contextBridge.exposeInMainWorld('board', {
   listLists: async (root) => {
@@ -44,8 +45,9 @@ contextBridge.exposeInMainWorld('board', {
     return cardFileName.slice(cardFileName.length-8,cardFileName.length-3);
   },
 
-  getCardTitle: async (fileContents) => {
-    return fileContents.split(/\r?\n/)[0];
+  getCardTitle: async (filePath) => {
+    const card = await cardFrontmatter.readCard(filePath);
+    return card.frontmatter.title;
   },
 
   formatDueDate: async (dateString) => { // 2025-10-06 > Oct 6
@@ -67,11 +69,26 @@ contextBridge.exposeInMainWorld('board', {
 
   openCard: async (filePath) => await shell.showItemInFolder(filePath),
 
-  readCard: async (filePath) => await fs.readFile(filePath, 'utf8'),
+  readCard: async (filePath) => await cardFrontmatter.readCard(filePath),
 
-  writeCard: async (filePath, content) => await fs.writeFile(filePath, content),
+  writeCard: async (filePath, card) => await cardFrontmatter.writeCard(filePath, card),
 
-  createCard: async (filePath, content) => await fs.writeFile(filePath, '# ' + content + "\n\n"),
+  updateFrontmatter: async (filePath, partialFrontmatter) =>
+    await cardFrontmatter.updateFrontmatter(filePath, partialFrontmatter),
+
+  normalizeFrontmatter: async (frontmatter) => cardFrontmatter.normalizeFrontmatter(frontmatter),
+
+  createCard: async (filePath, content) => {
+    const asString = String(content || '');
+    const lines = asString.split(/\r?\n/);
+    const title = (lines.shift() || '').trim();
+    const body = lines.join('\n').replace(/^\n+/, '');
+
+    await cardFrontmatter.writeCard(filePath, {
+      frontmatter: { title: title || 'Untitled' },
+      body,
+    });
+  },
 
   moveCard: async (src, dst) => await fs.rename(src, dst),
 
@@ -140,14 +157,10 @@ contextBridge.exposeInMainWorld('board', {
         const fileName = `${number}-${await importsanitizeFileName(card.name)}-${await importrand5()}.md`;
         const filePath = path.join(folder, fileName);
 
-        const mdContent = [
-          `# ${escapeMarkdown(card.name)}`,
-          '',
-          card.desc || '',
-          // You can add more sections (checklists, comments, etc.) here if needed
-        ].join('\n');
-
-        await fs.writeFile(filePath, mdContent, 'utf8');
+        await cardFrontmatter.writeCard(filePath, {
+          frontmatter: { title: escapeMarkdown(card.name) },
+          body: card.desc || '',
+        });
       });
     }
     await fs.mkdir(filePath + '/XXX-Archive');

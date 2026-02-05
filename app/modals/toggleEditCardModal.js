@@ -1,80 +1,66 @@
+function getEditorFrontmatter() {
+    const state = document.getElementById('cardEditorCardMetadata').value;
+
+    try {
+        const parsed = JSON.parse(state || '{}');
+        return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function setEditorFrontmatter(frontmatter) {
+    document.getElementById('cardEditorCardMetadata').value = JSON.stringify(frontmatter || {});
+}
+
+async function saveEditorCard(bodyValue) {
+    const cardEditorTitle = document.getElementById('cardEditorTitle');
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+
+    const currentFrontmatter = getEditorFrontmatter();
+    const normalizedFrontmatter = await window.board.normalizeFrontmatter({
+        ...currentFrontmatter,
+        title: cardEditorTitle.textContent.trim(),
+    });
+
+    setEditorFrontmatter(normalizedFrontmatter);
+
+    await window.board.writeCard(cardEditorCardPath.value, {
+        frontmatter: normalizedFrontmatter,
+        body: typeof bodyValue === 'string' ? bodyValue : '',
+    });
+}
+
 async function toggleEditCardModal( cardPath ) {
     const modalEditCard = document.getElementById('modalEditCard');
-    
-    const fullMarkdown = await window.board.readCard(cardPath);
-    const titleContent = fullMarkdown.split(/\r?\n/)[0];
 
-    let frontMatter     = fullMarkdown.split('**********');
-    let isFrontMatter   = frontMatter.length > 1 ? true : false; // True means there is frontmatter
-    let lines           = isFrontMatter ? frontMatter[1].split(/\r?\n/) : fullMarkdown.split(/\r?\n/);
-
-    // TODO: Refactor all of this (see also createCardElement 8-37)
-    // Using OverType would result in line breaks being added
-    // to the card notes. This removes them.
-    let lineHasContents = false;
-    let metadataString = '';
-    let metadataArray = [];
-    if ( isFrontMatter ) { // Handle metadata
-        let metalines = frontMatter[0].split(/\r?\n/);
-        
-        metalines = metalines.filter((line, index) =>{
-            if ( index === 0 ) { // Removes card title
-                return false;
-            }
-            if ( line.trim() === "") { // Removes empty lines
-                return false;
-            }
-            metadataString += line.trim() + "\n";
-            metadataArray[line.split(': ')[0]] = line.split(': ')[1].trim();
-        });
-
-    }
-    
-    lines = lines.filter((line, index) => {
-        if ( !lineHasContents && !isFrontMatter && index === 0) { // Removes card title
-            return false;
-        }
-        if (!lineHasContents && line.trim() === "") { // Removes leading empty lines
-            return false;
-        }
-        lineHasContents = true;
-        return true;
-    });
-    const md = isFrontMatter ? lines.join("\n") : lines.slice(0).join("\n");
+    const card = await window.board.readCard(cardPath);
 
     const cardID = await window.board.getCardID(cardPath);
     const cardEditorCardID = document.getElementById('cardEditorCardID');
     cardEditorCardID.textContent = cardID;
-
-    if ( metadataArray && metadataArray['Due-date'] ) {
-        const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
-        const [year, month, day] = metadataArray['Due-date'].split("-").map(Number);
-        const dateToDisplay = new Date(year, month -1, day);
-
-        const dateOptions = { month: "short", day: "numeric" };
-        const formattedDate = new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
-
-        cardEditorCardDueDateDisplay.textContent = formattedDate;
-    }
-
-    cardEditorCardID.addEventListener('click',(e) => {
+    cardEditorCardID.onclick = (e) => {
         e.preventDefault();
         window.board.openCard(cardPath);
-    });
+    };
 
     const cardEditorTitle = document.getElementById('cardEditorTitle');
-    const cardEditorCardMetadata = document.getElementById('cardEditorCardMetadata');
-    cardEditorCardMetadata.value = isFrontMatter && metadataString.length > 0 ? metadataString : '';
-
+    const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
-    cardEditorCardPath.value = cardPath;
 
-    cardEditorTitle.textContent = titleContent.replace('# ', '');
+    setEditorFrontmatter(card.frontmatter);
+    cardEditorCardPath.value = cardPath;
+    cardEditorTitle.textContent = card.frontmatter.title || '';
+    cardEditorCardDueDateDisplay.textContent = '';
+
+    if (card.frontmatter.due) {
+        cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(card.frontmatter.due);
+    }
 
     const themeMode = localStorage.getItem('theme');
-    
+
     const [editor] = new OverType('#cardEditorOverType', {
-        value: md,
+        value: card.body,
         fontSize: '16px',
         lineHeight: 1.6,
         fontFamily: 'system-ui',
@@ -89,20 +75,19 @@ async function toggleEditCardModal( cardPath ) {
     } else {
         OverType.setTheme(customOverTypeThemes.light);
     }
-    
-    editor.setValue( md );
 
-    cardEditorTitle.addEventListener( 'keydown', (e) => {
+    editor.setValue(card.body);
+
+    cardEditorTitle.onkeydown = (e) => {
         if ( e.code == 'Enter' ) { e.preventDefault(); return; }
-    });
+    };
 
-    cardEditorTitle.addEventListener( 'keyup', async (e) => {
-        
+    cardEditorTitle.onkeyup = async (e) => {
         if ( e.code == 'Enter' ) { e.preventDefault(); return; }
 
         const cardEditorContents = document.getElementsByClassName('overtype-input');
         await handleNotesSave(cardEditorContents[0].value,false);
-    });
+    };
 
     const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
     const datepickerInput = document.getElementById('cardEditorCardDueDate');
@@ -111,32 +96,31 @@ async function toggleEditCardModal( cardPath ) {
         autoClose: true,
     });
 
-    if ( metadataArray && metadataArray['Due-date'] && metadataArray['Due-date'].length > 0 ) {
-        const [year, month, day] = metadataArray['Due-date'].split("-").map(Number);
+    if (card.frontmatter.due) {
+        const [year, month, day] = card.frontmatter.due.split('-').map(Number);
         datepicker.setDate(new Date(year, month - 1, day));
     }
 
     datepicker.update({
         format: 'Y-m-d',
         autoClose: true,
-        onSelect: async (value) => { await handleMetadataSave(value,'Due-date')}
+        onSelect: async (value) => { await handleMetadataSave(value,'due'); }
     });
 
-    datepickerInput.addEventListener( 'change', (e) => {
-        //console.log(e);
-        if ( e.target.value === "" ) {
-            handleMetadataSave('','Due-date');
+    datepickerInput.onchange = (e) => {
+        if ( e.target.value === '' ) {
+            handleMetadataSave('', 'due');
         }
-    });
+    };
 
-    cardEditorSetDueDateLink.addEventListener('click', (e) => {
+    cardEditorSetDueDateLink.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
         datepicker.open();
-    });
+    };
 
     const cardEditorArchiveLink = document.getElementById('cardEditorArchiveLink');
-    cardEditorArchiveLink.addEventListener('click', async (e) => {
+    cardEditorArchiveLink.onclick = async (e) => {
         const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
         await window.board.moveCard( cardEditorCardPath.value, window.boardRoot + 'XXX-Archive/' + window.board.getCardFileName(cardEditorCardPath.value));
@@ -144,8 +128,7 @@ async function toggleEditCardModal( cardPath ) {
         await closeAllModals(e);
 
         return;
-        
-    });
+    };
 
     const cardEditorDupeLink = document.getElementById('cardEditorDupeLink');
     cardEditorDupeLink.removeEventListener('click', handleClickDuplicateCard, { once: true });
@@ -162,73 +145,41 @@ async function toggleEditCardModal( cardPath ) {
     return;
 }
 
-async function handleNotesSave(value,instance) {    
-    const cardEditorTitle = document.getElementById('cardEditorTitle');
-    const cardEditorContents = value;
-    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
-    const cardEditorCardMetadata = document.getElementById('cardEditorCardMetadata');
-
-    if ( cardEditorContents.length > 0 && cardEditorContents != 'Notes...' ) {
-        await window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + cardEditorCardMetadata.value + "\n" + "**********\n\n" + cardEditorContents);
+async function handleNotesSave(value,instance) {
+    if ( value === 'Notes...' ) {
+        return;
     }
-    
+
+    await saveEditorCard(value);
+
     return;
 };
 
 async function handleMetadataSave(value,metaName) {
-    //console.log(value);
-    const cardEditorTitle = document.getElementById('cardEditorTitle');
+    if (metaName !== 'due') {
+        return;
+    }
+
     const cardEditorContents = document.getElementsByClassName('overtype-input');
-    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
-    const cardEditorCardMetadata = document.getElementById('cardEditorCardMetadata');
+    const frontmatter = getEditorFrontmatter();
 
-    if ( cardEditorCardMetadata.value.length > 0 ) {
-        let metalines = cardEditorCardMetadata.value.split(/\r?\n/);
-        let changedMetalines = '';
-        let metaNameFound = false;
-        await metalines.forEach((line) => {
+    const normalizedFrontmatter = await window.board.normalizeFrontmatter({
+        ...frontmatter,
+        due: value && value.trim().length > 0 ? value : null,
+    });
 
-            if ( line.trim() != "" ) {
-                key = line.split(': ')[0];
-                data = line.split(': ')[1];
+    setEditorFrontmatter(normalizedFrontmatter);
 
-                if ( key.trim() === metaName ) {
-                    if ( data.trim().length > 0 && value.length > 0 ) { // Erase if setting as blank
-                        changedMetalines += key + ': ' + value + "\n";
-                    }
-                    metaNameFound = true;
-                } else {
-                    changedMetalines += key + ': ' + data.trim() + "\n";
-                }
+    await saveEditorCard(cardEditorContents[0].value);
 
-            }
-        });
+    const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
 
-        if ( metaNameFound ) {
-            cardEditorCardMetadata.value = changedMetalines;
-        } else {
-            if ( value.length > 0 ) {
-                cardEditorCardMetadata.value += metaName+": "+value+"\n";
-            }
-        }
+    if ( normalizedFrontmatter.due ) {
+        cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(normalizedFrontmatter.due);
     } else {
-        if ( value.length > 0 ) {
-            cardEditorCardMetadata.value += metaName+": "+value+"\n";
-        }
+        cardEditorCardDueDateDisplay.textContent = '';
     }
 
-    await window.board.writeCard(cardEditorCardPath.value, '# ' + cardEditorTitle.innerHTML + "\n\n" + cardEditorCardMetadata.value + "\n" + "**********\n\n" + cardEditorContents[0].value);
-
-    if ( metaName == 'Due-date' ) {
-        const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
-
-        if ( value.length > 0 ) {
-            cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(value);
-        } else {
-            cardEditorCardDueDateDisplay.textContent = '';
-        }
-    }
-    
     return;
 };
 
@@ -242,19 +193,24 @@ async function handleClickCloseCard( e ) {
 async function handleClickDuplicateCard( e ) {
     e.stopPropagation();
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
-    
-    const cardContents = await window.board.readCard(cardEditorCardPath.value);
 
-    const lines = cardContents.split(/\r?\n/);
-    const titleContent = lines[0];
-    const newCardContents = cardContents.replace(titleContent,titleContent.replace('#','# Copy of '))
+    const card = await window.board.readCard(cardEditorCardPath.value);
 
     let currentCardName = await window.board.getCardFileName(cardEditorCardPath.value);
     let newCardName = '999' + currentCardName.slice(3,currentCardName.length).slice(0, -8) + await rand5() + '.md';
 
     let newCardPath = cardEditorCardPath.value.replace( currentCardName, newCardName );
 
-    await window.board.writeCard( newCardPath, newCardContents);
+    const copiedFrontmatter = await window.board.normalizeFrontmatter({
+        ...card.frontmatter,
+        title: `Copy of ${card.frontmatter.title || 'Untitled'}`,
+    });
+
+    await window.board.writeCard(newCardPath, {
+        frontmatter: copiedFrontmatter,
+        body: card.body,
+    });
+
     e.target.id = 'board';
     await closeAllModals(e);
 
