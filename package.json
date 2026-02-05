@@ -33,6 +33,7 @@
     "build:js": "./buildjs.sh",
     "test:frontmatter": "node scripts/test-frontmatter.js",
     "test:board-labels": "node scripts/test-board-labels.js",
+    "test:timestamp": "node scripts/test-timestamp-format.js",
     "migrate:legacy-cards": "node scripts/migrate-legacy-cards.js",
     "dist": "npm run dist:mac",
     "dist:mac": "npm run build:js && electron-builder --mac --publish never",

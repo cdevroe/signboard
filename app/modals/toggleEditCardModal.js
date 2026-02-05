@@ -13,6 +13,47 @@ function setEditorFrontmatter(frontmatter) {
     document.getElementById('cardEditorCardMetadata').value = JSON.stringify(frontmatter || {});
 }
 
+const TIMESTAMP_TOOLBAR_ICON = `
+<svg viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+  <circle cx="9" cy="9" r="7" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></circle>
+  <path d="M9 4.5v4.5l3 2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>`;
+
+function addTimestampToolbarButton(editor) {
+    if (!editor || !editor.container) {
+        return;
+    }
+
+    const toolbar = editor.container.querySelector('.overtype-toolbar');
+    if (!toolbar) {
+        return;
+    }
+
+    if (toolbar.querySelector('[data-action="insert-timestamp-list-item"]')) {
+        return;
+    }
+
+    const button = document.createElement('button');
+    button.className = 'overtype-toolbar-button';
+    button.type = 'button';
+    button.title = 'Add timestamped list item';
+    button.setAttribute('aria-label', 'Add timestamped list item');
+    button.setAttribute('data-action', 'insert-timestamp-list-item');
+    button.innerHTML = TIMESTAMP_TOOLBAR_ICON;
+    button.addEventListener('click', (event) => {
+        event.preventDefault();
+        insertTimestampListItem(editor.textarea);
+    });
+
+    const viewModeButton = toolbar.querySelector('[data-action="toggle-view-menu"]');
+    if (viewModeButton && viewModeButton.parentNode === toolbar) {
+        toolbar.insertBefore(button, viewModeButton);
+        return;
+    }
+
+    toolbar.appendChild(button);
+}
+
 function setEditorLabelDisplay(labelIds) {
     const cardEditorCardLabels = document.getElementById('cardEditorCardLabels');
     if (!cardEditorCardLabels) {
@@ -137,6 +178,7 @@ async function toggleEditCardModal( cardPath ) {
     }
 
     editor.setValue(card.body);
+    addTimestampToolbarButton(editor);
 
     cardEditorTitle.onkeydown = (e) => {
         if ( e.code == 'Enter' ) { e.preventDefault(); return; }
