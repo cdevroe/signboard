@@ -19,12 +19,18 @@
     <div id="boardPathWrapper">
       <button id="pickFolder">Choose Board Folder</button>
       <input id="boardPath" type="text" class="hidden" readonly>
-      <script>
-        
-      </script>
+      <button id="openBoardSettings" title="Open board settings"><i data-feather="sliders"></i></button>
       <button id="themeToggle" title="Toggle dark mode">🌙</button>
     </div>
-    <div id="boardAddNewListWrapper">
+    <div id="boardControls">
+      <input id="boardSearchInput" type="search" placeholder="Search cards">
+      <div class="board-toolbar-group">
+        <button id="labelFilterButton" title="Filter cards by labels">
+          <i data-feather="tag" class="label-toolbar-icon"></i>
+          <span id="labelFilterButtonText">Sort</span>
+        </button>
+        <div id="labelFilterPopover" class="label-popover hidden"></div>
+      </div>
       <button id="btnAddNewList">+ Add List</button>
     </div>
   </header>
@@ -47,6 +53,24 @@
     <p><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"> <button id="btnAddCardToList">Add</button></p>
   </div>
 
+  <div id="modalBoardSettings" class="modal hidden">
+    <div class="boardSettingsHeader">
+      <h2>Board Settings</h2>
+      <a href="#" id="boardSettingsClose" title="Close settings"><i data-feather="x"></i></a>
+    </div>
+    <section class="boardSettingsSection">
+      <h3>Labels</h3>
+      <p class="boardSettingsHint">Rename labels and choose colors for light and dark mode.</p>
+      <div class="boardSettingsLabelsHeader">
+        <span>Name</span>
+        <span>Light</span>
+        <span>Dark</span>
+      </div>
+      <div id="boardSettingsLabels"></div>
+      <button id="btnAddBoardLabel" type="button">Add label</button>
+    </section>
+  </div>
+
   <div id="modalEditCard" class="modal hidden">
     <div class="cardEditorHeader">
       <a href="#" id="cardEditorArchiveLink" title="Archive"><i data-feather="archive"></i></a>
@@ -59,7 +83,7 @@
       <h2 id="cardEditorTitle" contenteditable="true"></h2>
       <div class="cardEditorMetadataButtons">
         <a href="#" id="cardEditorSetDueDateLink" title="Edit Due Date"><i data-feather="clock"></i> <span id="cardEditorCardDueDateDisplay" title="This card's due date"></span></a>
-        <!-- <a href="#" id="cardEditorSetLabelsLink" title="Edit Labels"><i data-feather="tag"></i></a> <span id="cardEditorCardLabels" title="This card's labels"></span> -->
+        <a href="#" id="cardEditorSetLabelsLink" title="Edit Labels"><i data-feather="tag"></i> <span id="cardEditorCardLabels" title="This card's labels"></span></a>
       </div>
     </div>
     <div id="cardEditorOverType" style="height: calc(100% - 90px);"></div>

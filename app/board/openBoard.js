@@ -1,4 +1,12 @@
 async function openBoard( dir ) {
+    if (typeof closeBoardSettingsModal === 'function') {
+        await closeBoardSettingsModal();
+    }
+
+    if (typeof flushBoardLabelSettingsSave === 'function') {
+        await flushBoardLabelSettingsSave();
+    }
+
     const directories = await window.board.listDirectories( dir );
 
     if ( directories.length == 0 ) {
@@ -32,6 +40,8 @@ I hope you enjoy Signboard. If you have any feedback, please let me know. colin@
 
     window.boardRoot = dir + '/';
     localStorage.setItem('boardPath',window.boardRoot);
+    resetBoardLabelFilter();
+    resetBoardSearch();
     const pickFolderButton = document.getElementById('pickFolder');
     if (pickFolderButton) {
         pickFolderButton.textContent = 'Switch Board';

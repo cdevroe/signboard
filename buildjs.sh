@@ -4,6 +4,8 @@
 # Concatenate in the required order
 cat \
   app/utilities/santizeFileName.js \
+  app/board/boardLabels.js \
+  app/board/boardSearch.js \
   app/cards/createCardElement.js \
   app/cards/processAddNewCard.js \
   app/lists/createListElement.js \

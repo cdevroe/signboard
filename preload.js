@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer, shell } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
 const cardFrontmatter = require('./lib/cardFrontmatter');
+const boardLabels = require('./lib/boardLabels');
 const cardFileSortCollator = new Intl.Collator(undefined, {
   usage: 'sort',
   sensitivity: 'base',
@@ -78,6 +79,10 @@ contextBridge.exposeInMainWorld('board', {
     await cardFrontmatter.updateFrontmatter(filePath, partialFrontmatter),
 
   normalizeFrontmatter: async (frontmatter) => cardFrontmatter.normalizeFrontmatter(frontmatter),
+
+  readBoardSettings: async (boardRoot) => await boardLabels.readBoardSettings(boardRoot),
+
+  updateBoardLabels: async (boardRoot, labels) => await boardLabels.updateBoardLabels(boardRoot, labels),
 
   createCard: async (filePath, content) => {
     const asString = String(content || '');

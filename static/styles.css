@@ -100,6 +100,34 @@ header h1 {
   padding: 8px 12px;
 }
 
+.board-toolbar-group {
+  position: relative;
+}
+
+#boardControls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#boardSearchInput {
+  width: 220px;
+  max-width: 45vw;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: var(--font-sm);
+}
+
+#boardSearchInput:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 40%, white);
+  outline-offset: 1px;
+}
+
 /* Theme toggle button (uses your existing button element) */
 #themeToggle {
   background: var(--bg-card);
@@ -114,6 +142,18 @@ header h1 {
 #themeToggle:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)); }
 #themeToggle:active { transform: translateY(1px); }
 #themeToggle:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%, white); }
+
+#openBoardSettings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+}
+
+#openBoardSettings svg {
+  height: 16px;
+  width: 16px;
+}
 
 /* 4) Board layout */
 main#board {
@@ -208,29 +248,71 @@ main#board {
   font-size: var(--font-sm);
   color: var(--muted);
 }
+.metadata {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .card-body span.due-date {
-  margin-right: 10px;
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .card-body span.due-date .formatted-date {
   vertical-align: top;
-}
-.card-body span.label {
-  margin-right: -7px;
 }
 .card-body svg {
   height: 18px;
 }
 
-.card-body span.label-red svg {
-  stroke: rgb(249, 58, 58);
+.card-label-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
 }
 
-.card-body span.label-blue svg {
-  stroke: rgb(0, 110, 255);
+.card-label-button:hover {
+  border-color: var(--border);
 }
 
-.card-body span.label-green svg {
-  stroke: rgb(1, 162, 1);
+.card-label-button svg {
+  height: 16px;
+  width: 16px;
+}
+
+.card-labels {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.card-label-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.card-label-chip-unknown {
+  background: color-mix(in oklab, var(--bg-card) 86%, var(--border));
+  color: var(--muted);
+}
+
+.card-filtered-out {
+  display: none;
 }
 
 /* 6) Generic buttons (fallback) */
@@ -289,6 +371,135 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%,
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 40px rgba(16, 24, 40, .12);
   padding: 16px 16px 50px 35px;
+}
+
+#modalBoardSettings {
+  position: fixed;
+  top: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(700px, calc(100vw - 30px));
+  max-width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.boardSettingsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.boardSettingsHeader h2 {
+  margin: 0;
+}
+
+.boardSettingsHeader a {
+  color: var(--muted);
+}
+
+.boardSettingsSection {
+  margin-top: 14px;
+}
+
+.boardSettingsSection h3 {
+  margin: 0 0 2px 0;
+}
+
+.boardSettingsHint {
+  margin: 0 0 12px 0;
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.boardSettingsLabelsHeader,
+.board-settings-label-row {
+  display: grid;
+  grid-template-columns: 1fr 82px 82px;
+  gap: 8px;
+  align-items: center;
+}
+
+.boardSettingsLabelsHeader {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+#boardSettingsLabels {
+  display: grid;
+  gap: 8px;
+}
+
+.board-settings-label-color {
+  width: 82px !important;
+  padding: 3px !important;
+  height: 34px;
+}
+
+.label-popover {
+  position: absolute;
+  z-index: 15;
+  min-width: 220px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  box-shadow: 0 12px 30px var(--shadow-card);
+  padding: 8px;
+}
+
+#labelFilterPopover {
+  right: 0;
+  top: calc(100% + 6px);
+}
+
+#labelFilterButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.label-toolbar-icon {
+  height: 16px;
+  width: 16px;
+}
+
+.card-label-popover {
+  position: fixed;
+  z-index: 11000;
+}
+
+.label-popover-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-sm);
+  padding: 4px 2px;
+}
+
+.label-color-swatch {
+  height: 12px;
+  width: 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 60%, var(--text));
+  flex: 0 0 12px;
+}
+
+.label-popover-empty {
+  margin: 6px 2px;
+  font-size: var(--font-xs);
+  color: var(--muted);
+}
+
+.label-popover-clear {
+  margin-top: 8px;
+  width: 100%;
 }
 
 #modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }

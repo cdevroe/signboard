@@ -2,6 +2,9 @@ var turndown = new TurndownService();
 const renderMarkdown = (md) => marked.parse(md);
 
 async function init() {
+    initializeBoardLabelControls();
+    initializeBoardSearchControls();
+
     const previousOpenedBoard = localStorage.getItem('boardPath');
 
     if (previousOpenedBoard) {
@@ -32,6 +35,9 @@ async function init() {
             window.electronAPI.openExternal(e.target.href);
             return;
         }
+
+        closeLabelFilterIfClickOutside(e.target);
+        closeCardLabelSelectorIfClickOutside(e.target);
 
         await closeAllModals(e);
     });

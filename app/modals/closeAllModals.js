@@ -10,16 +10,24 @@ function setBoardInteractive(isInteractive) {
 async function closeAllModals(e, options = {}){
     if (e.target.id != 'board' && e.key !== 'Escape') return;
 
+    closeAllLabelPopovers();
+
     const shouldRerender = Boolean(options.rerender);
     
     const modalAddCard = document.getElementById('modalAddCard');
     const modalEditCard = document.getElementById('modalEditCard');
     const modalAddCardToList = document.getElementById('modalAddCardToList');
     const modalAddList = document.getElementById('modalAddList');
+    const modalBoardSettings = document.getElementById('modalBoardSettings');
     const editModalWasOpen = modalEditCard.style.display === 'block';
+    const boardSettingsWasOpen = modalBoardSettings && modalBoardSettings.style.display === 'block';
 
     if (editModalWasOpen && typeof flushEditorSaveIfNeeded === 'function') {
         await flushEditorSaveIfNeeded();
+    }
+
+    if (boardSettingsWasOpen && typeof flushBoardLabelSettingsSave === 'function') {
+        await flushBoardLabelSettingsSave();
     }
 
     if ( e.target.id == 'board' || e.key == 'Escape' ) {
@@ -37,6 +45,10 @@ async function closeAllModals(e, options = {}){
             cardEditorCardMetadata.value = '';
             const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
             cardEditorCardDueDateDisplay.textContent = '';
+            const cardEditorCardLabels = document.getElementById('cardEditorCardLabels');
+            if (cardEditorCardLabels) {
+                cardEditorCardLabels.textContent = '';
+            }
             setBoardInteractive(true);
         }
         if ( modalAddCardToList.style.display === 'block' ) {
@@ -45,6 +57,10 @@ async function closeAllModals(e, options = {}){
         }
         if ( modalAddList.style.display === 'block' ) {
             modalAddList.style.display = 'none';
+            setBoardInteractive(true);
+        }
+        if ( modalBoardSettings && modalBoardSettings.style.display === 'block' ) {
+            modalBoardSettings.style.display = 'none';
             setBoardInteractive(true);
         }
     } else {
@@ -63,6 +79,10 @@ async function closeAllModals(e, options = {}){
             cardEditorCardMetadata.value = '';
             const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
             cardEditorCardDueDateDisplay.textContent = '';
+            const cardEditorCardLabels = document.getElementById('cardEditorCardLabels');
+            if (cardEditorCardLabels) {
+                cardEditorCardLabels.textContent = '';
+            }
             setBoardInteractive(true);
         }
 
@@ -70,12 +90,17 @@ async function closeAllModals(e, options = {}){
             modalAddCardToList.style.display = 'none';
             setBoardInteractive(true);
         }
+
+        if ( modalBoardSettings && modalBoardSettings.style.display === 'block' && !modalBoardSettings.contains(e.target) ) {
+            modalBoardSettings.style.display = 'none';
+            setBoardInteractive(true);
+        }
     }
 
     FDatepicker.destroyAll();
     OverType.destroyAll();
 
-    if (shouldRerender || editModalWasOpen) {
+    if (shouldRerender || editModalWasOpen || boardSettingsWasOpen) {
         await renderBoard();
     }
 }

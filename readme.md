@@ -11,8 +11,18 @@ A local-first kanban desktop app built with HTML, CSS, and plain JavaScript. Sig
 
 ## ✨ Highlights
 - 📂 Cards saved as Markdown files (portable & future-proof)
+- 🏷 Per-board labels with light/dark colors, card tagging, and board filtering
+- 🔎 Live search across card titles and body content
 - 🖥 Runs as a desktop app
 - 🪶 Minimal dependencies 😅, just plain JavaScript + Electron
+
+---
+
+## 🏷 Labels
+
+- Board label definitions live in `board-settings.md` at the board root (`labels: [{ id, name, colorLight, colorDark }]`).
+- Cards store selected labels in Markdown frontmatter as `labels: ["label-id", ...]`.
+- Label filtering in the board toolbar is OR-based (a card is shown if it has any selected label).
 
 ---
 

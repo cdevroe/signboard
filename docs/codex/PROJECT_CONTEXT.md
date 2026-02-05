@@ -6,6 +6,7 @@ Signboard is a local-first Kanban desktop app built with Electron and plain Java
 - A board is a folder on disk.
 - Lists are subdirectories inside that board folder.
 - Cards are Markdown files in each list directory.
+- Board-level settings are stored in `board-settings.md` at the board root.
 - Card metadata is stored in YAML frontmatter (with legacy parser support).
 
 ## Runtime Architecture
@@ -43,6 +44,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 ### Board
 - `window.boardRoot` is the absolute board path with trailing slash.
 - Last-opened board path is persisted in `localStorage.boardPath`.
+- `board-settings.md` is auto-created with default label definitions when missing.
 
 ### List directories
 - Pattern: `NNN-<list-name>-<suffix>`
@@ -54,6 +56,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - File content format written by app:
   - YAML frontmatter (`title`, optional `due`, optional `labels`, unknown keys preserved)
   - Markdown body
+- Card `labels` frontmatter stores board label ids (e.g. `labels: ["label-1"]`).
 
 ## Core User Flows (Where the behavior lives)
 
@@ -61,6 +64,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/init.js`:
   - Restores previous board from localStorage.
   - Hooks global click handling and top-level modal triggers.
+  - Initializes board label toolbar/settings controls.
+  - Initializes board search input for live filtering.
   - Calls directory chooser and `openBoard`.
 - `app/board/openBoard.js`:
   - Creates starter lists/cards when board folder is empty.
@@ -71,6 +76,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/board/renderBoard.js`:
   - Reads lists, builds columns, enables list drag-and-drop reorder.
   - Fetches each list's card names concurrently for faster initial render.
+  - Loads board label definitions and filter state before rendering cards.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior.
   - Enables card drag-and-drop reorder and cross-list move.
@@ -78,7 +84,17 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Builds card DOM for a list concurrently to reduce list render time.
 - `app/cards/createCardElement.js`:
   - Reads card frontmatter/body preview.
+  - Shows label chips and a tag-icon picker on each card.
+  - Hides cards that do not match the active label filter or search query.
   - Opens edit modal on click.
+- `app/board/boardLabels.js`:
+  - Owns board label state in the renderer.
+  - Renders board label filter dropdown (multi-select, OR matching).
+  - Handles card label popovers and board settings label editor.
+  - Persists board labels through preload APIs.
+- `app/board/boardSearch.js`:
+  - Stores the current search query/tokens.
+  - Debounces live search renders for title/body filtering.
 
 ### Add/edit card and list
 - `app/cards/processAddNewCard.js` and `app/cards/processAddNewList.js`:
@@ -87,7 +103,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Loads card into OverType editor.
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
-  - Handles due date picker, duplicate, and archive actions.
+  - Handles due date picker, labels picker, duplicate, and archive actions.
 - `app/modals/*.js` and `app/modals/closeAllModals.js`:
   - Modal open/close, cleanup, and board rerender.
   - Disables board interaction (click/drag/select) while edit modal is open.
@@ -123,6 +139,13 @@ File: `lib/cardFrontmatter.js`
   3) optional `labels` (non-empty only)
   4) other keys sorted alphabetically
 
+File: `lib/boardLabels.js`
+
+- Reads/writes board label definitions in `board-settings.md`.
+- Creates default labels when settings are missing.
+- Migrates legacy `labels.md` reads into `board-settings.md`.
+- Exposes OR-based label filtering helper logic.
+
 ## Tooling, Build, and Test
 
 ### Run locally
@@ -135,6 +158,10 @@ File: `lib/cardFrontmatter.js`
 ### Frontmatter tests
 - `npm run test:frontmatter`
 - Script: `scripts/test-frontmatter.js`
+
+### Board label tests
+- `npm run test:board-labels`
+- Script: `scripts/test-board-labels.js`
 
 ### Legacy migration
 - `npm run migrate:legacy-cards -- <board-root> [--dry-run] [--include-plain]`
@@ -152,6 +179,7 @@ File: `lib/cardFrontmatter.js`
 - Keep list/card filename conventions intact; drag/drop logic depends on numeric prefixes.
 - Avoid refactoring path concatenation casually; many flows assume trailing `/`.
 - For content/parsing changes, update both `lib/cardFrontmatter.js` and `scripts/test-frontmatter.js`.
+- For board label settings behavior, update both `lib/boardLabels.js` and `scripts/test-board-labels.js`.
 
 ## Fast Context Exclusions
 Ignore these unless task explicitly requires them:

@@ -1,6 +1,9 @@
 async function createCardElement(cardPath) {
   const card = await window.board.readCard(cardPath);
   const titleContent = card.frontmatter.title || '';
+  let selectedLabelIds = Array.isArray(card.frontmatter.labels)
+    ? card.frontmatter.labels.map((labelId) => String(labelId))
+    : [];
 
   const previewText = card.body
     .split(/\r?\n/)
@@ -41,23 +44,88 @@ async function createCardElement(cardPath) {
     metadata.appendChild(dueWrap);
   }
 
-  if (Array.isArray(card.frontmatter.labels) && card.frontmatter.labels.length > 0) {
-    for (const label of card.frontmatter.labels) {
-      const labelWrap = document.createElement('span');
-      const labelClassSuffix = String(label).toLowerCase().replace(/[^a-z0-9_-]/g, '-');
-      labelWrap.className = `label label-${labelClassSuffix}`;
-      labelWrap.title = String(label);
+  const labelButton = document.createElement('button');
+  labelButton.type = 'button';
+  labelButton.className = 'card-label-button';
+  labelButton.title = 'Set labels';
+  const labelIcon = document.createElement('i');
+  labelIcon.setAttribute('data-feather', 'tag');
+  labelButton.appendChild(labelIcon);
+  metadata.appendChild(labelButton);
 
-      const labelIcon = document.createElement('i');
-      labelIcon.setAttribute('data-feather', 'tag');
-      labelWrap.appendChild(labelIcon);
-      metadata.appendChild(labelWrap);
+  const cardLabelsWrap = document.createElement('div');
+  cardLabelsWrap.className = 'card-labels';
+  metadata.appendChild(cardLabelsWrap);
+
+  function renderCardLabels() {
+    cardLabelsWrap.innerHTML = '';
+
+    const firstKnownLabel = selectedLabelIds
+      .map((labelId) => getBoardLabelById(labelId))
+      .find((label) => Boolean(label));
+
+    labelButton.style.color = firstKnownLabel ? getBoardLabelColor(firstKnownLabel) : '';
+
+    for (const labelId of selectedLabelIds) {
+      const label = getBoardLabelById(labelId);
+      const labelChip = document.createElement('span');
+      labelChip.className = 'card-label-chip';
+
+      if (label) {
+        const chipColor = getBoardLabelColor(label);
+        labelChip.textContent = label.name;
+        labelChip.style.backgroundColor = `${chipColor}22`;
+        labelChip.style.borderColor = chipColor;
+      } else {
+        labelChip.classList.add('card-label-chip-unknown');
+        labelChip.textContent = 'Unknown label';
+        labelChip.title = labelId;
+      }
+
+      cardLabelsWrap.appendChild(labelChip);
     }
   }
+
+  async function updateCardLabels(nextLabelIds) {
+    selectedLabelIds = Array.isArray(nextLabelIds)
+      ? nextLabelIds.map((labelId) => String(labelId))
+      : [];
+
+    card.frontmatter.labels = selectedLabelIds;
+    await window.board.updateFrontmatter(cardPath, { labels: selectedLabelIds });
+    renderCardLabels();
+
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds)) {
+      await renderBoard();
+    }
+  }
+
+  renderCardLabels();
+
+  labelButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    toggleCardLabelSelector(
+      labelButton,
+      cardPath,
+      selectedLabelIds,
+      async (nextLabelIds) => {
+        await updateCardLabels(nextLabelIds);
+      },
+    );
+  });
 
   body.appendChild(metadata);
     
   cardEl.appendChild(body);
+
+  const matchesLabelFilter = cardMatchesBoardLabelFilter(selectedLabelIds);
+  const matchesSearchFilter = cardMatchesBoardSearch(card.frontmatter.title, card.body);
+
+  if (!matchesLabelFilter || !matchesSearchFilter) {
+    cardEl.classList.add('card-filtered-out');
+  }
 
   cardEl.addEventListener('click', async () => {
 

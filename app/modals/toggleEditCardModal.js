@@ -13,6 +13,26 @@ function setEditorFrontmatter(frontmatter) {
     document.getElementById('cardEditorCardMetadata').value = JSON.stringify(frontmatter || {});
 }
 
+function setEditorLabelDisplay(labelIds) {
+    const cardEditorCardLabels = document.getElementById('cardEditorCardLabels');
+    if (!cardEditorCardLabels) {
+        return;
+    }
+
+    const ids = Array.isArray(labelIds) ? labelIds.map((labelId) => String(labelId)) : [];
+    if (ids.length === 0) {
+        cardEditorCardLabels.textContent = '';
+        return;
+    }
+
+    const names = ids.map((labelId) => {
+        const label = getBoardLabelById(labelId);
+        return label ? label.name : 'Unknown label';
+    });
+
+    cardEditorCardLabels.textContent = names.join(', ');
+}
+
 let pendingEditorBody = '';
 let pendingEditorSaveTimer = null;
 let editorSaveInFlight = Promise.resolve();
@@ -84,12 +104,14 @@ async function toggleEditCardModal( cardPath ) {
 
     const cardEditorTitle = document.getElementById('cardEditorTitle');
     const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
+    const cardEditorSetLabelsLink = document.getElementById('cardEditorSetLabelsLink');
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
     setEditorFrontmatter(card.frontmatter);
     cardEditorCardPath.value = cardPath;
     cardEditorTitle.textContent = card.frontmatter.title || '';
     cardEditorCardDueDateDisplay.textContent = '';
+    setEditorLabelDisplay(card.frontmatter.labels);
 
     if (card.frontmatter.due) {
         cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(card.frontmatter.due);
@@ -156,6 +178,37 @@ async function toggleEditCardModal( cardPath ) {
         e.stopPropagation();
         datepicker.open();
     };
+
+    if (cardEditorSetLabelsLink) {
+      cardEditorSetLabelsLink.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const frontmatter = getEditorFrontmatter();
+        const selectedLabels = Array.isArray(frontmatter.labels) ? frontmatter.labels : [];
+
+        toggleCardLabelSelector(
+            cardEditorSetLabelsLink,
+            cardPath,
+            selectedLabels,
+            async (nextLabelIds) => {
+                const currentFrontmatter = getEditorFrontmatter();
+                const normalizedFrontmatter = await window.board.normalizeFrontmatter({
+                    ...currentFrontmatter,
+                    labels: nextLabelIds,
+                });
+
+                setEditorFrontmatter(normalizedFrontmatter);
+                setEditorLabelDisplay(normalizedFrontmatter.labels);
+
+                const cardEditorContents = document.getElementsByClassName('overtype-input');
+                pendingEditorBody = cardEditorContents[0]?.value || '';
+                await flushEditorSaveIfNeeded();
+                await enqueueEditorSave(pendingEditorBody);
+            },
+        );
+      };
+    }
 
     const cardEditorArchiveLink = document.getElementById('cardEditorArchiveLink');
     cardEditorArchiveLink.onclick = async (e) => {
@@ -266,6 +319,7 @@ async function handleClickDuplicateCard( e ) {
 
     e.target.id = 'board';
     await closeAllModals(e, { rerender: true });
+    await toggleEditCardModal(newCardPath);
 
     return;
 }

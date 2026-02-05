@@ -76,6 +76,7 @@ async function createListElement(name, listPath, cardNames) {
   new Sortable(cardsEl, {
     group: 'cards',
     animation: 150,
+    disabled: isBoardLabelFilterActive(),
     onEnd: async (evt) => {
 
         const finalOrder = [...evt.to.querySelectorAll('.card')].map(card =>
