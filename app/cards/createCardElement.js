@@ -17,20 +17,45 @@ async function createCardElement(cardPath) {
   const body = document.createElement('div');
   body.className = 'card-body';
   const cardPreview = (previewText && previewText.length > 50) ? `${previewText.slice(0, 35)}...` : previewText;
+  const preview = document.createElement('p');
+  preview.textContent = cardPreview;
+  body.appendChild(preview);
 
-  let cardIcons = '';
+  const metadata = document.createElement('div');
+  metadata.className = 'metadata';
 
   if (card.frontmatter.due) {
-    cardIcons += `<span class="due-date" title="${card.frontmatter.due}"><i data-feather="clock"></i> <span class="formatted-date">${await window.board.formatDueDate(card.frontmatter.due)}</span></span>`;
+    const dueWrap = document.createElement('span');
+    dueWrap.className = 'due-date';
+    dueWrap.title = card.frontmatter.due;
+
+    const dueIcon = document.createElement('i');
+    dueIcon.setAttribute('data-feather', 'clock');
+    dueWrap.appendChild(dueIcon);
+    dueWrap.append(' ');
+
+    const formattedDue = document.createElement('span');
+    formattedDue.className = 'formatted-date';
+    formattedDue.textContent = await window.board.formatDueDate(card.frontmatter.due);
+    dueWrap.appendChild(formattedDue);
+    metadata.appendChild(dueWrap);
   }
 
   if (Array.isArray(card.frontmatter.labels) && card.frontmatter.labels.length > 0) {
-    card.frontmatter.labels.forEach((label) => {
-      cardIcons += `<span class="label label-${label}" title="${label}"><i data-feather="tag"></i></span>`;
-    });
+    for (const label of card.frontmatter.labels) {
+      const labelWrap = document.createElement('span');
+      const labelClassSuffix = String(label).toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+      labelWrap.className = `label label-${labelClassSuffix}`;
+      labelWrap.title = String(label);
+
+      const labelIcon = document.createElement('i');
+      labelIcon.setAttribute('data-feather', 'tag');
+      labelWrap.appendChild(labelIcon);
+      metadata.appendChild(labelWrap);
+    }
   }
-  
-  body.innerHTML = '<p>' + cardPreview + '</p>' + '<div class="metadata">' + cardIcons + '</div>';
+
+  body.appendChild(metadata);
     
   cardEl.appendChild(body);
 

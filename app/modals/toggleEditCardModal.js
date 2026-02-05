@@ -13,6 +13,44 @@ function setEditorFrontmatter(frontmatter) {
     document.getElementById('cardEditorCardMetadata').value = JSON.stringify(frontmatter || {});
 }
 
+let pendingEditorBody = '';
+let pendingEditorSaveTimer = null;
+let editorSaveInFlight = Promise.resolve();
+
+function enqueueEditorSave(bodyValue) {
+    const bodyToSave = typeof bodyValue === 'string' ? bodyValue : '';
+    editorSaveInFlight = editorSaveInFlight
+        .then(() => saveEditorCard(bodyToSave))
+        .catch((error) => {
+            console.error('Failed to save card.', error);
+        });
+
+    return editorSaveInFlight;
+}
+
+function queueEditorSave(bodyValue) {
+    pendingEditorBody = typeof bodyValue === 'string' ? bodyValue : '';
+
+    if (pendingEditorSaveTimer) {
+        clearTimeout(pendingEditorSaveTimer);
+    }
+
+    pendingEditorSaveTimer = setTimeout(() => {
+        pendingEditorSaveTimer = null;
+        enqueueEditorSave(pendingEditorBody);
+    }, 300);
+}
+
+async function flushEditorSaveIfNeeded() {
+    if (pendingEditorSaveTimer) {
+        clearTimeout(pendingEditorSaveTimer);
+        pendingEditorSaveTimer = null;
+        enqueueEditorSave(pendingEditorBody);
+    }
+
+    await editorSaveInFlight;
+}
+
 async function saveEditorCard(bodyValue) {
     const cardEditorTitle = document.getElementById('cardEditorTitle');
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
@@ -140,7 +178,16 @@ async function toggleEditCardModal( cardPath ) {
 
     modalEditCard.style.display = 'block'; // Display after everything is loaded
 
-    document.getElementById('board').style = 'filter: blur(3px)';
+    if (typeof setBoardInteractive === 'function') {
+        setBoardInteractive(false);
+    } else {
+        const board = document.getElementById('board');
+        if (board) {
+            board.style.filter = 'blur(3px)';
+            board.style.pointerEvents = 'none';
+            board.style.userSelect = 'none';
+        }
+    }
 
     return;
 }
@@ -150,7 +197,7 @@ async function handleNotesSave(value,instance) {
         return;
     }
 
-    await saveEditorCard(value);
+    queueEditorSave(value);
 
     return;
 };
@@ -163,14 +210,20 @@ async function handleMetadataSave(value,metaName) {
     const cardEditorContents = document.getElementsByClassName('overtype-input');
     const frontmatter = getEditorFrontmatter();
 
+    const normalizedDueValue = value instanceof Date
+        ? value.toISOString().slice(0, 10)
+        : String(value || '').trim();
+
     const normalizedFrontmatter = await window.board.normalizeFrontmatter({
         ...frontmatter,
-        due: value && value.trim().length > 0 ? value : null,
+        due: normalizedDueValue.length > 0 ? normalizedDueValue : null,
     });
 
     setEditorFrontmatter(normalizedFrontmatter);
 
-    await saveEditorCard(cardEditorContents[0].value);
+    pendingEditorBody = cardEditorContents[0]?.value || '';
+    await flushEditorSaveIfNeeded();
+    await enqueueEditorSave(pendingEditorBody);
 
     const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
 
@@ -212,7 +265,7 @@ async function handleClickDuplicateCard( e ) {
     });
 
     e.target.id = 'board';
-    await closeAllModals(e);
+    await closeAllModals(e, { rerender: true });
 
     return;
 }

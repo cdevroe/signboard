@@ -39,7 +39,7 @@ async function init() {
         listName.focus();
         const btnAddList = document.getElementById('btnAddList');
 
-        btnAddList.addEventListener('click', async (e) => {
+        btnAddList.onclick = async (e) => {
             e.stopPropagation();   
             const listName = document.getElementById('userInputListName');
 
@@ -50,16 +50,15 @@ async function init() {
             await processAddNewList( listName.value );
 
             listName.value = '';
-            await closeAllModals(e);
 
             return;
-        }, { once: true });
+        };
 
-        listName.addEventListener('keydown',(key) => {
+        listName.onkeydown = (key) => {
             if (key.code != 'Enter') return;
             const btnAddList = document.getElementById('btnAddList');
             btnAddList.click();
-        });
+        };
     });
     document.getElementById('pickFolder').addEventListener('click', async () => {
         const dir = await window.chooser.pickDirectory({ /* defaultPath: '/some/path' */ });

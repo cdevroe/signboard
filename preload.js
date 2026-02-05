@@ -35,14 +35,12 @@ contextBridge.exposeInMainWorld('board', {
   },
 
   getBoardName: async (filePath) => {
-    const parts = filePath.split('/').filter(Boolean);
-    const lastDir = parts[parts.length - 1];
-    return lastDir;
+    return path.basename(path.normalize(filePath));
   },
 
-  getCardID: async (filePath) => { 
-    const cardFileName = filePath.split(/[\\/]/).pop(); 
-    return cardFileName.slice(cardFileName.length-8,cardFileName.length-3);
+  getCardID: async (filePath) => {
+    const cardFileName = path.basename(path.normalize(filePath));
+    return cardFileName.slice(cardFileName.length - 8, cardFileName.length - 3);
   },
 
   getCardTitle: async (filePath) => {
@@ -57,9 +55,9 @@ contextBridge.exposeInMainWorld('board', {
     return new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
   },
 
-  getCardFileName: (filePath) => { return filePath.split(/[\\/]/).pop(); },
+  getCardFileName: (filePath) => path.basename(path.normalize(filePath)),
 
-  getListDirectoryName: (filePath) => { return filePath.split(/[\\/]/).pop(); },
+  getListDirectoryName: (filePath) => path.basename(path.normalize(filePath)),
 
   listDirectories: async (root) => {
     const dirs = await fs.readdir(root, { withFileTypes: true });
@@ -152,7 +150,7 @@ contextBridge.exposeInMainWorld('board', {
       cards.sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0));
 
       // Write each card as a markdown file
-      cards.forEach( async (card, idx) => {
+      for (const [idx, card] of cards.entries()) {
         const number = String(idx + 1).padStart(3, '0');   // 001‑999
         const fileName = `${number}-${await importsanitizeFileName(card.name)}-${await importrand5()}.md`;
         const filePath = path.join(folder, fileName);
@@ -161,7 +159,7 @@ contextBridge.exposeInMainWorld('board', {
           frontmatter: { title: escapeMarkdown(card.name) },
           body: card.desc || '',
         });
-      });
+      }
     }
     await fs.mkdir(filePath + '/XXX-Archive');
     localStorage.setItem('importedFromTrello',true);

@@ -45,7 +45,7 @@ async function createListElement(name, listPath, cardNames) {
     hiddenListPath.value = this.dataset.listpath;
     
     const btnAddCard = document.getElementById('btnAddCard');
-    btnAddCard.addEventListener('click', async function (e) {
+    btnAddCard.onclick = async function (e) {
       e.stopPropagation();
         const userInput = document.getElementById('userInput');
         const hiddenListPath = document.getElementById('hiddenListPath');
@@ -53,8 +53,7 @@ async function createListElement(name, listPath, cardNames) {
         await processAddNewCard( userInput.value, hiddenListPath.value );
         userInput.value = '';
         hiddenListPath.value = '';
-        await closeAllModals(e);
-    }, {once: true});
+    };
   });
   header.appendChild(listName);
   header.appendChild(addBtn);
@@ -122,13 +121,35 @@ async function createListElement(name, listPath, cardNames) {
 
 async function renameList( e ) {
   const currentListName = await window.board.getListDirectoryName( e.target.dataset.listpath );
+  const listNameMatch = currentListName.match(/^(\d{3}-)(.*?)(-[^-]{5}|-stock)$/);
 
-  let newListName = currentListName.replace(currentListName.slice(4,currentListName.length-6),e.target.textContent);
+  if (!listNameMatch) {
+    return;
+  }
 
-  let oldPath = e.target.dataset.listpath;
-  let newPath = oldPath.replace(currentListName,newListName);
+  const sanitizedListName = sanitizeListName(e.target.textContent);
+  const [, prefix, , suffix] = listNameMatch;
+  const newListDirectoryName = `${prefix}${sanitizedListName}${suffix}`;
+
+  if (newListDirectoryName === currentListName) {
+    return;
+  }
+
+  const oldPath = e.target.dataset.listpath;
+  const newPath = oldPath.replace(currentListName, newListDirectoryName);
 
   await window.board.moveList(oldPath,newPath);
+  await renderBoard();
 
   return;
+}
+
+function sanitizeListName(rawName) {
+  const cleaned = String(rawName || '')
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\.\./g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return cleaned || 'Untitled';
 }

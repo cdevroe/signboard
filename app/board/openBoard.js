@@ -32,6 +32,10 @@ I hope you enjoy Signboard. If you have any feedback, please let me know. colin@
 
     window.boardRoot = dir + '/';
     localStorage.setItem('boardPath',window.boardRoot);
+    const pickFolderButton = document.getElementById('pickFolder');
+    if (pickFolderButton) {
+        pickFolderButton.textContent = 'Switch Board';
+    }
     await renderBoard();
     
 }
