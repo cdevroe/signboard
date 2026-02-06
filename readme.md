@@ -34,6 +34,10 @@ A local-first kanban desktop app built with HTML, CSS, and plain JavaScript. Sig
    - **macOS**: `.dmg`
    - **Linux**: `.AppImage`
 
+If you're moving from 0.4.0 to 0.5.0 you'll need to run the following command to convert all of your Markdown files to the new format.
+
+`npm run migrate:legacy-cards /Root/to/board`
+
 ---
 
 ## 🛠 Development
@@ -108,7 +112,7 @@ npm run dist:linux:arm64
 npm run dist:linux:all
 ```
 
-### Build everything (lunch mode)
+### Build everything
 
 ```bash
 npm run dist:all
