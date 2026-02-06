@@ -57,28 +57,56 @@ body {
   line-height: 1.45;
   background: var(--bg);
   color: var(--text);
-  /* Prevent horizontal jiggle during board scroll */
-  overflow-y: scroll;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow: hidden;
 }
 
 /* 3) App chrome */
 header {
   display: flex;
+<<<<<<< ours
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--spacing);
+  row-gap: 8px;
+=======
+  flex-direction: column;
+  gap: 10px;
+>>>>>>> theirs
   padding: var(--spacing);
-  background: var(--border);
-  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg) 88%, var(--border));
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 10;
   backdrop-filter: saturate(1.2) blur(6px);
+}
+
+.headerTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing);
+  width: 100%;
 }
 
 header h1 {
   color: var(--text);
   font-size: var(--font-lg);
-  margin: 0px;
+  margin: 0;
+  max-width: min(50vw, 560px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 /* Switch board group */
@@ -86,7 +114,8 @@ header h1 {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 #labelBoardPath {
   font-size: var(--font-sm);
@@ -98,6 +127,83 @@ header h1 {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 8px 12px;
+}
+
+#boardTabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 260px;
+  overflow-x: auto;
+  padding: 2px 1px;
+}
+
+.board-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex: 0 0 auto;
+  max-width: 240px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .02);
+  cursor: grab;
+}
+
+.board-tab:active {
+  cursor: grabbing;
+}
+
+.board-tab.is-active {
+  border-color: color-mix(in oklab, var(--accent) 32%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+.board-tab-open {
+  border: none;
+  background: transparent;
+  border-radius: 999px 0 0 999px;
+  box-shadow: none;
+  padding: 6px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.board-tab-open:hover,
+.board-tab-open:active {
+  background: transparent;
+  transform: none;
+}
+
+.board-tab-close {
+  border: none;
+  border-left: 1px solid var(--border);
+  border-radius: 0 999px 999px 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  width: 26px;
+  min-width: 26px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.board-tab-close:hover {
+  color: var(--text);
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--border));
+}
+
+.board-tab.sortable-ghost {
+  opacity: 0.55;
+}
+
+.board-tab.sortable-chosen {
+  box-shadow: 0 10px 24px var(--shadow-card);
 }
 
 .board-toolbar-group {
@@ -143,6 +249,7 @@ header h1 {
 #themeToggle:active { transform: translateY(1px); }
 #themeToggle:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%, white); }
 
+<<<<<<< ours
 #openBoardSettings {
   display: inline-flex;
   align-items: center;
@@ -153,15 +260,61 @@ header h1 {
 #openBoardSettings svg {
   height: 16px;
   width: 16px;
+=======
+#boardTabsWrapper {
+  width: 100%;
+  margin-bottom: -1px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+#boardTabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: max-content;
+  padding: 0 2px;
+}
+
+.board-tab {
+  border: 1px solid color-mix(in oklab, var(--border) 85%, var(--bg));
+  border-bottom-color: color-mix(in oklab, var(--border) 60%, var(--bg));
+  border-radius: 10px 10px 0 0;
+  background: color-mix(in oklab, var(--bg-card) 80%, var(--border));
+  color: var(--muted);
+  opacity: .85;
+  padding: 7px 14px 9px;
+  transform: translateY(2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .03);
+  transition: transform .12s ease, opacity .12s ease, background .12s ease, color .12s ease, border-color .12s ease;
+}
+
+.board-tab:hover {
+  opacity: .95;
+}
+
+.board-tab.is-active {
+  background: var(--bg);
+  border-color: var(--border);
+  border-bottom-color: var(--bg);
+  color: var(--text);
+  opacity: 1;
+  transform: translateY(0);
+  box-shadow: 0 4px 10px var(--shadow);
+  position: relative;
+  z-index: 2;
+>>>>>>> theirs
 }
 
 /* 4) Board layout */
 main#board {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   align-items: flex-start;
   gap: 16px;
   padding: 16px;
-  height: calc(100vh - 64px); /* header approx */
+  border-top: 1px solid var(--border);
   overflow-x: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -602,9 +755,32 @@ select:disabled {
 @media (max-width: 700px) {
   :root { --list-min: 260px; }
   header { position: static; }
+<<<<<<< ours
+  #boardPathWrapper {
+    width: 100%;
+  }
+  #boardTabs {
+    flex-basis: 100%;
+  }
+  #boardControls {
+    margin-left: 0;
+    width: 100%;
+  }
+  #boardSearchInput {
+    width: min(340px, 100%);
+    max-width: 100%;
+=======
+  .headerTopRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .headerControls {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+>>>>>>> theirs
+  }
   main#board {
-    height: auto;
-    min-height: calc(100vh - 56px);
     padding: 12px;
   }
 }
@@ -612,7 +788,7 @@ select:disabled {
 /* 10) Print – simple, text-first */
 @media print {
   header, #themeToggle { display: none !important; }
-  main#board { overflow: visible; height: auto; }
+  main#board { overflow: visible; }
   .list { box-shadow: none; border-color: #bbb; }
   .card { box-shadow: none; border-color: #bbb; }
 }

@@ -43,7 +43,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 ### Board
 - `window.boardRoot` is the absolute board path with trailing slash.
-- Last-opened board path is persisted in `localStorage.boardPath`.
+- Open board tabs are persisted in `localStorage.boardTabs` (`[{ root, name }]`).
+- Active board root is mirrored in `localStorage.boardPath` for backward compatibility.
 - `board-settings.md` is auto-created with default label definitions when missing.
 
 ### List directories
@@ -62,15 +63,17 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 ### App init and board open
 - `app/init.js`:
-  - Restores previous board from localStorage.
+  - Initializes board tab controls in the header.
+  - Restores previous board tab session from localStorage.
   - Hooks global click handling and top-level modal triggers.
   - Initializes board label toolbar/settings controls.
   - Initializes board search input for live filtering.
   - Calls directory chooser and `openBoard`.
 - `app/board/openBoard.js`:
   - Creates starter lists/cards when board folder is empty.
-  - Sets `window.boardRoot` and renders board.
-  - Updates the folder picker label to `Switch Board` after successful board open.
+  - Manages board tabs (add/open/close/reorder + active tab persistence).
+  - Sets `window.boardRoot` and renders only the active board.
+  - Uses `Open Board` for the folder picker label.
 
 ### Rendering board/lists/cards
 - `app/board/renderBoard.js`:

@@ -6,7 +6,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `main.js` - Electron main process window + IPC directory chooser.
 - `preload.js` - Renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) + filesystem/date/sort helpers.
-- `index.html` - App shell, modal markup, and deferred script/style includes.
+- `index.html` - App shell, header board tab strip, modal markup, and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `package.json` - Runtime/build scripts and dependencies.
 - `package-lock.json` - NPM lockfile.
@@ -26,7 +26,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/cards/processAddNewList.js` - New list creation flow.
 - `app/lists/createListElement.js` - List DOM rendering, sanitized rename, card DnD handling.
 - `app/board/renderBoard.js` - Whole-board render (with concurrent card-list reads) and list DnD handling.
-- `app/board/openBoard.js` - Open/init board directory, starter content, and board picker label updates.
+- `app/board/openBoard.js` - Board tab session state (restore/open/close/reorder), board open/init logic, and starter content.
 - `app/modals/closeAllModals.js` - Modal close logic + editor cleanup + conditional rerender + board interaction lock/unlock.
 - `app/modals/toggleAddCardModal.js` - Add-card modal position/toggle.
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
