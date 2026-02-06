@@ -66,15 +66,8 @@ body {
 /* 3) App chrome */
 header {
   display: flex;
-<<<<<<< ours
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--spacing);
-  row-gap: 8px;
-=======
   flex-direction: column;
   gap: 10px;
->>>>>>> theirs
   padding: var(--spacing);
   background: color-mix(in oklab, var(--bg) 88%, var(--border));
   position: sticky;
@@ -114,8 +107,7 @@ header h1 {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 0;
-  flex: 1 1 auto;
+  flex-wrap: wrap;
 }
 #labelBoardPath {
   font-size: var(--font-sm);
@@ -127,83 +119,6 @@ header h1 {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 8px 12px;
-}
-
-#boardTabs {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  flex: 1 1 260px;
-  overflow-x: auto;
-  padding: 2px 1px;
-}
-
-.board-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  flex: 0 0 auto;
-  max-width: 240px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-card);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, .02);
-  cursor: grab;
-}
-
-.board-tab:active {
-  cursor: grabbing;
-}
-
-.board-tab.is-active {
-  border-color: color-mix(in oklab, var(--accent) 32%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 18%, transparent);
-}
-
-.board-tab-open {
-  border: none;
-  background: transparent;
-  border-radius: 999px 0 0 999px;
-  box-shadow: none;
-  padding: 6px 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px;
-}
-
-.board-tab-open:hover,
-.board-tab-open:active {
-  background: transparent;
-  transform: none;
-}
-
-.board-tab-close {
-  border: none;
-  border-left: 1px solid var(--border);
-  border-radius: 0 999px 999px 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--muted);
-  width: 26px;
-  min-width: 26px;
-  padding: 0;
-  font-size: 12px;
-  line-height: 1;
-}
-
-.board-tab-close:hover {
-  color: var(--text);
-  background: color-mix(in oklab, var(--bg-card) 92%, var(--border));
-}
-
-.board-tab.sortable-ghost {
-  opacity: 0.55;
-}
-
-.board-tab.sortable-chosen {
-  box-shadow: 0 10px 24px var(--shadow-card);
 }
 
 .board-toolbar-group {
@@ -249,18 +164,6 @@ header h1 {
 #themeToggle:active { transform: translateY(1px); }
 #themeToggle:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%, white); }
 
-<<<<<<< ours
-#openBoardSettings {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 7px 10px;
-}
-
-#openBoardSettings svg {
-  height: 16px;
-  width: 16px;
-=======
 #boardTabsWrapper {
   width: 100%;
   margin-bottom: -1px;
@@ -303,7 +206,18 @@ header h1 {
   box-shadow: 0 4px 10px var(--shadow);
   position: relative;
   z-index: 2;
->>>>>>> theirs
+}
+
+#openBoardSettings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+}
+
+#openBoardSettings svg {
+  height: 16px;
+  width: 16px;
 }
 
 /* 4) Board layout */
@@ -755,21 +669,6 @@ select:disabled {
 @media (max-width: 700px) {
   :root { --list-min: 260px; }
   header { position: static; }
-<<<<<<< ours
-  #boardPathWrapper {
-    width: 100%;
-  }
-  #boardTabs {
-    flex-basis: 100%;
-  }
-  #boardControls {
-    margin-left: 0;
-    width: 100%;
-  }
-  #boardSearchInput {
-    width: min(340px, 100%);
-    max-width: 100%;
-=======
   .headerTopRow {
     flex-direction: column;
     align-items: flex-start;
@@ -778,7 +677,6 @@ select:disabled {
     width: 100%;
     justify-content: space-between;
     flex-wrap: wrap;
->>>>>>> theirs
   }
   main#board {
     padding: 12px;

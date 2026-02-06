@@ -2,21 +2,16 @@ var turndown = new TurndownService();
 const renderMarkdown = (md) => marked.parse(md);
 
 async function init() {
-<<<<<<< ours
     initializeBoardLabelControls();
     initializeBoardSearchControls();
-    initializeBoardTabsControls();
-    try {
-        await restoreBoardSession();
-    } catch (error) {
-        console.error('Failed to restore board session.', error);
-=======
+
     const restoredBoard = restoreBoardTabs();
 
     if (restoredBoard) {
         window.boardRoot = restoredBoard;
-        await renderBoard();
->>>>>>> theirs
+        renderBoard().catch((error) => {
+            console.error('Failed to render board on startup.', error);
+        });
     }
 
     const userInput = document.getElementById('userInput');
@@ -75,11 +70,7 @@ async function init() {
         if (dir) {
             document.getElementById('boardPath').value = dir;
             await window.board.importFromTrello(dir);
-            try {
-                await openBoard(dir);
-            } catch (error) {
-                console.error('Failed to open selected board.', error);
-            }
+            await openBoard(dir);
         }
     });
 }

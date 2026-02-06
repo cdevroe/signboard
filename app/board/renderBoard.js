@@ -7,20 +7,14 @@ async function renderBoard() {
 
   closeCardLabelPopover();
   await ensureBoardLabelsLoaded();
-  if (window.boardRoot !== boardRoot) return;
 
   const boardName = document.getElementById('boardName');
-<<<<<<< ours
-  const boardNameText = await window.board.getBoardName( boardRoot );
-  if (window.boardRoot !== boardRoot) return;
-=======
   boardName.textContent = await window.board.getBoardName( boardRoot );
   renderBoardTabs();
->>>>>>> theirs
 
   const lists = await window.board.listLists(boardRoot);
-  if (window.boardRoot !== boardRoot) return;
   const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
 
   const listsWithCards = await Promise.all(
     lists.map(async (listName) => {
@@ -29,14 +23,9 @@ async function renderBoard() {
       return { listName, listPath, cards };
     })
   );
-  if (window.boardRoot !== boardRoot) return;
-
-  boardName.textContent = boardNameText;
-  boardEl.innerHTML = '';
 
   for (const { listName, listPath, cards } of listsWithCards) {
     const listEl = await createListElement(listName, listPath, cards);
-    if (window.boardRoot !== boardRoot) return;
     boardEl.appendChild(listEl);
   }
 
