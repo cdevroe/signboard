@@ -1,6 +1,7 @@
 async function createCardElement(cardPath) {
   const card = await window.board.readCard(cardPath);
   const titleContent = card.frontmatter.title || '';
+  let dueDateValue = String(card.frontmatter.due || '').trim();
   let selectedLabelIds = Array.isArray(card.frontmatter.labels)
     ? card.frontmatter.labels.map((labelId) => String(labelId))
     : [];
@@ -27,26 +28,22 @@ async function createCardElement(cardPath) {
   const metadata = document.createElement('div');
   metadata.className = 'metadata';
 
-  if (card.frontmatter.due) {
-    const dueWrap = document.createElement('span');
-    dueWrap.className = 'due-date';
-    dueWrap.title = card.frontmatter.due;
+  const dueButton = document.createElement('button');
+  dueButton.type = 'button';
+  dueButton.className = 'metadata-action due-date-action';
 
-    const dueIcon = document.createElement('i');
-    dueIcon.setAttribute('data-feather', 'clock');
-    dueWrap.appendChild(dueIcon);
-    dueWrap.append(' ');
+  const dueIcon = document.createElement('i');
+  dueIcon.setAttribute('data-feather', 'clock');
+  dueButton.appendChild(dueIcon);
 
-    const formattedDue = document.createElement('span');
-    formattedDue.className = 'formatted-date';
-    formattedDue.textContent = await window.board.formatDueDate(card.frontmatter.due);
-    dueWrap.appendChild(formattedDue);
-    metadata.appendChild(dueWrap);
-  }
+  const formattedDue = document.createElement('span');
+  formattedDue.className = 'formatted-date';
+  dueButton.appendChild(formattedDue);
+  metadata.appendChild(dueButton);
 
   const labelButton = document.createElement('button');
   labelButton.type = 'button';
-  labelButton.className = 'card-label-button';
+  labelButton.className = 'metadata-action card-label-button';
   labelButton.title = 'Set labels';
   const labelIcon = document.createElement('i');
   labelIcon.setAttribute('data-feather', 'tag');
@@ -56,6 +53,41 @@ async function createCardElement(cardPath) {
   const cardLabelsWrap = document.createElement('div');
   cardLabelsWrap.className = 'card-labels';
   metadata.appendChild(cardLabelsWrap);
+
+  async function renderDueDateDisplay() {
+    if (!dueDateValue) {
+      formattedDue.textContent = '';
+      return;
+    }
+
+    formattedDue.textContent = await window.board.formatDueDate(dueDateValue);
+  }
+
+  function setMetadataActionVisibility() {
+    const hasDueDate = dueDateValue.length > 0;
+    const hasLabels = selectedLabelIds.length > 0;
+    const hasAnyMetadata = hasDueDate || hasLabels;
+
+    metadata.classList.toggle('metadata-discovery', !hasAnyMetadata);
+    dueButton.classList.toggle('metadata-action-empty', !hasDueDate);
+    labelButton.classList.toggle('metadata-action-empty', !hasLabels);
+
+    if (hasDueDate) {
+      dueButton.title = 'Change due date';
+      dueButton.setAttribute('aria-label', 'Change due date');
+    } else {
+      dueButton.title = 'Set due date';
+      dueButton.setAttribute('aria-label', 'Set due date');
+    }
+
+    if (hasLabels) {
+      labelButton.title = 'Edit labels';
+      labelButton.setAttribute('aria-label', 'Edit labels');
+    } else {
+      labelButton.title = 'Set labels';
+      labelButton.setAttribute('aria-label', 'Set labels');
+    }
+  }
 
   function renderCardLabels() {
     cardLabelsWrap.innerHTML = '';
@@ -84,6 +116,18 @@ async function createCardElement(cardPath) {
 
       cardLabelsWrap.appendChild(labelChip);
     }
+
+    setMetadataActionVisibility();
+  }
+
+  async function updateCardDueDate(nextDueDateValue) {
+    dueDateValue = String(nextDueDateValue || '').trim();
+    const nextDueDate = dueDateValue.length > 0 ? dueDateValue : null;
+
+    card.frontmatter.due = nextDueDate;
+    await window.board.updateFrontmatter(cardPath, { due: nextDueDate });
+    await renderDueDateDisplay();
+    setMetadataActionVisibility();
   }
 
   async function updateCardLabels(nextLabelIds) {
@@ -100,7 +144,20 @@ async function createCardElement(cardPath) {
     }
   }
 
+  await renderDueDateDisplay();
   renderCardLabels();
+
+  dueButton.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openDueDatePickerAtTrigger({
+      triggerElement: dueButton,
+      dueDateValue,
+      onSelect: async (value) => {
+        await updateCardDueDate(value);
+      },
+    });
+  });
 
   labelButton.addEventListener('click', (event) => {
     event.preventDefault();

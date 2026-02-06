@@ -1,7 +1,22 @@
+async function pickAndOpenBoard() {
+    const dir = await window.chooser.pickDirectory({ /* defaultPath: '/some/path' */ });
+    if (!dir) {
+        return false;
+    }
+
+    const boardPathInput = document.getElementById('boardPath');
+    if (boardPathInput) {
+        boardPathInput.value = dir;
+    }
+
+    await window.board.importFromTrello(dir);
+    return openBoard(dir);
+}
+
 async function openBoard( dir ) {
     const boardPath = normalizeBoardPath(dir);
     if (!boardPath) {
-        return;
+        return false;
     }
 
     if (typeof closeBoardSettingsModal === 'function') {
@@ -10,6 +25,15 @@ async function openBoard( dir ) {
 
     if (typeof flushBoardLabelSettingsSave === 'function') {
         await flushBoardLabelSettingsSave();
+    }
+
+    const tabResult = ensureBoardInTabs(boardPath);
+    if (tabResult && tabResult.limitReached) {
+        if (typeof alertBoardTabLimit === 'function') {
+            alertBoardTabLimit();
+        }
+        renderBoardTabs();
+        return false;
     }
 
     const directories = await window.board.listDirectories( boardPath );
@@ -43,7 +67,6 @@ Control button on Windows. Command button on macOS.
 I hope you enjoy Signboard. If you have any feedback, please let me know. colin@cdevroe.com` );
     }
 
-    ensureBoardInTabs(boardPath);
     window.boardRoot = boardPath;
     setStoredActiveBoard(window.boardRoot);
 
@@ -56,5 +79,5 @@ I hope you enjoy Signboard. If you have any feedback, please let me know. colin@
     }
 
     await renderBoard();
-    
+    return true;
 }

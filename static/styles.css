@@ -267,6 +267,25 @@ header h1 {
   cursor: grabbing;
 }
 
+.board-tab-add {
+  cursor: default;
+  opacity: 1;
+  transform: translateY(1px);
+  padding-right: 12px;
+}
+
+.board-tab-add .board-tab-label {
+  padding-right: 0;
+}
+
+.board-tab-add .board-tab-label:disabled {
+  cursor: not-allowed;
+}
+
+.board-tab-add.is-disabled {
+  opacity: .6;
+}
+
 #openBoardSettings {
   display: inline-flex;
   align-items: center;
@@ -384,38 +403,57 @@ main#board {
   font-size: var(--font-xs);
   color: var(--muted);
 }
-.card-body span.due-date {
-  margin-right: 4px;
+
+.metadata-action {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-.card-body span.due-date .formatted-date {
-  vertical-align: top;
-}
-.card-body svg {
-  height: 16px;
-}
-
-.card-label-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   padding: 3px;
   border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
   box-shadow: none;
+  min-height: 24px;
+  transition: opacity .12s ease, border-color .12s ease, color .12s ease;
 }
 
-.card-label-button:hover {
+.metadata-action:hover {
   border-color: var(--border);
 }
 
-.card-label-button svg {
+.metadata-action:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 40%, white);
+  outline-offset: 1px;
+}
+
+.card .metadata-action.metadata-action-empty {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card:hover .metadata-action.metadata-action-empty,
+.card:focus-within .metadata-action.metadata-action-empty {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.due-date-action {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+}
+
+.due-date-action .formatted-date {
+  vertical-align: top;
+}
+
+.card-body svg {
   height: 16px;
-  width: 16px;
+}
+
+.card-label-button {
+  justify-content: center;
 }
 
 .card-labels {
@@ -719,11 +757,6 @@ select:disabled {
 .overtype-wrapper .overtype-preview pre {
   border-radius: none !important;
   padding: 8px important!;
-}
-
-.fdatepicker-popup {
-  top: 235px !important;
-  left: calc( 60vw - 30vw) !important;
 }
 
 /* 9) Small screens */

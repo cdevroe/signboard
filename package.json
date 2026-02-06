@@ -33,6 +33,7 @@
     "build:js": "./buildjs.sh",
     "test:frontmatter": "node scripts/test-frontmatter.js",
     "test:board-labels": "node scripts/test-board-labels.js",
+    "test:board-card-metadata": "node scripts/test-board-card-metadata.js",
     "test:timestamp": "node scripts/test-timestamp-format.js",
     "migrate:legacy-cards": "node scripts/migrate-legacy-cards.js",
     "dist": "npm run dist:mac",

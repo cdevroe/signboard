@@ -130,7 +130,130 @@ async function saveEditorCard(bodyValue) {
     });
 }
 
-async function toggleEditCardModal( cardPath ) {
+let activeDueDatePickerInput = null;
+
+function destroyActiveDueDatePicker() {
+    if (activeDueDatePickerInput && activeDueDatePickerInput._fdatepicker) {
+        activeDueDatePickerInput._fdatepicker.destroy();
+    }
+
+    if (activeDueDatePickerInput && activeDueDatePickerInput.parentNode) {
+        activeDueDatePickerInput.parentNode.removeChild(activeDueDatePickerInput);
+    }
+
+    activeDueDatePickerInput = null;
+}
+
+function positionDueDatePickerAnchorInput(anchorInput, triggerElement) {
+    if (!anchorInput || !triggerElement || typeof triggerElement.getBoundingClientRect !== 'function') {
+        return;
+    }
+
+    const triggerRect = triggerElement.getBoundingClientRect();
+    const top = Math.round(triggerRect.bottom + window.scrollY);
+    const left = Math.round(triggerRect.left + window.scrollX);
+
+    anchorInput.style.top = `${top}px`;
+    anchorInput.style.left = `${left}px`;
+}
+
+function createDueDatePickerAnchorInput(triggerElement) {
+    const anchorInput = document.createElement('input');
+    anchorInput.type = 'text';
+    anchorInput.className = 'due-date-picker-anchor-input';
+    anchorInput.tabIndex = -1;
+    anchorInput.setAttribute('aria-hidden', 'true');
+    anchorInput.setAttribute('data-fdatepicker', 'due-date-anchor');
+
+    anchorInput.style.position = 'absolute';
+    anchorInput.style.height = '1px';
+    anchorInput.style.width = '1px';
+    anchorInput.style.opacity = '0';
+    anchorInput.style.pointerEvents = 'none';
+    anchorInput.style.zIndex = '-1';
+
+    positionDueDatePickerAnchorInput(anchorInput, triggerElement);
+    document.body.appendChild(anchorInput);
+
+    return anchorInput;
+}
+
+function parseDueDateStringToDate(dueDateValue) {
+    const normalizedDueDate = String(dueDateValue || '').trim();
+    if (!normalizedDueDate) {
+        return null;
+    }
+
+    const [year, month, day] = normalizedDueDate.split('-').map(Number);
+    if (!year || !month || !day) {
+        return null;
+    }
+
+    const parsed = new Date(year, month - 1, day);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function openDueDatePickerAtTrigger({
+    triggerElement,
+    dueDateValue,
+    onSelect,
+}) {
+    if (!triggerElement || typeof FDatepicker !== 'function') {
+        return;
+    }
+
+    if (typeof closeAllLabelPopovers === 'function') {
+        closeAllLabelPopovers();
+    }
+
+    destroyActiveDueDatePicker();
+
+    const anchorInput = createDueDatePickerAnchorInput(triggerElement);
+    activeDueDatePickerInput = anchorInput;
+
+    const picker = new FDatepicker(anchorInput, {
+        format: 'Y-m-d',
+        autoClose: true,
+    });
+
+    const initialDate = parseDueDateStringToDate(dueDateValue);
+    if (initialDate) {
+        picker.setDate(initialDate);
+    }
+
+    anchorInput.onchange = async () => {
+        if (String(anchorInput.value || '').trim().length === 0 && typeof onSelect === 'function') {
+            await onSelect('');
+        }
+    };
+
+    picker.update({
+        format: 'Y-m-d',
+        autoClose: true,
+        onClose: () => {
+            setTimeout(() => {
+                if (activeDueDatePickerInput === anchorInput) {
+                    destroyActiveDueDatePicker();
+                } else if (anchorInput && anchorInput.parentNode) {
+                    if (anchorInput._fdatepicker) {
+                        anchorInput._fdatepicker.destroy();
+                    }
+                    anchorInput.parentNode.removeChild(anchorInput);
+                }
+            }, 0);
+        },
+        onSelect: async (value) => {
+            if (typeof onSelect === 'function') {
+                await onSelect(value);
+            }
+        }
+    });
+
+    picker.open();
+}
+
+async function toggleEditCardModal(cardPath, options = {}) {
+    const shouldOpenDueDatePicker = Boolean(options && options.openDueDatePicker);
     const modalEditCard = document.getElementById('modalEditCard');
 
     const card = await window.board.readCard(cardPath);
@@ -192,34 +315,19 @@ async function toggleEditCardModal( cardPath ) {
     };
 
     const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
-    const datepickerInput = document.getElementById('cardEditorCardDueDate');
-    const datepicker = new FDatepicker(datepickerInput, {
-        format: 'Y-m-d',
-        autoClose: true,
-    });
-
-    if (card.frontmatter.due) {
-        const [year, month, day] = card.frontmatter.due.split('-').map(Number);
-        datepicker.setDate(new Date(year, month - 1, day));
-    }
-
-    datepicker.update({
-        format: 'Y-m-d',
-        autoClose: true,
-        onSelect: async (value) => { await handleMetadataSave(value,'due'); }
-    });
-
-    datepickerInput.onchange = (e) => {
-        if ( e.target.value === '' ) {
-            handleMetadataSave('', 'due');
-        }
-    };
-
-    cardEditorSetDueDateLink.onclick = (e) => {
+    const openDueDatePickerControl = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        datepicker.open();
+        const editorFrontmatter = getEditorFrontmatter();
+        openDueDatePickerAtTrigger({
+            triggerElement: cardEditorSetDueDateLink,
+            dueDateValue: editorFrontmatter.due,
+            onSelect: async (value) => {
+                await handleMetadataSave(value, 'due');
+            },
+        });
     };
+    cardEditorSetDueDateLink.onclick = openDueDatePickerControl;
 
     if (cardEditorSetLabelsLink) {
       cardEditorSetLabelsLink.onclick = async (e) => {
@@ -289,6 +397,18 @@ async function toggleEditCardModal( cardPath ) {
             board.style.pointerEvents = 'none';
             board.style.userSelect = 'none';
         }
+    }
+
+    if (shouldOpenDueDatePicker) {
+        cardEditorSetDueDateLink.focus();
+        const editorFrontmatter = getEditorFrontmatter();
+        openDueDatePickerAtTrigger({
+            triggerElement: cardEditorSetDueDateLink,
+            dueDateValue: editorFrontmatter.due,
+            onSelect: async (value) => {
+                await handleMetadataSave(value, 'due');
+            },
+        });
     }
 
     return;

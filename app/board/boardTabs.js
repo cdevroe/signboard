@@ -1,5 +1,6 @@
 const OPEN_BOARDS_STORAGE_KEY = 'openBoardPaths';
 const ACTIVE_BOARD_STORAGE_KEY = 'activeBoardPath';
+const MAX_OPEN_BOARDS = 6;
 let boardTabsSortable = null;
 
 function normalizeBoardPath(dir) {
@@ -15,6 +16,28 @@ function getBoardLabelFromPath(boardPath) {
     return pathParts[pathParts.length - 1] || 'Board';
 }
 
+function sanitizeOpenBoards(openBoards) {
+    const uniqueBoards = [];
+
+    for (const boardPath of Array.isArray(openBoards) ? openBoards : []) {
+        const normalizedPath = normalizeBoardPath(boardPath);
+        if (!normalizedPath) {
+            continue;
+        }
+
+        if (uniqueBoards.includes(normalizedPath)) {
+            continue;
+        }
+
+        uniqueBoards.push(normalizedPath);
+        if (uniqueBoards.length >= MAX_OPEN_BOARDS) {
+            break;
+        }
+    }
+
+    return uniqueBoards;
+}
+
 function getStoredOpenBoards() {
     let openBoards = [];
 
@@ -25,23 +48,11 @@ function getStoredOpenBoards() {
         openBoards = [];
     }
 
-    const uniqueBoards = [];
-    for (const boardPath of openBoards) {
-        const normalizedPath = normalizeBoardPath(boardPath);
-        if (!normalizedPath) {
-            continue;
-        }
-        if (uniqueBoards.includes(normalizedPath)) {
-            continue;
-        }
-        uniqueBoards.push(normalizedPath);
-    }
-
-    return uniqueBoards;
+    return sanitizeOpenBoards(openBoards);
 }
 
 function setStoredOpenBoards(openBoards) {
-    localStorage.setItem(OPEN_BOARDS_STORAGE_KEY, JSON.stringify(openBoards));
+    localStorage.setItem(OPEN_BOARDS_STORAGE_KEY, JSON.stringify(sanitizeOpenBoards(openBoards)));
 }
 
 function getStoredActiveBoard() {
@@ -59,12 +70,28 @@ function ensureBoardInTabs(boardPath) {
     const openBoards = getStoredOpenBoards();
 
     if (openBoards.includes(normalizedPath)) {
-        return openBoards;
+        return {
+            openBoards,
+            added: false,
+            limitReached: false,
+        };
+    }
+
+    if (openBoards.length >= MAX_OPEN_BOARDS) {
+        return {
+            openBoards,
+            added: false,
+            limitReached: true,
+        };
     }
 
     const updatedOpenBoards = [...openBoards, normalizedPath];
     setStoredOpenBoards(updatedOpenBoards);
-    return updatedOpenBoards;
+    return {
+        openBoards: updatedOpenBoards,
+        added: true,
+        limitReached: false,
+    };
 }
 
 function clearRenderedBoard() {
@@ -129,7 +156,7 @@ function initializeBoardTabsSortable(tabsEl) {
 
     boardTabsSortable = new Sortable(tabsEl, {
         animation: 150,
-        draggable: '.board-tab',
+        draggable: '.board-tab[data-board-path]',
         filter: '.board-tab-close',
         preventOnFilter: false,
         ghostClass: 'board-tab--ghost',
@@ -140,7 +167,7 @@ function initializeBoardTabsSortable(tabsEl) {
                 return;
             }
 
-            const reorderedBoards = [...tabsEl.querySelectorAll('.board-tab')]
+            const reorderedBoards = [...tabsEl.querySelectorAll('.board-tab[data-board-path]')]
                 .map((tab) => normalizeBoardPath(tab.getAttribute('data-board-path')))
                 .filter(Boolean);
 
@@ -169,6 +196,34 @@ function restoreBoardTabs() {
     return activeBoard;
 }
 
+function alertBoardTabLimit() {
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        window.alert(`You can only open up to ${MAX_OPEN_BOARDS} boards at once. Close a board tab to open another.`);
+    }
+}
+
+async function promptAndOpenBoardFromTabs() {
+    const openBoards = getStoredOpenBoards();
+    if (openBoards.length >= MAX_OPEN_BOARDS) {
+        alertBoardTabLimit();
+        return;
+    }
+
+    if (typeof pickAndOpenBoard === 'function') {
+        await pickAndOpenBoard();
+        return;
+    }
+
+    if (!window.chooser || typeof window.chooser.pickDirectory !== 'function') {
+        return;
+    }
+
+    const dir = await window.chooser.pickDirectory({});
+    if (dir) {
+        await openBoard(dir);
+    }
+}
+
 function renderBoardTabs() {
     const tabsWrapper = document.getElementById('boardTabsWrapper');
     const tabsEl = document.getElementById('boardTabs');
@@ -179,11 +234,6 @@ function renderBoardTabs() {
     const openBoards = getStoredOpenBoards();
 
     tabsEl.innerHTML = '';
-    if (openBoards.length === 0) {
-        tabsWrapper.classList.add('hidden');
-        return;
-    }
-
     tabsWrapper.classList.remove('hidden');
     const activeBoard = normalizeBoardPath(window.boardRoot || getStoredActiveBoard());
 
@@ -232,6 +282,33 @@ function renderBoardTabs() {
         boardTab.appendChild(closeButton);
         tabsEl.appendChild(boardTab);
     }
+
+    const addBoardTab = document.createElement('div');
+    addBoardTab.classList.add('board-tab', 'board-tab-add');
+    addBoardTab.setAttribute('role', 'presentation');
+
+    const addBoardButton = document.createElement('button');
+    addBoardButton.type = 'button';
+    addBoardButton.classList.add('board-tab-label', 'board-tab-add-label');
+    addBoardButton.textContent = '+ Add Board';
+    addBoardButton.setAttribute('aria-label', 'Add board');
+
+    const canAddMoreBoards = openBoards.length < MAX_OPEN_BOARDS;
+    if (!canAddMoreBoards) {
+        addBoardTab.classList.add('is-disabled');
+        addBoardButton.disabled = true;
+        addBoardButton.title = `Maximum ${MAX_OPEN_BOARDS} open boards`;
+    } else {
+        addBoardButton.title = 'Add board';
+        addBoardButton.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await promptAndOpenBoardFromTabs();
+        });
+    }
+
+    addBoardTab.appendChild(addBoardButton);
+    tabsEl.appendChild(addBoardTab);
 
     initializeBoardTabsSortable(tabsEl);
 }

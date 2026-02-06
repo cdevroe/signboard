@@ -65,13 +65,5 @@ async function init() {
             btnAddList.click();
         };
     });
-    document.getElementById('pickFolder').addEventListener('click', async () => {
-        const dir = await window.chooser.pickDirectory({ /* defaultPath: '/some/path' */ });
-        if (dir) {
-            document.getElementById('boardPath').value = dir;
-            await window.board.importFromTrello(dir);
-            await openBoard(dir);
-        }
-    });
 }
 init();
