@@ -68,7 +68,7 @@ header {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: var(--spacing);
+  padding: var(--spacing) var(--spacing) 0;
   background: color-mix(in oklab, var(--bg) 88%, var(--border));
   position: sticky;
   top: 0;
@@ -166,7 +166,7 @@ header h1 {
 
 #boardTabsWrapper {
   width: 100%;
-  margin-bottom: -1px;
+  margin-bottom: 0;
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -180,20 +180,63 @@ header h1 {
 }
 
 .board-tab {
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   border: 1px solid color-mix(in oklab, var(--border) 85%, var(--bg));
   border-bottom-color: color-mix(in oklab, var(--border) 60%, var(--bg));
   border-radius: 10px 10px 0 0;
   background: color-mix(in oklab, var(--bg-card) 80%, var(--border));
   color: var(--muted);
   opacity: .85;
-  padding: 7px 14px 9px;
+  padding: 0 8px 0 12px;
   transform: translateY(2px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, .03);
-  transition: transform .12s ease, opacity .12s ease, background .12s ease, color .12s ease, border-color .12s ease;
+  transition: transform .12s ease, opacity .12s ease, background .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease;
 }
 
 .board-tab:hover {
   opacity: .95;
+}
+
+.board-tab-label {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  padding: 7px 0 9px;
+  cursor: pointer;
+}
+
+.board-tab-close {
+  border: 0;
+  background: transparent;
+  color: color-mix(in oklab, var(--muted) 85%, var(--text));
+  border-radius: 6px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  padding: 0;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  opacity: .75;
+}
+
+.board-tab-close:hover {
+  background: color-mix(in oklab, var(--bg-card) 75%, var(--border));
+  opacity: 1;
+}
+
+.board-tab-label:focus-visible,
+.board-tab-close:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 50%, white);
+  outline-offset: 2px;
 }
 
 .board-tab.is-active {
@@ -206,6 +249,22 @@ header h1 {
   box-shadow: 0 4px 10px var(--shadow);
   position: relative;
   z-index: 2;
+}
+
+.board-tab.is-active .board-tab-close {
+  color: color-mix(in oklab, var(--text) 72%, var(--muted));
+}
+
+.board-tab--chosen {
+  box-shadow: 0 6px 14px var(--shadow);
+}
+
+.board-tab--ghost {
+  opacity: .5;
+}
+
+.board-tab--dragging {
+  cursor: grabbing;
 }
 
 #openBoardSettings {
@@ -429,14 +488,16 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%,
 #modalAddCardToList button { margin-top: 10px; }
 
 #modalEditCard {
-  position: absolute;
-  top: 100px;
-  left: calc( 60vw - 30vw);
+  position: fixed;
+  z-index: 30;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
   background: var(--bg-card);
-  width: 50vw;
-  max-width: 750px;
-  height: 75vh;
-  max-height: 1000px;
+  width: min(920px, calc(100vw - 28px));
+  max-width: 920px;
+  height: min(82vh, calc(100vh - 28px));
+  max-height: calc(100vh - 28px);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
