@@ -84,6 +84,12 @@ contextBridge.exposeInMainWorld('board', {
 
   updateBoardLabels: async (boardRoot, labels) => await boardLabels.updateBoardLabels(boardRoot, labels),
 
+  updateBoardThemeOverrides: async (boardRoot, themeOverrides) =>
+    await boardLabels.updateBoardThemeOverrides(boardRoot, themeOverrides),
+
+  updateBoardSettings: async (boardRoot, partialSettings) =>
+    await boardLabels.updateBoardSettings(boardRoot, partialSettings),
+
   createCard: async (filePath, content) => {
     const asString = String(content || '');
     const lines = asString.split(/\r?\n/);

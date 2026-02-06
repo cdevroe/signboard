@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <title>Signboard</title>
-  <link rel="stylesheet" href="static/styles.css">
   <link rel="stylesheet" href="static/vendor/fdatepicker-3.0.24.min.css">
+  <link rel="stylesheet" href="static/styles.css">
   <script defer src="static/vendor/marked-12.0.2.min.js"></script>
   <script defer src="static/vendor/turndown-7.1.3.js"></script>
   <script defer src="static/vendor/sortable-1.15.2.min.js"></script>
@@ -65,7 +65,7 @@
       <a href="#" id="boardSettingsClose" title="Close settings"><i data-feather="x"></i></a>
     </div>
     <section class="boardSettingsSection">
-      <h3>Labels</h3>
+      <h3>Label Settings</h3>
       <p class="boardSettingsHint">Rename labels and choose colors for light and dark mode.</p>
       <div class="boardSettingsLabelsHeader">
         <span>Name</span>
@@ -74,6 +74,31 @@
       </div>
       <div id="boardSettingsLabels"></div>
       <button id="btnAddBoardLabel" type="button">Add label</button>
+    </section>
+    <section class="boardSettingsSection">
+      <h3>Theme Colors</h3>
+      <p class="boardSettingsHint">Choose one board background color per theme. The rest of the palette is derived automatically for readability.</p>
+      <div class="board-theme-settings-grid">
+        <div class="board-theme-settings-mode">
+          <h4>Light theme</h4>
+          <label for="boardThemeLightBackground">Board background</label>
+          <input id="boardThemeLightBackground" type="color" value="#f7f8fa">
+          <div id="boardThemeLightPreview" class="board-theme-preview"></div>
+          <button id="btnResetLightTheme" type="button">Reset Light Theme</button>
+        </div>
+        <div class="board-theme-settings-mode">
+          <h4>Dark theme</h4>
+          <label for="boardThemeDarkBackground">Board background</label>
+          <input id="boardThemeDarkBackground" type="color" value="#091102">
+          <div id="boardThemeDarkPreview" class="board-theme-preview"></div>
+          <button id="btnResetDarkTheme" type="button">Reset Dark Theme</button>
+        </div>
+      </div>
+      <p id="boardThemeColorsWarning" class="boardSettingsHint board-theme-warning hidden"></p>
+      <div class="board-theme-settings-actions">
+        <button id="btnResetAllThemeColors" type="button">Reset All Theme Colors</button>
+        <button id="btnApplyThemeColorsToOpenBoards" type="button">Apply to all Open Boards</button>
+      </div>
     </section>
   </div>
 

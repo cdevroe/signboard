@@ -11,19 +11,39 @@ html, body { margin: 0; height: 100%; }
   --paynes-gray: #5d737eff;
   --white: #fcfcfcff;
 
-  /* Surface & text */
-  --bg: #f7f8fa;
-  --bg-card: #ffffff;
-  --text: #0f172a;              /* slate-900 */
-  --muted: #6b7280;
+  /* Theme palette defaults (light + dark) */
+  --sb-light-bg: #f7f8fa;
+  --sb-light-bg-card: #ffffff;
+  --sb-light-text: #0f172a;
+  --sb-light-muted: #6b7280;
+  --sb-light-border: #e6e8ec;
+  --sb-light-shadow: rgba(15, 23, 42, .04);
+  --sb-light-shadow-card: rgba(15, 23, 42, .06);
+  --sb-light-accent: #0b5fff;
+  --sb-light-accent-contrast: #ffffff;
 
-  /* Borders & shadows */
-  --border: #e6e8ec;
-  --shadow: rgba(15, 23, 42, .04);
-  --shadow-card: rgba(15, 23, 42, .06);
+  --sb-dark-bg: #091102;
+  --sb-dark-bg-card: #12200a;
+  --sb-dark-text: #e8f0e5;
+  --sb-dark-muted: #a0b3a3;
+  --sb-dark-border: #1f2e17;
+  --sb-dark-shadow: rgba(0, 0, 0, 0.45);
+  --sb-dark-shadow-card: rgba(0, 0, 0, 0.55);
+  --sb-dark-accent: #6fcf97;
+  --sb-dark-accent-contrast: #07130c;
 
-  /* Accent / radius / spacing / type sizes */
-  --accent: #0b5fff;
+  /* Active theme variables (light mode by default) */
+  --bg: var(--sb-light-bg);
+  --bg-card: var(--sb-light-bg-card);
+  --text: var(--sb-light-text);              /* slate-900 */
+  --muted: var(--sb-light-muted);
+  --border: var(--sb-light-border);
+  --shadow: var(--sb-light-shadow);
+  --shadow-card: var(--sb-light-shadow-card);
+  --accent: var(--sb-light-accent);
+  --accent-contrast: var(--sb-light-accent-contrast);
+
+  /* Radius / spacing / type sizes */
   --radius: 10px;
   --radius-lg: 14px;
   --spacing: 12px;
@@ -42,14 +62,15 @@ html, body { margin: 0; height: 100%; }
 }
 
 :root[data-theme="dark"] {
-  --bg: #091102;                /* deep forest base */
-  --bg-card: #12200a;           /* slightly lighter for cards */
-  --text: #e8f0e5;              /* soft off-white with a hint of green */
-  --muted: #a0b3a3;             /* muted sage-gray for secondary text */
-  --border: #1f2e17;            /* dark olive for borders */
-  --shadow: rgba(0, 0, 0, 0.45);
-  --shadow-card: rgba(0, 0, 0, 0.55);
-  --accent: #6fcf97;            /* fresh green accent */
+  --bg: var(--sb-dark-bg);
+  --bg-card: var(--sb-dark-bg-card);
+  --text: var(--sb-dark-text);
+  --muted: var(--sb-dark-muted);
+  --border: var(--sb-dark-border);
+  --shadow: var(--sb-dark-shadow);
+  --shadow-card: var(--sb-dark-shadow-card);
+  --accent: var(--sb-dark-accent);
+  --accent-contrast: var(--sb-dark-accent-contrast);
 }
 
 body {
@@ -145,7 +166,7 @@ header h1 {
 }
 
 #boardSearchInput:focus-visible {
-  outline: 3px solid color-mix(in oklab, var(--accent) 40%, white);
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
   outline-offset: 1px;
 }
 
@@ -162,7 +183,7 @@ header h1 {
 }
 #themeToggle:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)); }
 #themeToggle:active { transform: translateY(1px); }
-#themeToggle:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%, white); }
+#themeToggle:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card)); }
 
 #boardTabsWrapper {
   width: 100%;
@@ -235,7 +256,7 @@ header h1 {
 
 .board-tab-label:focus-visible,
 .board-tab-close:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--accent) 50%, white);
+  outline: 2px solid color-mix(in oklab, var(--accent) 55%, var(--bg-card));
   outline-offset: 2px;
 }
 
@@ -357,7 +378,7 @@ main#board {
   background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
 }
 .btnOpenAddCardModal:focus-visible {
-  outline: 3px solid color-mix(in oklab, var(--accent) 40%, white);
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
 }
 
 .cards {
@@ -423,7 +444,7 @@ main#board {
 }
 
 .metadata-action:focus-visible {
-  outline: 3px solid color-mix(in oklab, var(--accent) 40%, white);
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
   outline-offset: 1px;
 }
 
@@ -495,7 +516,7 @@ button {
 }
 button:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)); }
 button:active { transform: translateY(1px); }
-button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%, white); }
+button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card)); }
 
 /* 7) Modals (Add Card, Add Card To List) */
 .modal {
@@ -528,7 +549,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%,
 #modalEditCard {
   position: fixed;
   z-index: 30;
-  top: max(14px, env(safe-area-inset-top));
+  top: max(64px, calc(env(safe-area-inset-top) + 14px));
   left: 50%;
   transform: translateX(-50%);
   background: var(--bg-card);
@@ -611,6 +632,92 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 40%,
   width: 82px !important;
   padding: 3px !important;
   height: 34px;
+}
+
+.board-theme-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.board-theme-settings-mode {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  background: color-mix(in oklab, var(--bg-card) 95%, var(--border));
+  display: grid;
+  gap: 8px;
+}
+
+.board-theme-settings-mode h4 {
+  margin: 0;
+  font-size: var(--font-sm);
+}
+
+.board-theme-settings-mode label {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.board-theme-settings-mode input[type="color"] {
+  width: 100%;
+  height: 36px;
+  padding: 3px;
+}
+
+.board-theme-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 102px;
+  padding: 8px;
+}
+
+.board-theme-preview-surface {
+  border: 1px solid;
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+  min-height: 84px;
+}
+
+.board-theme-preview-surface strong {
+  font-size: var(--font-sm);
+}
+
+.board-theme-preview-surface span {
+  font-size: var(--font-xs);
+}
+
+.board-theme-preview-button {
+  width: fit-content;
+  font-size: var(--font-xs);
+  padding: 4px 8px;
+  box-shadow: none;
+}
+
+.board-theme-warning {
+  margin-top: 10px;
+  color: #b45309;
+}
+
+:root[data-theme="dark"] .board-theme-warning {
+  color: #fbbf24;
+}
+
+.board-theme-settings-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .board-theme-settings-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .label-popover {
@@ -713,7 +820,7 @@ select:hover {
 }
 
 select:focus-visible {
-  outline: 3px solid color-mix(in oklab, var(--accent) 40%, white);
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
   outline-offset: 1px;
 }
 
@@ -722,7 +829,110 @@ select:disabled {
   cursor: not-allowed;
 }
 
-/* 8) Utilities */
+/* 8) Date Picker Theme Overrides */
+.sb-themed-fdatepicker {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 34px var(--shadow-card);
+}
+
+.sb-themed-fdatepicker .fdatepicker-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.sb-themed-fdatepicker .fdatepicker-nav,
+.sb-themed-fdatepicker .fdatepicker-title,
+.sb-themed-fdatepicker .fdatepicker-day,
+.sb-themed-fdatepicker .fdatepicker-month,
+.sb-themed-fdatepicker .fdatepicker-year,
+.sb-themed-fdatepicker .fdatepicker-button-text {
+  color: var(--text);
+}
+
+.sb-themed-fdatepicker .fdatepicker-day-header {
+  color: var(--muted);
+}
+
+.sb-themed-fdatepicker .fdatepicker-nav:hover,
+.sb-themed-fdatepicker .fdatepicker-title:hover,
+.sb-themed-fdatepicker .fdatepicker-button-text:hover,
+.sb-themed-fdatepicker .fdatepicker-day:not(.disabled):hover,
+.sb-themed-fdatepicker .fdatepicker-month:hover,
+.sb-themed-fdatepicker .fdatepicker-year:hover {
+  background: color-mix(in oklab, var(--bg-card) 86%, var(--border));
+}
+
+.sb-themed-fdatepicker .fdatepicker-nav:focus,
+.sb-themed-fdatepicker .fdatepicker-title:focus,
+.sb-themed-fdatepicker .fdatepicker-button-text:focus,
+.sb-themed-fdatepicker .fdatepicker-day:focus,
+.sb-themed-fdatepicker .fdatepicker-month:focus,
+.sb-themed-fdatepicker .fdatepicker-year:focus {
+  outline: 2px solid color-mix(in oklab, var(--accent) 55%, var(--bg-card));
+  outline-offset: 1px;
+}
+
+.sb-themed-fdatepicker .fdatepicker-day.today,
+.sb-themed-fdatepicker .fdatepicker-month.current,
+.sb-themed-fdatepicker .fdatepicker-year.current {
+  color: var(--accent);
+  outline-color: color-mix(in oklab, var(--accent) 70%, var(--bg-card));
+}
+
+.sb-themed-fdatepicker .fdatepicker-day.selected,
+.sb-themed-fdatepicker .fdatepicker-month.selected,
+.sb-themed-fdatepicker .fdatepicker-year.selected,
+.sb-themed-fdatepicker .fdatepicker-day.range-start,
+.sb-themed-fdatepicker .fdatepicker-day.range-end {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.sb-themed-fdatepicker .fdatepicker-day.in-range {
+  background: color-mix(in oklab, var(--accent) 24%, var(--bg-card));
+  color: var(--text);
+}
+
+.sb-themed-fdatepicker .fdatepicker-day.multi-selected {
+  background: color-mix(in oklab, var(--accent) 82%, var(--bg-card));
+  color: var(--accent-contrast);
+}
+
+.sb-themed-fdatepicker .fdatepicker-day.other-month,
+.sb-themed-fdatepicker .fdatepicker-year.other-decade {
+  color: color-mix(in oklab, var(--muted) 80%, var(--bg-card));
+}
+
+.sb-themed-fdatepicker .fdatepicker-day.weekend {
+  color: color-mix(in oklab, var(--accent) 64%, #d14343);
+}
+
+.sb-themed-fdatepicker .fdatepicker-day.disabled,
+.sb-themed-fdatepicker .fdatepicker-day.other-month.disabled {
+  color: color-mix(in oklab, var(--muted) 55%, var(--bg-card));
+}
+
+.sb-themed-fdatepicker .fdatepicker-buttons,
+.sb-themed-fdatepicker .fdatepicker-timepicker {
+  border-top: 1px solid var(--border);
+}
+
+.sb-themed-fdatepicker input.fdatepicker-time-input,
+.sb-themed-fdatepicker .fdatepicker-time-ampm {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.sb-themed-fdatepicker .fdatepicker-time-ampm.active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: color-mix(in oklab, var(--accent) 60%, var(--border));
+}
+
+/* 9) Utilities */
 .hidden { display: none; }
 
 /* Nice, unobtrusive scrollbars (Chromium/WebKit) */
@@ -759,7 +969,7 @@ select:disabled {
   padding: 8px important!;
 }
 
-/* 9) Small screens */
+/* 10) Small screens */
 @media (max-width: 700px) {
   :root { --list-min: 260px; }
   header { position: static; }
@@ -777,7 +987,7 @@ select:disabled {
   }
 }
 
-/* 10) Print – simple, text-first */
+/* 11) Print – simple, text-first */
 @media print {
   header, #themeToggle { display: none !important; }
   main#board { overflow: visible; }

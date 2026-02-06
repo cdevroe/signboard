@@ -107,6 +107,14 @@ function clearRenderedBoard() {
 }
 
 async function closeBoardTab(boardPath) {
+    if (typeof closeBoardSettingsModal === 'function') {
+        await closeBoardSettingsModal();
+    } else if (typeof flushBoardSettingsSave === 'function') {
+        await flushBoardSettingsSave();
+    } else if (typeof flushBoardLabelSettingsSave === 'function') {
+        await flushBoardLabelSettingsSave();
+    }
+
     const normalizedPath = normalizeBoardPath(boardPath);
     const openBoards = getStoredOpenBoards();
     const removedIndex = openBoards.indexOf(normalizedPath);
@@ -124,6 +132,9 @@ async function closeBoardTab(boardPath) {
         window.boardRoot = '';
         setStoredActiveBoard('');
         renderBoardTabs();
+        if (typeof ensureBoardLabelsLoaded === 'function') {
+            await ensureBoardLabelsLoaded();
+        }
         clearRenderedBoard();
         return;
     }
@@ -259,6 +270,14 @@ function renderBoardTabs() {
         tabButton.addEventListener('click', async () => {
             if (normalizeBoardPath(window.boardRoot) === boardPath) {
                 return;
+            }
+
+            if (typeof closeBoardSettingsModal === 'function') {
+                await closeBoardSettingsModal();
+            } else if (typeof flushBoardSettingsSave === 'function') {
+                await flushBoardSettingsSave();
+            } else if (typeof flushBoardLabelSettingsSave === 'function') {
+                await flushBoardLabelSettingsSave();
             }
 
             window.boardRoot = boardPath;

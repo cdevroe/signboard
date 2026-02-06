@@ -250,6 +250,12 @@ function openDueDatePickerAtTrigger({
     });
 
     picker.open();
+    if (picker.popup) {
+        picker.popup.classList.add('sb-themed-fdatepicker');
+    }
+    if (typeof picker.setPosition === 'function') {
+        picker.setPosition();
+    }
 }
 
 async function toggleEditCardModal(cardPath, options = {}) {
@@ -281,8 +287,6 @@ async function toggleEditCardModal(cardPath, options = {}) {
         cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(card.frontmatter.due);
     }
 
-    const themeMode = localStorage.getItem('theme');
-
     const [editor] = new OverType('#cardEditorOverType', {
         value: card.body,
         fontSize: '16px',
@@ -294,7 +298,9 @@ async function toggleEditCardModal(cardPath, options = {}) {
         onChange: handleNotesSave
     });
 
-    if ( themeMode == 'dark' ) {
+    if (typeof applyEditorThemeFromActiveMode === 'function') {
+        applyEditorThemeFromActiveMode();
+    } else if (getBoardThemeMode() === 'dark') {
         OverType.setTheme(customOverTypeThemes.dark);
     } else {
         OverType.setTheme(customOverTypeThemes.light);

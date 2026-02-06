@@ -1,12 +1,13 @@
 async function renderBoard() {
   const boardRoot = window.boardRoot; // set in the drop‑zone handler
+  await ensureBoardLabelsLoaded();
+
   if (!boardRoot) {
     renderBoardTabs();
     return;
   }
 
   closeCardLabelPopover();
-  await ensureBoardLabelsLoaded();
 
   const boardName = document.getElementById('boardName');
   boardName.textContent = await window.board.getBoardName( boardRoot );

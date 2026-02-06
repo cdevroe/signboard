@@ -6,6 +6,8 @@ const path = require('path');
 const {
   readBoardSettings,
   updateBoardLabels,
+  updateBoardThemeOverrides,
+  updateBoardSettings,
   cardMatchesLabelFilter,
 } = require('../lib/boardLabels');
 
@@ -19,6 +21,7 @@ async function run() {
     const defaults = await readBoardSettings(boardPath);
     assert.strictEqual(defaults.labels.length, 3);
     assert.strictEqual(defaults.labels[0].id, 'label-1');
+    assert.deepStrictEqual(defaults.themeOverrides, { light: {}, dark: {} });
 
     const settingsPath = path.join(boardPath, 'board-settings.md');
     const writtenRaw = await fs.readFile(settingsPath, 'utf8');
@@ -43,8 +46,29 @@ async function run() {
     await updateBoardLabels(boardPath, updatedLabels);
     const reloaded = await readBoardSettings(boardPath);
     assert.deepStrictEqual(reloaded.labels, updatedLabels);
+    assert.deepStrictEqual(reloaded.themeOverrides, { light: {}, dark: {} });
 
-    // 3) Legacy labels.md file should be migrated to board-settings.md.
+    // 3) Theme overrides should persist and normalize values.
+    await updateBoardThemeOverrides(boardPath, {
+      light: { boardBackground: 'dfe4f2' },
+      dark: { boardBackground: '#0b1220' },
+    });
+    const withThemeOverrides = await readBoardSettings(boardPath);
+    assert.deepStrictEqual(withThemeOverrides.themeOverrides, {
+      light: { boardBackground: '#dfe4f2' },
+      dark: { boardBackground: '#0b1220' },
+    });
+
+    // 4) Updating full settings can clear overrides and preserve labels.
+    await updateBoardSettings(boardPath, {
+      labels: updatedLabels,
+      themeOverrides: { light: {}, dark: {} },
+    });
+    const clearedOverrides = await readBoardSettings(boardPath);
+    assert.deepStrictEqual(clearedOverrides.themeOverrides, { light: {}, dark: {} });
+    assert.deepStrictEqual(clearedOverrides.labels, updatedLabels);
+
+    // 5) Legacy labels.md file should be migrated to board-settings.md.
     const legacyBoardPath = path.join(tmpDir, 'board-two');
     await fs.mkdir(legacyBoardPath, { recursive: true });
     const legacySource = [
@@ -63,7 +87,7 @@ async function run() {
     const migratedRaw = await fs.readFile(path.join(legacyBoardPath, 'board-settings.md'), 'utf8');
     assert(migratedRaw.includes('legacy-1'), 'legacy labels should be written to board-settings.md');
 
-    // 4) Filtering is OR-based.
+    // 6) Filtering is OR-based.
     assert.strictEqual(cardMatchesLabelFilter(['label-1'], []), true);
     assert.strictEqual(cardMatchesLabelFilter([], ['label-1']), false);
     assert.strictEqual(cardMatchesLabelFilter(['label-2', 'label-9'], ['label-1', 'label-2']), true);
