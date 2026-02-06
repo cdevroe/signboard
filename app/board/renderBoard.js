@@ -1,9 +1,13 @@
 async function renderBoard() {
   const boardRoot = window.boardRoot; // set in the drop‑zone handler
-  if (!boardRoot) return;
+  if (!boardRoot) {
+    renderBoardTabs();
+    return;
+  }
 
   const boardName = document.getElementById('boardName');
   boardName.textContent = await window.board.getBoardName( boardRoot );
+  renderBoardTabs();
 
   const lists = await window.board.listLists(boardRoot);
   const boardEl = document.getElementById('board');

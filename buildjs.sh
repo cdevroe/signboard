@@ -15,6 +15,7 @@ cat \
   app/modals/toggleAddCardToListModal.js \
   app/modals/toggleEditCardModal.js \
   app/ui/theme.js \
+  app/board/boardTabs.js \
   app/board/renderBoard.js \
   app/board/openBoard.js \
   app/init.js \

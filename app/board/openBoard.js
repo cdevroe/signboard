@@ -1,14 +1,19 @@
 async function openBoard( dir ) {
-    const directories = await window.board.listDirectories( dir );
+    const boardPath = normalizeBoardPath(dir);
+    if (!boardPath) {
+        return;
+    }
+
+    const directories = await window.board.listDirectories( boardPath );
 
     if ( directories.length == 0 ) {
-        await window.board.createList( dir + '/000-To-do-stock');
-        await window.board.createList( dir + '/001-Doing-stock');
-        await window.board.createList( dir + '/002-Done-stock');
-        await window.board.createList( dir + '/003-On-hold-stock');
-        await window.board.createList( dir + '/XXX-Archive');
+        await window.board.createList( boardPath + '000-To-do-stock');
+        await window.board.createList( boardPath + '001-Doing-stock');
+        await window.board.createList( boardPath + '002-Done-stock');
+        await window.board.createList( boardPath + '003-On-hold-stock');
+        await window.board.createList( boardPath + 'XXX-Archive');
 
-        await window.board.createCard( dir + '/000-To-do-stock/000-hello-stock.md', `👋 Hello
+        await window.board.createCard( boardPath + '000-To-do-stock/000-hello-stock.md', `👋 Hello
 
 Welcome to Signboard! This card is your first task. Tap on it to view more or edit.
 
@@ -30,8 +35,9 @@ Control button on Windows. Command button on macOS.
 I hope you enjoy Signboard. If you have any feedback, please let me know. colin@cdevroe.com` );
     }
 
-    window.boardRoot = dir + '/';
-    localStorage.setItem('boardPath',window.boardRoot);
+    ensureBoardInTabs(boardPath);
+    window.boardRoot = boardPath;
+    setStoredActiveBoard(window.boardRoot);
     await renderBoard();
     
 }

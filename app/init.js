@@ -2,13 +2,10 @@ var turndown = new TurndownService();
 const renderMarkdown = (md) => marked.parse(md);
 
 async function init() {
-    const previousOpenedBoard = localStorage.getItem('boardPath');
+    const restoredBoard = restoreBoardTabs();
 
-    if (previousOpenedBoard) {
-        const labelBoardPath = document.getElementById('pickFolder');
-        labelBoardPath.textContent = 'Switch Board';
-        
-        window.boardRoot = previousOpenedBoard;
+    if (restoredBoard) {
+        window.boardRoot = restoredBoard;
         await renderBoard();
     }
 
