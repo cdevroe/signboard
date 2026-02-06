@@ -4,6 +4,14 @@ async function openBoard( dir ) {
         return;
     }
 
+    if (typeof closeBoardSettingsModal === 'function') {
+        await closeBoardSettingsModal();
+    }
+
+    if (typeof flushBoardLabelSettingsSave === 'function') {
+        await flushBoardLabelSettingsSave();
+    }
+
     const directories = await window.board.listDirectories( boardPath );
 
     if ( directories.length == 0 ) {
@@ -38,6 +46,15 @@ I hope you enjoy Signboard. If you have any feedback, please let me know. colin@
     ensureBoardInTabs(boardPath);
     window.boardRoot = boardPath;
     setStoredActiveBoard(window.boardRoot);
+
+    if (typeof resetBoardLabelFilter === 'function') {
+        resetBoardLabelFilter();
+    }
+
+    if (typeof resetBoardSearch === 'function') {
+        resetBoardSearch();
+    }
+
     await renderBoard();
     
 }

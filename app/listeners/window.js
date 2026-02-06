@@ -17,7 +17,7 @@ window.addEventListener('keydown', async (e) => {
 
                 const btnAddList = document.getElementById('btnAddList');
 
-                btnAddList.addEventListener('click', async (e) => {
+                btnAddList.onclick = async (e) => {
                     e.stopPropagation();
                     
                     const listName = document.getElementById('userInputListName');
@@ -29,15 +29,14 @@ window.addEventListener('keydown', async (e) => {
                     await processAddNewList( listName.value );
 
                     listName.value = '';
-                    await closeAllModals(e);
 
-                }, { once: true });
+                };
 
-                listName.addEventListener('keydown',(key) => {
+                listName.onkeydown = (key) => {
                     if (key.code != 'Enter') return;
                     const btnAddList = document.getElementById('btnAddList');
                     btnAddList.click();
-                });
+                };
 
             } else {
                 const listsToSelect = await window.board.listLists( window.boardRoot );
@@ -60,7 +59,7 @@ window.addEventListener('keydown', async (e) => {
 
                 const btnAddCardToList = document.getElementById('btnAddCardToList');
 
-                btnAddCardToList.addEventListener('click', async (e) => {
+                btnAddCardToList.onclick = async (e) => {
                     e.stopPropagation();
                     
                     const cardName = document.getElementById('userInputCardName');
@@ -70,9 +69,8 @@ window.addEventListener('keydown', async (e) => {
 
                     cardName.value = '';
                     listPath.value = '';
-                    await closeAllModals(e);
 
-                }, { once: true });
+                };
             }
 
         }

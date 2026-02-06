@@ -1,6 +1,19 @@
 const { contextBridge, ipcRenderer, shell } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
+const cardFrontmatter = require('./lib/cardFrontmatter');
+const boardLabels = require('./lib/boardLabels');
+const cardFileSortCollator = new Intl.Collator(undefined, {
+  usage: 'sort',
+  sensitivity: 'base',
+  numeric: true,
+  ignorePunctuation: true,
+  localeMatcher: 'lookup'
+});
+const dueDateFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+});
 
 contextBridge.exposeInMainWorld('board', {
   listLists: async (root) => {
@@ -12,17 +25,10 @@ contextBridge.exposeInMainWorld('board', {
 
   listCards: async (listPath) => {
     const files = await fs.readdir(listPath, { withFileTypes: true });
-    const collator = new Intl.Collator(undefined, {
-        usage: 'sort',
-        sensitivity:'base',
-        numeric: true,
-        ignorePunctuation: true,
-        localeMatcher: 'lookup'
-    });
 
     let sortedFiles = files.filter(f => f.isFile() && f.name.endsWith('.md')).map(f => f.name);
 
-    sortedFiles.sort((a, b) => collator.compare(a, b));
+    sortedFiles.sort((a, b) => cardFileSortCollator.compare(a, b));
 
     return sortedFiles;
   },
@@ -34,30 +40,28 @@ contextBridge.exposeInMainWorld('board', {
   },
 
   getBoardName: async (filePath) => {
-    const parts = filePath.split('/').filter(Boolean);
-    const lastDir = parts[parts.length - 1];
-    return lastDir;
+    return path.basename(path.normalize(filePath));
   },
 
-  getCardID: async (filePath) => { 
-    const cardFileName = filePath.split(/[\\/]/).pop(); 
-    return cardFileName.slice(cardFileName.length-8,cardFileName.length-3);
+  getCardID: async (filePath) => {
+    const cardFileName = path.basename(path.normalize(filePath));
+    return cardFileName.slice(cardFileName.length - 8, cardFileName.length - 3);
   },
 
-  getCardTitle: async (fileContents) => {
-    return fileContents.split(/\r?\n/)[0];
+  getCardTitle: async (filePath) => {
+    const card = await cardFrontmatter.readCard(filePath);
+    return card.frontmatter.title;
   },
 
   formatDueDate: async (dateString) => { // 2025-10-06 > Oct 6
     const [year, month, day] = dateString.split("-").map(Number);
     const dateToDisplay = new Date(year, month -1, day);
-    const dateOptions = { month: "short", day: "numeric" };
-    return new Intl.DateTimeFormat("en-US", dateOptions).format(dateToDisplay);
+    return dueDateFormatter.format(dateToDisplay);
   },
 
-  getCardFileName: (filePath) => { return filePath.split(/[\\/]/).pop(); },
+  getCardFileName: (filePath) => path.basename(path.normalize(filePath)),
 
-  getListDirectoryName: (filePath) => { return filePath.split(/[\\/]/).pop(); },
+  getListDirectoryName: (filePath) => path.basename(path.normalize(filePath)),
 
   listDirectories: async (root) => {
     const dirs = await fs.readdir(root, { withFileTypes: true });
@@ -67,11 +71,30 @@ contextBridge.exposeInMainWorld('board', {
 
   openCard: async (filePath) => await shell.showItemInFolder(filePath),
 
-  readCard: async (filePath) => await fs.readFile(filePath, 'utf8'),
+  readCard: async (filePath) => await cardFrontmatter.readCard(filePath),
 
-  writeCard: async (filePath, content) => await fs.writeFile(filePath, content),
+  writeCard: async (filePath, card) => await cardFrontmatter.writeCard(filePath, card),
 
-  createCard: async (filePath, content) => await fs.writeFile(filePath, '# ' + content + "\n\n"),
+  updateFrontmatter: async (filePath, partialFrontmatter) =>
+    await cardFrontmatter.updateFrontmatter(filePath, partialFrontmatter),
+
+  normalizeFrontmatter: async (frontmatter) => cardFrontmatter.normalizeFrontmatter(frontmatter),
+
+  readBoardSettings: async (boardRoot) => await boardLabels.readBoardSettings(boardRoot),
+
+  updateBoardLabels: async (boardRoot, labels) => await boardLabels.updateBoardLabels(boardRoot, labels),
+
+  createCard: async (filePath, content) => {
+    const asString = String(content || '');
+    const lines = asString.split(/\r?\n/);
+    const title = (lines.shift() || '').trim();
+    const body = lines.join('\n').replace(/^\n+/, '');
+
+    await cardFrontmatter.writeCard(filePath, {
+      frontmatter: { title: title || 'Untitled' },
+      body,
+    });
+  },
 
   moveCard: async (src, dst) => await fs.rename(src, dst),
 
@@ -135,20 +158,16 @@ contextBridge.exposeInMainWorld('board', {
       cards.sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0));
 
       // Write each card as a markdown file
-      cards.forEach( async (card, idx) => {
+      for (const [idx, card] of cards.entries()) {
         const number = String(idx + 1).padStart(3, '0');   // 001‑999
         const fileName = `${number}-${await importsanitizeFileName(card.name)}-${await importrand5()}.md`;
         const filePath = path.join(folder, fileName);
 
-        const mdContent = [
-          `# ${escapeMarkdown(card.name)}`,
-          '',
-          card.desc || '',
-          // You can add more sections (checklists, comments, etc.) here if needed
-        ].join('\n');
-
-        await fs.writeFile(filePath, mdContent, 'utf8');
-      });
+        await cardFrontmatter.writeCard(filePath, {
+          frontmatter: { title: escapeMarkdown(card.name) },
+          body: card.desc || '',
+        });
+      }
     }
     await fs.mkdir(filePath + '/XXX-Archive');
     localStorage.setItem('importedFromTrello',true);

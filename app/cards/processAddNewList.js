@@ -15,6 +15,6 @@ async function processAddNewList( listName ){
     
     let e = {}; e.target = {}; e.target.id = 'board';
     
-    await closeAllModals(e);
+    await closeAllModals(e, { rerender: true });
     return;
 }

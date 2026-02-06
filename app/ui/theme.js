@@ -56,6 +56,12 @@ if (themeToggle) {
         OverType.setTheme(customOverTypeThemes.light);
     }
 
+    if (window.boardRoot && typeof renderBoard === 'function') {
+      renderBoard().catch((error) => {
+        console.error('Unable to render board after theme change.', error);
+      });
+    }
+
   });
 
   window.addEventListener('DOMContentLoaded', () => {

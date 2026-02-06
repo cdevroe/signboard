@@ -2,7 +2,7 @@ async function processAddNewCard( cardName, listPath ){
     let countCardsInList = await window.board.countCards(listPath);
     countCardsInList++;
     
-    nextCardNumber = countCardsInList.toLocaleString('en-US', {
+    const nextCardNumber = countCardsInList.toLocaleString('en-US', {
         minimumIntegerDigits: 3,
         useGrouping: false
     });
@@ -15,5 +15,5 @@ async function processAddNewCard( cardName, listPath ){
     
     let e = {}; e.target = {}; e.target.id = 'board';
     
-    await closeAllModals(e);
+    await closeAllModals(e, { rerender: true });
 }

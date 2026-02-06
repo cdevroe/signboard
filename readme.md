@@ -11,8 +11,18 @@ A local-first kanban desktop app built with HTML, CSS, and plain JavaScript. Sig
 
 ## ✨ Highlights
 - 📂 Cards saved as Markdown files (portable & future-proof)
+- 🏷 Per-board labels with light/dark colors, card tagging, and board filtering
+- 🔎 Live search across card titles and body content
 - 🖥 Runs as a desktop app
 - 🪶 Minimal dependencies 😅, just plain JavaScript + Electron
+
+---
+
+## 🏷 Labels
+
+- Board label definitions live in `board-settings.md` at the board root (`labels: [{ id, name, colorLight, colorDark }]`).
+- Cards store selected labels in Markdown frontmatter as `labels: ["label-id", ...]`.
+- Label filtering in the board toolbar is OR-based (a card is shown if it has any selected label).
 
 ---
 
@@ -42,6 +52,73 @@ npm install
 # Run the app in dev mode
 npm start
 ```
+
+---
+
+## 📦 Distribution Builds
+
+Install dependencies first:
+
+```bash
+npm install
+```
+
+All distribution commands run `./buildjs.sh` automatically before packaging.
+
+### macOS
+
+```bash
+# Current host architecture
+npm run dist
+
+# Specific macOS architectures
+npm run dist:mac:arm64
+npm run dist:mac:x64
+npm run dist:mac:universal
+
+# Build all macOS variants
+npm run dist:mac:all
+```
+
+### Windows (NSIS installer)
+
+```bash
+# Both Windows architectures
+npm run dist:win
+
+# Specific Windows architecture
+npm run dist:win:x64
+npm run dist:win:arm64
+
+# Build both Windows architectures
+npm run dist:win:all
+```
+
+### Linux (AppImage, deb, rpm)
+
+```bash
+# Both Linux architectures
+npm run dist:linux
+
+# Specific Linux architecture
+npm run dist:linux:x64
+npm run dist:linux:arm64
+
+# Build both Linux architectures
+npm run dist:linux:all
+```
+
+### Build everything (lunch mode)
+
+```bash
+npm run dist:all
+```
+
+Notes:
+- Legacy command names still work (`dist:macarm64`, `dist:macx64`, etc.) and now map to the newer names.
+- `--publish never` is used for local builds so these commands package artifacts without attempting to publish releases.
+- macOS signing/notarization uses environment variables from `.env` (`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`).
+- For the most reliable results, build each target on its native OS (or in CI runners for that OS/architecture).
 
 ---
 

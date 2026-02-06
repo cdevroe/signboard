@@ -1,40 +1,13 @@
 async function createCardElement(cardPath) {
-  const fullMarkdown = await window.board.readCard(cardPath);
-  const titleContent = await window.board.getCardTitle(fullMarkdown);
-  let frontMatter    = fullMarkdown.split('**********');
-  let isFrontMatter  = frontMatter.length > 1 ? true : false; // True means there is frontmatter
-  let metadataArray  = [];
+  const card = await window.board.readCard(cardPath);
+  const titleContent = card.frontmatter.title || '';
+  let selectedLabelIds = Array.isArray(card.frontmatter.labels)
+    ? card.frontmatter.labels.map((labelId) => String(labelId))
+    : [];
 
-  // TODO: Refactor all of this (see also toggleEditCardModal 11-42)
-  if ( isFrontMatter ) { // Handle metadata
-      let metalines = frontMatter[0].split(/\r?\n/);
-      
-      metalines = metalines.filter((line, index) =>{
-          if ( index === 0 ) { // Removes card title
-              return false;
-          }
-          if ( line.trim() === "") { // Removes empty lines
-              return false;
-          }
-          metadataArray[line.split(': ')[0]] = line.split(': ')[1].trim();
-      });
-  }
-
-  let lines = isFrontMatter ? frontMatter[1].split(/\r?\n/) : fullMarkdown.split(/\r?\n/);
-  lines = lines.filter((line, index) => {
-        if ( !isFrontMatter && index === 0) { // Removes card title
-            return false;
-        }
-        if (line.trim() === "") { // Removes leading empty lines
-            return false;
-        }
-        return true;
-    });
-  let previewText = lines[0];
-
-  if ( !previewText ) {
-    previewText = '';
-  }
+  const previewText = card.body
+    .split(/\r?\n/)
+    .find((line) => line.trim().length > 0) || '';
 
   const cardEl = document.createElement('div');
   cardEl.className = 'card';
@@ -46,23 +19,113 @@ async function createCardElement(cardPath) {
 
   const body = document.createElement('div');
   body.className = 'card-body';
-  let cardPreview = ( previewText && previewText.length > 50 ) ? previewText.slice(0,35) + '...' : previewText;
+  const cardPreview = (previewText && previewText.length > 50) ? `${previewText.slice(0, 35)}...` : previewText;
+  const preview = document.createElement('p');
+  preview.textContent = cardPreview;
+  body.appendChild(preview);
 
-  let cardIcons = '';
+  const metadata = document.createElement('div');
+  metadata.className = 'metadata';
 
-  if ( metadataArray && metadataArray['Due-date'] ) {
-    cardIcons += '<span class="due-date" title="' + metadataArray['Due-date'] + '"><i data-feather="clock"></i> <span class="formatted-date">'+await window.board.formatDueDate(metadataArray['Due-date'])+'</span></span>'
+  if (card.frontmatter.due) {
+    const dueWrap = document.createElement('span');
+    dueWrap.className = 'due-date';
+    dueWrap.title = card.frontmatter.due;
+
+    const dueIcon = document.createElement('i');
+    dueIcon.setAttribute('data-feather', 'clock');
+    dueWrap.appendChild(dueIcon);
+    dueWrap.append(' ');
+
+    const formattedDue = document.createElement('span');
+    formattedDue.className = 'formatted-date';
+    formattedDue.textContent = await window.board.formatDueDate(card.frontmatter.due);
+    dueWrap.appendChild(formattedDue);
+    metadata.appendChild(dueWrap);
   }
 
-  if ( metadataArray && metadataArray['Labels'] ) {
-    metadataArray['Labels'].split(',').forEach((label) => {
-      cardIcons += '<span class="label label-'+label+'" title="' + label + '"><i data-feather="tag"></i></span>'
-    });
+  const labelButton = document.createElement('button');
+  labelButton.type = 'button';
+  labelButton.className = 'card-label-button';
+  labelButton.title = 'Set labels';
+  const labelIcon = document.createElement('i');
+  labelIcon.setAttribute('data-feather', 'tag');
+  labelButton.appendChild(labelIcon);
+  metadata.appendChild(labelButton);
+
+  const cardLabelsWrap = document.createElement('div');
+  cardLabelsWrap.className = 'card-labels';
+  metadata.appendChild(cardLabelsWrap);
+
+  function renderCardLabels() {
+    cardLabelsWrap.innerHTML = '';
+
+    const firstKnownLabel = selectedLabelIds
+      .map((labelId) => getBoardLabelById(labelId))
+      .find((label) => Boolean(label));
+
+    labelButton.style.color = firstKnownLabel ? getBoardLabelColor(firstKnownLabel) : '';
+
+    for (const labelId of selectedLabelIds) {
+      const label = getBoardLabelById(labelId);
+      const labelChip = document.createElement('span');
+      labelChip.className = 'card-label-chip';
+
+      if (label) {
+        const chipColor = getBoardLabelColor(label);
+        labelChip.textContent = label.name;
+        labelChip.style.backgroundColor = `${chipColor}22`;
+        labelChip.style.borderColor = chipColor;
+      } else {
+        labelChip.classList.add('card-label-chip-unknown');
+        labelChip.textContent = 'Unknown label';
+        labelChip.title = labelId;
+      }
+
+      cardLabelsWrap.appendChild(labelChip);
+    }
   }
-  
-  body.innerHTML = '<p>' + cardPreview + '</p>' + '<div class="metadata">' + cardIcons + '</div>';
+
+  async function updateCardLabels(nextLabelIds) {
+    selectedLabelIds = Array.isArray(nextLabelIds)
+      ? nextLabelIds.map((labelId) => String(labelId))
+      : [];
+
+    card.frontmatter.labels = selectedLabelIds;
+    await window.board.updateFrontmatter(cardPath, { labels: selectedLabelIds });
+    renderCardLabels();
+
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds)) {
+      await renderBoard();
+    }
+  }
+
+  renderCardLabels();
+
+  labelButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    toggleCardLabelSelector(
+      labelButton,
+      cardPath,
+      selectedLabelIds,
+      async (nextLabelIds) => {
+        await updateCardLabels(nextLabelIds);
+      },
+    );
+  });
+
+  body.appendChild(metadata);
     
   cardEl.appendChild(body);
+
+  const matchesLabelFilter = cardMatchesBoardLabelFilter(selectedLabelIds);
+  const matchesSearchFilter = cardMatchesBoardSearch(card.frontmatter.title, card.body);
+
+  if (!matchesLabelFilter || !matchesSearchFilter) {
+    cardEl.classList.add('card-filtered-out');
+  }
 
   cardEl.addEventListener('click', async () => {
 
