@@ -78,7 +78,34 @@ let pendingEditorBody = '';
 let pendingEditorSaveTimer = null;
 let editorSaveInFlight = Promise.resolve();
 
+function getActiveEditorCardPath() {
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    return cardEditorCardPath ? String(cardEditorCardPath.value || '').trim() : '';
+}
+
+function isCardEditorActive() {
+    const modalEditCard = document.getElementById('modalEditCard');
+    if (!modalEditCard || modalEditCard.style.display !== 'block') {
+        return false;
+    }
+
+    return getActiveEditorCardPath().length > 0;
+}
+
+function clearQueuedEditorSave() {
+    if (pendingEditorSaveTimer) {
+        clearTimeout(pendingEditorSaveTimer);
+        pendingEditorSaveTimer = null;
+    }
+
+    pendingEditorBody = '';
+}
+
 function enqueueEditorSave(bodyValue) {
+    if (!isCardEditorActive()) {
+        return editorSaveInFlight;
+    }
+
     const bodyToSave = typeof bodyValue === 'string' ? bodyValue : '';
     editorSaveInFlight = editorSaveInFlight
         .then(() => saveEditorCard(bodyToSave))
@@ -90,6 +117,10 @@ function enqueueEditorSave(bodyValue) {
 }
 
 function queueEditorSave(bodyValue) {
+    if (!isCardEditorActive()) {
+        return;
+    }
+
     pendingEditorBody = typeof bodyValue === 'string' ? bodyValue : '';
 
     if (pendingEditorSaveTimer) {
@@ -106,15 +137,26 @@ async function flushEditorSaveIfNeeded() {
     if (pendingEditorSaveTimer) {
         clearTimeout(pendingEditorSaveTimer);
         pendingEditorSaveTimer = null;
-        enqueueEditorSave(pendingEditorBody);
+        if (isCardEditorActive()) {
+            enqueueEditorSave(pendingEditorBody);
+        } else {
+            pendingEditorBody = '';
+        }
     }
 
     await editorSaveInFlight;
 }
 
 async function saveEditorCard(bodyValue) {
+    if (!isCardEditorActive()) {
+        return;
+    }
+
     const cardEditorTitle = document.getElementById('cardEditorTitle');
-    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    const cardPath = getActiveEditorCardPath();
+    if (!cardPath) {
+        return;
+    }
 
     const currentFrontmatter = getEditorFrontmatter();
     const normalizedFrontmatter = await window.board.normalizeFrontmatter({
@@ -124,7 +166,7 @@ async function saveEditorCard(bodyValue) {
 
     setEditorFrontmatter(normalizedFrontmatter);
 
-    await window.board.writeCard(cardEditorCardPath.value, {
+    await window.board.writeCard(cardPath, {
         frontmatter: normalizedFrontmatter,
         body: typeof bodyValue === 'string' ? bodyValue : '',
     });
