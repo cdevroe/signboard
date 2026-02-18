@@ -1,3 +1,14 @@
+function buildOverTypeSelectionColor(themeName, accentColor, surfaceColor) {
+  const themeIsDark = themeName === 'dark';
+  const mixedSelectionColor = mixHexColors(accentColor, surfaceColor, themeIsDark ? 0.35 : 0.2);
+  const selectionRgb = hexToRgb(mixedSelectionColor);
+  if (!selectionRgb) {
+    return themeIsDark ? 'rgba(111, 207, 151, 0.44)' : 'rgba(11, 95, 255, 0.34)';
+  }
+
+  return `rgba(${selectionRgb.r}, ${selectionRgb.g}, ${selectionRgb.b}, ${themeIsDark ? 0.44 : 0.34})`;
+}
+
 function createOverTypeThemeFromPalette(themeName, palette) {
   const textColor = palette && palette.text ? palette.text : '#2f2f2f';
   const surfaceColor = palette && palette.surface ? palette.surface : '#ffffff';
@@ -23,7 +34,7 @@ function createOverTypeThemeFromPalette(themeName, palette) {
       hr: borderColor,
       syntaxMarker: mutedColor,
       cursor: textColor,
-      selection: mixHexColors(accentColor, surfaceColor, 0.72),
+      selection: buildOverTypeSelectionColor(themeName, accentColor, surfaceColor),
     }
   };
 }
