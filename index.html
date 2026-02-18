@@ -65,32 +65,31 @@
       <a href="#" id="boardSettingsClose" title="Close settings"><i data-feather="x"></i></a>
     </div>
     <section class="boardSettingsSection">
-      <h3>Label Settings</h3>
+      <h3>Labels</h3>
       <p class="boardSettingsHint">Rename labels and choose colors for light and dark mode.</p>
       <div class="boardSettingsLabelsHeader">
         <span>Name</span>
         <span>Light</span>
         <span>Dark</span>
+        <span>Action</span>
       </div>
       <div id="boardSettingsLabels"></div>
       <button id="btnAddBoardLabel" type="button">Add label</button>
     </section>
     <section class="boardSettingsSection">
       <h3>Theme Colors</h3>
-      <p class="boardSettingsHint">Choose one board background color per theme. The rest of the palette is derived automatically for readability.</p>
+      <p class="boardSettingsHint">Choose the board background color and the rest of the palette is chosen automatically for readability.</p>
       <div class="board-theme-settings-grid">
         <div class="board-theme-settings-mode">
           <h4>Light theme</h4>
-          <label for="boardThemeLightBackground">Board background</label>
           <input id="boardThemeLightBackground" type="color" value="#f7f8fa">
-          <div id="boardThemeLightPreview" class="board-theme-preview"></div>
+          <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
           <button id="btnResetLightTheme" type="button">Reset Light Theme</button>
         </div>
         <div class="board-theme-settings-mode">
           <h4>Dark theme</h4>
-          <label for="boardThemeDarkBackground">Board background</label>
           <input id="boardThemeDarkBackground" type="color" value="#091102">
-          <div id="boardThemeDarkPreview" class="board-theme-preview"></div>
+          <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
           <button id="btnResetDarkTheme" type="button">Reset Dark Theme</button>
         </div>
       </div>

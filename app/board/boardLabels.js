@@ -847,9 +847,21 @@ function createBoardSettingsLabelRow(label, index) {
     updateBoardLabel(index, 'colorDark', event.target.value);
   });
 
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'board-settings-label-delete';
+  deleteButton.textContent = 'Delete';
+  deleteButton.title = 'Delete label';
+  deleteButton.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await deleteBoardLabelDefinition(label.id);
+  });
+
   row.appendChild(nameInput);
   row.appendChild(lightInput);
   row.appendChild(darkInput);
+  row.appendChild(deleteButton);
 
   return row;
 }
@@ -1060,6 +1072,86 @@ function addBoardLabelDefinition() {
   renderBoardLabelFilterButton();
   renderBoardLabelFilterPopover();
   scheduleBoardLabelSettingsSave();
+}
+
+async function removeBoardLabelReferencesFromCards(labelId) {
+  if (!window.boardRoot || !labelId) {
+    return 0;
+  }
+
+  const targetLabelId = String(labelId);
+  const listNames = await window.board.listLists(window.boardRoot);
+  const listEntries = await Promise.all(
+    (Array.isArray(listNames) ? listNames : []).map(async (listName) => {
+      const listPath = `${window.boardRoot}${listName}`;
+      const cardNames = await window.board.listCards(listPath);
+      return {
+        listPath,
+        cardNames: Array.isArray(cardNames) ? cardNames : [],
+      };
+    }),
+  );
+
+  let updatedCardCount = 0;
+  for (const { listPath, cardNames } of listEntries) {
+    for (const cardName of cardNames) {
+      const cardPath = `${listPath}/${cardName}`;
+      const card = await window.board.readCard(cardPath);
+      const currentLabelIds = card && card.frontmatter && Array.isArray(card.frontmatter.labels)
+        ? card.frontmatter.labels.map((entryId) => String(entryId))
+        : [];
+
+      if (!currentLabelIds.includes(targetLabelId)) {
+        continue;
+      }
+
+      const nextLabelIds = currentLabelIds.filter((entryId) => entryId !== targetLabelId);
+      await window.board.updateFrontmatter(cardPath, { labels: nextLabelIds });
+      updatedCardCount += 1;
+    }
+  }
+
+  return updatedCardCount;
+}
+
+async function deleteBoardLabelDefinition(labelId) {
+  const targetLabelId = String(labelId || '');
+  if (!targetLabelId) {
+    return;
+  }
+
+  const labels = getBoardLabels();
+  const label = labels.find((entry) => entry.id === targetLabelId);
+  if (!label) {
+    return;
+  }
+
+  const labelName = String(label.name || '').trim() || 'this label';
+  const warningMessage = `Delete "${labelName}"?\n\nDeleting this label will remove it from every card in this board.`;
+  if (!window.confirm(warningMessage)) {
+    return;
+  }
+
+  await flushBoardSettingsSave();
+  closeCardLabelPopover();
+
+  const nextLabels = labels
+    .filter((entry) => entry.id !== targetLabelId)
+    .map((entry) => ({ ...entry }));
+
+  setBoardLabels(nextLabels);
+  renderBoardSettingsLabels();
+  renderBoardLabelFilterButton();
+  renderBoardLabelFilterPopover();
+  scheduleBoardLabelSettingsSave();
+
+  try {
+    await removeBoardLabelReferencesFromCards(targetLabelId);
+    await flushBoardSettingsSave();
+    await renderBoard();
+  } catch (error) {
+    console.error('Unable to delete board label.', error);
+  }
 }
 
 function scheduleBoardSettingsSave() {

@@ -610,7 +610,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .boardSettingsLabelsHeader,
 .board-settings-label-row {
   display: grid;
-  grid-template-columns: 1fr 82px 82px;
+  grid-template-columns: 1fr 82px 82px auto;
   gap: 8px;
   align-items: center;
 }
@@ -628,10 +628,23 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   gap: 8px;
 }
 
+#btnAddBoardLabel {
+  margin-top: 10px;
+}
+
 .board-settings-label-color {
   width: 82px !important;
   padding: 3px !important;
   height: 34px;
+  cursor: pointer;
+}
+
+.board-settings-label-delete {
+  width: auto;
+  min-width: 64px;
+  padding: 6px 10px;
+  font-size: var(--font-xs);
+  box-shadow: none;
 }
 
 .board-theme-settings-grid {
@@ -663,8 +676,17 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 .board-theme-settings-mode input[type="color"] {
   width: 100%;
-  height: 36px;
+  height: 38px;
   padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.board-theme-picker-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-xs);
 }
 
 .board-theme-preview {
