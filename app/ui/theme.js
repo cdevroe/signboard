@@ -1,65 +1,103 @@
-const customOverTypeThemes = {
-  dark: {
-      name: 'dark',
-      colors: {
-          bgPrimary: '#12200a',
-          bgSecondary: '#12200a',
-          text: '#e8f0e5',
-          strong: 'rgba(237, 242, 235, 1)',
-          h1: '#e8f0e5',
-          h2: '#e8f0e5',
-          h3: '#e8f0e5',
-          em: 'rgba(237, 242, 235, 1)',
-          link: '#399b3eff',
-          code: '#e8f0e5',
-          codeBg: 'rgba(56, 142, 60, 0.3)',
-          blockquote: '#558b2f',
-          hr: '#66bb6a',
-          syntaxMarker: 'rgb(39, 133, 46)',
-          cursor: '#4caf50',
-          selection: 'rgba(42, 74, 23, 0.4)'
-      }
-  },
-  light: {
-    name: 'lite',
-    colors: {
-        bgPrimary: '#ffffff',
-        bgSecondary: '#ffffff',
-        text: '#2f2f2f',
-        strong: '#000000',
-        h1: '#2f2f2f',
-        h2: '#2f2f2f',
-        h3: '#2f2f2f',
-        em: '#444444',
-        link: '#3366cc',
-        code: '#111111',
-        codeBg: '#dedadaff',
-        blockquote: '#666666',
-        hr: '#e0e0e0',
-        syntaxMarker: '#999999',
-        cursor: '#000000',
-        selection: 'rgba(215, 227, 244, 0.4)'
-    }
+function buildOverTypeSelectionColor(themeName, accentColor, surfaceColor) {
+  const themeIsDark = themeName === 'dark';
+  const mixedSelectionColor = mixHexColors(accentColor, surfaceColor, themeIsDark ? 0.35 : 0.2);
+  const selectionRgb = hexToRgb(mixedSelectionColor);
+  if (!selectionRgb) {
+    return themeIsDark ? 'rgba(111, 207, 151, 0.44)' : 'rgba(11, 95, 255, 0.34)';
+  }
+
+  return `rgba(${selectionRgb.r}, ${selectionRgb.g}, ${selectionRgb.b}, ${themeIsDark ? 0.44 : 0.34})`;
 }
-};
+
+function createOverTypeThemeFromPalette(themeName, palette) {
+  const textColor = palette && palette.text ? palette.text : '#2f2f2f';
+  const surfaceColor = palette && palette.surface ? palette.surface : '#ffffff';
+  const accentColor = palette && palette.accent ? palette.accent : '#3366cc';
+  const borderColor = palette && palette.border ? palette.border : '#dedada';
+  const mutedColor = palette && palette.muted ? palette.muted : '#666666';
+
+  return {
+    name: themeName,
+    colors: {
+      bgPrimary: surfaceColor,
+      bgSecondary: surfaceColor,
+      text: textColor,
+      strong: textColor,
+      h1: textColor,
+      h2: textColor,
+      h3: textColor,
+      em: mutedColor,
+      link: accentColor,
+      code: textColor,
+      codeBg: mixHexColors(surfaceColor, borderColor, 0.62),
+      blockquote: mutedColor,
+      hr: borderColor,
+      syntaxMarker: mutedColor,
+      cursor: textColor,
+      selection: buildOverTypeSelectionColor(themeName, accentColor, surfaceColor),
+    }
+  };
+}
+
+function buildCustomOverTypeThemesFromBoardPalettes(palettes) {
+  const source = palettes && typeof palettes === 'object' ? palettes : {};
+  const lightPalette = source.light || DEFAULT_BOARD_THEME_PALETTES.light;
+  const darkPalette = source.dark || DEFAULT_BOARD_THEME_PALETTES.dark;
+
+  return {
+    dark: createOverTypeThemeFromPalette('dark', darkPalette),
+    light: createOverTypeThemeFromPalette('lite', lightPalette),
+  };
+}
+
+let customOverTypeThemes = buildCustomOverTypeThemesFromBoardPalettes({
+  light: DEFAULT_BOARD_THEME_PALETTES.light,
+  dark: DEFAULT_BOARD_THEME_PALETTES.dark,
+});
+
+function setCustomOverTypeThemesFromBoardPalettes(palettes) {
+  customOverTypeThemes = buildCustomOverTypeThemesFromBoardPalettes(palettes);
+}
+
+function applyEditorThemeFromActiveMode() {
+  const themeMode = getBoardThemeMode();
+  if (themeMode === 'dark') {
+    OverType.setTheme(customOverTypeThemes.dark);
+    return;
+  }
+
+  OverType.setTheme(customOverTypeThemes.light);
+}
+
 const themeToggle = document.getElementById('themeToggle');
+const savedThemeMode = localStorage.getItem('theme');
+if (savedThemeMode) {
+  document.documentElement.dataset.theme = savedThemeMode;
+}
+
 if (themeToggle) {
   themeToggle.addEventListener('click', () => {
     const current = document.documentElement.dataset.theme;
     const newTheme = current === 'dark' ? '' : 'dark';
     document.documentElement.dataset.theme = newTheme;
     localStorage.setItem('theme', newTheme);
-    
-    if ( newTheme == 'dark' ) {
-        OverType.setTheme(customOverTypeThemes.dark);
-    } else {
-        OverType.setTheme(customOverTypeThemes.light);
+
+    if (typeof applyBoardThemeForCurrentBoard === 'function') {
+      applyBoardThemeForCurrentBoard();
     }
 
+    applyEditorThemeFromActiveMode();
+
+    if (window.boardRoot && typeof renderBoard === 'function') {
+      renderBoard().catch((error) => {
+        console.error('Unable to render board after theme change.', error);
+      });
+    }
   });
 
   window.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem('theme');
-    if (saved) document.documentElement.dataset.theme = saved;
+    if (typeof applyBoardThemeForCurrentBoard === 'function') {
+      applyBoardThemeForCurrentBoard();
+    }
   });
 }

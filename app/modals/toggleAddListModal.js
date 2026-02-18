@@ -1,5 +1,5 @@
 async function toggleAddListModal( x,y ) {
-    const modalAddCard = document.getElementById('modalAddList');
+    const modalAddList = document.getElementById('modalAddList');
 
     if ( x ) {
         modalAddList.style.position = 'absolute';

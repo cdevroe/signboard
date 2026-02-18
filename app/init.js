@@ -2,14 +2,16 @@ var turndown = new TurndownService();
 const renderMarkdown = (md) => marked.parse(md);
 
 async function init() {
-    const previousOpenedBoard = localStorage.getItem('boardPath');
+    initializeBoardLabelControls();
+    initializeBoardSearchControls();
 
-    if (previousOpenedBoard) {
-        const labelBoardPath = document.getElementById('pickFolder');
-        labelBoardPath.textContent = 'Switch Board';
-        
-        window.boardRoot = previousOpenedBoard;
-        await renderBoard();
+    const restoredBoard = restoreBoardTabs();
+
+    if (restoredBoard) {
+        window.boardRoot = restoredBoard;
+        renderBoard().catch((error) => {
+            console.error('Failed to render board on startup.', error);
+        });
     }
 
     const userInput = document.getElementById('userInput');
@@ -31,6 +33,9 @@ async function init() {
             return;
         }
 
+        closeLabelFilterIfClickOutside(e.target);
+        closeCardLabelSelectorIfClickOutside(e.target);
+
         await closeAllModals(e);
     });
     document.getElementById('btnAddNewList').addEventListener('click', async () => {
@@ -39,7 +44,7 @@ async function init() {
         listName.focus();
         const btnAddList = document.getElementById('btnAddList');
 
-        btnAddList.addEventListener('click', async (e) => {
+        btnAddList.onclick = async (e) => {
             e.stopPropagation();   
             const listName = document.getElementById('userInputListName');
 
@@ -50,24 +55,15 @@ async function init() {
             await processAddNewList( listName.value );
 
             listName.value = '';
-            await closeAllModals(e);
 
             return;
-        }, { once: true });
+        };
 
-        listName.addEventListener('keydown',(key) => {
+        listName.onkeydown = (key) => {
             if (key.code != 'Enter') return;
             const btnAddList = document.getElementById('btnAddList');
             btnAddList.click();
-        });
-    });
-    document.getElementById('pickFolder').addEventListener('click', async () => {
-        const dir = await window.chooser.pickDirectory({ /* defaultPath: '/some/path' */ });
-        if (dir) {
-            document.getElementById('boardPath').value = dir;
-            await window.board.importFromTrello(dir);
-            await openBoard(dir);
-        }
+        };
     });
 }
 init();

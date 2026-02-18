@@ -1,19 +1,31 @@
 async function renderBoard() {
   const boardRoot = window.boardRoot; // set in the drop‑zone handler
-  if (!boardRoot) return;
+  await ensureBoardLabelsLoaded();
+
+  if (!boardRoot) {
+    renderBoardTabs();
+    return;
+  }
+
+  closeCardLabelPopover();
 
   const boardName = document.getElementById('boardName');
   boardName.textContent = await window.board.getBoardName( boardRoot );
+  renderBoardTabs();
 
   const lists = await window.board.listLists(boardRoot);
   const boardEl = document.getElementById('board');
   boardEl.innerHTML = '';
 
-  for (const listName of lists) {
-    
-    const listPath = boardRoot + listName;
-    const cards = await window.board.listCards(listPath);
+  const listsWithCards = await Promise.all(
+    lists.map(async (listName) => {
+      const listPath = boardRoot + listName;
+      const cards = await window.board.listCards(listPath);
+      return { listName, listPath, cards };
+    })
+  );
 
+  for (const { listName, listPath, cards } of listsWithCards) {
     const listEl = await createListElement(listName, listPath, cards);
     boardEl.appendChild(listEl);
   }
