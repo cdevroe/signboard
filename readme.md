@@ -1,6 +1,6 @@
 # Signboard
 
-A local-first kanban desktop app built with HTML, CSS, and plain JavaScript. Signboard stores your lists as directories and cards as Markdown files on disk, so you own your data.
+A local-first kanban desktop app built with HTML, CSS, and JavaScript. Signboard stores your lists as directories and cards as Markdown files on disk, so you own your data.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](../../issues)
@@ -11,30 +11,21 @@ A local-first kanban desktop app built with HTML, CSS, and plain JavaScript. Sig
 
 ## ✨ Highlights
 - 📂 Cards saved as Markdown files (portable & future-proof)
-- 🏷 Per-board labels with light/dark colors, card tagging, and board filtering
-- 🔎 Live search across card titles and body content
+- 🖌️ Custom color scheme per board
+- 🏷 Per-card labels with light/dark colors
+- 📅 Due dates
+- 🔎 Live search across
 - 🖥 Runs as a desktop app
 - 🪶 Minimal dependencies 😅, just plain JavaScript + Electron
-
----
-
-## 🏷 Labels
-
-- Board label definitions live in `board-settings.md` at the board root (`labels: [{ id, name, colorLight, colorDark }]`).
-- Cards store selected labels in Markdown frontmatter as `labels: ["label-id", ...]`.
-- Label filtering in the board toolbar is OR-based (a card is shown if it has any selected label).
 
 ---
 
 ## 🚀 Installation
 
 1. Go to the [Releases page](../../releases).
-2. On the latest release, download the installer for your operating system:  
-   - **Windows**: `.exe`
-   - **macOS**: `.dmg`
-   - **Linux**: `.AppImage`
+2. On the latest release, download the correct file for your operating system.
 
-If you're moving from 0.4.0 to 0.5.0 you'll need to run the following command to convert all of your Markdown files to the new format.
+**Note:** If you're moving from 0.4.0 to 0.5.0 you'll need to run the following command to convert all of your Markdown files to the new format. Or, just start with a new board.
 
 `npm run migrate:legacy-cards /Root/to/board`
 
@@ -43,31 +34,15 @@ If you're moving from 0.4.0 to 0.5.0 you'll need to run the following command to
 ## 🛠 Development
 
 ```bash
-# Clone the repo
 git clone https://github.com/cdevroe/signboard.git
 cd signboard
-
-# Install dependencies
 npm install
-
-# Concatenate JavaScript files
-./buildjs.sh
-
-# Run the app in dev mode
 npm start
 ```
 
 ---
 
 ## 📦 Distribution Builds
-
-Install dependencies first:
-
-```bash
-npm install
-```
-
-All distribution commands run `./buildjs.sh` automatically before packaging.
 
 ### macOS
 
@@ -87,9 +62,6 @@ npm run dist:mac:all
 ### Windows (NSIS installer)
 
 ```bash
-# Both Windows architectures
-npm run dist:win
-
 # Specific Windows architecture
 npm run dist:win:x64
 npm run dist:win:arm64
@@ -101,9 +73,6 @@ npm run dist:win:all
 ### Linux (AppImage, deb, rpm)
 
 ```bash
-# Both Linux architectures
-npm run dist:linux
-
 # Specific Linux architecture
 npm run dist:linux:x64
 npm run dist:linux:arm64
@@ -119,8 +88,8 @@ npm run dist:all
 ```
 
 Notes:
-- Legacy command names still work (`dist:macarm64`, `dist:macx64`, etc.) and now map to the newer names.
 - `--publish never` is used for local builds so these commands package artifacts without attempting to publish releases.
+- Copy `.env-sample` to `.env` and fill in your credentials before running signing/notarization builds.
 - macOS signing/notarization uses environment variables from `.env` (`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`).
 - For the most reliable results, build each target on its native OS (or in CI runners for that OS/architecture).
 
@@ -153,7 +122,7 @@ Thank you!
 
 ## 📜 License
 
-[MIT](./LICENSE) © 2025 Colin Devroe - cdevroe.com
+[MIT](./LICENSE) © 2025 Colin Devroe - https://cdevroe.com
 
 # Third-Party Notices
 

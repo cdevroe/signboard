@@ -6,8 +6,8 @@
   "author": "Colin Devroe - cdevroe.com",
   "main": "main.js",
   "build": {
+    "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
     "mac": {
-      "artifactName": "${productName}.${ext}",
       "category": "public.app-category.productivity",
       "target": ["dmg", "zip"],
       "icon": "build/icon.icns",
@@ -29,6 +29,7 @@
   },
   "private": true,
   "scripts": {
+    "prestart": "npm run build:js",
     "start": "electron .",
     "build:js": "./buildjs.sh",
     "test:frontmatter": "node scripts/test-frontmatter.js",
