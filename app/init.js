@@ -58,7 +58,8 @@ async function init() {
 
         await closeAllModals(e);
     });
-    document.getElementById('btnAddNewList').addEventListener('click', async () => {
+    document.getElementById('btnAddNewList').addEventListener('click', async (e) => {
+        e.stopPropagation();
         const listName = document.getElementById('userInputListName');
         toggleAddListModal( (window.innerWidth / 2)-200, (window.innerHeight / 2)-100 );
         listName.focus();

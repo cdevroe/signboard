@@ -36,6 +36,7 @@ async function createListElement(name, listPath, cardNames) {
   addBtn.setAttribute('data-listpath', listPath + '/');
   addBtn.setAttribute('class','btnOpenAddCardModal');
   addBtn.addEventListener('click', async function (e) {
+    e.stopPropagation();
     
     toggleAddCardModal( e.x-90, e.y+15 );
     const userInput = document.getElementById('userInput');
