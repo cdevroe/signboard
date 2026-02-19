@@ -8,11 +8,17 @@ function normalizeBoardPath(dir) {
         return '';
     }
 
-    return dir.endsWith('/') ? dir : `${dir}/`;
+    const normalizedDir = dir.replace(/\\/g, '/').trim();
+    if (!normalizedDir) {
+        return '';
+    }
+
+    return normalizedDir.endsWith('/') ? normalizedDir : `${normalizedDir}/`;
 }
 
 function getBoardLabelFromPath(boardPath) {
-    const pathParts = boardPath.split('/').filter(Boolean);
+    const normalizedPath = normalizeBoardPath(boardPath).replace(/\/+$/, '');
+    const pathParts = normalizedPath.split('/').filter(Boolean);
     return pathParts[pathParts.length - 1] || 'Board';
 }
 
