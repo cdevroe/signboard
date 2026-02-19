@@ -1,11 +1,31 @@
-var turndown = new TurndownService();
-const renderMarkdown = (md) => marked.parse(md);
-
 async function init() {
-    initializeBoardLabelControls();
-    initializeBoardSearchControls();
-
     const restoredBoard = restoreBoardTabs();
+    const initializeHeaderControls = () => {
+        initializeBoardLabelControls();
+        initializeBoardSearchControls();
+    };
+
+    if (!restoredBoard) {
+        window.boardRoot = '';
+        if (typeof setBoardChromeState === 'function') {
+            setBoardChromeState(false);
+        }
+
+        const emptyBoardCallToAction = document.getElementById('emptyBoardCallToAction');
+        if (emptyBoardCallToAction) {
+            emptyBoardCallToAction.addEventListener('click', async () => {
+                if (typeof handleEmptyBoardCallToActionClick === 'function') {
+                    await handleEmptyBoardCallToActionClick(emptyBoardCallToAction);
+                    return;
+                }
+                await promptAndOpenBoardFromTabs();
+            });
+        }
+
+        window.setTimeout(initializeHeaderControls, 0);
+    } else {
+        initializeHeaderControls();
+    }
 
     if (restoredBoard) {
         window.boardRoot = restoredBoard;

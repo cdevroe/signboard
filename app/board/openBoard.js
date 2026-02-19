@@ -39,11 +39,13 @@ async function openBoard( dir ) {
     const directories = await window.board.listDirectories( boardPath );
 
     if ( directories.length == 0 ) {
-        await window.board.createList( boardPath + '000-To-do-stock');
-        await window.board.createList( boardPath + '001-Doing-stock');
-        await window.board.createList( boardPath + '002-Done-stock');
-        await window.board.createList( boardPath + '003-On-hold-stock');
-        await window.board.createList( boardPath + 'XXX-Archive');
+        await Promise.all([
+            window.board.createList(boardPath + '000-To-do-stock'),
+            window.board.createList(boardPath + '001-Doing-stock'),
+            window.board.createList(boardPath + '002-Done-stock'),
+            window.board.createList(boardPath + '003-On-hold-stock'),
+            window.board.createList(boardPath + 'XXX-Archive'),
+        ]);
 
         await window.board.createCard( boardPath + '000-To-do-stock/000-hello-stock.md', `👋 Hello
 
