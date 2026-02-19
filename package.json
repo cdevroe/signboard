@@ -60,7 +60,7 @@
   },
   "devDependencies": {
     "dotenv": "^17.2.2",
-    "electron": "^31.0.0",
+    "electron": "^40.6.0",
     "electron-builder": "^26.0.12"
   },
   "dependencies": {
