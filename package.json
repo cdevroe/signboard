@@ -59,12 +59,12 @@
     "dist:all": "npm run dist:mac:all && npm run dist:win:all && npm run dist:linux:all"
   },
   "devDependencies": {
-    "dotenv": "^17.2.2",
-    "electron": "^31.0.0",
-    "electron-builder": "^26.0.12"
+    "dotenv": "^17.3.1",
+    "electron": "^40.6.0",
+    "electron-builder": "^26.8.1"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0",
-    "turndown": "^7.2.0"
+    "js-yaml": "^4.1.1",
+    "turndown": "^7.2.2"
   }
 }

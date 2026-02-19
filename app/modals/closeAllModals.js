@@ -34,13 +34,42 @@ function resetCardEditorModalState() {
     }
 }
 
-async function closeAllModals(e, options = {}){
-    if (e.target.id != 'board' && e.key !== 'Escape') return;
+function isCardEditorRelatedClickTarget(target) {
+    if (!target || typeof target.closest !== 'function') {
+        return false;
+    }
 
-    closeAllLabelPopovers();
+    if (target.closest('#modalEditCard')) {
+        return true;
+    }
+
+    if (target.closest('.card-label-popover')) {
+        return true;
+    }
+
+    if (target.closest('.sb-themed-fdatepicker')) {
+        return true;
+    }
+
+    if (target.closest('[data-fdatepicker="due-date-anchor"]')) {
+        return true;
+    }
+
+    return false;
+}
+
+async function closeAllModals(e, options = {}){
+    const eventTarget = e && e.target ? e.target : null;
+    const isEscape = e && e.key === 'Escape';
+    const isClick = e && e.type === 'click';
+    const closeAllRequest = Boolean(eventTarget && eventTarget.id === 'board') || isEscape;
+
+    if (!closeAllRequest && !isClick) {
+        return;
+    }
 
     const shouldRerender = Boolean(options.rerender);
-    
+
     const modalAddCard = document.getElementById('modalAddCard');
     const modalEditCard = document.getElementById('modalEditCard');
     const modalAddCardToList = document.getElementById('modalAddCardToList');
@@ -49,22 +78,25 @@ async function closeAllModals(e, options = {}){
     const editModalWasOpen = modalEditCard.style.display === 'block';
     const boardSettingsWasOpen = modalBoardSettings && modalBoardSettings.style.display === 'block';
 
-    if (editModalWasOpen && typeof flushEditorSaveIfNeeded === 'function') {
-        await flushEditorSaveIfNeeded();
+    let editModalClosed = false;
+    let boardSettingsClosed = false;
+
+    if (closeAllRequest && typeof closeAllLabelPopovers === 'function') {
+        closeAllLabelPopovers();
     }
 
-    if (boardSettingsWasOpen && typeof flushBoardLabelSettingsSave === 'function') {
-        await flushBoardLabelSettingsSave();
-    }
-
-    if ( e.target.id == 'board' || e.key == 'Escape' ) {
+    if ( closeAllRequest ) {
         if ( modalAddCard.style.display === 'block' ) {
             modalAddCard.style.display = 'none';
         }
         if ( modalEditCard.style.display === 'block' ) {
+            if (typeof flushEditorSaveIfNeeded === 'function') {
+                await flushEditorSaveIfNeeded();
+            }
             modalEditCard.style.display = 'none';
             resetCardEditorModalState();
             setBoardInteractive(true);
+            editModalClosed = true;
         }
         if ( modalAddCardToList.style.display === 'block' ) {
             modalAddCardToList.style.display = 'none';
@@ -75,38 +107,58 @@ async function closeAllModals(e, options = {}){
             setBoardInteractive(true);
         }
         if ( modalBoardSettings && modalBoardSettings.style.display === 'block' ) {
+            if (typeof flushBoardLabelSettingsSave === 'function') {
+                await flushBoardLabelSettingsSave();
+            }
             modalBoardSettings.style.display = 'none';
             setBoardInteractive(true);
+            boardSettingsClosed = true;
         }
     } else {
-        if ( modalAddCard.style.display === 'block' && !modalAddCard.contains(e.target) ) {
+        if ( modalAddCard.style.display === 'block' && eventTarget && !modalAddCard.contains(eventTarget) ) {
             modalAddCard.style.display = 'none';
         }
 
-        if ( modalEditCard.style.display === 'block' && !modalEditCard.contains(e.target) ) {
+        const clickIsInsideCardEditor = isCardEditorRelatedClickTarget(eventTarget);
+        if ( modalEditCard.style.display === 'block' && !clickIsInsideCardEditor ) {
+            if (typeof flushEditorSaveIfNeeded === 'function') {
+                await flushEditorSaveIfNeeded();
+            }
             modalEditCard.style.display = 'none';
             resetCardEditorModalState();
             setBoardInteractive(true);
+            editModalClosed = true;
         }
 
-        if ( modalAddCardToList.style.display === 'block' && !modalAddCardToList.contains(e.target) ) {
+        if ( modalAddCardToList.style.display === 'block' && eventTarget && !modalAddCardToList.contains(eventTarget) ) {
             modalAddCardToList.style.display = 'none';
             setBoardInteractive(true);
         }
 
-        if ( modalBoardSettings && modalBoardSettings.style.display === 'block' && !modalBoardSettings.contains(e.target) ) {
+        if ( modalAddList.style.display === 'block' && eventTarget && !modalAddList.contains(eventTarget) ) {
+            modalAddList.style.display = 'none';
+            setBoardInteractive(true);
+        }
+
+        if ( modalBoardSettings && modalBoardSettings.style.display === 'block' && eventTarget && !modalBoardSettings.contains(eventTarget) ) {
+            if (typeof flushBoardLabelSettingsSave === 'function') {
+                await flushBoardLabelSettingsSave();
+            }
             modalBoardSettings.style.display = 'none';
             setBoardInteractive(true);
+            boardSettingsClosed = true;
         }
     }
 
-    FDatepicker.destroyAll();
-    OverType.destroyAll();
-    if (editModalWasOpen && typeof clearQueuedEditorSave === 'function') {
-        clearQueuedEditorSave();
+    if (editModalClosed) {
+        FDatepicker.destroyAll();
+        OverType.destroyAll();
+        if (typeof clearQueuedEditorSave === 'function') {
+            clearQueuedEditorSave();
+        }
     }
 
-    if (shouldRerender || editModalWasOpen || boardSettingsWasOpen) {
+    if (shouldRerender || editModalClosed || boardSettingsClosed) {
         await renderBoard();
     }
 }

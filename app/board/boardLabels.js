@@ -1325,6 +1325,9 @@ function initializeBoardLabelControls() {
       if (!window.boardRoot) {
         return;
       }
+      if (typeof closeAllModals === 'function') {
+        await closeAllModals({ key: 'Escape' });
+      }
       await ensureBoardLabelsLoaded();
       openBoardSettingsModal();
     });

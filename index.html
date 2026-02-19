@@ -5,18 +5,16 @@
   <title>Signboard</title>
   <link rel="stylesheet" href="static/vendor/fdatepicker-3.0.24.min.css">
   <link rel="stylesheet" href="static/styles.css">
-  <script defer src="static/vendor/marked-12.0.2.min.js"></script>
-  <script defer src="static/vendor/turndown-7.1.3.js"></script>
   <script defer src="static/vendor/sortable-1.15.2.min.js"></script>
   <script defer src="static/vendor/feather-4.29.2.min.js"></script>
   <script defer src="static/vendor/overtype-1.26.0.min.js"></script>
   <script defer src="static/vendor/fdatepicker-3.0.24.min.js"></script>
   <script defer src="static/vendor/fdatepicker.en-3.0.24.js"></script>
 </head>
-<body>
+<body class="board-empty">
   <header>
     <div class="headerTopRow">
-      <h1 id="boardName">BoardName</h1>
+      <h1 id="boardName">Signboard</h1>
       <div class="headerControls">
         <div id="boardPathWrapper">
           <input id="boardPath" type="text" class="hidden" readonly>
@@ -41,7 +39,19 @@
     </div>
   </header>
 
-  <main id="board"></main>
+  <main id="board">
+    <button id="emptyBoardCallToAction" class="empty-board-cta" type="button" aria-label="Select a directory to create a board">
+      <span class="empty-board-cta-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          <line x1="12" y1="11" x2="12" y2="17"></line>
+          <line x1="9" y1="14" x2="15" y2="14"></line>
+        </svg>
+      </span>
+      <span class="empty-board-cta-title">Create your first board</span>
+      <span class="empty-board-cta-text">Select an empty directory. Signboard will use the directory name as the board name.</span>
+    </button>
+  </main>
 
   <div id="modalAddList" class="modal hidden">
     <input id="userInputListName" type="text" placeholder="Backlog">
