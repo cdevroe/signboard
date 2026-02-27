@@ -53,9 +53,12 @@
     "dist:winarm64": "npm run dist:win:arm64",
     "dist:winx64": "npm run dist:win:x64",
     "dist:linux": "npm run dist:linux:all",
-    "dist:linux:x64": "npm run build:js && electron-builder --linux AppImage deb rpm --x64 --publish never",
-    "dist:linux:arm64": "npm run build:js && electron-builder --linux AppImage deb rpm --arm64 --publish never",
-    "dist:linux:all": "npm run build:js && electron-builder --linux AppImage deb rpm --x64 --arm64 --publish never",
+    "dist:linux:x64": "npm run build:js && electron-builder --linux AppImage deb --x64 --publish never",
+    "dist:linux:arm64": "npm run build:js && electron-builder --linux AppImage deb --arm64 --publish never",
+    "dist:linux:all": "npm run build:js && electron-builder --linux AppImage deb --x64 --arm64 --publish never",
+    "dist:linux:rpm:x64": "npm run build:js && electron-builder --linux rpm --x64 --publish never",
+    "dist:linux:rpm:arm64": "npm run build:js && electron-builder --linux rpm --arm64 --publish never",
+    "dist:linux:rpm:all": "npm run build:js && electron-builder --linux rpm --x64 --arm64 --publish never",
     "dist:all": "npm run dist:mac:all && npm run dist:win:all && npm run dist:linux:all"
   },
   "devDependencies": {

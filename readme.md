@@ -70,7 +70,7 @@ npm run dist:win:arm64
 npm run dist:win:all
 ```
 
-### Linux (AppImage, deb, rpm)
+### Linux (AppImage, deb)
 
 ```bash
 # Specific Linux architecture
@@ -79,6 +79,11 @@ npm run dist:linux:arm64
 
 # Build both Linux architectures
 npm run dist:linux:all
+
+# Optional: RPM-only builds (requires rpmbuild in PATH)
+npm run dist:linux:rpm:x64
+npm run dist:linux:rpm:arm64
+npm run dist:linux:rpm:all
 ```
 
 ### Build everything
