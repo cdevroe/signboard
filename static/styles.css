@@ -405,6 +405,94 @@ body.board-empty main#board {
   color: var(--muted);
 }
 
+.board-missing-alert {
+  width: min(760px, calc(100vw - 48px));
+  border-radius: 24px;
+  border: 1px solid color-mix(in oklab, #dc2626 35%, var(--border));
+  background: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--bg-card) 88%, #fca5a5) 0%,
+    color-mix(in oklab, var(--bg) 90%, #fee2e2) 100%
+  );
+  box-shadow: 0 20px 36px var(--shadow-card);
+  padding: 24px 24px 22px;
+  display: grid;
+  gap: 12px;
+}
+
+.board-missing-alert-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, #dc2626 18%, transparent);
+  color: color-mix(in oklab, #dc2626 72%, var(--text));
+}
+
+.board-missing-alert-icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.board-missing-alert-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 670;
+  letter-spacing: .01em;
+}
+
+.board-missing-alert-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.board-missing-alert-path {
+  border: 1px solid color-mix(in oklab, var(--border) 70%, #fca5a5);
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--border));
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.board-missing-alert-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.board-missing-alert-actions button {
+  padding: 9px 14px;
+  min-height: 40px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  border-radius: 11px;
+}
+
+.board-missing-alert-locate {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: color-mix(in oklab, var(--accent) 70%, var(--border));
+}
+
+.board-missing-alert-locate:hover {
+  background: color-mix(in oklab, var(--accent) 85%, var(--bg-card));
+}
+
+.board-missing-alert-remove {
+  background: color-mix(in oklab, var(--bg-card) 85%, #fee2e2);
+}
+
+.board-missing-alert-remove:hover {
+  background: color-mix(in oklab, var(--bg-card) 75%, #fecaca);
+}
+
 /* Lists (columns) */
 .list {
   cursor: grab;
@@ -1093,7 +1181,15 @@ select:disabled {
     padding: 24px 20px;
     border-radius: 18px;
   }
+  .board-missing-alert {
+    width: min(760px, calc(100vw - 24px));
+    border-radius: 18px;
+    padding: 20px 18px;
+  }
   .empty-board-cta-title {
+    font-size: 21px;
+  }
+  .board-missing-alert-title {
     font-size: 21px;
   }
 }
