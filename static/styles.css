@@ -965,11 +965,68 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #modalEditCard #cardEditorCardDueDateDisplay { font-size: var(--font-sm); color: var(--muted); }
 #modalEditCard #cardEditorSetDueDateLink { text-decoration: none; }
 
-#modalEditCard .cardEditorHeader { border-bottom: 1px solid var(--border); height: 30px; text-align: right; }
-#modalEditCard .cardEditorHeader a { color: var(--muted); margin-left: 20px; }
+#modalEditCard .cardEditorHeader {
+  border-bottom: 1px solid var(--border);
+  min-height: 36px;
+  padding: 3px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#modalEditCard .cardEditorListControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+#modalEditCard .cardEditorHeaderActions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+#modalEditCard .cardEditorHeaderActions a { color: var(--muted); }
+#modalEditCard .cardEditorHeaderActions a + a { margin-left: 20px; }
+#modalEditCard #cardEditorListSelect {
+  width: 100%;
+  max-width: 280px;
+  min-width: 160px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  padding: 4px 30px 4px 10px;
+  background-position: right 8px center;
+  background-size: 10px 7px;
+}
+#modalEditCard #cardEditorListSelect:hover,
+#modalEditCard #cardEditorListSelect:focus-visible {
+  color: var(--text);
+}
+#modalEditCard #cardEditorListMoveFeedback {
+  color: var(--muted);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0;
+  transform: translateX(-4px) scale(0.9);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+  user-select: none;
+}
+#modalEditCard #cardEditorListMoveFeedback.is-visible {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  color: var(--text);
+  animation: card-editor-list-move-check-pop 180ms ease;
+}
 #modalEditCard .cardEditorMetadataButtons a { color: var(--muted); }
 #modalEditCard .cardEditorMetadataButtons span { vertical-align: top; margin-right: 15px; }
 #modalEditCard .cardEditorHeader a svg, #modalEditCard .cardEditorMetadataButtons a svg { height: 18px; }
+
+@keyframes card-editor-list-move-check-pop {
+  0% { transform: translateX(-4px) scale(0.9); }
+  65% { transform: translateX(0) scale(1.06); }
+  100% { transform: translateX(0) scale(1); }
+}
 
 #modalEditCard h4.label { font-size: var(--font-sm); text-transform: uppercase; color: var(--muted); margin-bottom: 1px; }
 #modalEditCard #cardEditorContents { background: var(--bg); border-radius: var(--radius); min-height: 75px; padding: 8px 10px; font-size: var(--font-lg); max-width: 75%; border: 1px solid transparent; }

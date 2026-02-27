@@ -77,6 +77,7 @@ function setEditorLabelDisplay(labelIds) {
 let pendingEditorBody = '';
 let pendingEditorSaveTimer = null;
 let editorSaveInFlight = Promise.resolve();
+let cardEditorListMoveFeedbackTimer = null;
 
 function getActiveEditorCardPath() {
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
@@ -430,6 +431,13 @@ async function toggleEditCardModal(cardPath, options = {}) {
         await updateCardEditorMoveLink(cardEditorCardPath.value);
     }
 
+    const cardEditorListSelect = document.getElementById('cardEditorListSelect');
+    if (cardEditorListSelect) {
+        cardEditorListSelect.removeEventListener('change', handleChangeCardListSelect);
+        cardEditorListSelect.addEventListener('change', handleChangeCardListSelect);
+        await updateCardEditorListDropdown(cardEditorCardPath.value);
+    }
+
     const cardEditorClose = document.getElementById('cardEditorClose');
     cardEditorClose.removeEventListener('click', handleClickCloseCard, { once: true });
     cardEditorClose.addEventListener('click', handleClickCloseCard, {once:true});
@@ -515,12 +523,69 @@ function getCardListPath(cardPath) {
     return normalized.slice(0, lastSlash);
 }
 
+function getPathDirectoryName(filePath) {
+    const normalized = String(filePath || '').replace(/\\/g, '/');
+    const segments = normalized.split('/').filter(Boolean);
+    return segments.length > 0 ? segments[segments.length - 1] : '';
+}
+
+function getCardEditorListDisplayName(directoryName) {
+    const normalized = String(directoryName || '');
+    const listNameMatch = normalized.match(/^\d{3}-(.*?)(-[^-]{5}|-stock)$/);
+    if (listNameMatch) {
+        return listNameMatch[1];
+    }
+
+    if (/^\d{3}-.+/.test(normalized)) {
+        return normalized.slice(4);
+    }
+
+    return normalized || 'Untitled';
+}
+
 async function getOrderedListPaths() {
     if (!window.boardRoot) {
         return [];
     }
     const listNames = await window.board.listLists(window.boardRoot);
     return listNames.map((listName) => window.boardRoot + listName);
+}
+
+async function updateCardEditorListDropdown(cardPath) {
+    const listSelect = document.getElementById('cardEditorListSelect');
+    if (!listSelect) {
+        return;
+    }
+
+    const listPaths = await getOrderedListPaths();
+    const currentListPath = getCardListPath(cardPath);
+
+    listSelect.innerHTML = '';
+
+    if (listPaths.length === 0) {
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = 'No lists';
+        listSelect.appendChild(emptyOption);
+        listSelect.disabled = true;
+        return;
+    }
+
+    for (const listPath of listPaths) {
+        const option = document.createElement('option');
+        option.value = listPath;
+        option.textContent = getCardEditorListDisplayName(getPathDirectoryName(listPath));
+        if (listPath === currentListPath) {
+            option.selected = true;
+        }
+        listSelect.appendChild(option);
+    }
+
+    if (!listPaths.includes(currentListPath)) {
+        listSelect.value = listPaths[0];
+    }
+
+    listSelect.disabled = false;
 }
 
 async function resolveCardMoveTarget(cardPath) {
@@ -571,6 +636,58 @@ async function getNextCardNumber(listPath) {
     });
 }
 
+async function moveCardToListPath(cardPath, targetListPath) {
+    if (!cardPath || !targetListPath) {
+        return '';
+    }
+
+    const fileName = await window.board.getCardFileName(cardPath);
+    const suffix = fileName.replace(/^\d{3}/, '');
+    const nextNumber = await getNextCardNumber(targetListPath);
+    const newFileName = nextNumber + suffix;
+    const newPath = targetListPath + '/' + newFileName;
+
+    await window.board.moveCard(cardPath, newPath);
+    return newPath;
+}
+
+function showCardEditorListMoveFeedback() {
+    const feedbackEl = document.getElementById('cardEditorListMoveFeedback');
+    if (!feedbackEl) {
+        return;
+    }
+
+    if (cardEditorListMoveFeedbackTimer) {
+        clearTimeout(cardEditorListMoveFeedbackTimer);
+        cardEditorListMoveFeedbackTimer = null;
+    }
+
+    feedbackEl.classList.remove('is-visible');
+    void feedbackEl.offsetWidth;
+    feedbackEl.classList.add('is-visible');
+
+    cardEditorListMoveFeedbackTimer = setTimeout(() => {
+        feedbackEl.classList.remove('is-visible');
+        cardEditorListMoveFeedbackTimer = null;
+    }, 1200);
+}
+
+async function refreshCardEditorAfterMove(newPath) {
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    if (cardEditorCardPath) {
+        cardEditorCardPath.value = newPath;
+    }
+
+    const cardEditorCardID = document.getElementById('cardEditorCardID');
+    if (cardEditorCardID) {
+        cardEditorCardID.textContent = await window.board.getCardID(newPath);
+    }
+
+    await renderBoard();
+    await updateCardEditorMoveLink(newPath);
+    await updateCardEditorListDropdown(newPath);
+}
+
 function setCardEditorMoveIcon(moveLink, iconName) {
     if (!moveLink || !window.feather || !window.feather.icons || !window.feather.icons[iconName]) {
         return;
@@ -616,23 +733,49 @@ async function handleClickMoveCard(e) {
         return;
     }
 
-    const fileName = await window.board.getCardFileName(cardEditorCardPath.value);
-    const suffix = fileName.replace(/^\d{3}/, '');
-    const nextNumber = await getNextCardNumber(moveInfo.targetPath);
-    const newFileName = nextNumber + suffix;
-    const newPath = moveInfo.targetPath + '/' + newFileName;
-
-    await window.board.moveCard(cardEditorCardPath.value, newPath);
-
-    cardEditorCardPath.value = newPath;
-
-    const cardEditorCardID = document.getElementById('cardEditorCardID');
-    if (cardEditorCardID) {
-        cardEditorCardID.textContent = await window.board.getCardID(newPath);
+    const newPath = await moveCardToListPath(cardEditorCardPath.value, moveInfo.targetPath);
+    if (!newPath) {
+        return;
     }
 
-    await renderBoard();
-    await updateCardEditorMoveLink(newPath);
+    await refreshCardEditorAfterMove(newPath);
+    return;
+}
+
+async function handleChangeCardListSelect(e) {
+    e.stopPropagation();
+
+    const listSelect = e.currentTarget;
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    if (!listSelect || !cardEditorCardPath || !cardEditorCardPath.value) {
+        return;
+    }
+
+    const targetListPath = String(listSelect.value || '').trim();
+    if (!targetListPath) {
+        return;
+    }
+
+    const currentListPath = getCardListPath(cardEditorCardPath.value);
+    if (targetListPath === currentListPath) {
+        return;
+    }
+
+    listSelect.disabled = true;
+
+    try {
+        await flushEditorSaveIfNeeded();
+        const newPath = await moveCardToListPath(cardEditorCardPath.value, targetListPath);
+        if (!newPath) {
+            return;
+        }
+
+        await refreshCardEditorAfterMove(newPath);
+        showCardEditorListMoveFeedback();
+    } finally {
+        const latestCardPath = document.getElementById('cardEditorCardPath')?.value || cardEditorCardPath.value;
+        await updateCardEditorListDropdown(latestCardPath);
+    }
 
     return;
 }

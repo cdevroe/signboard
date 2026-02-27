@@ -113,10 +113,16 @@
 
   <div id="modalEditCard" class="modal hidden">
     <div class="cardEditorHeader">
-      <a href="#" id="cardEditorArchiveLink" title="Archive"><i data-feather="archive"></i></a>
-      <a href="#" id="cardEditorDupeLink" title="Duplicate"><i data-feather="copy"></i></a>
-      <a href="#" id="cardEditorMoveListLink" title="Move to next list"><i data-feather="arrow-right"></i></a>
-      <a href="#" id="cardEditorClose" title="Close"><i data-feather="x"></i></a>
+      <div class="cardEditorListControl">
+        <select id="cardEditorListSelect" title="Move card to list" aria-label="Move card to list"></select>
+        <span id="cardEditorListMoveFeedback" aria-hidden="true">✓</span>
+      </div>
+      <div class="cardEditorHeaderActions">
+        <a href="#" id="cardEditorArchiveLink" title="Archive"><i data-feather="archive"></i></a>
+        <a href="#" id="cardEditorDupeLink" title="Duplicate"><i data-feather="copy"></i></a>
+        <a href="#" id="cardEditorMoveListLink" title="Move to next list"><i data-feather="arrow-right"></i></a>
+        <a href="#" id="cardEditorClose" title="Close"><i data-feather="x"></i></a>
+      </div>
     </div>
     <span id="cardEditorCardID" title="Open this card's file"></span>
     
