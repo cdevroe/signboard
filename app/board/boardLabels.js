@@ -391,6 +391,7 @@ function getBoardLabelState() {
       labels: [],
       labelsById: new Map(),
       filterIds: [],
+      hasDueDateFilter: false,
       activeCardLabelPopover: null,
       themeOverrides: { light: {}, dark: {} },
       themePalettes: {
@@ -549,22 +550,33 @@ function getActiveBoardLabelFilterIds() {
   return getBoardLabelState().filterIds.slice();
 }
 
-function isBoardLabelFilterActive() {
-  return getActiveBoardLabelFilterIds().length > 0;
+function isBoardDueDateFilterActive() {
+  return getBoardLabelState().hasDueDateFilter === true;
 }
 
-function cardMatchesBoardLabelFilter(cardLabelIds) {
+function isBoardLabelFilterActive() {
+  return getActiveBoardLabelFilterIds().length > 0 || isBoardDueDateFilterActive();
+}
+
+function cardMatchesBoardLabelFilter(cardLabelIds, hasDueDate = false) {
   const selectedFilterIds = getActiveBoardLabelFilterIds();
-  if (selectedFilterIds.length === 0) {
+  const requireDueDate = isBoardDueDateFilterActive();
+  const hasLabelFilters = selectedFilterIds.length > 0;
+
+  if (!hasLabelFilters && !requireDueDate) {
     return true;
   }
 
-  if (!Array.isArray(cardLabelIds) || cardLabelIds.length === 0) {
-    return false;
-  }
+  const normalizedCardLabelIds = Array.isArray(cardLabelIds)
+    ? cardLabelIds.map((labelId) => String(labelId))
+    : [];
 
-  const selected = new Set(selectedFilterIds);
-  return cardLabelIds.some((labelId) => selected.has(labelId));
+  const matchesLabelFilter = hasLabelFilters
+    ? normalizedCardLabelIds.some((labelId) => selectedFilterIds.includes(labelId))
+    : true;
+  const matchesDueDateFilter = requireDueDate ? Boolean(hasDueDate) : true;
+
+  return matchesLabelFilter && matchesDueDateFilter;
 }
 
 function renderBoardLabelFilterButton() {
@@ -574,25 +586,31 @@ function renderBoardLabelFilterButton() {
   }
 
   const labelSpan = document.getElementById('labelFilterButtonText');
-  const labels = getBoardLabels();
   const selectedFilterIds = getActiveBoardLabelFilterIds();
+  const hasDueDateFilter = isBoardDueDateFilterActive();
+  const activeFilterCount = selectedFilterIds.length + (hasDueDateFilter ? 1 : 0);
 
   if (!labelSpan) {
     return;
   }
 
-  if (labels.length === 0 || selectedFilterIds.length === 0) {
+  if (activeFilterCount === 0) {
     labelSpan.textContent = 'Sort';
     return;
   }
 
-  if (selectedFilterIds.length === 1) {
+  if (activeFilterCount === 1) {
+    if (hasDueDateFilter) {
+      labelSpan.textContent = 'Sort: Due Date';
+      return;
+    }
+
     const selectedLabel = getBoardLabelById(selectedFilterIds[0]);
     labelSpan.textContent = selectedLabel ? `Sort: ${selectedLabel.name}` : 'Sort: 1';
     return;
   }
 
-  labelSpan.textContent = `Sort: ${selectedFilterIds.length}`;
+  labelSpan.textContent = `Sort: ${activeFilterCount}`;
 }
 
 async function handleBoardLabelFilterChange(labelId, enabled) {
@@ -612,6 +630,15 @@ async function handleBoardLabelFilterChange(labelId, enabled) {
   await renderBoard();
 }
 
+async function handleBoardDueDateFilterChange(enabled) {
+  const state = getBoardLabelState();
+  state.hasDueDateFilter = Boolean(enabled);
+  renderBoardLabelFilterButton();
+  renderBoardLabelFilterPopover();
+
+  await renderBoard();
+}
+
 function renderBoardLabelFilterPopover() {
   const popover = document.getElementById('labelFilterPopover');
   if (!popover) {
@@ -620,14 +647,36 @@ function renderBoardLabelFilterPopover() {
 
   const labels = getBoardLabels();
   const selectedFilterIds = new Set(getActiveBoardLabelFilterIds());
+  const hasDueDateFilter = isBoardDueDateFilterActive();
   popover.innerHTML = '';
+
+  const dueDateRow = document.createElement('label');
+  dueDateRow.className = 'label-popover-row';
+
+  const dueDateCheckbox = document.createElement('input');
+  dueDateCheckbox.type = 'checkbox';
+  dueDateCheckbox.checked = hasDueDateFilter;
+  dueDateCheckbox.addEventListener('change', async (event) => {
+    await handleBoardDueDateFilterChange(event.target.checked);
+  });
+
+  const dueDateIcon = document.createElement('i');
+  dueDateIcon.className = 'label-filter-feature-icon';
+  dueDateIcon.setAttribute('data-feather', 'clock');
+
+  const dueDateText = document.createElement('span');
+  dueDateText.textContent = 'Due Date';
+
+  dueDateRow.appendChild(dueDateCheckbox);
+  dueDateRow.appendChild(dueDateIcon);
+  dueDateRow.appendChild(dueDateText);
+  popover.appendChild(dueDateRow);
 
   if (labels.length === 0) {
     const emptyState = document.createElement('p');
     emptyState.className = 'label-popover-empty';
     emptyState.textContent = 'No labels yet. Add labels in Settings.';
     popover.appendChild(emptyState);
-    return;
   }
 
   for (const label of labels) {
@@ -658,7 +707,7 @@ function renderBoardLabelFilterPopover() {
   clearButton.type = 'button';
   clearButton.className = 'label-popover-clear';
   clearButton.textContent = 'Clear filter';
-  clearButton.disabled = selectedFilterIds.size === 0;
+  clearButton.disabled = selectedFilterIds.size === 0 && !hasDueDateFilter;
   clearButton.addEventListener('click', async () => {
     resetBoardLabelFilter();
     renderBoardLabelFilterButton();
@@ -666,6 +715,10 @@ function renderBoardLabelFilterPopover() {
     await renderBoard();
   });
   popover.appendChild(clearButton);
+
+  if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
+    feather.replace();
+  }
 }
 
 function closeBoardLabelFilterPopover() {
@@ -1259,7 +1312,9 @@ function isBoardSettingsModalOpen() {
 }
 
 function resetBoardLabelFilter() {
-  getBoardLabelState().filterIds = [];
+  const state = getBoardLabelState();
+  state.filterIds = [];
+  state.hasDueDateFilter = false;
 }
 
 async function ensureBoardLabelsLoaded() {

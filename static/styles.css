@@ -950,6 +950,13 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   flex: 0 0 12px;
 }
 
+.label-filter-feature-icon {
+  height: 12px;
+  width: 12px;
+  color: var(--muted);
+  flex: 0 0 12px;
+}
+
 .label-popover-empty {
   margin: 6px 2px;
   font-size: var(--font-xs);
