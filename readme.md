@@ -25,7 +25,7 @@ A local-first kanban desktop app built with HTML, CSS, and JavaScript. Signboard
 1. Go to the [Releases page](../../releases).
 2. On the latest release, download the correct file for your operating system.
 
-**Note:** If you're moving from 0.4.0 to 0.5.0 you'll need to run the following command to convert all of your Markdown files to the new format. Or, just start with a new board.
+**Note:** If you're moving from 0.4.0 to 0.5.x you'll need to run the following command to convert all of your Markdown files to the new format. Or, just start with a new board.
 
 `npm run migrate:legacy-cards /Root/to/board`
 
@@ -122,7 +122,7 @@ Thank you!
 
 ## 📜 License
 
-[MIT](./LICENSE) © 2025 Colin Devroe - https://cdevroe.com
+[MIT](./LICENSE) © 2025-2026 Colin Devroe - https://cdevroe.com
 
 # Third-Party Notices
 
