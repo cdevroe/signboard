@@ -3,7 +3,7 @@
   "productName": "Signboard",
   "version": "0.5.1",
   "license": "MIT",
-  "author": "Colin Devroe - cdevroe.com",
+  "author": "Colin Devroe <colin@cdevroe.com> (https://cdevroe.com)",
   "main": "main.js",
   "build": {
     "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
