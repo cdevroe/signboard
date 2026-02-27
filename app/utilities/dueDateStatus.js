@@ -38,7 +38,7 @@ function getDueDateVisualClass(dueDateValue) {
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
 
-  if (dueDate.getTime() === today.getTime()) {
+  if (dueDate.getTime() <= today.getTime()) {
     return 'due-date-today';
   }
 
