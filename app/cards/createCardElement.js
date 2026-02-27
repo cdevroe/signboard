@@ -57,10 +57,12 @@ async function createCardElement(cardPath) {
   async function renderDueDateDisplay() {
     if (!dueDateValue) {
       formattedDue.textContent = '';
+      setDueDateVisualClass(dueButton, '');
       return;
     }
 
     formattedDue.textContent = await window.board.formatDueDate(dueDateValue);
+    setDueDateVisualClass(dueButton, dueDateValue);
   }
 
   function setMetadataActionVisibility() {

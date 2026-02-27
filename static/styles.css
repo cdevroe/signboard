@@ -42,6 +42,8 @@ html, body { margin: 0; height: 100%; }
   --shadow-card: var(--sb-light-shadow-card);
   --accent: var(--sb-light-accent);
   --accent-contrast: var(--sb-light-accent-contrast);
+  --due-date-today-color: color-mix(in oklab, #d92d20 72%, var(--text));
+  --due-date-tomorrow-color: color-mix(in oklab, #15803d 78%, var(--text));
 
   /* Radius / spacing / type sizes */
   --radius: 10px;
@@ -71,6 +73,8 @@ html, body { margin: 0; height: 100%; }
   --shadow-card: var(--sb-dark-shadow-card);
   --accent: var(--sb-dark-accent);
   --accent-contrast: var(--sb-dark-accent-contrast);
+  --due-date-today-color: color-mix(in oklab, #ff6b6b 80%, var(--text));
+  --due-date-tomorrow-color: color-mix(in oklab, #4ade80 80%, var(--text));
 }
 
 body {
@@ -629,6 +633,14 @@ body.board-empty main#board {
   vertical-align: top;
 }
 
+.due-date-action.due-date-today {
+  color: var(--due-date-today-color);
+}
+
+.due-date-action.due-date-tomorrow {
+  color: var(--due-date-tomorrow-color);
+}
+
 .card-body svg {
   height: 16px;
 }
@@ -971,6 +983,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
 #modalEditCard #cardEditorCardDueDateDisplay { font-size: var(--font-sm); color: var(--muted); }
 #modalEditCard #cardEditorSetDueDateLink { text-decoration: none; }
+#modalEditCard .cardEditorMetadataButtons #cardEditorSetDueDateLink.due-date-today { color: var(--due-date-today-color); }
+#modalEditCard .cardEditorMetadataButtons #cardEditorSetDueDateLink.due-date-tomorrow { color: var(--due-date-tomorrow-color); }
 
 #modalEditCard .cardEditorHeader {
   border-bottom: 1px solid var(--border);

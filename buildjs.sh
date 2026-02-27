@@ -5,6 +5,7 @@
 cat \
   app/utilities/santizeFileName.js \
   app/utilities/timestampListItem.js \
+  app/utilities/dueDateStatus.js \
   app/board/boardLabels.js \
   app/board/boardSearch.js \
   app/cards/createCardElement.js \

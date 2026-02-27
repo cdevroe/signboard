@@ -318,16 +318,19 @@ async function toggleEditCardModal(cardPath, options = {}) {
 
     const cardEditorTitle = document.getElementById('cardEditorTitle');
     const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
+    const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
     const cardEditorSetLabelsLink = document.getElementById('cardEditorSetLabelsLink');
 
     setEditorFrontmatter(card.frontmatter);
     cardEditorCardPath.value = cardPath;
     cardEditorTitle.textContent = card.frontmatter.title || '';
     cardEditorCardDueDateDisplay.textContent = '';
+    setDueDateVisualClass(cardEditorSetDueDateLink, '');
     setEditorLabelDisplay(card.frontmatter.labels);
 
     if (card.frontmatter.due) {
         cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(card.frontmatter.due);
+        setDueDateVisualClass(cardEditorSetDueDateLink, card.frontmatter.due);
     }
 
     const [editor] = new OverType('#cardEditorOverType', {
@@ -363,7 +366,6 @@ async function toggleEditCardModal(cardPath, options = {}) {
         await handleNotesSave(cardEditorContents[0].value,false);
     };
 
-    const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
     const openDueDatePickerControl = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -510,11 +512,14 @@ async function handleMetadataSave(value,metaName) {
     await enqueueEditorSave(pendingEditorBody);
 
     const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
+    const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
 
     if ( normalizedFrontmatter.due ) {
         cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(normalizedFrontmatter.due);
+        setDueDateVisualClass(cardEditorSetDueDateLink, normalizedFrontmatter.due);
     } else {
         cardEditorCardDueDateDisplay.textContent = '';
+        setDueDateVisualClass(cardEditorSetDueDateLink, '');
     }
 
     return;
