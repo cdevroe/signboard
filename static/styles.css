@@ -1063,6 +1063,14 @@ select:disabled {
   padding: 8px important!;
 }
 
+/* Keep preview glyph widths aligned with textarea caret metrics while editing. */
+#cardEditorOverType .overtype-wrapper .overtype-preview strong,
+#cardEditorOverType .overtype-wrapper .overtype-preview h1,
+#cardEditorOverType .overtype-wrapper .overtype-preview h2,
+#cardEditorOverType .overtype-wrapper .overtype-preview h3 {
+  font-weight: inherit !important;
+}
+
 /* 10) Small screens */
 @media (max-width: 700px) {
   :root { --list-min: 260px; }
