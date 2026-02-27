@@ -154,6 +154,11 @@ header h1 {
   flex-wrap: wrap;
 }
 
+body.board-empty #boardControls,
+body.board-empty #openBoardSettings {
+  display: none;
+}
+
 #boardSearchInput {
   width: 220px;
   max-width: 45vw;
@@ -331,6 +336,73 @@ main#board {
   overflow-x: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+body.board-empty main#board {
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-board-cta {
+  width: min(760px, calc(100vw - 48px));
+  min-height: 280px;
+  border-radius: 24px;
+  border: 2px dashed color-mix(in oklab, var(--border) 74%, var(--accent));
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--bg-card) 92%, var(--accent)) 0%,
+    color-mix(in oklab, var(--bg) 94%, var(--border)) 100%
+  );
+  color: var(--text);
+  padding: 32px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  box-shadow: 0 20px 36px var(--shadow-card);
+  transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+
+.empty-board-cta:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--accent) 72%, var(--border));
+  box-shadow: 0 24px 42px var(--shadow-card);
+}
+
+.empty-board-cta:disabled {
+  cursor: wait;
+  opacity: .78;
+  transform: none;
+}
+
+.empty-board-cta-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  color: color-mix(in oklab, var(--accent) 86%, var(--text));
+}
+
+.empty-board-cta-icon svg {
+  width: 34px;
+  height: 34px;
+}
+
+.empty-board-cta-title {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: .01em;
+}
+
+.empty-board-cta-text {
+  max-width: 560px;
+  font-size: 15px;
+  color: var(--muted);
 }
 
 /* Lists (columns) */
@@ -991,6 +1063,14 @@ select:disabled {
   padding: 8px important!;
 }
 
+/* Keep preview glyph widths aligned with textarea caret metrics while editing. */
+#cardEditorOverType .overtype-wrapper .overtype-preview strong,
+#cardEditorOverType .overtype-wrapper .overtype-preview h1,
+#cardEditorOverType .overtype-wrapper .overtype-preview h2,
+#cardEditorOverType .overtype-wrapper .overtype-preview h3 {
+  font-weight: inherit !important;
+}
+
 /* 10) Small screens */
 @media (max-width: 700px) {
   :root { --list-min: 260px; }
@@ -1006,6 +1086,15 @@ select:disabled {
   }
   main#board {
     padding: 12px;
+  }
+  .empty-board-cta {
+    width: min(760px, calc(100vw - 24px));
+    min-height: 230px;
+    padding: 24px 20px;
+    border-radius: 18px;
+  }
+  .empty-board-cta-title {
+    font-size: 21px;
   }
 }
 

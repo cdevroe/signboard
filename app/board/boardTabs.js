@@ -8,11 +8,17 @@ function normalizeBoardPath(dir) {
         return '';
     }
 
-    return dir.endsWith('/') ? dir : `${dir}/`;
+    const normalizedDir = dir.replace(/\\/g, '/').trim();
+    if (!normalizedDir) {
+        return '';
+    }
+
+    return normalizedDir.endsWith('/') ? normalizedDir : `${normalizedDir}/`;
 }
 
 function getBoardLabelFromPath(boardPath) {
-    const pathParts = boardPath.split('/').filter(Boolean);
+    const normalizedPath = normalizeBoardPath(boardPath).replace(/\/+$/, '');
+    const pathParts = normalizedPath.split('/').filter(Boolean);
     return pathParts[pathParts.length - 1] || 'Board';
 }
 
@@ -95,14 +101,18 @@ function ensureBoardInTabs(boardPath) {
 }
 
 function clearRenderedBoard() {
+    if (typeof setBoardChromeState === 'function') {
+        setBoardChromeState(false);
+    }
+
+    if (typeof renderBoardEmptyState === 'function') {
+        renderBoardEmptyState();
+        return;
+    }
+
     const boardEl = document.getElementById('board');
     if (boardEl) {
         boardEl.innerHTML = '';
-    }
-
-    const boardNameEl = document.getElementById('boardName');
-    if (boardNameEl) {
-        boardNameEl.textContent = 'No Board Open';
     }
 }
 
@@ -151,17 +161,13 @@ async function closeBoardTab(boardPath) {
     await renderBoard();
 }
 
-function initializeBoardTabsSortable(tabsEl) {
-    if (!tabsEl || typeof Sortable !== 'function') {
-        return;
-    }
-
-    if (boardTabsSortable && boardTabsSortable.el !== tabsEl) {
+function initializeBoardTabsSortable(tabsEl, canSortTabs = true) {
+    if (boardTabsSortable && (!tabsEl || boardTabsSortable.el !== tabsEl || !canSortTabs)) {
         boardTabsSortable.destroy();
         boardTabsSortable = null;
     }
 
-    if (boardTabsSortable) {
+    if (!canSortTabs || !tabsEl || typeof Sortable !== 'function' || boardTabsSortable) {
         return;
     }
 
@@ -245,6 +251,12 @@ function renderBoardTabs() {
     const openBoards = getStoredOpenBoards();
 
     tabsEl.innerHTML = '';
+    if (openBoards.length === 0) {
+        tabsWrapper.classList.add('hidden');
+        initializeBoardTabsSortable(null, false);
+        return;
+    }
+
     tabsWrapper.classList.remove('hidden');
     const activeBoard = normalizeBoardPath(window.boardRoot || getStoredActiveBoard());
 
@@ -329,5 +341,5 @@ function renderBoardTabs() {
     addBoardTab.appendChild(addBoardButton);
     tabsEl.appendChild(addBoardTab);
 
-    initializeBoardTabsSortable(tabsEl);
+    initializeBoardTabsSortable(tabsEl, openBoards.length > 1);
 }
