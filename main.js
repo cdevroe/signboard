@@ -4,7 +4,8 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, ShareMenu } = require('electron');
+const fs = require('fs').promises;
 const path = require('path');
 
 app.on('ready', () => {
@@ -41,6 +42,36 @@ ipcMain.handle('choose-directory', async (event, { defaultPath } = {}) => {
   if (result.canceled) return null;
   // returns an array, but single selection when openDirectory is used
   return result.filePaths[0] || null;
+});
+
+ipcMain.handle('share-file', async (event, filePath) => {
+  const normalizedPath = typeof filePath === 'string' ? path.normalize(filePath) : '';
+  if (!normalizedPath) {
+    return { ok: false, error: 'INVALID_PATH' };
+  }
+
+  try {
+    await fs.access(normalizedPath);
+  } catch {
+    return { ok: false, error: 'FILE_NOT_FOUND' };
+  }
+
+  if (typeof ShareMenu !== 'function') {
+    return { ok: false, error: 'UNSUPPORTED' };
+  }
+
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) {
+    return { ok: false, error: 'NO_WINDOW' };
+  }
+
+  try {
+    const shareMenu = new ShareMenu({ filePaths: [normalizedPath] });
+    shareMenu.popup({ window: win });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error?.message || 'SHARE_FAILED' };
+  }
 });
 
 app.whenReady().then(createWindow);

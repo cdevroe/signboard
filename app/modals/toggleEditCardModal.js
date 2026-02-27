@@ -424,6 +424,12 @@ async function toggleEditCardModal(cardPath, options = {}) {
     cardEditorDupeLink.removeEventListener('click', handleClickDuplicateCard, { once: true });
     cardEditorDupeLink.addEventListener('click', handleClickDuplicateCard, {once:true});
 
+    const cardEditorShareLink = document.getElementById('cardEditorShareLink');
+    if (cardEditorShareLink) {
+        cardEditorShareLink.removeEventListener('click', handleClickShareCard);
+        cardEditorShareLink.addEventListener('click', handleClickShareCard);
+    }
+
     const cardEditorMoveListLink = document.getElementById('cardEditorMoveListLink');
     if (cardEditorMoveListLink) {
         cardEditorMoveListLink.removeEventListener('click', handleClickMoveCard);
@@ -785,6 +791,28 @@ async function handleClickCloseCard( e ) {
     e.stopPropagation();
     await closeAllModals(e);
     return;
+}
+
+async function handleClickShareCard(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    const cardPath = cardEditorCardPath ? String(cardEditorCardPath.value || '').trim() : '';
+    if (!cardPath) {
+        return;
+    }
+
+    await flushEditorSaveIfNeeded();
+
+    try {
+        const result = await window.board.shareCard(cardPath);
+        if (!result || result.ok !== true) {
+            console.error('Unable to share card file.', result && result.error ? result.error : 'UNKNOWN');
+        }
+    } catch (error) {
+        console.error('Unable to share card file.', error);
+    }
 }
 
 async function handleClickDuplicateCard( e ) {

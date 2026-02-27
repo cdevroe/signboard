@@ -71,6 +71,8 @@ contextBridge.exposeInMainWorld('board', {
 
   openCard: async (filePath) => await shell.showItemInFolder(filePath),
 
+  shareCard: async (filePath) => ipcRenderer.invoke('share-file', filePath),
+
   readCard: async (filePath) => await cardFrontmatter.readCard(filePath),
 
   writeCard: async (filePath, card) => await cardFrontmatter.writeCard(filePath, card),
