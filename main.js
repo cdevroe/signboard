@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, dialog, ipcMain, ShareMenu } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, ShareMenu, shell } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -22,6 +22,31 @@ function createWindow() {
       sandbox: false,
       enableRemoteModule: false,
       nodeIntegration: false
+    }
+  });
+
+  const shouldOpenExternally = (url) => {
+    try {
+      const parsed = new URL(url);
+      return ['http:', 'https:', 'mailto:'].includes(parsed.protocol);
+    } catch {
+      return false;
+    }
+  };
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (shouldOpenExternally(url)) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+
+    return { action: 'allow' };
+  });
+
+  win.webContents.on('will-navigate', (event, url) => {
+    if (shouldOpenExternally(url)) {
+      event.preventDefault();
+      shell.openExternal(url);
     }
   });
 

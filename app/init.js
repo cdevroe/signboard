@@ -47,10 +47,23 @@ async function init() {
         btnAddCardToList.click();
     });
     document.addEventListener('click', async (e) => {
-        if (e.target.offsetParent && e.target.offsetParent.className && e.target.offsetParent.className == 'overtype-preview' && e.target.tagName === "A") {
-            e.preventDefault();
-            window.electronAPI.openExternal(e.target.href);
-            return;
+        const clickedLink = e.target instanceof Element ? e.target.closest('a[href]') : null;
+        if (clickedLink) {
+            const rawHref = String(clickedLink.getAttribute('href') || '').trim();
+            if (rawHref && rawHref !== '#') {
+                try {
+                    const resolvedUrl = new URL(rawHref, window.location.href);
+                    const supportedProtocols = ['http:', 'https:', 'mailto:'];
+                    if (supportedProtocols.includes(resolvedUrl.protocol)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.electronAPI.openExternal(resolvedUrl.href);
+                        return;
+                    }
+                } catch {
+                    // Ignore malformed URLs and continue normal click handling.
+                }
+            }
         }
 
         closeLabelFilterIfClickOutside(e.target);
