@@ -30,7 +30,7 @@
             </button>
             <div id="labelFilterPopover" class="label-popover hidden"></div>
           </div>
-          <button id="btnAddNewList">+ Add List</button>
+          <button id="btnAddNewList" title="Add new list">+ Add List</button>
         </div>
       </div>
     </div>
@@ -40,7 +40,7 @@
   </header>
 
   <main id="board">
-    <button id="emptyBoardCallToAction" class="empty-board-cta" type="button" aria-label="Select a directory to create a board">
+    <button id="emptyBoardCallToAction" class="empty-board-cta" type="button" title="Select a directory to create a board" aria-label="Select a directory to create a board">
       <span class="empty-board-cta-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
@@ -55,18 +55,18 @@
 
   <div id="modalAddList" class="modal hidden">
     <input id="userInputListName" type="text" placeholder="Backlog">
-    <button id="btnAddList">Add List</button>
+    <button id="btnAddList" title="Add list">Add List</button>
   </div>
 
   <div id="modalAddCard" class="modal hidden">
     <input id="userInput" type="text" placeholder="A small task">
     <input id="hiddenListPath" type="hidden" value="">
-    <button id="btnAddCard">Add card</button>
+    <button id="btnAddCard" title="Add card">Add card</button>
   </div>
 
   <div id="modalAddCardToList" class="modal hidden">
      <p><select id="userInputListPath"></select></p>
-    <p><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"> <button id="btnAddCardToList">Add</button></p>
+    <p><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"> <button id="btnAddCardToList" title="Add card to selected list">Add</button></p>
   </div>
 
   <div id="modalBoardSettings" class="modal hidden">
@@ -84,7 +84,7 @@
         <span>Action</span>
       </div>
       <div id="boardSettingsLabels"></div>
-      <button id="btnAddBoardLabel" type="button">Add label</button>
+      <button id="btnAddBoardLabel" type="button" title="Add label">Add label</button>
     </section>
     <section class="boardSettingsSection">
       <h3>Theme Colors</h3>
@@ -94,19 +94,19 @@
           <h4>Light theme</h4>
           <input id="boardThemeLightBackground" type="color" value="#f7f8fa">
           <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
-          <button id="btnResetLightTheme" type="button">Reset Light Theme</button>
+          <button id="btnResetLightTheme" type="button" title="Reset light theme colors">Reset Light Theme</button>
         </div>
         <div class="board-theme-settings-mode">
           <h4>Dark theme</h4>
           <input id="boardThemeDarkBackground" type="color" value="#091102">
           <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
-          <button id="btnResetDarkTheme" type="button">Reset Dark Theme</button>
+          <button id="btnResetDarkTheme" type="button" title="Reset dark theme colors">Reset Dark Theme</button>
         </div>
       </div>
       <p id="boardThemeColorsWarning" class="boardSettingsHint board-theme-warning hidden"></p>
       <div class="board-theme-settings-actions">
-        <button id="btnResetAllThemeColors" type="button">Reset All Theme Colors</button>
-        <button id="btnApplyThemeColorsToOpenBoards" type="button">Apply to all Open Boards</button>
+        <button id="btnResetAllThemeColors" type="button" title="Reset all theme colors">Reset All Theme Colors</button>
+        <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply theme colors to all open boards">Apply to all Open Boards</button>
       </div>
     </section>
   </div>

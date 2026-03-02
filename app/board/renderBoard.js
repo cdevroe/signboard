@@ -176,11 +176,13 @@ function renderMissingBoardAlert(boardPath) {
   removeButton.type = 'button';
   removeButton.className = 'board-missing-alert-remove';
   removeButton.textContent = 'Remove Board';
+  removeButton.title = 'Remove this board tab';
 
   const locateButton = document.createElement('button');
   locateButton.type = 'button';
   locateButton.className = 'board-missing-alert-locate';
   locateButton.textContent = 'Locate Board';
+  locateButton.title = 'Locate the moved board folder';
 
   const setButtonsDisabled = (disabled) => {
     removeButton.disabled = disabled;

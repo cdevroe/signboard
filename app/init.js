@@ -1,4 +1,6 @@
 async function init() {
+    initializeTooltips();
+
     const restoredBoard = restoreBoardTabs();
     const initializeHeaderControls = () => {
         initializeBoardLabelControls();

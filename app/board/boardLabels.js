@@ -707,6 +707,7 @@ function renderBoardLabelFilterPopover() {
   clearButton.type = 'button';
   clearButton.className = 'label-popover-clear';
   clearButton.textContent = 'Clear filter';
+  clearButton.title = 'Clear label and due date filters';
   clearButton.disabled = selectedFilterIds.size === 0 && !hasDueDateFilter;
   clearButton.addEventListener('click', async () => {
     resetBoardLabelFilter();

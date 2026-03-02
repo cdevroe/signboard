@@ -35,6 +35,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/listeners/window.js` - Keyboard shortcuts (`Esc`, `Cmd/Ctrl+N`, `Cmd/Ctrl+Shift+N`).
 - `app/init.js` - App bootstrap, folder picker handling, and top-level event wiring.
 - `app/ui/theme.js` - Theme toggle + OverType theme integration.
+- `app/ui/tooltips.js` - Lightweight custom tooltip engine (event delegation + mutation observer) using existing element label attributes.
 
 ## Shared/library code
 

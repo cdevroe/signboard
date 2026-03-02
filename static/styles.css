@@ -690,6 +690,77 @@ button:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)
 button:active { transform: translateY(1px); }
 button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card)); }
 
+/* Lightweight custom tooltip system */
+.sb-tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  max-width: min(300px, calc(100vw - 24px));
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, var(--text));
+  background: color-mix(in oklab, var(--bg-card) 90%, var(--text));
+  color: var(--text);
+  font-size: var(--font-xs);
+  line-height: 1.3;
+  box-shadow: 0 8px 24px var(--shadow-card);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 12000;
+  transform: translate(-50%, -6px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.sb-tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  background: inherit;
+  border-right: 1px solid color-mix(in oklab, var(--border) 80%, var(--text));
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, var(--text));
+  transform: rotate(45deg);
+}
+
+.sb-tooltip[data-placement="top"]::after {
+  bottom: -5px;
+}
+
+.sb-tooltip[data-placement="bottom"]::after {
+  top: -5px;
+  transform: rotate(225deg);
+}
+
+.sb-tooltip.is-visible {
+  opacity: 1;
+}
+
+.sb-tooltip[data-placement="top"].is-visible {
+  transform: translate(-50%, -10px);
+}
+
+.sb-tooltip[data-placement="bottom"] {
+  transform: translate(-50%, 6px);
+}
+
+.sb-tooltip[data-placement="bottom"].is-visible {
+  transform: translate(-50%, 10px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-tooltip {
+    transition: none;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .sb-tooltip {
+    display: none !important;
+  }
+}
+
 /* 7) Modals (Add Card, Add Card To List) */
 .modal {
   background: var(--bg-card);

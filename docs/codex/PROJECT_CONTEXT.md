@@ -123,6 +123,10 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Toggles `document.documentElement.dataset.theme`.
   - Persists theme to localStorage.
   - Updates OverType theme to match app theme.
+- `app/ui/tooltips.js`:
+  - Provides custom app-styled tooltips for primary controls without third-party dependencies.
+  - Sources tooltip text from existing control labels (`title`, `aria-label`, `alt`) and keeps styling aligned with board palette CSS variables.
+  - Uses delegated listeners + a MutationObserver so dynamic controls receive tooltips automatically.
 
 ## Frontmatter System
 File: `lib/cardFrontmatter.js`
