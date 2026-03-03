@@ -6,6 +6,9 @@ Start here before opening source files.
 - Read `docs/codex/FILE_STRUCTURE.md` for an annotated map of the repository.
 - Treat `app/signboard.js` as generated output; edit the source modules in `app/**` and then run `./buildjs.sh`.
 - Tooltip UI is implemented in `app/ui/tooltips.js` and reads existing control labels (`title` / `aria-label` / `alt`) to keep tooltip copy centralized in markup.
+- App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`.
+- In dev/unpackaged builds, `Help` includes updater preview dialogs so update UI can be tested without publishing a release.
+- Release assets for updater compatibility are validated by `scripts/verify-release-assets.js` (`npm run release:verify`).
 - Board tabs/session state live in renderer localStorage: `boardTabs` (open tab order) and `boardPath` (active board root fallback).
 - Board label definitions are managed in `board-settings.md` files inside each board folder (runtime data, not repo source).
 - Skip heavy/generated content unless explicitly needed: `node_modules/`, `dist/`, `static/vendor/`, and usually `package-lock.json`.

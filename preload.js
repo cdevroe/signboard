@@ -194,6 +194,7 @@ contextBridge.exposeInMainWorld('chooser', {
 
 contextBridge.exposeInMainWorld("electronAPI", {
   openExternal: (url) => shell.openExternal(url),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
 });
 
 // Remove characters that are not allowed in filenames

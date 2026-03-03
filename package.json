@@ -7,9 +7,15 @@
   "main": "main.js",
   "build": {
     "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
+    "nsis": {
+      "artifactName": "signboard_${version}_${os}_${arch}.${ext}"
+    },
     "mac": {
       "category": "public.app-category.productivity",
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "icon": "build/icon.icns",
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
@@ -49,17 +55,20 @@
     "dist:win": "npm run dist:win:all",
     "dist:win:x64": "npm run build:js && electron-builder --win nsis --x64 --publish never",
     "dist:win:arm64": "npm run build:js && electron-builder --win nsis --arm64 --publish never",
-    "dist:win:all": "npm run build:js && electron-builder --win nsis --x64 --arm64 --publish never",
+    "dist:win:all": "npm run dist:win:x64 && npm run dist:win:arm64",
     "dist:winarm64": "npm run dist:win:arm64",
     "dist:winx64": "npm run dist:win:x64",
     "dist:linux": "npm run dist:linux:all",
     "dist:linux:x64": "npm run build:js && electron-builder --linux AppImage deb --x64 --publish never",
     "dist:linux:arm64": "npm run build:js && electron-builder --linux AppImage deb --arm64 --publish never",
-    "dist:linux:all": "npm run build:js && electron-builder --linux AppImage deb --x64 --arm64 --publish never",
+    "dist:linux:all": "npm run dist:linux:x64 && npm run dist:linux:arm64",
     "dist:linux:rpm:x64": "npm run build:js && electron-builder --linux rpm --x64 --publish never",
     "dist:linux:rpm:arm64": "npm run build:js && electron-builder --linux rpm --arm64 --publish never",
     "dist:linux:rpm:all": "npm run build:js && electron-builder --linux rpm --x64 --arm64 --publish never",
-    "dist:all": "npm run dist:mac:all && npm run dist:win:all && npm run dist:linux:all"
+    "dist:all": "npm run dist:mac:all && npm run dist:win:all && npm run dist:linux:all",
+    "release:verify": "node scripts/verify-release-assets.js",
+    "release:verify:partial": "node scripts/verify-release-assets.js --allow-partial",
+    "release:prepare": "npm run dist:all && npm run release:verify"
   },
   "devDependencies": {
     "dotenv": "^17.3.1",
@@ -67,6 +76,7 @@
     "electron-builder": "^26.8.1"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "js-yaml": "^4.1.1",
     "turndown": "^7.2.2"
   }

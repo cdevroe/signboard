@@ -16,6 +16,12 @@ File: `main.js`
 
 - Creates a single `BrowserWindow` and loads `index.html`.
 - Registers IPC handler `choose-directory` to open native folder picker.
+- Registers IPC handler `check-for-updates` for renderer-triggered manual update checks.
+- Builds a native app menu with a `Check for Updates...` action.
+- In unpackaged/dev mode, Help menu includes `Preview Update Available...` and `Preview Update Ready...` to test updater dialogs without downloading/installing.
+- Uses `electron-updater` against GitHub Releases for automatic and manual update checks.
+- Shows native update dialogs with release notes, changelog links, remind-later, and install/relaunch actions.
+- Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` for renderer API exposure.
 - Security-related window settings are:
   - `contextIsolation: true`
@@ -26,6 +32,7 @@ File: `main.js`
 File: `preload.js`
 
 - Exposes `window.board` (filesystem + card operations), `window.chooser`, and `window.electronAPI`.
+- `window.electronAPI` includes external-link opening and manual update checks.
 - Wraps card reads/writes through `lib/cardFrontmatter.js`.
 - Handles operations like list/card enumerate, move, create, and Trello import.
 - Uses `path.basename(path.normalize(...))` for cross-platform path parsing.
@@ -177,6 +184,8 @@ File: `lib/boardLabels.js`
 ### Packaging
 - Electron Builder config in `package.json` and `electron-builder.json`.
 - macOS notarization hook: `scripts/notarize.js` (env vars from `.env`).
+- Release validation script: `scripts/verify-release-assets.js` (`npm run release:verify`) checks cross-platform updater assets and metadata naming.
+- End-to-end release prep: `npm run release:prepare` (build all + verify release assets).
 
 ## Practical Editing Rules for Future Codex Runs
 

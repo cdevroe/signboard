@@ -4,8 +4,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC directory chooser.
-- `preload.js` - Renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) + filesystem/date/sort helpers.
+- `main.js` - Electron main process window + IPC handlers + native menu + GitHub-release auto-update flow (`electron-updater`).
+- `preload.js` - Renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) + filesystem/date/sort helpers + manual update trigger.
 - `index.html` - App shell, header board tab strip, modal markup, and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `package.json` - Runtime/build scripts and dependencies.
@@ -48,6 +48,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-board-labels.js` - Node assertions for board label settings defaults/migration/filter logic.
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
+- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux.
 
 ## Static assets (`static/`)
 
