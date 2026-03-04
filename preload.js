@@ -1,5 +1,6 @@
 const { contextBridge, ipcRenderer, shell } = require('electron');
-const fs = require('fs').promises;
+const fsNative = require('fs');
+const fs = fsNative.promises;
 const path = require('path');
 const cardFrontmatter = require('./lib/cardFrontmatter');
 const boardLabels = require('./lib/boardLabels');
@@ -14,6 +15,161 @@ const dueDateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
 });
+const BOARD_WATCH_RESCAN_DELAY_MS = 180;
+
+const boardWatchState = {
+  activeRoot: '',
+  rootWatcher: null,
+  listWatchers: new Map(),
+  rescanTimeout: null,
+  changeToken: 0,
+};
+
+function closeWatcher(watcher) {
+  if (!watcher || typeof watcher.close !== 'function') {
+    return;
+  }
+
+  try {
+    watcher.close();
+  } catch {
+    // Ignore close failures from stale/unavailable watch handles.
+  }
+}
+
+function clearBoardRescanTimer() {
+  if (boardWatchState.rescanTimeout) {
+    clearTimeout(boardWatchState.rescanTimeout);
+    boardWatchState.rescanTimeout = null;
+  }
+}
+
+function clearListWatchers() {
+  for (const watcher of boardWatchState.listWatchers.values()) {
+    closeWatcher(watcher);
+  }
+  boardWatchState.listWatchers.clear();
+}
+
+function bumpBoardWatchToken() {
+  boardWatchState.changeToken += 1;
+}
+
+function normalizeBoardRootForWatch(rootPath) {
+  const input = String(rootPath || '').trim();
+  if (!input) {
+    return '';
+  }
+
+  return path.resolve(input);
+}
+
+function attachDirectoryWatcher(directoryPath, onChange) {
+  try {
+    const watcher = fsNative.watch(directoryPath, { persistent: false }, () => {
+      onChange();
+    });
+
+    watcher.on('error', () => {
+      // Ignore watch errors; rescan logic will naturally recover.
+    });
+
+    return watcher;
+  } catch {
+    return null;
+  }
+}
+
+async function refreshBoardListWatchers() {
+  if (!boardWatchState.activeRoot) {
+    return;
+  }
+
+  let entries = [];
+  try {
+    entries = await fs.readdir(boardWatchState.activeRoot, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  const expectedListPaths = new Set(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.resolve(path.join(boardWatchState.activeRoot, entry.name))),
+  );
+
+  for (const [listPath, watcher] of boardWatchState.listWatchers.entries()) {
+    if (!expectedListPaths.has(listPath)) {
+      closeWatcher(watcher);
+      boardWatchState.listWatchers.delete(listPath);
+    }
+  }
+
+  for (const listPath of expectedListPaths) {
+    if (boardWatchState.listWatchers.has(listPath)) {
+      continue;
+    }
+
+    const watcher = attachDirectoryWatcher(listPath, () => {
+      bumpBoardWatchToken();
+    });
+
+    if (watcher) {
+      boardWatchState.listWatchers.set(listPath, watcher);
+    }
+  }
+}
+
+function scheduleBoardWatchRescan() {
+  clearBoardRescanTimer();
+  boardWatchState.rescanTimeout = setTimeout(() => {
+    boardWatchState.rescanTimeout = null;
+    refreshBoardListWatchers().catch(() => {
+      // Ignore failed rescans; a later fs event will retry.
+    });
+  }, BOARD_WATCH_RESCAN_DELAY_MS);
+}
+
+async function startBoardWatch(boardRoot) {
+  const normalizedRoot = normalizeBoardRootForWatch(boardRoot);
+  if (!normalizedRoot) {
+    return { ok: false, error: 'INVALID_BOARD_ROOT' };
+  }
+
+  if (boardWatchState.activeRoot === normalizedRoot && boardWatchState.rootWatcher) {
+    return { ok: true, boardRoot: normalizedRoot };
+  }
+
+  await stopBoardWatch();
+
+  boardWatchState.activeRoot = normalizedRoot;
+
+  const rootWatcher = attachDirectoryWatcher(normalizedRoot, () => {
+    bumpBoardWatchToken();
+    scheduleBoardWatchRescan();
+  });
+
+  if (!rootWatcher) {
+    boardWatchState.activeRoot = '';
+    return { ok: false, error: 'WATCH_START_FAILED' };
+  }
+
+  boardWatchState.rootWatcher = rootWatcher;
+  await refreshBoardListWatchers();
+  bumpBoardWatchToken();
+
+  return { ok: true, boardRoot: normalizedRoot };
+}
+
+async function stopBoardWatch() {
+  clearBoardRescanTimer();
+  clearListWatchers();
+  closeWatcher(boardWatchState.rootWatcher);
+  boardWatchState.rootWatcher = null;
+  boardWatchState.activeRoot = '';
+  boardWatchState.changeToken = 0;
+  return { ok: true };
+}
 
 contextBridge.exposeInMainWorld('board', {
   listLists: async (root) => {
@@ -68,6 +224,12 @@ contextBridge.exposeInMainWorld('board', {
     let directories = dirs.filter(d => d.isDirectory()).map(d => d.name);
     return directories;
   },
+
+  startBoardWatch: async (boardRoot) => await startBoardWatch(boardRoot),
+
+  stopBoardWatch: async () => await stopBoardWatch(),
+
+  getBoardWatchToken: async () => boardWatchState.changeToken,
 
   openCard: async (filePath) => await shell.showItemInFolder(filePath),
 
@@ -124,7 +286,7 @@ contextBridge.exposeInMainWorld('board', {
     const outRoot = filePath;
 
     try {
-      await fs.access(jsonPath, fs.constants.F_OK);
+      await fs.access(jsonPath, fsNative.constants.F_OK);
     } catch {
       return;
     }

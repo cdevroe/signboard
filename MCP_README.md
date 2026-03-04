@@ -90,6 +90,7 @@ Use it to standardize how agents call `signboard.*` tools (safety checks, read/w
 The server currently exposes these tools:
 
 - `signboard.get_config`
+- `signboard.resolve_board_by_name`
 - `signboard.list_lists`
 - `signboard.list_cards`
 - `signboard.read_card`
@@ -101,6 +102,15 @@ The server currently exposes these tools:
 - `signboard.update_board_settings` (write mode only)
 
 All tools take absolute `boardRoot` paths and reject path traversal.
+
+## Board name lookup
+
+If you do not want to manually type absolute board paths, use:
+
+- `signboard.resolve_board_by_name`
+
+This searches within `SIGNBOARD_MCP_ALLOWED_ROOTS` and returns absolute matches.
+If `SIGNBOARD_MCP_ALLOWED_ROOTS` is not set, the resolver tool returns an error.
 
 ## Example client config snippets
 

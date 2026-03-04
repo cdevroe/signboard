@@ -8,8 +8,10 @@ Start here before opening source files.
 - Tooltip UI is implemented in `app/ui/tooltips.js` and reads existing control labels (`title` / `aria-label` / `alt`) to keep tooltip copy centralized in markup.
 - App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`.
 - `main.js` also supports headless MCP mode via `--mcp-server` for local agent integration over stdio; implementation lives in `lib/mcpServer.js`.
+- Signboard MCP includes board-name resolution (`signboard.resolve_board_by_name`) and supports both header-framed + newline-delimited stdio JSON-RPC.
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
+- `preload.js` exposes board filesystem watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`) and `app/init.js` uses them to auto-refresh UI after external board changes.
 - In dev/unpackaged builds, `Help` includes updater preview dialogs so update UI can be tested without publishing a release.
 - Release assets for updater compatibility are validated by `scripts/verify-release-assets.js` (`npm run release:verify`).
 - Dedicated user-facing MCP setup docs are in `MCP_README.md`.

@@ -1,13 +1,21 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-function encodeMessage(payload) {
+const HEADER_TRANSPORT = 'header';
+const NDJSON_TRANSPORT = 'ndjson';
+
+function encodeMessage(payload, transportMode) {
   const json = JSON.stringify(payload);
-  const length = Buffer.byteLength(json, 'utf8');
-  return Buffer.from(`Content-Length: ${length}\r\n\r\n${json}`, 'utf8');
+
+  if (transportMode === HEADER_TRANSPORT) {
+    const length = Buffer.byteLength(json, 'utf8');
+    return Buffer.from(`Content-Length: ${length}\r\n\r\n${json}`, 'utf8');
+  }
+
+  return Buffer.from(`${json}\n`, 'utf8');
 }
 
-function readFrames(buffer, onFrame) {
+function readHeaderFrames(buffer, onFrame) {
   let working = buffer;
 
   while (true) {
@@ -41,15 +49,49 @@ function readFrames(buffer, onFrame) {
   }
 }
 
-async function run() {
-  const child = spawn(process.execPath, ['-e', "const { startSignboardMcpServer } = require('./lib/mcpServer'); startSignboardMcpServer({ appVersion: 'test' });"], {
-    cwd: path.resolve(__dirname, '..'),
-    stdio: ['pipe', 'pipe', 'pipe'],
+function readNdjsonFrames(buffer, onFrame) {
+  let working = buffer;
+
+  while (true) {
+    const newlineIndex = working.indexOf('\n');
+    if (newlineIndex < 0) {
+      return working;
+    }
+
+    const line = working.slice(0, newlineIndex).toString('utf8').trim();
+    working = working.slice(newlineIndex + 1);
+
+    if (!line) {
+      continue;
+    }
+
+    onFrame(JSON.parse(line));
+  }
+}
+
+async function runForTransport(transportMode) {
+  const child = spawn(
+    process.execPath,
+    ['-e', "const { startSignboardMcpServer } = require('./lib/mcpServer'); startSignboardMcpServer({ appVersion: 'test' });"],
+    {
+      cwd: path.resolve(__dirname, '..'),
+      env: {
+        ...process.env,
+        SIGNBOARD_MCP_ALLOWED_ROOTS: path.resolve(__dirname, '..', '..'),
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    },
+  );
+
+  let stderr = '';
+  let stdoutBuffer = Buffer.alloc(0);
+  let streamError = null;
+  const responsesById = new Map();
+
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString('utf8');
   });
 
-  let stdoutBuffer = Buffer.alloc(0);
-  const responsesById = new Map();
-  let streamError = null;
   const waitForExit = new Promise((resolve, reject) => {
     child.once('exit', (code) => {
       if (code === 0) {
@@ -65,6 +107,7 @@ async function run() {
 
   child.stdout.on('data', (chunk) => {
     try {
+      const readFrames = transportMode === HEADER_TRANSPORT ? readHeaderFrames : readNdjsonFrames;
       stdoutBuffer = readFrames(Buffer.concat([stdoutBuffer, chunk]), (frame) => {
         if (Object.prototype.hasOwnProperty.call(frame, 'id')) {
           responsesById.set(frame.id, frame);
@@ -76,13 +119,8 @@ async function run() {
     }
   });
 
-  let stderr = '';
-  child.stderr.on('data', (chunk) => {
-    stderr += chunk.toString('utf8');
-  });
-
   const send = (payload) => {
-    child.stdin.write(encodeMessage(payload));
+    child.stdin.write(encodeMessage(payload, transportMode));
   };
 
   const waitForResponse = (id, timeoutMs = 2000) => new Promise((resolve, reject) => {
@@ -102,7 +140,7 @@ async function run() {
       }
 
       if (Date.now() - start > timeoutMs) {
-        reject(new Error(`Timed out waiting for MCP response id=${id}. stderr=${stderr.trim()}`));
+        reject(new Error(`Timed out waiting for MCP response id=${id}. transport=${transportMode}. stderr=${stderr.trim()}`));
         return;
       }
 
@@ -116,16 +154,16 @@ async function run() {
     jsonrpc: '2.0',
     id: 1,
     method: 'initialize',
-    params: { protocolVersion: '2024-11-05' },
+    params: { protocolVersion: '2025-11-25' },
   });
 
   const initializeResponse = await waitForResponse(1);
   if (initializeResponse.error) {
-    throw new Error(`Initialize failed: ${JSON.stringify(initializeResponse.error)}`);
+    throw new Error(`Initialize failed (${transportMode}): ${JSON.stringify(initializeResponse.error)}`);
   }
 
   if (initializeResponse.result?.serverInfo?.name !== 'signboard-mcp') {
-    throw new Error(`Unexpected server name: ${JSON.stringify(initializeResponse.result)}`);
+    throw new Error(`Unexpected server name (${transportMode}): ${JSON.stringify(initializeResponse.result)}`);
   }
 
   send({
@@ -142,7 +180,7 @@ async function run() {
 
   const toolsResponse = await waitForResponse(2);
   if (toolsResponse.error) {
-    throw new Error(`tools/list failed: ${JSON.stringify(toolsResponse.error)}`);
+    throw new Error(`tools/list failed (${transportMode}): ${JSON.stringify(toolsResponse.error)}`);
   }
 
   const tools = Array.isArray(toolsResponse.result?.tools) ? toolsResponse.result.tools : [];
@@ -150,6 +188,7 @@ async function run() {
 
   const requiredToolNames = [
     'signboard.get_config',
+    'signboard.resolve_board_by_name',
     'signboard.list_lists',
     'signboard.list_cards',
     'signboard.read_card',
@@ -163,7 +202,7 @@ async function run() {
 
   for (const toolName of requiredToolNames) {
     if (!toolNames.has(toolName)) {
-      throw new Error(`Missing MCP tool: ${toolName}`);
+      throw new Error(`Missing MCP tool (${transportMode}): ${toolName}`);
     }
   }
 
@@ -179,17 +218,50 @@ async function run() {
 
   const configResponse = await waitForResponse(3);
   if (configResponse.error) {
-    throw new Error(`tools/call signboard.get_config failed: ${JSON.stringify(configResponse.error)}`);
+    throw new Error(`tools/call signboard.get_config failed (${transportMode}): ${JSON.stringify(configResponse.error)}`);
   }
 
   if (!configResponse.result || configResponse.result.isError) {
-    throw new Error(`Unexpected signboard.get_config result: ${JSON.stringify(configResponse.result)}`);
+    throw new Error(`Unexpected signboard.get_config result (${transportMode}): ${JSON.stringify(configResponse.result)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 4,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.resolve_board_by_name',
+      arguments: {
+        boardName: 'signboard',
+        exact: true,
+        maxDepth: 3,
+        limit: 5,
+      },
+    },
+  });
+
+  const resolveResponse = await waitForResponse(4);
+  if (resolveResponse.error) {
+    throw new Error(`tools/call signboard.resolve_board_by_name failed (${transportMode}): ${JSON.stringify(resolveResponse.error)}`);
+  }
+
+  if (!resolveResponse.result || resolveResponse.result.isError) {
+    throw new Error(`Unexpected resolver result (${transportMode}): ${JSON.stringify(resolveResponse.result)}`);
+  }
+
+  const resolverOutput = resolveResponse.result.structuredContent || {};
+  if (!Array.isArray(resolverOutput.matches) || resolverOutput.matches.length === 0) {
+    throw new Error(`Resolver returned no matches (${transportMode}): ${JSON.stringify(resolverOutput)}`);
   }
 
   child.stdin.end();
   await waitForExit;
+}
 
-  console.log('MCP server smoke test passed.');
+async function run() {
+  await runForTransport(HEADER_TRANSPORT);
+  await runForTransport(NDJSON_TRANSPORT);
+  console.log('MCP server smoke test passed (header + ndjson).');
 }
 
 run().catch((error) => {

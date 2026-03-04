@@ -19,6 +19,7 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 
 1. Call `signboard.get_config` first.
 2. If board root is unknown, ask user for the absolute board path.
+   - If `allowedRoots` are configured, prefer `signboard.resolve_board_by_name` first.
 3. Discover structure:
    - `signboard.list_lists`
    - `signboard.list_cards`
@@ -45,6 +46,7 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 ## Tool Reference
 
 - `signboard.get_config`: inspect MCP mode and path constraints.
+- `signboard.resolve_board_by_name`: map a board directory name to absolute board paths under allowed roots.
 - `signboard.list_lists`: get list directory names in a board.
 - `signboard.list_cards`: get card markdown files in a list.
 - `signboard.read_card`: return normalized frontmatter and body.

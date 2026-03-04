@@ -1,3 +1,143 @@
+const EXTERNAL_BOARD_SYNC_INTERVAL_MS = 500;
+const EXTERNAL_BOARD_RENDER_DEBOUNCE_MS = 150;
+
+let externalBoardSyncIntervalId = null;
+let externalBoardSyncInFlight = false;
+let externalBoardWatchRoot = '';
+let externalBoardWatchToken = 0;
+let externalBoardRefreshPending = false;
+let externalBoardRenderTimeoutId = null;
+let externalBoardRenderInFlight = false;
+
+function isModalOpen(modalId) {
+    const modal = document.getElementById(modalId);
+    return Boolean(modal && modal.style.display === 'block');
+}
+
+function isExternalBoardRefreshBlocked() {
+    return isModalOpen('modalEditCard') || isModalOpen('modalBoardSettings');
+}
+
+function scheduleExternalBoardRefresh() {
+    if (externalBoardRenderTimeoutId) {
+        return;
+    }
+
+    externalBoardRenderTimeoutId = window.setTimeout(() => {
+        externalBoardRenderTimeoutId = null;
+        runExternalBoardRefresh().catch((error) => {
+            console.error('Failed to refresh board after external file change.', error);
+        });
+    }, EXTERNAL_BOARD_RENDER_DEBOUNCE_MS);
+}
+
+async function runExternalBoardRefresh() {
+    if (!window.boardRoot) {
+        externalBoardRefreshPending = false;
+        return;
+    }
+
+    if (isExternalBoardRefreshBlocked() || externalBoardRenderInFlight) {
+        externalBoardRefreshPending = true;
+        return;
+    }
+
+    externalBoardRenderInFlight = true;
+    externalBoardRefreshPending = false;
+
+    try {
+        await renderBoard();
+    } finally {
+        externalBoardRenderInFlight = false;
+    }
+}
+
+async function externalBoardSyncTick() {
+    if (externalBoardSyncInFlight) {
+        return;
+    }
+
+    if (!window.board || typeof window.board.startBoardWatch !== 'function' || typeof window.board.getBoardWatchToken !== 'function') {
+        return;
+    }
+
+    externalBoardSyncInFlight = true;
+
+    try {
+        const currentBoardRoot = typeof normalizeBoardPath === 'function'
+            ? normalizeBoardPath(window.boardRoot)
+            : String(window.boardRoot || '');
+
+        if (!currentBoardRoot) {
+            if (externalBoardWatchRoot && typeof window.board.stopBoardWatch === 'function') {
+                await window.board.stopBoardWatch();
+            }
+
+            externalBoardWatchRoot = '';
+            externalBoardWatchToken = 0;
+            externalBoardRefreshPending = false;
+            return;
+        }
+
+        if (externalBoardWatchRoot !== currentBoardRoot) {
+            const watchResult = await window.board.startBoardWatch(currentBoardRoot);
+            if (watchResult && watchResult.ok) {
+                externalBoardWatchRoot = currentBoardRoot;
+                externalBoardWatchToken = Number(await window.board.getBoardWatchToken()) || 0;
+            }
+            return;
+        }
+
+        if (externalBoardRefreshPending && !isExternalBoardRefreshBlocked()) {
+            scheduleExternalBoardRefresh();
+        }
+
+        const latestToken = Number(await window.board.getBoardWatchToken());
+        if (!Number.isFinite(latestToken) || latestToken <= externalBoardWatchToken) {
+            return;
+        }
+
+        externalBoardWatchToken = latestToken;
+        scheduleExternalBoardRefresh();
+    } finally {
+        externalBoardSyncInFlight = false;
+    }
+}
+
+function startExternalBoardSync() {
+    if (externalBoardSyncIntervalId) {
+        clearInterval(externalBoardSyncIntervalId);
+    }
+
+    externalBoardSyncIntervalId = window.setInterval(() => {
+        externalBoardSyncTick().catch((error) => {
+            console.error('External board sync tick failed.', error);
+        });
+    }, EXTERNAL_BOARD_SYNC_INTERVAL_MS);
+
+    externalBoardSyncTick().catch((error) => {
+        console.error('Initial external board sync failed.', error);
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (externalBoardSyncIntervalId) {
+            clearInterval(externalBoardSyncIntervalId);
+            externalBoardSyncIntervalId = null;
+        }
+
+        if (externalBoardRenderTimeoutId) {
+            clearTimeout(externalBoardRenderTimeoutId);
+            externalBoardRenderTimeoutId = null;
+        }
+
+        if (window.board && typeof window.board.stopBoardWatch === 'function') {
+            window.board.stopBoardWatch().catch(() => {
+                // Ignore cleanup failures while unloading.
+            });
+        }
+    }, { once: true });
+}
+
 async function init() {
     initializeTooltips();
 
@@ -101,5 +241,7 @@ async function init() {
             btnAddList.click();
         };
     });
+
+    startExternalBoardSync();
 }
 init();

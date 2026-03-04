@@ -27,6 +27,7 @@ File: `main.js`
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` for renderer API exposure.
 - In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
+- MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
 - Security-related window settings are:
   - `contextIsolation: true`
   - `nodeIntegration: false`
@@ -39,6 +40,7 @@ File: `preload.js`
 - `window.electronAPI` includes external-link opening and manual update checks.
 - Wraps card reads/writes through `lib/cardFrontmatter.js`.
 - Handles operations like list/card enumerate, move, create, and Trello import.
+- Exposes board watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`) for detecting external filesystem changes.
 - Uses `path.basename(path.normalize(...))` for cross-platform path parsing.
 - Reuses shared `Intl.Collator` and `Intl.DateTimeFormat` instances for faster repeated sorting/date formatting.
 - Trello import writes cards with awaited loops to avoid race conditions.
@@ -79,6 +81,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Hooks global click handling and top-level modal triggers.
   - Initializes board label toolbar/settings controls.
   - Initializes board search input for live filtering.
+  - Runs an external-change sync loop that watches active board files and re-renders after external updates (for example MCP card moves).
   - Calls directory chooser and `openBoard`.
 - `app/board/openBoard.js`:
   - Creates starter lists/cards when board folder is empty.

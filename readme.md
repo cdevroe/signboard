@@ -38,6 +38,8 @@ Signboard includes a built-in MCP server mode so agents can interact with local 
 - Print ready-to-paste config JSON: `npm run mcp:config`
 - Run from packaged app: launch Signboard executable with `--mcp-server`
 - In app: `Help` -> `Copy MCP Config`
+- Board-name lookup tool: `signboard.resolve_board_by_name`
+- Signboard app auto-refreshes when board files change externally (including MCP actions)
 - Optional agent skill: `skills/signboard-mcp/SKILL.md`
 
 ## 🔄 Automatic Updates

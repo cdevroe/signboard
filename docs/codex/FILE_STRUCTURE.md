@@ -6,7 +6,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `main.js` - Electron main process window + IPC handlers + native menu + GitHub-release auto-update flow (`electron-updater`).
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
-- `preload.js` - Renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) + filesystem/date/sort helpers + manual update trigger.
+- `preload.js` - Renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) + filesystem/date/sort helpers + board filesystem watch helpers + manual update trigger.
 - `index.html` - App shell, header board tab strip, modal markup, and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `package.json` - Runtime/build scripts and dependencies.
@@ -36,7 +36,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
 - `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic with debounced + serialized saves.
 - `app/listeners/window.js` - Keyboard shortcuts (`Esc`, `Cmd/Ctrl+N`, `Cmd/Ctrl+Shift+N`).
-- `app/init.js` - App bootstrap, folder picker handling, and top-level event wiring.
+- `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, and external board-change auto-refresh sync loop.
 - `app/ui/theme.js` - Theme toggle + OverType theme integration.
 - `app/ui/tooltips.js` - Lightweight custom tooltip engine (event delegation + mutation observer) using existing element label attributes.
 
@@ -53,7 +53,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
 - `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux.
-- `scripts/test-mcp-server.js` - MCP protocol smoke test (initialize, tools/list, tools/call config check).
+- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports.
 
 ## Static assets (`static/`)
 
