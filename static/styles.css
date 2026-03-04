@@ -686,7 +686,6 @@ button {
   cursor: pointer;
   box-shadow: 0 1px 0 rgba(0,0,0,.02);
 }
-button:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)); }
 button:active { transform: translateY(1px); }
 button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card)); }
 
