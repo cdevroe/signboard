@@ -15,14 +15,18 @@ Signboard is a local-first Kanban desktop app built with Electron and plain Java
 File: `main.js`
 
 - Creates a single `BrowserWindow` and loads `index.html`.
+- Supports a headless MCP server mode when launched with `--mcp-server` (no window created).
+- Supports `--mcp-config` mode to print MCP client config JSON and exit.
 - Registers IPC handler `choose-directory` to open native folder picker.
 - Registers IPC handler `check-for-updates` for renderer-triggered manual update checks.
 - Builds a native app menu with a `Check for Updates...` action.
+- Help menu includes `Copy MCP Config` to copy a ready-to-paste Signboard MCP JSON snippet.
 - In unpackaged/dev mode, Help menu includes `Preview Update Available...` and `Preview Update Ready...` to test updater dialogs without downloading/installing.
 - Uses `electron-updater` against GitHub Releases for automatic and manual update checks.
 - Shows native update dialogs with release notes, changelog links, remind-later, and install/relaunch actions.
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` for renderer API exposure.
+- In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
 - Security-related window settings are:
   - `contextIsolation: true`
   - `nodeIntegration: false`
@@ -165,6 +169,12 @@ File: `lib/boardLabels.js`
 ### Run locally
 - `npm start`
 
+### Run MCP server locally
+- `npm run mcp:server`
+
+### Print MCP config locally
+- `npm run mcp:config`
+
 ### Rebuild renderer bundle after module edits
 - `./buildjs.sh`
 - Concatenates module files into `app/signboard.js` in strict order.
@@ -177,6 +187,10 @@ File: `lib/boardLabels.js`
 - `npm run test:board-labels`
 - Script: `scripts/test-board-labels.js`
 
+### MCP smoke test
+- `npm run test:mcp`
+- Script: `scripts/test-mcp-server.js`
+
 ### Legacy migration
 - `npm run migrate:legacy-cards -- <board-root> [--dry-run] [--include-plain]`
 - Script: `scripts/migrate-legacy-cards.js`
@@ -186,6 +200,9 @@ File: `lib/boardLabels.js`
 - macOS notarization hook: `scripts/notarize.js` (env vars from `.env`).
 - Release validation script: `scripts/verify-release-assets.js` (`npm run release:verify`) checks cross-platform updater assets and metadata naming.
 - End-to-end release prep: `npm run release:prepare` (build all + verify release assets).
+- MCP instructions for packaged and source installs: `MCP_README.md`.
+- Optional reusable agent skill for MCP workflows: `skills/signboard-mcp/SKILL.md`.
+- Optional skill UI metadata for supported clients: `skills/signboard-mcp/agents/openai.yaml`.
 
 ## Practical Editing Rules for Future Codex Runs
 

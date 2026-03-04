@@ -37,9 +37,12 @@
   "scripts": {
     "prestart": "npm run build:js",
     "start": "electron .",
+    "mcp:server": "electron . --mcp-server",
+    "mcp:config": "electron . --mcp-config",
     "build:js": "./buildjs.sh",
     "test:frontmatter": "node scripts/test-frontmatter.js",
     "test:board-labels": "node scripts/test-board-labels.js",
+    "test:mcp": "node scripts/test-mcp-server.js",
     "test:board-card-metadata": "node scripts/test-board-card-metadata.js",
     "test:timestamp": "node scripts/test-timestamp-format.js",
     "migrate:legacy-cards": "node scripts/migrate-legacy-cards.js",

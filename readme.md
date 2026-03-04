@@ -29,6 +29,17 @@ A local-first kanban desktop app built with HTML, CSS, and JavaScript. Signboard
 
 `npm run migrate:legacy-cards /Root/to/board`
 
+## 🤖 MCP Server (LLM Agents)
+
+Signboard includes a built-in MCP server mode so agents can interact with local boards.
+
+- Dedicated instructions: [MCP_README.md](./MCP_README.md)
+- Run from source: `npm run mcp:server`
+- Print ready-to-paste config JSON: `npm run mcp:config`
+- Run from packaged app: launch Signboard executable with `--mcp-server`
+- In app: `Help` -> `Copy MCP Config`
+- Optional agent skill: `skills/signboard-mcp/SKILL.md`
+
 ## 🔄 Automatic Updates
 
 - Packaged Signboard builds can check GitHub releases for updates automatically.

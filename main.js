@@ -4,16 +4,21 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, dialog, ipcMain, Menu, ShareMenu, shell } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, ShareMenu, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs').promises;
 const path = require('path');
+const { startSignboardMcpServer } = require('./lib/mcpServer');
 
 const GITHUB_OWNER = 'cdevroe';
 const GITHUB_REPO = 'signboard';
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const UPDATE_REMINDER_DELAY_MS = 24 * 60 * 60 * 1000;
 const UPDATE_PREFS_FILE = 'update-preferences.json';
+const MCP_SERVER_ARG = '--mcp-server';
+const MCP_CONFIG_ARG = '--mcp-config';
+const isMcpServerMode = process.argv.includes(MCP_SERVER_ARG);
+const isMcpConfigMode = process.argv.includes(MCP_CONFIG_ARG);
 
 const updateState = {
   checkInProgress: false,
@@ -70,6 +75,56 @@ function createWindow() {
 
 function getMainWindow() {
   return BrowserWindow.getAllWindows()[0] || null;
+}
+
+function buildMcpConfigTemplate() {
+  const command = process.execPath;
+  const args = app.isPackaged ? [MCP_SERVER_ARG] : [app.getAppPath(), MCP_SERVER_ARG];
+  const env = {
+    SIGNBOARD_MCP_READ_ONLY: 'false',
+  };
+
+  try {
+    env.SIGNBOARD_MCP_ALLOWED_ROOTS = path.join(app.getPath('documents'), 'Boards');
+  } catch {
+    env.SIGNBOARD_MCP_ALLOWED_ROOTS = '';
+  }
+
+  return {
+    mcpServers: {
+      signboard: {
+        command,
+        args,
+        env,
+      },
+    },
+  };
+}
+
+async function copyMcpConfigToClipboard() {
+  const win = getMainWindow();
+  const config = buildMcpConfigTemplate();
+  const asText = JSON.stringify(config, null, 2);
+
+  clipboard.writeText(asText);
+
+  if (!win) {
+    return;
+  }
+
+  await dialog.showMessageBox(win, {
+    type: 'info',
+    title: 'MCP Config Copied',
+    message: 'Signboard MCP config was copied to your clipboard.',
+    detail: 'Paste it into your MCP client config and adjust SIGNBOARD_MCP_ALLOWED_ROOTS for your board locations.',
+    buttons: ['OK'],
+    noLink: true,
+  });
+}
+
+function printMcpConfigToStdout() {
+  const config = buildMcpConfigTemplate();
+  process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
 }
 
 function getUpdatePreferencesPath() {
@@ -530,6 +585,28 @@ function buildApplicationMenu() {
       checkForUpdates({ manual: true });
     },
   });
+  const createCopyMcpConfigMenuItem = () => ({
+    label: 'Copy MCP Config',
+    click: async () => {
+      try {
+        await copyMcpConfigToClipboard();
+      } catch (error) {
+        const win = getMainWindow();
+        if (!win) {
+          return;
+        }
+
+        await dialog.showMessageBox(win, {
+          type: 'error',
+          title: 'Copy MCP Config Failed',
+          message: 'Signboard could not copy MCP config to the clipboard.',
+          detail: String(error?.message || error || 'Unknown error'),
+          buttons: ['OK'],
+          noLink: true,
+        });
+      }
+    },
+  });
 
   const template = [];
 
@@ -584,6 +661,7 @@ function buildApplicationMenu() {
     role: 'help',
     submenu: [
       !isMac ? createCheckForUpdatesMenuItem() : null,
+      createCopyMcpConfigMenuItem(),
       isPreviewMode
         ? {
             label: 'Preview Update Available...',
@@ -663,6 +741,24 @@ ipcMain.handle('check-for-updates', async () => {
 });
 
 app.whenReady().then(async () => {
+  if (isMcpConfigMode) {
+    printMcpConfigToStdout();
+    app.quit();
+    return;
+  }
+
+  if (isMcpServerMode) {
+    if (app.dock && typeof app.dock.hide === 'function') {
+      app.dock.hide();
+    }
+
+    await startSignboardMcpServer({
+      appVersion: app.getVersion(),
+      onStop: () => app.quit(),
+    });
+    return;
+  }
+
   await loadUpdatePreferences();
   createWindow();
   buildApplicationMenu();
@@ -670,6 +766,10 @@ app.whenReady().then(async () => {
 });
 
 app.on('activate', () => {
+  if (isMcpServerMode) {
+    return;
+  }
+
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
@@ -682,4 +782,10 @@ app.on('before-quit', () => {
   }
 });
 
-app.on('window-all-closed', () => app.quit());
+app.on('window-all-closed', () => {
+  if (isMcpServerMode) {
+    return;
+  }
+
+  app.quit();
+});
