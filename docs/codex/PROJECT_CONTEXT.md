@@ -23,6 +23,7 @@ File: `main.js`
 - Help menu includes `Copy MCP Config` to copy a ready-to-paste Signboard MCP JSON snippet.
 - In unpackaged/dev mode, Help menu includes `Preview Update Available...` and `Preview Update Ready...` to test updater dialogs without downloading/installing.
 - Uses `electron-updater` against GitHub Releases for automatic and manual update checks.
+- Handles renderer freeze/crash resilience with an unresponsive recovery dialog and renderer crash auto-recreate.
 - Shows native update dialogs with release notes, changelog links, remind-later, and install/relaunch actions.
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` for renderer API exposure.

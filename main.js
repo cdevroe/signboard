@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, ShareMenu, shell } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, ShareMenu, shell, powerSaveBlocker } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs').promises;
 const path = require('path');
@@ -19,6 +19,14 @@ const MCP_SERVER_ARG = '--mcp-server';
 const MCP_CONFIG_ARG = '--mcp-config';
 const isMcpServerMode = process.argv.includes(MCP_SERVER_ARG);
 const isMcpConfigMode = process.argv.includes(MCP_CONFIG_ARG);
+let mainWindow = null;
+let isAppQuitting = false;
+let mcpPowerSaveBlockerId = null;
+let unresponsiveDialogVisible = false;
+
+function isMcpPowerSaveBlockerActive() {
+  return Number.isInteger(mcpPowerSaveBlockerId) && powerSaveBlocker.isStarted(mcpPowerSaveBlockerId);
+}
 
 const updateState = {
   checkInProgress: false,
@@ -33,6 +41,14 @@ app.on('ready', () => {
 });
 
 function createWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+    return mainWindow;
+  }
+
   const win = new BrowserWindow({
     width: 1400,
     height: 1024,
@@ -41,9 +57,11 @@ function createWindow() {
       contextIsolation: true,
       sandbox: false,
       enableRemoteModule: false,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: false
     }
   });
+  mainWindow = win;
 
   const shouldOpenExternally = (url) => {
     try {
@@ -70,10 +88,74 @@ function createWindow() {
     }
   });
 
+  win.webContents.on('unresponsive', async () => {
+    if (isAppQuitting || unresponsiveDialogVisible || win.isDestroyed()) {
+      return;
+    }
+
+    unresponsiveDialogVisible = true;
+
+    try {
+      const choice = await dialog.showMessageBox(win, {
+        type: 'warning',
+        title: 'Signboard Is Not Responding',
+        message: 'Signboard stopped responding.',
+        detail: 'You can force reload the app window now, wait, or quit Signboard.',
+        buttons: ['Force Reload', 'Wait', 'Quit'],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+      });
+
+      if (win.isDestroyed()) {
+        return;
+      }
+
+      if (choice.response === 0) {
+        win.webContents.reloadIgnoringCache();
+        return;
+      }
+
+      if (choice.response === 2) {
+        app.quit();
+      }
+    } catch (error) {
+      console.error('Failed while handling unresponsive window.', error);
+    } finally {
+      unresponsiveDialogVisible = false;
+    }
+  });
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    console.error('Renderer process exited unexpectedly.', details);
+
+    if (isAppQuitting || isMcpServerMode || isMcpConfigMode) {
+      return;
+    }
+
+    if (!win.isDestroyed()) {
+      win.destroy();
+    }
+
+    mainWindow = null;
+    createWindow();
+  });
+
+  win.on('closed', () => {
+    if (mainWindow === win) {
+      mainWindow = null;
+    }
+  });
+
   win.loadFile('index.html');
+  return win;
 }
 
 function getMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    return mainWindow;
+  }
+
   return BrowserWindow.getAllWindows()[0] || null;
 }
 
@@ -748,13 +830,23 @@ app.whenReady().then(async () => {
   }
 
   if (isMcpServerMode) {
+    if (!isMcpPowerSaveBlockerActive()) {
+      mcpPowerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+    }
+
     if (app.dock && typeof app.dock.hide === 'function') {
       app.dock.hide();
     }
 
     await startSignboardMcpServer({
       appVersion: app.getVersion(),
-      onStop: () => app.quit(),
+      onStop: () => {
+        if (isMcpPowerSaveBlockerActive()) {
+          powerSaveBlocker.stop(mcpPowerSaveBlockerId);
+        }
+        mcpPowerSaveBlockerId = null;
+        app.quit();
+      },
     });
     return;
   }
@@ -770,12 +862,43 @@ app.on('activate', () => {
     return;
   }
 
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+  const win = getMainWindow();
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) {
+      win.restore();
+    }
+    if (!win.isVisible()) {
+      win.show();
+    }
+    win.focus();
+    return;
   }
+
+  if (BrowserWindow.getAllWindows().length > 0) {
+    const fallbackWindow = BrowserWindow.getAllWindows()[0];
+    if (fallbackWindow && !fallbackWindow.isDestroyed()) {
+      if (fallbackWindow.isMinimized()) {
+        fallbackWindow.restore();
+      }
+      if (!fallbackWindow.isVisible()) {
+        fallbackWindow.show();
+      }
+      fallbackWindow.focus();
+      return;
+    }
+  }
+
+  createWindow();
 });
 
 app.on('before-quit', () => {
+  isAppQuitting = true;
+
+  if (isMcpPowerSaveBlockerActive()) {
+    powerSaveBlocker.stop(mcpPowerSaveBlockerId);
+  }
+  mcpPowerSaveBlockerId = null;
+
   if (updateState.checkIntervalId) {
     clearInterval(updateState.checkIntervalId);
     updateState.checkIntervalId = null;

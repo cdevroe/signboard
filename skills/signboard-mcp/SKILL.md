@@ -31,6 +31,8 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 5. Execute write tool only after checks:
    - `signboard.create_card`
    - `signboard.update_card`
+   - `signboard.duplicate_card`
+   - `signboard.archive_card`
    - `signboard.move_card`
    - `signboard.create_list`
    - `signboard.update_board_settings`
@@ -52,6 +54,8 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 - `signboard.read_card`: return normalized frontmatter and body.
 - `signboard.create_card`: create a card from title/body/optional due+labels.
 - `signboard.update_card`: patch title/body/due/labels of a card.
+- `signboard.duplicate_card`: duplicate an existing card with optional label removal.
+- `signboard.archive_card`: move a card to `XXX-Archive`.
 - `signboard.move_card`: move card between lists.
 - `signboard.create_list`: create a list directory.
 - `signboard.read_board_settings`: read labels/theme settings.

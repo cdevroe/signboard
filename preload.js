@@ -16,6 +16,7 @@ const dueDateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
 });
 const BOARD_WATCH_RESCAN_DELAY_MS = 180;
+const SUPPORTS_RECURSIVE_WATCH = process.platform === 'darwin' || process.platform === 'win32';
 
 const boardWatchState = {
   activeRoot: '',
@@ -23,6 +24,7 @@ const boardWatchState = {
   listWatchers: new Map(),
   rescanTimeout: null,
   changeToken: 0,
+  usingRecursiveRootWatch: false,
 };
 
 function closeWatcher(watcher) {
@@ -64,14 +66,24 @@ function normalizeBoardRootForWatch(rootPath) {
   return path.resolve(input);
 }
 
-function attachDirectoryWatcher(directoryPath, onChange) {
+function attachDirectoryWatcher(directoryPath, onChange, options = {}) {
+  const watchOptions = {
+    persistent: false,
+  };
+
+  if (options.recursive === true) {
+    watchOptions.recursive = true;
+  }
+
   try {
-    const watcher = fsNative.watch(directoryPath, { persistent: false }, () => {
+    const watcher = fsNative.watch(directoryPath, watchOptions, () => {
       onChange();
     });
 
     watcher.on('error', () => {
-      // Ignore watch errors; rescan logic will naturally recover.
+      if (typeof options.onError === 'function') {
+        options.onError();
+      }
     });
 
     return watcher;
@@ -81,7 +93,7 @@ function attachDirectoryWatcher(directoryPath, onChange) {
 }
 
 async function refreshBoardListWatchers() {
-  if (!boardWatchState.activeRoot) {
+  if (!boardWatchState.activeRoot || boardWatchState.usingRecursiveRootWatch) {
     return;
   }
 
@@ -121,6 +133,10 @@ async function refreshBoardListWatchers() {
 }
 
 function scheduleBoardWatchRescan() {
+  if (boardWatchState.usingRecursiveRootWatch) {
+    return;
+  }
+
   clearBoardRescanTimer();
   boardWatchState.rescanTimeout = setTimeout(() => {
     boardWatchState.rescanTimeout = null;
@@ -144,18 +160,45 @@ async function startBoardWatch(boardRoot) {
 
   boardWatchState.activeRoot = normalizedRoot;
 
-  const rootWatcher = attachDirectoryWatcher(normalizedRoot, () => {
+  const onRootWatchChange = () => {
     bumpBoardWatchToken();
     scheduleBoardWatchRescan();
-  });
+  };
+
+  let rootWatcher = null;
+  boardWatchState.usingRecursiveRootWatch = false;
+
+  if (SUPPORTS_RECURSIVE_WATCH) {
+    rootWatcher = attachDirectoryWatcher(normalizedRoot, onRootWatchChange, {
+      recursive: true,
+      onError: onRootWatchChange,
+    });
+
+    if (rootWatcher) {
+      boardWatchState.usingRecursiveRootWatch = true;
+    }
+  }
+
+  if (!rootWatcher) {
+    rootWatcher = attachDirectoryWatcher(normalizedRoot, onRootWatchChange, {
+      onError: onRootWatchChange,
+    });
+  }
 
   if (!rootWatcher) {
     boardWatchState.activeRoot = '';
+    boardWatchState.usingRecursiveRootWatch = false;
     return { ok: false, error: 'WATCH_START_FAILED' };
   }
 
   boardWatchState.rootWatcher = rootWatcher;
-  await refreshBoardListWatchers();
+
+  if (boardWatchState.usingRecursiveRootWatch) {
+    clearListWatchers();
+  } else {
+    await refreshBoardListWatchers();
+  }
+
   bumpBoardWatchToken();
 
   return { ok: true, boardRoot: normalizedRoot };
@@ -168,6 +211,7 @@ async function stopBoardWatch() {
   boardWatchState.rootWatcher = null;
   boardWatchState.activeRoot = '';
   boardWatchState.changeToken = 0;
+  boardWatchState.usingRecursiveRootWatch = false;
   return { ok: true };
 }
 

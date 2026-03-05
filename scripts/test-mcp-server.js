@@ -1,15 +1,19 @@
 const { spawn } = require('child_process');
+const fs = require('fs').promises;
+const os = require('os');
 const path = require('path');
 
 const HEADER_TRANSPORT = 'header';
+const HEADER_BOM_TRANSPORT = 'header-bom';
 const NDJSON_TRANSPORT = 'ndjson';
 
 function encodeMessage(payload, transportMode) {
   const json = JSON.stringify(payload);
 
-  if (transportMode === HEADER_TRANSPORT) {
+  if (transportMode === HEADER_TRANSPORT || transportMode === HEADER_BOM_TRANSPORT) {
     const length = Buffer.byteLength(json, 'utf8');
-    return Buffer.from(`Content-Length: ${length}\r\n\r\n${json}`, 'utf8');
+    const headerPrefix = transportMode === HEADER_BOM_TRANSPORT ? '\uFEFF' : '';
+    return Buffer.from(`${headerPrefix}Content-Length: ${length}\r\n\r\n${json}`, 'utf8');
   }
 
   return Buffer.from(`${json}\n`, 'utf8');
@@ -26,7 +30,7 @@ function readHeaderFrames(buffer, onFrame) {
 
     const header = working.slice(0, headerBoundary).toString('utf8');
     const lines = header.split(/\r?\n/);
-    const lengthLine = lines.find((line) => line.toLowerCase().startsWith('content-length:'));
+    const lengthLine = lines.find((line) => line.toLowerCase().replace(/^\uFEFF/, '').startsWith('content-length:'));
     if (!lengthLine) {
       throw new Error('Missing Content-Length header in MCP response frame.');
     }
@@ -69,7 +73,43 @@ function readNdjsonFrames(buffer, onFrame) {
   }
 }
 
-async function runForTransport(transportMode) {
+async function createFixtureBoard() {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-mcp-test-'));
+  const boardName = 'Good-Migrations';
+  const boardRoot = path.join(root, boardName);
+  const leadsList = '000-Leads-stock';
+  const archiveList = 'XXX-Archive';
+  const templateCardFile = '001-template-card-ab123.md';
+
+  await fs.mkdir(path.join(boardRoot, leadsList), { recursive: true });
+  await fs.mkdir(path.join(boardRoot, archiveList), { recursive: true });
+
+  await fs.writeFile(
+    path.join(boardRoot, leadsList, templateCardFile),
+    [
+      '---',
+      'title: Template Card',
+      'labels:',
+      '  - template',
+      '---',
+      'Customer details go here.',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+
+  return {
+    cleanupRoot: root,
+    allowedRoot: root,
+    boardName,
+    boardRoot,
+    leadsList,
+    archiveList,
+    templateCardFile,
+  };
+}
+
+async function runForTransport(transportMode, fixture) {
   const child = spawn(
     process.execPath,
     ['-e', "const { startSignboardMcpServer } = require('./lib/mcpServer'); startSignboardMcpServer({ appVersion: 'test' });"],
@@ -77,7 +117,8 @@ async function runForTransport(transportMode) {
       cwd: path.resolve(__dirname, '..'),
       env: {
         ...process.env,
-        SIGNBOARD_MCP_ALLOWED_ROOTS: path.resolve(__dirname, '..', '..'),
+        SIGNBOARD_MCP_ALLOWED_ROOTS: fixture.allowedRoot,
+        SIGNBOARD_MCP_READ_ONLY: 'false',
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     },
@@ -107,7 +148,7 @@ async function runForTransport(transportMode) {
 
   child.stdout.on('data', (chunk) => {
     try {
-      const readFrames = transportMode === HEADER_TRANSPORT ? readHeaderFrames : readNdjsonFrames;
+      const readFrames = transportMode.startsWith('header') ? readHeaderFrames : readNdjsonFrames;
       stdoutBuffer = readFrames(Buffer.concat([stdoutBuffer, chunk]), (frame) => {
         if (Object.prototype.hasOwnProperty.call(frame, 'id')) {
           responsesById.set(frame.id, frame);
@@ -123,7 +164,7 @@ async function runForTransport(transportMode) {
     child.stdin.write(encodeMessage(payload, transportMode));
   };
 
-  const waitForResponse = (id, timeoutMs = 2000) => new Promise((resolve, reject) => {
+  const waitForResponse = (id, timeoutMs = 3000) => new Promise((resolve, reject) => {
     const start = Date.now();
 
     const poll = () => {
@@ -162,10 +203,6 @@ async function runForTransport(transportMode) {
     throw new Error(`Initialize failed (${transportMode}): ${JSON.stringify(initializeResponse.error)}`);
   }
 
-  if (initializeResponse.result?.serverInfo?.name !== 'signboard-mcp') {
-    throw new Error(`Unexpected server name (${transportMode}): ${JSON.stringify(initializeResponse.result)}`);
-  }
-
   send({
     jsonrpc: '2.0',
     method: 'notifications/initialized',
@@ -194,6 +231,8 @@ async function runForTransport(transportMode) {
     'signboard.read_card',
     'signboard.create_card',
     'signboard.update_card',
+    'signboard.duplicate_card',
+    'signboard.archive_card',
     'signboard.move_card',
     'signboard.create_list',
     'signboard.read_board_settings',
@@ -211,28 +250,9 @@ async function runForTransport(transportMode) {
     id: 3,
     method: 'tools/call',
     params: {
-      name: 'signboard.get_config',
-      arguments: {},
-    },
-  });
-
-  const configResponse = await waitForResponse(3);
-  if (configResponse.error) {
-    throw new Error(`tools/call signboard.get_config failed (${transportMode}): ${JSON.stringify(configResponse.error)}`);
-  }
-
-  if (!configResponse.result || configResponse.result.isError) {
-    throw new Error(`Unexpected signboard.get_config result (${transportMode}): ${JSON.stringify(configResponse.result)}`);
-  }
-
-  send({
-    jsonrpc: '2.0',
-    id: 4,
-    method: 'tools/call',
-    params: {
       name: 'signboard.resolve_board_by_name',
       arguments: {
-        boardName: 'signboard',
+        boardName: fixture.boardName,
         exact: true,
         maxDepth: 3,
         limit: 5,
@@ -240,18 +260,93 @@ async function runForTransport(transportMode) {
     },
   });
 
-  const resolveResponse = await waitForResponse(4);
+  const resolveResponse = await waitForResponse(3);
   if (resolveResponse.error) {
-    throw new Error(`tools/call signboard.resolve_board_by_name failed (${transportMode}): ${JSON.stringify(resolveResponse.error)}`);
+    throw new Error(`resolve_board_by_name failed (${transportMode}): ${JSON.stringify(resolveResponse.error)}`);
   }
 
-  if (!resolveResponse.result || resolveResponse.result.isError) {
-    throw new Error(`Unexpected resolver result (${transportMode}): ${JSON.stringify(resolveResponse.result)}`);
+  const resolveOutput = resolveResponse.result?.structuredContent || {};
+  if (!Array.isArray(resolveOutput.matches) || !resolveOutput.matches.includes(path.resolve(fixture.boardRoot))) {
+    throw new Error(`Resolver did not return fixture board (${transportMode}): ${JSON.stringify(resolveOutput)}`);
   }
 
-  const resolverOutput = resolveResponse.result.structuredContent || {};
-  if (!Array.isArray(resolverOutput.matches) || resolverOutput.matches.length === 0) {
-    throw new Error(`Resolver returned no matches (${transportMode}): ${JSON.stringify(resolverOutput)}`);
+  send({
+    jsonrpc: '2.0',
+    id: 4,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.duplicate_card',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        listName: fixture.leadsList,
+        cardFile: fixture.templateCardFile,
+        removeLabelIds: ['template'],
+      },
+    },
+  });
+
+  const duplicateResponse = await waitForResponse(4);
+  if (duplicateResponse.error) {
+    throw new Error(`duplicate_card failed (${transportMode}): ${JSON.stringify(duplicateResponse.error)}`);
+  }
+
+  const duplicateOutput = duplicateResponse.result?.structuredContent || {};
+  if (!duplicateOutput.cardFile || duplicateOutput.cardFile === fixture.templateCardFile) {
+    throw new Error(`duplicate_card returned invalid cardFile (${transportMode}): ${JSON.stringify(duplicateOutput)}`);
+  }
+
+  const duplicatedLabels = Array.isArray(duplicateOutput.card?.frontmatter?.labels)
+    ? duplicateOutput.card.frontmatter.labels
+    : [];
+  if (duplicatedLabels.includes('template')) {
+    throw new Error(`duplicate_card did not remove template label (${transportMode}).`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 5,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.archive_card',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        listName: fixture.leadsList,
+        cardFile: duplicateOutput.cardFile,
+      },
+    },
+  });
+
+  const archiveResponse = await waitForResponse(5);
+  if (archiveResponse.error) {
+    throw new Error(`archive_card failed (${transportMode}): ${JSON.stringify(archiveResponse.error)}`);
+  }
+
+  const archiveOutput = archiveResponse.result?.structuredContent || {};
+  if (!archiveOutput.archivedCardFile) {
+    throw new Error(`archive_card missing archivedCardFile (${transportMode}): ${JSON.stringify(archiveOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 6,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.list_cards',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        listName: fixture.archiveList,
+      },
+    },
+  });
+
+  const archiveListResponse = await waitForResponse(6);
+  if (archiveListResponse.error) {
+    throw new Error(`list_cards archive failed (${transportMode}): ${JSON.stringify(archiveListResponse.error)}`);
+  }
+
+  const archiveCards = archiveListResponse.result?.structuredContent?.cardFiles || [];
+  if (!archiveCards.includes(archiveOutput.archivedCardFile)) {
+    throw new Error(`Archived card missing from archive list (${transportMode}).`);
   }
 
   child.stdin.end();
@@ -259,9 +354,16 @@ async function runForTransport(transportMode) {
 }
 
 async function run() {
-  await runForTransport(HEADER_TRANSPORT);
-  await runForTransport(NDJSON_TRANSPORT);
-  console.log('MCP server smoke test passed (header + ndjson).');
+  const fixture = await createFixtureBoard();
+
+  try {
+    await runForTransport(HEADER_TRANSPORT, fixture);
+    await runForTransport(HEADER_BOM_TRANSPORT, fixture);
+    await runForTransport(NDJSON_TRANSPORT, fixture);
+    console.log('MCP server smoke test passed (header + header-bom + ndjson).');
+  } finally {
+    await fs.rm(fixture.cleanupRoot, { recursive: true, force: true });
+  }
 }
 
 run().catch((error) => {

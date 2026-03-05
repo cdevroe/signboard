@@ -9,6 +9,7 @@ Start here before opening source files.
 - App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`.
 - `main.js` also supports headless MCP mode via `--mcp-server` for local agent integration over stdio; implementation lives in `lib/mcpServer.js`.
 - Signboard MCP includes board-name resolution (`signboard.resolve_board_by_name`) and supports both header-framed + newline-delimited stdio JSON-RPC.
+- Main window stability guards are in `main.js` (`unresponsive` dialog + renderer crash recovery window recreate).
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
 - `preload.js` exposes board filesystem watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`) and `app/init.js` uses them to auto-refresh UI after external board changes.

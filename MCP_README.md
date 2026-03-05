@@ -96,6 +96,8 @@ The server currently exposes these tools:
 - `signboard.read_card`
 - `signboard.create_card` (write mode only)
 - `signboard.update_card` (write mode only)
+- `signboard.duplicate_card` (write mode only)
+- `signboard.archive_card` (write mode only)
 - `signboard.move_card` (write mode only)
 - `signboard.create_list` (write mode only)
 - `signboard.read_board_settings`
@@ -149,5 +151,7 @@ If `SIGNBOARD_MCP_ALLOWED_ROOTS` is not set, the resolver tool returns an error.
 
 - In MCP mode, Signboard does not open its desktop window.
 - The process communicates over stdio (MCP JSON-RPC framing).
+- The stdio parser accepts both header-framed MCP and newline-delimited JSON-RPC payloads.
 - Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`).
 - Board settings use Signboard's existing settings logic (`lib/boardLabels.js`).
+- When the desktop app is open, external board edits (including MCP edits) are watched and auto-refreshed.
