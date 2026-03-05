@@ -13,6 +13,7 @@ Start here before opening source files.
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
 - `preload.js` exposes board filesystem watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`) and `app/init.js` uses them to auto-refresh UI after external board changes.
+- Board view switching (Kanban/Calendar/This Week) is managed in `app/board/boardViews.js`; `app/board/renderBoard.js` branches rendering by active view.
 - In dev/unpackaged builds, `Help` includes updater preview dialogs so update UI can be tested without publishing a release.
 - Release assets for updater compatibility are validated by `scripts/verify-release-assets.js` (`npm run release:verify`).
 - Dedicated user-facing MCP setup docs are in `MCP_README.md`.

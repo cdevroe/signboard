@@ -1,7 +1,7 @@
 # Signboard Project Context
 
 ## What this app is
-Signboard is a local-first Kanban desktop app built with Electron and plain JavaScript.
+Signboard is a local-first board app built with Electron and plain JavaScript. It currently supports Kanban, Calendar, and This Week board views.
 
 - A board is a folder on disk.
 - Lists are subdirectories inside that board folder.
@@ -82,6 +82,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Hooks global click handling and top-level modal triggers.
   - Initializes board label toolbar/settings controls.
   - Initializes board search input for live filtering.
+  - Initializes the board `Views` selector (Kanban default, plus Calendar and This Week options).
   - Runs an external-change sync loop that watches active board files and re-renders after external updates (for example MCP card moves).
   - Calls directory chooser and `openBoard`.
 - `app/board/openBoard.js`:
@@ -92,9 +93,15 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 ### Rendering board/lists/cards
 - `app/board/renderBoard.js`:
-  - Reads lists, builds columns, enables list drag-and-drop reorder.
+  - Reads list metadata and routes rendering to the active board view (Kanban, Calendar, or This Week).
+  - Builds Kanban columns and enables list drag-and-drop reorder when Kanban is active.
   - Fetches each list's card names concurrently for faster initial render.
   - Loads board label definitions and filter state before rendering cards.
+- `app/board/boardViews.js`:
+  - Owns active board view state and the `Views` dropdown behavior.
+  - Renders Calendar month layout (Monday-first week), today highlighting, and month navigation.
+  - Renders This Week layout, week navigation, and current-day highlighting.
+  - Renders due-date cards in temporal views and updates due dates by drag/drop across days.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior.
   - Enables card drag-and-drop reorder and cross-list move.

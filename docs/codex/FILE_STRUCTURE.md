@@ -24,6 +24,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/santizeFileName.js` - Filename sanitization + random suffix helper.
 - `app/board/boardLabels.js` - Board-label state, toolbar filter UI, card label popovers, and board settings label editor.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
+- `app/board/boardViews.js` - Board view state, `Views` menu wiring, and Calendar + This Week rendering/navigation/drag-to-reschedule logic.
 - `app/cards/createCardElement.js` - Card DOM rendering and click behavior.
 - `app/cards/processAddNewCard.js` - New card creation flow.
 - `app/cards/processAddNewList.js` - New list creation flow.

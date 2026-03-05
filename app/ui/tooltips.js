@@ -46,6 +46,10 @@ function isTooltipTarget(element) {
     return false;
   }
 
+  if (element.getAttribute('data-sb-tooltip-disabled') === 'true') {
+    return false;
+  }
+
   if (element.closest(TOOLTIP_EXCLUDED_CONTAINER_SELECTOR)) {
     return false;
   }
@@ -286,7 +290,7 @@ function observeTooltipTargets() {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['title', 'aria-label', 'alt', 'data-tooltip'],
+    attributeFilter: ['title', 'aria-label', 'alt', 'data-tooltip', 'data-sb-tooltip-disabled'],
   });
 
   state.observer = observer;

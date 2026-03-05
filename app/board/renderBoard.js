@@ -132,6 +132,9 @@ function renderMissingBoardAlert(boardPath) {
     return;
   }
 
+  boardEl.classList.remove('board-view-calendar');
+  boardEl.classList.remove('board-view-week');
+
   setBoardChromeState(false);
   renderBoardTabs();
 
@@ -252,6 +255,8 @@ function renderBoardEmptyState() {
     return;
   }
 
+  boardEl.classList.remove('board-view-calendar');
+  boardEl.classList.remove('board-view-week');
   boardEl.innerHTML = '';
   boardEl.appendChild(createEmptyBoardCallToAction());
 }
@@ -274,6 +279,10 @@ async function renderBoard() {
     return;
   }
 
+  if (typeof syncBoardViewControlState === 'function') {
+    syncBoardViewControlState();
+  }
+
   try {
     const boardNameEl = document.getElementById('boardName');
     const [boardName, lists] = await Promise.all([
@@ -287,6 +296,35 @@ async function renderBoard() {
     }
     renderBoardTabs();
     boardEl.innerHTML = '';
+
+    const activeBoardView = typeof getActiveBoardView === 'function'
+      ? getActiveBoardView()
+      : 'kanban';
+
+    if (activeBoardView === 'calendar' && typeof renderCalendarBoard === 'function') {
+      boardEl.classList.add('board-view-calendar');
+      boardEl.classList.remove('board-view-week');
+      await renderCalendarBoard(boardEl, boardRoot, lists);
+
+      if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
+        feather.replace();
+      }
+      return;
+    }
+
+    if (activeBoardView === 'this-week' && typeof renderThisWeekBoard === 'function') {
+      boardEl.classList.remove('board-view-calendar');
+      boardEl.classList.add('board-view-week');
+      await renderThisWeekBoard(boardEl, boardRoot, lists);
+
+      if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
+        feather.replace();
+      }
+      return;
+    }
+
+    boardEl.classList.remove('board-view-calendar');
+    boardEl.classList.remove('board-view-week');
 
     const listsWithCards = await Promise.all(
       lists.map(async (listName) => {

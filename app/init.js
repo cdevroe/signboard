@@ -145,6 +145,7 @@ async function init() {
     const initializeHeaderControls = () => {
         initializeBoardLabelControls();
         initializeBoardSearchControls();
+        initializeBoardViewControls();
     };
 
     if (!restoredBoard) {
@@ -210,6 +211,9 @@ async function init() {
 
         closeLabelFilterIfClickOutside(e.target);
         closeCardLabelSelectorIfClickOutside(e.target);
+        if (typeof closeBoardViewPopoverIfClickOutside === 'function') {
+            closeBoardViewPopoverIfClickOutside(e.target);
+        }
 
         await closeAllModals(e);
     });

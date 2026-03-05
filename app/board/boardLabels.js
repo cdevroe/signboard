@@ -731,6 +731,39 @@ function closeBoardLabelFilterPopover() {
   popover.classList.add('hidden');
 }
 
+function positionBoardLabelFilterPopover(anchorElement, popover) {
+  if (!(anchorElement instanceof Element) || !(popover instanceof Element)) {
+    return;
+  }
+
+  const viewportPadding = 8;
+  const anchorBounds = anchorElement.getBoundingClientRect();
+
+  popover.style.position = 'fixed';
+  popover.style.left = '0px';
+  popover.style.top = '0px';
+
+  const popoverRect = popover.getBoundingClientRect();
+  const preferredLeft = anchorBounds.right - popoverRect.width;
+  const clampedLeft = Math.min(
+    window.innerWidth - popoverRect.width - viewportPadding,
+    Math.max(viewportPadding, preferredLeft),
+  );
+
+  let nextTop = anchorBounds.bottom + 6;
+  if (nextTop + popoverRect.height > window.innerHeight - viewportPadding) {
+    const aboveAnchor = anchorBounds.top - popoverRect.height - 6;
+    if (aboveAnchor >= viewportPadding) {
+      nextTop = aboveAnchor;
+    } else {
+      nextTop = window.innerHeight - popoverRect.height - viewportPadding;
+    }
+  }
+
+  popover.style.left = `${Math.round(clampedLeft)}px`;
+  popover.style.top = `${Math.round(Math.max(viewportPadding, nextTop))}px`;
+}
+
 function closeLabelFilterIfClickOutside(target) {
   const button = document.getElementById('labelFilterButton');
   const popover = document.getElementById('labelFilterPopover');
@@ -1339,6 +1372,9 @@ async function ensureBoardLabelsLoaded() {
 function closeAllLabelPopovers() {
   closeBoardLabelFilterPopover();
   closeCardLabelPopover();
+  if (typeof closeBoardViewPopover === 'function') {
+    closeBoardViewPopover();
+  }
 }
 
 function initializeBoardLabelControls() {
@@ -1362,9 +1398,18 @@ function initializeBoardLabelControls() {
         return;
       }
       closeCardLabelPopover();
+      if (typeof closeBoardViewPopover === 'function') {
+        closeBoardViewPopover();
+      }
       renderBoardLabelFilterPopover();
       const isHidden = filterPopover.classList.contains('hidden');
-      filterPopover.classList.toggle('hidden', !isHidden);
+      if (!isHidden) {
+        filterPopover.classList.add('hidden');
+        return;
+      }
+
+      filterPopover.classList.remove('hidden');
+      positionBoardLabelFilterPopover(filterButton, filterPopover);
     });
   }
 

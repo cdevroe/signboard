@@ -159,7 +159,8 @@ header h1 {
 }
 
 body.board-empty #boardControls,
-body.board-empty #openBoardSettings {
+body.board-empty #openBoardSettings,
+body.board-empty #boardViewButton {
   display: none;
 }
 
@@ -316,16 +317,24 @@ body.board-empty #openBoardSettings {
   opacity: .6;
 }
 
-#openBoardSettings {
+#openBoardSettings,
+#boardViewButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 7px 10px;
 }
 
-#openBoardSettings svg {
+#openBoardSettings svg,
+#boardViewButton svg {
   height: 16px;
   width: 16px;
+}
+
+#boardViewPopover {
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 170px;
 }
 
 /* 4) Board layout */
@@ -340,6 +349,293 @@ main#board {
   overflow-x: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+main#board.board-view-calendar,
+main#board.board-view-week {
+  display: block;
+  padding: 16px;
+}
+
+.board-calendar {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+  min-width: 900px;
+  min-height: 640px;
+  height: 100%;
+}
+
+.board-calendar-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.board-calendar-nav {
+  grid-column: 1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.board-calendar-nav-button,
+.board-calendar-today-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+}
+
+.board-calendar-nav-button {
+  width: 34px;
+  padding: 0;
+}
+
+.board-calendar-nav-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.board-calendar-month-label {
+  grid-column: 2;
+  justify-self: center;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: .01em;
+  text-align: center;
+}
+
+.board-calendar-today-button {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: var(--font-sm);
+}
+
+.board-calendar-today-button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+.board-calendar-weekdays,
+.board-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.board-calendar-grid {
+  min-height: 600px;
+  height: 100%;
+  grid-auto-rows: minmax(138px, 1fr);
+}
+
+.board-calendar-weekday {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 620;
+  padding: 4px 8px;
+}
+
+.board-calendar-weekday.is-weekend {
+  color: color-mix(in oklab, var(--muted) 88%, var(--text));
+}
+
+.board-calendar-day {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--bg));
+  box-shadow: 0 2px 8px var(--shadow);
+  min-height: 138px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.board-calendar-day.is-weekend {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+}
+
+.board-calendar-day--outside {
+  background: color-mix(in oklab, var(--bg) 90%, var(--border));
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.board-calendar-day.is-today {
+  border-color: color-mix(in oklab, var(--accent) 58%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 45%, transparent), 0 8px 18px var(--shadow);
+}
+
+.board-calendar-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 6px;
+}
+
+.board-calendar-day-number {
+  font-size: var(--font-sm);
+  font-weight: 620;
+}
+
+.board-calendar-today-badge {
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--accent) 48%, var(--border));
+  background: color-mix(in oklab, var(--accent) 16%, var(--bg-card));
+  color: color-mix(in oklab, var(--accent) 82%, var(--text));
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 700;
+  padding: 1px 8px;
+}
+
+.board-calendar-day-cards {
+  flex: 1 1 auto;
+  min-height: 68px;
+  padding: 2px 8px 8px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.board-calendar-card {
+  width: 100%;
+  text-align: left;
+  border-radius: 9px;
+  border: 1px solid color-mix(in oklab, var(--border) 84%, var(--bg-card));
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--bg));
+  color: var(--text);
+  box-shadow: 0 1px 6px var(--shadow-card);
+  padding: 6px 8px;
+  font-size: 13px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: grab;
+}
+
+.board-calendar-card:hover {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+}
+
+.board-calendar-card:active {
+  cursor: grabbing;
+}
+
+.board-this-week {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  min-width: 900px;
+  min-height: 640px;
+  height: 100%;
+}
+
+.board-this-week-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "mon thu"
+    "tue fri"
+    "wed weekend";
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-height: 600px;
+  height: 100%;
+}
+
+.board-this-week-day {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--bg));
+  box-shadow: 0 2px 8px var(--shadow);
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.board-this-week-day.is-weekend {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+}
+
+.board-this-week-day.is-today {
+  border-color: color-mix(in oklab, var(--accent) 58%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 45%, transparent), 0 8px 18px var(--shadow);
+}
+
+.board-this-week-day-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
+}
+
+.board-this-week-day-title {
+  font-size: var(--font-sm);
+  font-weight: 620;
+}
+
+.board-this-week-day-date {
+  font-size: var(--font-xs);
+  color: var(--muted);
+}
+
+.board-this-week-day-cards {
+  flex: 1 1 auto;
+  min-height: 68px;
+  padding: 8px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.board-this-week-card {
+  width: 100%;
+  text-align: left;
+  border-radius: 9px;
+  border: 1px solid color-mix(in oklab, var(--border) 84%, var(--bg-card));
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--bg));
+  color: var(--text);
+  box-shadow: 0 1px 6px var(--shadow-card);
+  padding: 6px 8px;
+  font-size: 13px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: grab;
+}
+
+.board-this-week-card:hover {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+}
+
+.board-this-week-card:active {
+  cursor: grabbing;
+}
+
+.board-this-week-day.day-mon { grid-area: mon; }
+.board-this-week-day.day-tue { grid-area: tue; }
+.board-this-week-day.day-wed { grid-area: wed; }
+.board-this-week-day.day-thu { grid-area: thu; }
+.board-this-week-day.day-fri { grid-area: fri; }
+
+.board-this-week-weekend {
+  grid-area: weekend;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 body.board-empty main#board {
@@ -986,7 +1282,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 .label-popover {
   position: absolute;
-  z-index: 15;
+  z-index: 12020;
   min-width: 220px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -996,8 +1292,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 #labelFilterPopover {
-  right: 0;
-  top: calc(100% + 6px);
+  right: auto;
+  top: auto;
 }
 
 #labelFilterButton {
@@ -1022,6 +1318,31 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   gap: 8px;
   font-size: var(--font-sm);
   padding: 4px 2px;
+}
+
+.board-view-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--font-sm);
+  padding: 7px 8px;
+  text-align: left;
+}
+
+.board-view-option:hover {
+  background: color-mix(in oklab, var(--bg-card) 86%, var(--border));
+}
+
+.board-view-option-check {
+  width: 12px;
+  color: color-mix(in oklab, var(--accent) 70%, var(--text));
+  font-weight: 700;
+  flex: 0 0 12px;
 }
 
 .label-color-swatch {
@@ -1322,6 +1643,29 @@ select:disabled {
   }
   main#board {
     padding: 12px;
+  }
+  main#board.board-view-calendar {
+    padding: 12px;
+  }
+  main#board.board-view-week {
+    padding: 12px;
+  }
+  .board-calendar {
+    min-width: 740px;
+  }
+  .board-this-week {
+    min-width: 740px;
+  }
+  .board-this-week-grid {
+    min-height: 520px;
+  }
+  .board-calendar-header {
+    grid-template-columns: 1fr;
+  }
+  .board-calendar-month-label {
+    grid-column: 1;
+    justify-self: center;
+    text-align: center;
   }
   .empty-board-cta {
     width: min(760px, calc(100vw - 24px));

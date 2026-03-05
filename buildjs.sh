@@ -8,6 +8,7 @@ cat \
   app/utilities/dueDateStatus.js \
   app/board/boardLabels.js \
   app/board/boardSearch.js \
+  app/board/boardViews.js \
   app/cards/createCardElement.js \
   app/cards/processAddNewCard.js \
   app/lists/createListElement.js \
