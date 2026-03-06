@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, ShareMenu, shell, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs').promises;
 const path = require('path');
@@ -814,6 +814,35 @@ ipcMain.handle('share-file', async (event, filePath) => {
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error?.message || 'SHARE_FAILED' };
+  }
+});
+
+ipcMain.handle('notify-due-cards', async (_event, payload = {}) => {
+  if (typeof Notification.isSupported === 'function' && !Notification.isSupported()) {
+    return { ok: false, error: 'UNSUPPORTED' };
+  }
+
+  const title = typeof payload.title === 'string' && payload.title.trim()
+    ? payload.title.trim()
+    : 'Signboard';
+  const body = typeof payload.body === 'string' ? payload.body.trim() : '';
+
+  if (!body) {
+    return { ok: false, error: 'INVALID_BODY' };
+  }
+
+  try {
+    const notification = new Notification({
+      title,
+      body,
+      silent: false,
+    });
+
+    notification.show();
+    return { ok: true };
+  } catch (error) {
+    console.error('Failed to show due-card notification.', error);
+    return { ok: false, error: error?.message || 'NOTIFICATION_FAILED' };
   }
 });
 

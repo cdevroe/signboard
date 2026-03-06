@@ -1104,14 +1104,16 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 #modalBoardSettings {
   position: fixed;
-  top: 10vh;
+  top: max(54px, calc(env(safe-area-inset-top) + 12px));
   left: 50%;
   transform: translateX(-50%);
-  width: min(700px, calc(100vw - 30px));
-  max-width: 700px;
-  max-height: 80vh;
+  width: min(980px, calc(100vw - 30px));
+  max-width: 980px;
+  min-height: min(760px, calc(100vh - 26px));
+  max-height: calc(100vh - 26px);
   overflow-y: auto;
   z-index: 20;
+  padding: 16px 16px 26px;
 }
 
 .boardSettingsHeader {
@@ -1131,8 +1133,51 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   color: var(--muted);
 }
 
-.boardSettingsSection {
+.board-settings-layout {
   margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.board-settings-nav {
+  display: grid;
+  gap: 6px;
+  position: sticky;
+  top: 0;
+}
+
+.board-settings-nav-button {
+  width: 100%;
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  font-size: var(--font-md);
+  font-weight: 620;
+  padding: 9px 11px;
+}
+
+.board-settings-nav-button:hover {
+  color: var(--text);
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
+}
+
+.board-settings-nav-button.is-active {
+  color: var(--text);
+  border-color: color-mix(in oklab, var(--border) 84%, var(--text));
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
+}
+
+.board-settings-panels {
+  min-width: 0;
+}
+
+.boardSettingsSection {
+  margin-top: 0;
 }
 
 .boardSettingsSection h3 {
@@ -1145,20 +1190,124 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   font-size: var(--font-sm);
 }
 
-.boardSettingsLabelsHeader,
-.board-settings-label-row {
-  display: grid;
-  grid-template-columns: 1fr 82px 82px auto;
-  gap: 8px;
-  align-items: center;
+.boardSettingsHintTight {
+  margin-bottom: 4px;
 }
 
-.boardSettingsLabelsHeader {
-  margin-bottom: 8px;
+.board-settings-panel {
+  display: none;
+}
+
+.board-settings-panel.is-active {
+  display: block;
+}
+
+.board-settings-group {
+  margin-top: 12px;
+}
+
+.board-settings-group label {
+  display: block;
+  margin-bottom: 6px;
   color: var(--muted);
   font-size: var(--font-xs);
   text-transform: uppercase;
   letter-spacing: .04em;
+}
+
+.board-settings-inline-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.board-settings-inline-actions input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.board-settings-inline-actions-right {
+  justify-content: flex-end;
+}
+
+#boardSettingsNotificationsTime {
+  width: 8ch;
+  min-width: 8ch;
+}
+
+.board-settings-toggle-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 95%, var(--border));
+  padding: 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.board-settings-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.board-settings-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.board-settings-switch-track {
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg) 70%, var(--border));
+  position: relative;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.board-settings-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  box-shadow: 0 1px 4px var(--shadow-card);
+  transition: transform .15s ease;
+}
+
+.board-settings-switch input:checked + .board-settings-switch-track {
+  background: color-mix(in oklab, var(--accent) 72%, var(--bg-card));
+  border-color: color-mix(in oklab, var(--accent) 62%, var(--border));
+}
+
+.board-settings-switch input:checked + .board-settings-switch-track::after {
+  transform: translateX(20px);
+}
+
+.board-settings-switch input:focus-visible + .board-settings-switch-track {
+  outline: 2px solid color-mix(in oklab, var(--accent) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.board-settings-label-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 95%, var(--border));
+  padding: 8px;
 }
 
 #boardSettingsLabels {
@@ -1178,11 +1327,20 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 .board-settings-label-delete {
-  width: auto;
-  min-width: 64px;
-  padding: 6px 10px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
   font-size: var(--font-xs);
   box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-settings-label-delete svg {
+  width: 15px;
+  height: 15px;
 }
 
 .board-theme-settings-grid {
@@ -1275,8 +1433,33 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 @media (max-width: 720px) {
+  #modalBoardSettings {
+    top: max(12px, env(safe-area-inset-top));
+    min-height: calc(100vh - 16px);
+    max-height: calc(100vh - 16px);
+    width: calc(100vw - 14px);
+  }
+
+  .board-settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .board-settings-nav {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .board-theme-settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .board-settings-toggle-row {
+    flex-direction: column;
+  }
+
+  .board-settings-inline-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

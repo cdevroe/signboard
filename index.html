@@ -78,41 +78,88 @@
       <h2>Board Settings</h2>
       <a href="#" id="boardSettingsClose" title="Close settings"><i data-feather="x"></i></a>
     </div>
-    <section class="boardSettingsSection">
-      <h3>Labels</h3>
-      <p class="boardSettingsHint">Rename labels and choose colors for light and dark mode.</p>
-      <div class="boardSettingsLabelsHeader">
-        <span>Name</span>
-        <span>Light</span>
-        <span>Dark</span>
-        <span>Action</span>
+    <div class="board-settings-layout">
+      <nav class="board-settings-nav" aria-label="Settings sections">
+        <button id="boardSettingsNavGeneral" type="button" class="board-settings-nav-button is-active" data-settings-panel="general">General</button>
+        <button id="boardSettingsNavLabels" type="button" class="board-settings-nav-button" data-settings-panel="labels">Labels</button>
+        <button id="boardSettingsNavColors" type="button" class="board-settings-nav-button" data-settings-panel="colors">Colors</button>
+        <button id="boardSettingsNavNotifications" type="button" class="board-settings-nav-button" data-settings-panel="notifications">Notifications</button>
+      </nav>
+      <div class="board-settings-panels">
+        <section id="boardSettingsPanelGeneral" class="boardSettingsSection board-settings-panel is-active" data-settings-panel="general">
+          <h3>General</h3>
+          <div class="board-settings-group">
+            <label for="boardSettingsBoardNameInput">Board name</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsBoardNameInput" type="text" placeholder="Board name">
+              <button id="btnRenameBoard" type="button" title="Rename board">Rename Board</button>
+            </div>
+            <p class="boardSettingsHint">Renaming updates this board folder name in its current location.</p>
+          </div>
+          <div class="board-settings-group">
+            <label for="boardSettingsBoardPathInput">Current path</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsBoardPathInput" type="text" readonly>
+              <button id="btnMoveBoard" type="button" title="Move board">Move Board</button>
+            </div>
+            <p class="boardSettingsHint">Move this board folder to another location on your computer.</p>
+          </div>
+        </section>
+
+        <section id="boardSettingsPanelLabels" class="boardSettingsSection board-settings-panel" data-settings-panel="labels">
+          <h3>Labels</h3>
+          <p class="boardSettingsHint">Rename labels, choose a color, add new labels, and remove labels.</p>
+          <div id="boardSettingsLabels"></div>
+          <button id="btnAddBoardLabel" type="button" title="Add label">Add label</button>
+        </section>
+
+        <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" data-settings-panel="colors">
+          <h3>Colors</h3>
+          <p class="boardSettingsHint">Choose the board background color and the rest of the palette is chosen automatically for readability.</p>
+          <div class="board-theme-settings-grid">
+            <div class="board-theme-settings-mode">
+              <h4>Light theme</h4>
+              <input id="boardThemeLightBackground" type="color" value="#f7f8fa">
+              <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
+              <button id="btnResetLightTheme" type="button" title="Reset light theme colors">Reset Light Theme</button>
+            </div>
+            <div class="board-theme-settings-mode">
+              <h4>Dark theme</h4>
+              <input id="boardThemeDarkBackground" type="color" value="#091102">
+              <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
+              <button id="btnResetDarkTheme" type="button" title="Reset dark theme colors">Reset Dark Theme</button>
+            </div>
+          </div>
+          <p id="boardThemeColorsWarning" class="boardSettingsHint board-theme-warning hidden"></p>
+          <div class="board-theme-settings-actions">
+            <button id="btnResetAllThemeColors" type="button" title="Reset all theme colors">Reset All Theme Colors</button>
+            <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply theme colors to all open boards">Apply to all Open Boards</button>
+          </div>
+        </section>
+
+        <section id="boardSettingsPanelNotifications" class="boardSettingsSection board-settings-panel" data-settings-panel="notifications">
+          <h3>Notifications</h3>
+          <div class="board-settings-toggle-row">
+            <div>
+              <p class="boardSettingsHint boardSettingsHintTight">Daily due date reminders</p>
+              <p class="boardSettingsHint">Signboard checks this board each day at your selected local time and notifies you if cards are due.</p>
+            </div>
+            <label class="board-settings-switch" for="boardSettingsNotificationsToggle" title="Enable due date notifications">
+              <input id="boardSettingsNotificationsToggle" type="checkbox" role="switch" aria-label="Enable due date notifications">
+              <span class="board-settings-switch-track" aria-hidden="true"></span>
+            </label>
+          </div>
+          <div class="board-settings-group">
+            <label for="boardSettingsNotificationsTime">Notification time (local)</label>
+            <input id="boardSettingsNotificationsTime" type="text" value="09:00" placeholder="HH:MM" inputmode="numeric" maxlength="5" width="10" pattern="(?:0[1-9]|1[0-9]|2[0-4]):[0-5][0-9]">
+            <p class="boardSettingsHint">Use HH:MM in 24-hour format. Hours can be 01 through 24 (example: 21:30).</p>
+          </div>
+          <div class="board-theme-settings-actions">
+            <button id="btnApplyNotificationsToOpenBoards" type="button" title="Apply notification settings to all open boards">Apply to all Open Boards</button>
+          </div>
+        </section>
       </div>
-      <div id="boardSettingsLabels"></div>
-      <button id="btnAddBoardLabel" type="button" title="Add label">Add label</button>
-    </section>
-    <section class="boardSettingsSection">
-      <h3>Theme Colors</h3>
-      <p class="boardSettingsHint">Choose the board background color and the rest of the palette is chosen automatically for readability.</p>
-      <div class="board-theme-settings-grid">
-        <div class="board-theme-settings-mode">
-          <h4>Light theme</h4>
-          <input id="boardThemeLightBackground" type="color" value="#f7f8fa">
-          <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
-          <button id="btnResetLightTheme" type="button" title="Reset light theme colors">Reset Light Theme</button>
-        </div>
-        <div class="board-theme-settings-mode">
-          <h4>Dark theme</h4>
-          <input id="boardThemeDarkBackground" type="color" value="#091102">
-          <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
-          <button id="btnResetDarkTheme" type="button" title="Reset dark theme colors">Reset Dark Theme</button>
-        </div>
-      </div>
-      <p id="boardThemeColorsWarning" class="boardSettingsHint board-theme-warning hidden"></p>
-      <div class="board-theme-settings-actions">
-        <button id="btnResetAllThemeColors" type="button" title="Reset all theme colors">Reset All Theme Colors</button>
-        <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply theme colors to all open boards">Apply to all Open Boards</button>
-      </div>
-    </section>
+    </div>
   </div>
 
   <div id="modalEditCard" class="modal hidden">

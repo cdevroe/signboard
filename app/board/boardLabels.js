@@ -61,6 +61,10 @@ const BOARD_THEME_STYLE_VAR_MAP = Object.freeze({
     shadowCard: '--sb-dark-shadow-card',
   }),
 });
+const DEFAULT_BOARD_NOTIFICATION_SETTINGS = Object.freeze({
+  enabled: false,
+  time: '09:00',
+});
 
 function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -381,6 +385,26 @@ function normalizeThemeOverrides(rawThemeOverrides) {
   };
 }
 
+function normalizeNotificationTime(value) {
+  const candidate = String(value || '').trim();
+  if (/^(?:0[1-9]|1\d|2[0-4]):[0-5]\d$/.test(candidate)) {
+    return candidate;
+  }
+
+  return DEFAULT_BOARD_NOTIFICATION_SETTINGS.time;
+}
+
+function normalizeBoardNotificationSettings(rawNotificationSettings) {
+  const source = rawNotificationSettings && typeof rawNotificationSettings === 'object'
+    ? rawNotificationSettings
+    : {};
+
+  return {
+    enabled: source.enabled === true,
+    time: normalizeNotificationTime(source.time),
+  };
+}
+
 function hasThemeModeOverride(themeModeOverrides) {
   return Boolean(themeModeOverrides && typeof themeModeOverrides.boardBackground === 'string' && themeModeOverrides.boardBackground.length > 0);
 }
@@ -398,6 +422,8 @@ function getBoardLabelState() {
         light: { ...DEFAULT_BOARD_THEME_PALETTES.light },
         dark: { ...DEFAULT_BOARD_THEME_PALETTES.dark },
       },
+      notificationSettings: { ...DEFAULT_BOARD_NOTIFICATION_SETTINGS },
+      activeSettingsPanel: 'general',
       settingsSaveTimer: null,
       settingsSaveInFlight: Promise.resolve(),
     };
@@ -439,6 +465,16 @@ function getBoardThemeOverrides() {
 function setBoardThemeOverrides(themeOverrides) {
   const state = getBoardLabelState();
   state.themeOverrides = normalizeThemeOverrides(themeOverrides);
+}
+
+function getBoardNotificationSettings() {
+  const state = getBoardLabelState();
+  return normalizeBoardNotificationSettings(state.notificationSettings);
+}
+
+function setBoardNotificationSettings(notificationSettings) {
+  const state = getBoardLabelState();
+  state.notificationSettings = normalizeBoardNotificationSettings(notificationSettings);
 }
 
 function getBoardThemePalettes() {
@@ -544,6 +580,27 @@ function getBoardLabelColor(label) {
   }
 
   return getBoardThemeMode() === 'dark' ? label.colorDark : label.colorLight;
+}
+
+function createReadableLabelColors(baseColor, fallbackColor = '#3b82f6') {
+  const normalizedBaseColor = normalizeHexColor(baseColor, normalizeHexColor(fallbackColor, '#3b82f6'));
+  const palettes = getBoardThemePalettes();
+  const lightSurface = normalizeHexColor(
+    palettes && palettes.light ? palettes.light.surface : '',
+    DEFAULT_BOARD_THEME_PALETTES.light.surface,
+  );
+  const darkSurface = normalizeHexColor(
+    palettes && palettes.dark ? palettes.dark.surface : '',
+    DEFAULT_BOARD_THEME_PALETTES.dark.surface,
+  );
+
+  const lightAdjusted = ensureMinContrast(normalizedBaseColor, lightSurface, 4.5).color;
+  const darkAdjusted = ensureMinContrast(lightAdjusted, darkSurface, 4.5).color;
+
+  return {
+    colorLight: lightAdjusted,
+    colorDark: darkAdjusted,
+  };
 }
 
 function getActiveBoardLabelFilterIds() {
@@ -920,24 +977,15 @@ function createBoardSettingsLabelRow(label, index) {
   lightInput.type = 'color';
   lightInput.value = label.colorLight;
   lightInput.className = 'board-settings-label-color';
-  lightInput.title = 'Light mode color';
+  lightInput.title = 'Label color';
   lightInput.addEventListener('input', (event) => {
     updateBoardLabel(index, 'colorLight', event.target.value);
-  });
-
-  const darkInput = document.createElement('input');
-  darkInput.type = 'color';
-  darkInput.value = label.colorDark;
-  darkInput.className = 'board-settings-label-color';
-  darkInput.title = 'Dark mode color';
-  darkInput.addEventListener('input', (event) => {
-    updateBoardLabel(index, 'colorDark', event.target.value);
   });
 
   const deleteButton = document.createElement('button');
   deleteButton.type = 'button';
   deleteButton.className = 'board-settings-label-delete';
-  deleteButton.textContent = 'Delete';
+  deleteButton.innerHTML = '<i data-feather="trash-2"></i>';
   deleteButton.title = 'Delete label';
   deleteButton.addEventListener('click', async (event) => {
     event.preventDefault();
@@ -947,7 +995,6 @@ function createBoardSettingsLabelRow(label, index) {
 
   row.appendChild(nameInput);
   row.appendChild(lightInput);
-  row.appendChild(darkInput);
   row.appendChild(deleteButton);
 
   return row;
@@ -964,6 +1011,10 @@ function renderBoardSettingsLabels() {
 
   for (const [index, label] of labels.entries()) {
     labelsContainer.appendChild(createBoardSettingsLabelRow(label, index));
+  }
+
+  if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
+    feather.replace();
   }
 }
 
@@ -1106,6 +1157,32 @@ async function applyThemeOverridesToOpenBoards() {
   }
 }
 
+async function applyNotificationSettingsToOpenBoards() {
+  if (!window.boardRoot) {
+    return;
+  }
+
+  const sourceNotifications = getBoardNotificationSettings();
+  const sourceBoard = window.boardRoot;
+  const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [sourceBoard];
+  const targets = Array.isArray(openBoards) ? openBoards : [];
+
+  for (const boardPath of targets) {
+    if (!boardPath) {
+      continue;
+    }
+
+    await window.board.updateBoardSettings(boardPath, {
+      notifications: sourceNotifications,
+    });
+  }
+
+  if (window.boardRoot === sourceBoard) {
+    await ensureBoardLabelsLoaded();
+    await renderBoard();
+  }
+}
+
 function updateBoardLabel(index, key, value) {
   const labels = getBoardLabels();
   if (!labels[index]) {
@@ -1117,6 +1194,15 @@ function updateBoardLabel(index, key, value) {
       return { ...label };
     }
 
+    if (key === 'colorLight') {
+      const nextColors = createReadableLabelColors(String(value || ''), label.colorLight);
+      return {
+        ...label,
+        colorLight: nextColors.colorLight,
+        colorDark: nextColors.colorDark,
+      };
+    }
+
     return {
       ...label,
       [key]: key === 'name' ? String(value || '') : String(value || '').toLowerCase(),
@@ -1124,6 +1210,9 @@ function updateBoardLabel(index, key, value) {
   });
 
   setBoardLabels(nextLabels);
+  if (key === 'colorLight') {
+    renderBoardSettingsLabels();
+  }
   renderBoardLabelFilterButton();
   renderBoardLabelFilterPopover();
   scheduleBoardLabelSettingsSave();
@@ -1142,7 +1231,8 @@ function getNextBoardLabelColors() {
 function addBoardLabelDefinition() {
   const labels = getBoardLabels();
   const nextIndex = labels.length + 1;
-  const colors = getNextBoardLabelColors();
+  const candidateColors = getNextBoardLabelColors();
+  const colors = createReadableLabelColors(candidateColors.colorLight, candidateColors.colorLight);
 
   const nextLabels = [
     ...labels.map((label) => ({ ...label })),
@@ -1270,12 +1360,15 @@ function persistBoardSettings() {
       const result = await window.board.updateBoardSettings(window.boardRoot, {
         labels: getBoardLabels(),
         themeOverrides: getBoardThemeOverrides(),
+        notifications: getBoardNotificationSettings(),
       });
       setBoardLabels(result.labels || []);
       applyDerivedBoardThemes(result.themeOverrides || {}, { renderControls: false });
+      setBoardNotificationSettings(result.notifications || DEFAULT_BOARD_NOTIFICATION_SETTINGS);
       if (!isBoardSettingsModalOpen()) {
         renderBoardSettingsLabels();
         renderBoardThemeSettingsControls();
+        renderNotificationSettingsControls();
       }
       renderBoardLabelFilterButton();
       renderBoardLabelFilterPopover();
@@ -1309,6 +1402,140 @@ async function flushBoardLabelSettingsSave() {
   await flushBoardSettingsSave();
 }
 
+function sanitizeBoardDirectoryName(rawName) {
+  return String(rawName || '')
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/[ .]+$/g, '');
+}
+
+function getBoardRootInfo(boardRoot = window.boardRoot) {
+  const normalizedRoot = normalizeBoardPath(boardRoot);
+  if (!normalizedRoot) {
+    return null;
+  }
+
+  const trimmedRoot = normalizedRoot.replace(/\/+$/, '');
+  const separatorIndex = trimmedRoot.lastIndexOf('/');
+  const parentRoot = separatorIndex >= 0 ? `${trimmedRoot.slice(0, separatorIndex)}/` : '';
+  const boardName = separatorIndex >= 0 ? trimmedRoot.slice(separatorIndex + 1) : trimmedRoot;
+
+  return {
+    normalizedRoot,
+    parentRoot,
+    boardName,
+  };
+}
+
+function renderBoardSettingsPanelState() {
+  const state = getBoardLabelState();
+  const activePanel = String(state.activeSettingsPanel || 'general');
+  const navButtons = document.querySelectorAll('.board-settings-nav-button[data-settings-panel]');
+  const panels = document.querySelectorAll('.board-settings-panel[data-settings-panel]');
+
+  for (const button of navButtons) {
+    const panelId = String(button.getAttribute('data-settings-panel') || '');
+    const isActive = panelId === activePanel;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  }
+
+  for (const panel of panels) {
+    const panelId = String(panel.getAttribute('data-settings-panel') || '');
+    panel.classList.toggle('is-active', panelId === activePanel);
+  }
+}
+
+function setActiveBoardSettingsPanel(panelId) {
+  const normalizedPanelId = ['general', 'labels', 'colors', 'notifications'].includes(panelId)
+    ? panelId
+    : 'general';
+  const state = getBoardLabelState();
+  state.activeSettingsPanel = normalizedPanelId;
+  renderBoardSettingsPanelState();
+}
+
+function renderBoardGeneralSettingsControls() {
+  const boardNameInput = document.getElementById('boardSettingsBoardNameInput');
+  const boardPathInput = document.getElementById('boardSettingsBoardPathInput');
+  const boardInfo = getBoardRootInfo();
+
+  if (boardNameInput) {
+    boardNameInput.value = boardInfo ? boardInfo.boardName : '';
+  }
+
+  if (boardPathInput) {
+    boardPathInput.value = boardInfo ? boardInfo.normalizedRoot.replace(/\/+$/, '') : '';
+  }
+}
+
+function renderNotificationSettingsControls() {
+  const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
+  const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
+  const notifications = getBoardNotificationSettings();
+
+  if (notificationsToggle) {
+    notificationsToggle.checked = notifications.enabled;
+  }
+
+  if (notificationsTimeInput) {
+    notificationsTimeInput.value = notifications.time;
+  }
+}
+
+async function moveBoardDirectory(nextBoardRoot) {
+  const boardInfo = getBoardRootInfo();
+  const normalizedTargetRoot = normalizeBoardPath(nextBoardRoot);
+  if (!boardInfo || !normalizedTargetRoot || normalizedTargetRoot === boardInfo.normalizedRoot) {
+    return false;
+  }
+
+  await flushBoardSettingsSave();
+  await window.board.moveList(boardInfo.normalizedRoot, normalizedTargetRoot);
+
+  if (typeof replaceStoredBoardPath === 'function') {
+    replaceStoredBoardPath(boardInfo.normalizedRoot, normalizedTargetRoot);
+  }
+
+  window.boardRoot = normalizedTargetRoot;
+  setStoredActiveBoard(normalizedTargetRoot);
+  renderBoardTabs();
+  await renderBoard();
+  renderBoardGeneralSettingsControls();
+  return true;
+}
+
+async function renameCurrentBoardDirectory(nextBoardNameRaw) {
+  const boardInfo = getBoardRootInfo();
+  if (!boardInfo) {
+    return false;
+  }
+
+  const nextBoardName = sanitizeBoardDirectoryName(nextBoardNameRaw);
+  if (!nextBoardName) {
+    return false;
+  }
+
+  const nextBoardRoot = normalizeBoardPath(`${boardInfo.parentRoot}${nextBoardName}`);
+  return moveBoardDirectory(nextBoardRoot);
+}
+
+async function moveCurrentBoardDirectory(nextParentDirectory) {
+  const boardInfo = getBoardRootInfo();
+  if (!boardInfo) {
+    return false;
+  }
+
+  const normalizedParentDirectory = normalizeBoardPath(nextParentDirectory);
+  if (!normalizedParentDirectory) {
+    return false;
+  }
+
+  const nextBoardRoot = normalizeBoardPath(`${normalizedParentDirectory}${boardInfo.boardName}`);
+  return moveBoardDirectory(nextBoardRoot);
+}
+
 function openBoardSettingsModal() {
   const modal = document.getElementById('modalBoardSettings');
   if (!modal) {
@@ -1319,6 +1546,9 @@ function openBoardSettingsModal() {
   closeCardLabelPopover();
   renderBoardSettingsLabels();
   renderBoardThemeSettingsControls();
+  renderBoardGeneralSettingsControls();
+  renderNotificationSettingsControls();
+  setActiveBoardSettingsPanel('general');
   modal.style.display = 'block';
 
   if (typeof setBoardInteractive === 'function') {
@@ -1355,18 +1585,22 @@ async function ensureBoardLabelsLoaded() {
   if (!window.boardRoot) {
     setBoardLabels([]);
     applyDerivedBoardThemes({ light: {}, dark: {} }, { renderControls: false });
+    setBoardNotificationSettings(DEFAULT_BOARD_NOTIFICATION_SETTINGS);
     renderBoardLabelFilterButton();
     renderBoardLabelFilterPopover();
     renderBoardThemeSettingsControls();
+    renderNotificationSettingsControls();
     return;
   }
 
   const settings = await window.board.readBoardSettings(window.boardRoot);
   setBoardLabels(settings.labels || []);
   applyDerivedBoardThemes(settings.themeOverrides || {}, { renderControls: false });
+  setBoardNotificationSettings(settings.notifications || DEFAULT_BOARD_NOTIFICATION_SETTINGS);
   renderBoardLabelFilterButton();
   renderBoardLabelFilterPopover();
   renderBoardThemeSettingsControls();
+  renderNotificationSettingsControls();
 }
 
 function closeAllLabelPopovers() {
@@ -1382,13 +1616,20 @@ function initializeBoardLabelControls() {
   const filterPopover = document.getElementById('labelFilterPopover');
   const openSettingsButton = document.getElementById('openBoardSettings');
   const closeSettingsButton = document.getElementById('boardSettingsClose');
+  const settingsNavButtons = document.querySelectorAll('.board-settings-nav-button[data-settings-panel]');
   const addLabelButton = document.getElementById('btnAddBoardLabel');
+  const renameBoardInput = document.getElementById('boardSettingsBoardNameInput');
+  const renameBoardButton = document.getElementById('btnRenameBoard');
+  const moveBoardButton = document.getElementById('btnMoveBoard');
   const lightThemeBackgroundInput = document.getElementById('boardThemeLightBackground');
   const darkThemeBackgroundInput = document.getElementById('boardThemeDarkBackground');
   const resetLightThemeButton = document.getElementById('btnResetLightTheme');
   const resetDarkThemeButton = document.getElementById('btnResetDarkTheme');
   const resetAllThemeButton = document.getElementById('btnResetAllThemeColors');
   const applyThemeToOpenBoardsButton = document.getElementById('btnApplyThemeColorsToOpenBoards');
+  const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
+  const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
+  const applyNotificationsToOpenBoardsButton = document.getElementById('btnApplyNotificationsToOpenBoards');
 
   if (filterButton) {
     filterButton.addEventListener('click', (event) => {
@@ -1434,6 +1675,15 @@ function initializeBoardLabelControls() {
     });
   }
 
+  for (const navButton of settingsNavButtons) {
+    navButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const panelId = String(navButton.getAttribute('data-settings-panel') || '');
+      setActiveBoardSettingsPanel(panelId);
+    });
+  }
+
   if (closeSettingsButton) {
     closeSettingsButton.addEventListener('click', async (event) => {
       event.preventDefault();
@@ -1447,6 +1697,81 @@ function initializeBoardLabelControls() {
       event.preventDefault();
       event.stopPropagation();
       addBoardLabelDefinition();
+    });
+  }
+
+  if (renameBoardButton) {
+    renameBoardButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (renameBoardButton.disabled) {
+        return;
+      }
+
+      renameBoardButton.disabled = true;
+      try {
+        const nextBoardName = renameBoardInput ? renameBoardInput.value : '';
+        const renamed = await renameCurrentBoardDirectory(nextBoardName);
+        if (!renamed) {
+          renderBoardGeneralSettingsControls();
+        }
+      } catch (error) {
+        console.error('Unable to rename board.', error);
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert(`Unable to rename board.\n\n${String(error?.message || error || 'Unknown error')}`);
+        }
+      } finally {
+        renameBoardButton.disabled = false;
+      }
+    });
+  }
+
+  if (renameBoardInput) {
+    renameBoardInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      if (renameBoardButton && !renameBoardButton.disabled) {
+        renameBoardButton.click();
+      }
+    });
+  }
+
+  if (moveBoardButton) {
+    moveBoardButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!window.chooser || typeof window.chooser.pickDirectory !== 'function') {
+        return;
+      }
+
+      if (moveBoardButton.disabled) {
+        return;
+      }
+
+      const boardInfo = getBoardRootInfo();
+      const defaultPath = boardInfo ? boardInfo.parentRoot.replace(/\/+$/, '') : undefined;
+
+      moveBoardButton.disabled = true;
+      try {
+        const nextParentDirectory = await window.chooser.pickDirectory({ defaultPath });
+        if (!nextParentDirectory) {
+          return;
+        }
+
+        await moveCurrentBoardDirectory(nextParentDirectory);
+      } catch (error) {
+        console.error('Unable to move board.', error);
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert(`Unable to move board.\n\n${String(error?.message || error || 'Unknown error')}`);
+        }
+      } finally {
+        moveBoardButton.disabled = false;
+      }
     });
   }
 
@@ -1493,4 +1818,38 @@ function initializeBoardLabelControls() {
       await applyThemeOverridesToOpenBoards();
     });
   }
+
+  if (notificationsToggle) {
+    notificationsToggle.addEventListener('change', (event) => {
+      const currentSettings = getBoardNotificationSettings();
+      setBoardNotificationSettings({
+        ...currentSettings,
+        enabled: Boolean(event.target.checked),
+      });
+      renderNotificationSettingsControls();
+      scheduleBoardSettingsSave();
+    });
+  }
+
+  if (notificationsTimeInput) {
+    notificationsTimeInput.addEventListener('change', (event) => {
+      const currentSettings = getBoardNotificationSettings();
+      setBoardNotificationSettings({
+        ...currentSettings,
+        time: normalizeNotificationTime(event.target.value),
+      });
+      renderNotificationSettingsControls();
+      scheduleBoardSettingsSave();
+    });
+  }
+
+  if (applyNotificationsToOpenBoardsButton) {
+    applyNotificationsToOpenBoardsButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await applyNotificationSettingsToOpenBoards();
+    });
+  }
+
+  renderBoardSettingsPanelState();
 }

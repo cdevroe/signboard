@@ -10,6 +10,12 @@ const BOARD_VIEW_OPTIONS = Object.freeze([
   { id: BOARD_VIEW_IDS.THIS_WEEK, label: 'This Week' },
 ]);
 
+const BOARD_VIEW_ICON_BY_ID = Object.freeze({
+  [BOARD_VIEW_IDS.KANBAN]: 'columns',
+  [BOARD_VIEW_IDS.CALENDAR]: 'calendar',
+  [BOARD_VIEW_IDS.THIS_WEEK]: 'clock',
+});
+
 const BOARD_CALENDAR_WEEKDAY_LABELS = Object.freeze([
   { short: 'Mon', full: 'Monday' },
   { short: 'Tue', full: 'Tuesday' },
@@ -408,9 +414,29 @@ function syncBoardViewSelectWithState() {
 
   const activeView = getActiveBoardView();
   const activeOption = BOARD_VIEW_OPTIONS.find((option) => option.id === activeView) || BOARD_VIEW_OPTIONS[0];
+  const iconName = BOARD_VIEW_ICON_BY_ID[activeOption.id] || BOARD_VIEW_ICON_BY_ID[BOARD_VIEW_IDS.KANBAN];
   viewButton.setAttribute('data-active-view', activeOption.id);
   viewButton.setAttribute('aria-label', `Current view: ${activeOption.label}. Change view.`);
   viewButton.setAttribute('title', `Current view: ${activeOption.label}. Change view.`);
+
+  if (
+    window.feather &&
+    window.feather.icons &&
+    typeof window.feather.icons[iconName]?.toSvg === 'function'
+  ) {
+    viewButton.innerHTML = window.feather.icons[iconName].toSvg();
+  } else {
+    viewButton.innerHTML = `<i data-feather="${iconName}"></i>`;
+    if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
+      feather.replace();
+    }
+  }
+
+  const svgIcon = viewButton.querySelector('svg');
+  if (svgIcon) {
+    svgIcon.setAttribute('aria-hidden', 'true');
+    svgIcon.setAttribute('focusable', 'false');
+  }
 }
 
 function syncBoardViewControlState() {
