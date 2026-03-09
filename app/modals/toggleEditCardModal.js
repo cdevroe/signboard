@@ -444,14 +444,19 @@ function setupTaskLineDueDateControls(editor) {
 
                 range.setStart(textNode, anchorOffset);
                 range.setEnd(textNode, Math.min(anchorOffset + 1, textLength));
-                const rect = range.getClientRects()[0] || range.getBoundingClientRect();
+                let rect = range.getClientRects()[0] || range.getBoundingClientRect();
+                if (!rect || !Number.isFinite(rect.height) || rect.height <= 0) {
+                    range.setEnd(textNode, anchorOffset);
+                    rect = range.getBoundingClientRect();
+                }
                 if (!rect || (!Number.isFinite(rect.top) || !Number.isFinite(rect.left))) {
                     continue;
                 }
 
                 positions.set(taskItem.lineIndex, {
-                    top: rect.top - mirrorRect.top,
+                    top: rect.top - mirrorRect.top + 18,
                     left: rect.left - mirrorRect.left,
+                    height: rect.height,
                 });
             }
 
@@ -474,6 +479,7 @@ function setupTaskLineDueDateControls(editor) {
         const style = window.getComputedStyle(textarea);
         const fontSize = toFiniteNumber(style.fontSize, 16);
         const lineHeight = Math.max(toFiniteNumber(style.lineHeight, fontSize * 1.6), 1);
+        const controlSize = 18;
         const lineStartPositions = getLineStartPositionByTaskIndex(taskItems);
         const visibleTop = -lineHeight;
         const visibleBottom = textarea.clientHeight + lineHeight;
@@ -484,7 +490,10 @@ function setupTaskLineDueDateControls(editor) {
                 continue;
             }
 
-            const buttonTop = Math.round(linePosition.top - textarea.scrollTop + 1);
+            const measuredLineHeight = Math.max(toFiniteNumber(linePosition.height, lineHeight), lineHeight);
+            const buttonTop = Math.round(
+                linePosition.top - textarea.scrollTop + ((measuredLineHeight - controlSize) / 2),
+            );
             if (buttonTop < visibleTop || buttonTop > visibleBottom) {
                 continue;
             }
