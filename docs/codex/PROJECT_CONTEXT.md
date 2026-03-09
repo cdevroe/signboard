@@ -8,6 +8,7 @@ Signboard is a local-first board app built with Electron and plain JavaScript. I
 - Cards are Markdown files in each list directory.
 - Board-level settings are stored in `board-settings.md` at the board root.
 - Card metadata is stored in YAML frontmatter (with legacy parser support).
+- Task checklist lines in card bodies can store task due markers with `(due: YYYY-MM-DD)`.
 
 ## Runtime Architecture
 
@@ -73,6 +74,17 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Markdown body
 - Card `labels` frontmatter stores board label ids (e.g. `labels: ["label-1"]`).
 
+### Task checklist lines (in card body markdown)
+
+- Checkbox items are parsed from markdown list entries such as:
+  - `- [ ]`
+  - `- [x]`, `- [X]`
+  - spaced variants like `- [x ]`, `- [ x]`, `- [ x ]`
+- Task due marker syntax is recognized only at the start of task content:
+  - `(due: YYYY-MM-DD)`
+- Task list summary is always computed as:
+  - `completed/total` where `total` includes completed and incomplete checklist items.
+
 ## Core User Flows (Where the behavior lives)
 
 ### App init and board open
@@ -101,7 +113,9 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Owns active board view state and the `Views` dropdown behavior.
   - Renders Calendar month layout (Monday-first week), today highlighting, and month navigation.
   - Renders This Week layout, week navigation, and current-day highlighting.
-  - Renders due-date cards in temporal views and updates due dates by drag/drop across days.
+  - Renders due-date cards in temporal views and updates card due dates by drag/drop across days.
+  - Includes cards by both card due date and task due markers, deduped per day per card.
+  - Shows task progress badges on temporal cards.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior.
   - Enables card drag-and-drop reorder and cross-list move.
@@ -109,6 +123,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Builds card DOM for a list concurrently to reduce list render time.
 - `app/cards/createCardElement.js`:
   - Reads card frontmatter/body preview.
+  - Computes task summary + task due dates from card body checklist lines.
+  - Shows task progress badge on board cards.
   - Shows label chips and a tag-icon picker on each card.
   - Hides cards that do not match the active label filter or search query.
   - Opens edit modal on click.
@@ -128,7 +144,15 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Loads card into OverType editor.
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
+  - Renders task-line due-date controls at the start of each parsed checklist line in the editor.
   - Handles due date picker, labels picker, duplicate, and archive actions.
+- `app/utilities/taskList.js`:
+  - Parses checklist items from card markdown body.
+  - Computes task summary (`total`, `completed`, `remaining`) and task due-date sets.
+  - Creates task progress badge elements and updates task-line due markers by line index.
+- `app/utilities/dueNotifications.js`:
+  - Collects due items from both card-level due dates and incomplete task-level due markers.
+  - Builds notification body text that includes card title and task summary text for task due items.
 - `app/modals/*.js` and `app/modals/closeAllModals.js`:
   - Modal open/close, cleanup, and board rerender.
   - Disables board interaction (click/drag/select) while edit modal is open.
@@ -201,6 +225,17 @@ File: `lib/boardLabels.js`
 ### MCP smoke test
 - `npm run test:mcp`
 - Script: `scripts/test-mcp-server.js`
+- Asserts card tool outputs include `taskSummary` + `taskDueDates`.
+
+### Task list parser tests
+- `npm run test:task-list`
+- Script: `scripts/test-task-list-parser.js`
+- Covers checklist completion variants and task due-date extraction.
+
+### Due notification tests
+- `npm run test:due-notifications`
+- Script: `scripts/test-due-notifications.js`
+- Covers task due-date notification collection and card/task notification body formatting.
 
 ### Legacy migration
 - `npm run migrate:legacy-cards -- <board-root> [--dry-run] [--include-plain]`
@@ -224,6 +259,8 @@ File: `lib/boardLabels.js`
 - Avoid refactoring path concatenation casually; many flows assume trailing `/`.
 - For content/parsing changes, update both `lib/cardFrontmatter.js` and `scripts/test-frontmatter.js`.
 - For board label settings behavior, update both `lib/boardLabels.js` and `scripts/test-board-labels.js`.
+- For task checklist parsing or badge behavior, update `app/utilities/taskList.js` tests (`scripts/test-task-list-parser.js`) and MCP smoke assertions (`scripts/test-mcp-server.js`) when applicable.
+- For due notification behavior, update `app/utilities/dueNotifications.js` tests (`scripts/test-due-notifications.js`).
 
 ## Fast Context Exclusions
 Ignore these unless task explicitly requires them:

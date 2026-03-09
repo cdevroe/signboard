@@ -54,6 +54,29 @@ function addTimestampToolbarButton(editor) {
     toolbar.appendChild(button);
 }
 
+function removeViewModeToolbarButton(editor) {
+    if (!editor || !editor.container) {
+        return;
+    }
+
+    const toolbar = editor.container.querySelector('.overtype-toolbar');
+    if (!toolbar) {
+        return;
+    }
+
+    const viewModeButton = toolbar.querySelector('[data-action="toggle-view-menu"]');
+    if (!viewModeButton) {
+        return;
+    }
+
+    const separatorBefore = viewModeButton.previousElementSibling;
+    if (separatorBefore && separatorBefore.classList.contains('overtype-toolbar-separator')) {
+        separatorBefore.remove();
+    }
+
+    viewModeButton.remove();
+}
+
 function setEditorLabelDisplay(labelIds) {
     const cardEditorCardLabels = document.getElementById('cardEditorCardLabels');
     if (!cardEditorCardLabels) {
@@ -174,6 +197,7 @@ async function saveEditorCard(bodyValue) {
 }
 
 let activeDueDatePickerInput = null;
+let taskLineDueControlsTeardown = null;
 
 function destroyActiveDueDatePicker() {
     if (activeDueDatePickerInput && activeDueDatePickerInput._fdatepicker) {
@@ -301,9 +325,186 @@ function openDueDatePickerAtTrigger({
     }
 }
 
+function destroyTaskLineDueDateControls() {
+    if (typeof taskLineDueControlsTeardown === 'function') {
+        taskLineDueControlsTeardown();
+    }
+
+    taskLineDueControlsTeardown = null;
+}
+
+function getTaskLineDueControlIconMarkup(hasDueDate) {
+    const iconName = hasDueDate ? 'calendar' : 'plus-circle';
+
+    if (
+        window.feather &&
+        window.feather.icons &&
+        typeof window.feather.icons[iconName]?.toSvg === 'function'
+    ) {
+        return window.feather.icons[iconName].toSvg({
+            width: 14,
+            height: 14,
+            stroke: 'currentColor',
+        });
+    }
+
+    return `<i data-feather="${iconName}" aria-hidden="true"></i>`;
+}
+
+function setupTaskLineDueDateControls(editor) {
+    destroyTaskLineDueDateControls();
+
+    if (!editor || !editor.textarea || !editor.container) {
+        return;
+    }
+
+    const textarea = editor.textarea;
+    const wrapper = editor.container.querySelector('.overtype-wrapper');
+    if (!wrapper) {
+        return;
+    }
+
+    const layer = document.createElement('div');
+    layer.className = 'task-line-due-layer';
+    wrapper.appendChild(layer);
+
+    const toFiniteNumber = (value, fallback = 0) => {
+        const parsed = Number.parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    };
+
+    function getTextareaMetrics() {
+        const style = window.getComputedStyle(textarea);
+        const fontSize = toFiniteNumber(style.fontSize, 16);
+        const lineHeight = Math.max(toFiniteNumber(style.lineHeight, fontSize * 1.6), 1);
+        const paddingTop = toFiniteNumber(style.paddingTop, 0);
+        const paddingLeft = toFiniteNumber(style.paddingLeft, 0);
+
+        const measure = document.createElement('span');
+        measure.style.position = 'absolute';
+        measure.style.visibility = 'hidden';
+        measure.style.whiteSpace = 'pre';
+        measure.style.font = style.font;
+        measure.textContent = '0';
+        wrapper.appendChild(measure);
+        const charWidth = Math.max(measure.getBoundingClientRect().width, 6);
+        measure.remove();
+
+        return {
+            lineHeight,
+            paddingTop,
+            paddingLeft,
+            charWidth,
+        };
+    }
+
+    function renderTaskLineDueButtons() {
+        const taskItems = parseTaskListItems(textarea.value);
+        layer.innerHTML = '';
+
+        if (taskItems.length === 0) {
+            return;
+        }
+
+        const { lineHeight, paddingTop, paddingLeft, charWidth } = getTextareaMetrics();
+        const visibleTop = textarea.scrollTop - lineHeight;
+        const visibleBottom = textarea.scrollTop + textarea.clientHeight + lineHeight;
+
+        for (const taskItem of taskItems) {
+            const absoluteTop = paddingTop + (taskItem.lineIndex * lineHeight);
+            if (absoluteTop < visibleTop || absoluteTop > visibleBottom) {
+                continue;
+            }
+
+            const indentMatch = String(taskItem.line || '').match(/^(\s*)/);
+            const indentWidth = indentMatch ? indentMatch[1].length * charWidth : 0;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'task-line-due-control';
+            button.dataset.lineIndex = String(taskItem.lineIndex);
+            button.style.top = `${Math.round(absoluteTop - textarea.scrollTop + 1)}px`;
+            button.style.left = `${Math.max(2, Math.round(paddingLeft + indentWidth - textarea.scrollLeft - 20))}px`;
+
+            if (taskItem.due) {
+                button.classList.add('has-due');
+                button.title = `Task due ${taskItem.due}`;
+                button.setAttribute('aria-label', `Task due ${taskItem.due}. Change due date.`);
+            } else {
+                button.title = 'Set task due date';
+                button.setAttribute('aria-label', 'Set task due date');
+            }
+
+            button.innerHTML = getTaskLineDueControlIconMarkup(Boolean(taskItem.due));
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const targetLineIndex = Number(button.dataset.lineIndex);
+                const liveTaskItems = parseTaskListItems(textarea.value);
+                const liveTaskItem = liveTaskItems.find((item) => item.lineIndex === targetLineIndex);
+                if (!liveTaskItem) {
+                    return;
+                }
+
+                openDueDatePickerAtTrigger({
+                    triggerElement: button,
+                    dueDateValue: liveTaskItem.due,
+                    onSelect: async (value) => {
+                        const nextValue = setTaskListItemDueDateByLineIndex(textarea.value, targetLineIndex, value);
+                        if (nextValue === textarea.value) {
+                            return;
+                        }
+
+                        textarea.value = nextValue;
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        if (typeof textarea.focus === 'function') {
+                            textarea.focus();
+                        }
+                    },
+                });
+            });
+
+            layer.appendChild(button);
+        }
+    }
+
+    let renderRafId = 0;
+    const requestRender = () => {
+        if (renderRafId) {
+            return;
+        }
+
+        renderRafId = window.requestAnimationFrame(() => {
+            renderRafId = 0;
+            renderTaskLineDueButtons();
+        });
+    };
+
+    textarea.addEventListener('input', requestRender);
+    textarea.addEventListener('scroll', requestRender);
+    window.addEventListener('resize', requestRender);
+    requestRender();
+
+    taskLineDueControlsTeardown = () => {
+        if (renderRafId) {
+            window.cancelAnimationFrame(renderRafId);
+            renderRafId = 0;
+        }
+
+        textarea.removeEventListener('input', requestRender);
+        textarea.removeEventListener('scroll', requestRender);
+        window.removeEventListener('resize', requestRender);
+
+        if (layer.parentNode) {
+            layer.parentNode.removeChild(layer);
+        }
+    };
+}
+
 async function toggleEditCardModal(cardPath, options = {}) {
     const shouldOpenDueDatePicker = Boolean(options && options.openDueDatePicker);
     const modalEditCard = document.getElementById('modalEditCard');
+    destroyTaskLineDueDateControls();
 
     const card = await window.board.readCard(cardPath);
 
@@ -337,7 +538,7 @@ async function toggleEditCardModal(cardPath, options = {}) {
         value: card.body,
         fontSize: '16px',
         lineHeight: 1.6,
-        fontFamily: 'system-ui',
+        fontFamily: '"JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         padding: '16px',
         toolbar: true,
         placeholder: 'Notes...',
@@ -353,7 +554,11 @@ async function toggleEditCardModal(cardPath, options = {}) {
     }
 
     editor.setValue(card.body);
+    removeViewModeToolbarButton(editor);
+    editor.container.classList.remove('preview-mode');
+    editor.container.classList.remove('plain-mode');
     addTimestampToolbarButton(editor);
+    setupTaskLineDueDateControls(editor);
 
     cardEditorTitle.onkeydown = (e) => {
         if ( e.code == 'Enter' ) { e.preventDefault(); return; }
@@ -451,6 +656,9 @@ async function toggleEditCardModal(cardPath, options = {}) {
     cardEditorClose.addEventListener('click', handleClickCloseCard, {once:true});
 
     modalEditCard.style.display = 'block'; // Display after everything is loaded
+    if (editor && editor.textarea) {
+        editor.textarea.dispatchEvent(new Event('scroll', { bubbles: true }));
+    }
 
     if (typeof setBoardInteractive === 'function') {
         setBoardInteractive(false);

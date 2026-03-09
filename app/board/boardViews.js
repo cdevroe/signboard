@@ -311,6 +311,7 @@ async function collectCardsForCalendar(boardRoot, lists) {
       const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
         ? card.frontmatter
         : {};
+      const body = String(card && card.body ? card.body : '');
 
       return {
         cardPath,
@@ -319,7 +320,9 @@ async function collectCardsForCalendar(boardRoot, lists) {
         labels: Array.isArray(frontmatter.labels)
           ? frontmatter.labels.map((labelId) => String(labelId))
           : [],
-        body: String(card && card.body ? card.body : ''),
+        body,
+        taskSummary: getTaskListSummary(body),
+        taskDueDates: getTaskListDueDates(body),
       };
     }),
   );
@@ -332,7 +335,21 @@ function buildCalendarCardBuckets(cardEntries, monthCursor) {
   const buckets = new Map();
 
   for (const entry of entries) {
-    const hasDueDate = Boolean(entry.due);
+    const dueDates = new Set();
+    const cardDueDate = normalizeTaskDueDateValue(entry.due);
+    if (cardDueDate) {
+      dueDates.add(cardDueDate);
+    }
+
+    const taskDueDates = Array.isArray(entry.taskDueDates) ? entry.taskDueDates : [];
+    for (const taskDueDate of taskDueDates) {
+      const normalizedTaskDueDate = normalizeTaskDueDateValue(taskDueDate);
+      if (normalizedTaskDueDate) {
+        dueDates.add(normalizedTaskDueDate);
+      }
+    }
+
+    const hasDueDate = dueDates.size > 0;
     const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, hasDueDate);
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
 
@@ -340,28 +357,30 @@ function buildCalendarCardBuckets(cardEntries, monthCursor) {
       continue;
     }
 
-    const dueDate = parseIsoDateStringToLocalDate(entry.due);
-    if (!dueDate) {
-      continue;
-    }
+    for (const dueDateValue of dueDates) {
+      const dueDate = parseIsoDateStringToLocalDate(dueDateValue);
+      if (!dueDate) {
+        continue;
+      }
 
-    if (
-      dueDate.getFullYear() !== monthCursor.getFullYear() ||
-      dueDate.getMonth() !== monthCursor.getMonth()
-    ) {
-      continue;
-    }
+      if (
+        dueDate.getFullYear() !== monthCursor.getFullYear() ||
+        dueDate.getMonth() !== monthCursor.getMonth()
+      ) {
+        continue;
+      }
 
-    const isoDate = formatIsoLocalDate(dueDate);
-    if (!isoDate) {
-      continue;
-    }
+      const isoDate = formatIsoLocalDate(dueDate);
+      if (!isoDate) {
+        continue;
+      }
 
-    if (!buckets.has(isoDate)) {
-      buckets.set(isoDate, []);
-    }
+      if (!buckets.has(isoDate)) {
+        buckets.set(isoDate, []);
+      }
 
-    buckets.get(isoDate).push(entry);
+      buckets.get(isoDate).push(entry);
+    }
   }
 
   return buckets;
@@ -374,33 +393,49 @@ function buildWeekCardBuckets(cardEntries, weekStartDate) {
   const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
 
   for (const entry of entries) {
-    const hasDueDate = Boolean(entry.due);
+    const dueDates = new Set();
+    const cardDueDate = normalizeTaskDueDateValue(entry.due);
+    if (cardDueDate) {
+      dueDates.add(cardDueDate);
+    }
+
+    const taskDueDates = Array.isArray(entry.taskDueDates) ? entry.taskDueDates : [];
+    for (const taskDueDate of taskDueDates) {
+      const normalizedTaskDueDate = normalizeTaskDueDateValue(taskDueDate);
+      if (normalizedTaskDueDate) {
+        dueDates.add(normalizedTaskDueDate);
+      }
+    }
+
+    const hasDueDate = dueDates.size > 0;
     const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, hasDueDate);
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
     if (!hasDueDate || !matchesLabelFilter || !matchesSearchFilter) {
       continue;
     }
 
-    const dueDate = parseIsoDateStringToLocalDate(entry.due);
-    if (!dueDate) {
-      continue;
-    }
+    for (const dueDateValue of dueDates) {
+      const dueDate = parseIsoDateStringToLocalDate(dueDateValue);
+      if (!dueDate) {
+        continue;
+      }
 
-    const dueTime = dueDate.getTime();
-    if (dueTime < weekStart.getTime() || dueTime > weekEnd.getTime()) {
-      continue;
-    }
+      const dueTime = dueDate.getTime();
+      if (dueTime < weekStart.getTime() || dueTime > weekEnd.getTime()) {
+        continue;
+      }
 
-    const isoDate = formatIsoLocalDate(dueDate);
-    if (!isoDate) {
-      continue;
-    }
+      const isoDate = formatIsoLocalDate(dueDate);
+      if (!isoDate) {
+        continue;
+      }
 
-    if (!buckets.has(isoDate)) {
-      buckets.set(isoDate, []);
-    }
+      if (!buckets.has(isoDate)) {
+        buckets.set(isoDate, []);
+      }
 
-    buckets.get(isoDate).push(entry);
+      buckets.get(isoDate).push(entry);
+    }
   }
 
   return buckets;
@@ -574,8 +609,20 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
   cardButton.className = className;
   cardButton.dataset.path = cardEntry.cardPath;
   cardButton.dataset.due = isoDate;
-  cardButton.textContent = cardEntry.title;
   cardButton.setAttribute('data-sb-tooltip-disabled', 'true');
+
+  const title = document.createElement('span');
+  title.className = 'board-temporal-card-title';
+  title.textContent = cardEntry.title;
+  cardButton.appendChild(title);
+
+  const taskProgressBadge = createTaskProgressBadge(
+    cardEntry.taskSummary,
+    'board-temporal-task-progress',
+  );
+  if (taskProgressBadge) {
+    cardButton.appendChild(taskProgressBadge);
+  }
 
   cardButton.addEventListener('click', (event) => {
     event.preventDefault();

@@ -69,52 +69,7 @@ function writeDueNotificationLastRunByBoard(lastRunByBoard) {
 }
 
 async function collectDueTodayCards(boardRoot, todayIsoDate) {
-    const dueCards = [];
-    const normalizedBoardRoot = typeof normalizeBoardPath === 'function'
-        ? normalizeBoardPath(boardRoot)
-        : String(boardRoot || '').trim();
-
-    if (!normalizedBoardRoot) {
-        return dueCards;
-    }
-
-    let lists = [];
-    try {
-        lists = await window.board.listLists(normalizedBoardRoot);
-    } catch {
-        return dueCards;
-    }
-
-    for (const listName of lists) {
-        const listPath = `${normalizedBoardRoot}${listName}`;
-        let cardFiles = [];
-
-        try {
-            cardFiles = await window.board.listCards(listPath);
-        } catch {
-            continue;
-        }
-
-        for (const cardFileName of cardFiles) {
-            const cardPath = `${listPath}/${cardFileName}`;
-            try {
-                const card = await window.board.readCard(cardPath);
-                const dueValue = String(card?.frontmatter?.due || '').trim();
-                if (dueValue !== todayIsoDate) {
-                    continue;
-                }
-
-                const cardTitle = String(card?.frontmatter?.title || '').trim() || 'Untitled';
-                dueCards.push({
-                    title: cardTitle,
-                });
-            } catch {
-                // Ignore unreadable cards and continue scanning.
-            }
-        }
-    }
-
-    return dueCards;
+    return collectDueTodayItemsForBoard(window.board, boardRoot, todayIsoDate);
 }
 
 async function runDueCardNotificationCheck() {
@@ -165,16 +120,12 @@ async function runDueCardNotificationCheck() {
             continue;
         }
 
-        const dueCards = await collectDueTodayCards(boardRoot, todayIsoDate);
-        if (dueCards.length === 1) {
+        const dueItems = await collectDueTodayCards(boardRoot, todayIsoDate);
+        const notificationBody = buildDueNotificationBody(dueItems);
+        if (notificationBody) {
             await window.electronAPI.notifyDueCards({
                 title: 'Signboard',
-                body: dueCards[0].title,
-            });
-        } else if (dueCards.length > 1) {
-            await window.electronAPI.notifyDueCards({
-                title: 'Signboard',
-                body: 'Multiple cards due today',
+                body: notificationBody,
             });
         }
 

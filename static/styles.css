@@ -3,6 +3,66 @@
 *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-400-normal.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-400-italic.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-400-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-600-normal.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-600-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-600-italic.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-600-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-700-normal.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-700-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-700-italic.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-700-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   /* CSS HEX */
   --rich-black: #02111bff;
@@ -44,6 +104,7 @@ html, body { margin: 0; height: 100%; }
   --accent-contrast: var(--sb-light-accent-contrast);
   --due-date-today-color: color-mix(in oklab, #d92d20 72%, var(--text));
   --due-date-tomorrow-color: color-mix(in oklab, #15803d 78%, var(--text));
+  --task-progress-complete-color: color-mix(in oklab, #15803d 78%, var(--text));
 
   /* Radius / spacing / type sizes */
   --radius: 10px;
@@ -75,6 +136,7 @@ html, body { margin: 0; height: 100%; }
   --accent-contrast: var(--sb-dark-accent-contrast);
   --due-date-today-color: color-mix(in oklab, #ff6b6b 80%, var(--text));
   --due-date-tomorrow-color: color-mix(in oklab, #4ade80 80%, var(--text));
+  --task-progress-complete-color: color-mix(in oklab, #4ade80 84%, var(--text));
 }
 
 body {
@@ -507,6 +569,10 @@ main#board.board-view-week {
 }
 
 .board-calendar-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   width: 100%;
   text-align: left;
   border-radius: 9px;
@@ -517,9 +583,6 @@ main#board.board-view-week {
   padding: 6px 8px;
   font-size: 13px;
   line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   cursor: grab;
 }
 
@@ -601,6 +664,10 @@ main#board.board-view-week {
 }
 
 .board-this-week-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   width: 100%;
   text-align: left;
   border-radius: 9px;
@@ -611,9 +678,6 @@ main#board.board-view-week {
   padding: 6px 8px;
   font-size: 13px;
   line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   cursor: grab;
 }
 
@@ -623,6 +687,24 @@ main#board.board-view-week {
 
 .board-this-week-card:active {
   cursor: grabbing;
+}
+
+.board-temporal-card-title {
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-temporal-task-progress {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.board-temporal-task-progress svg {
+  width: 12px;
+  height: 12px;
 }
 
 .board-this-week-day.day-mon { grid-area: mon; }
@@ -935,6 +1017,27 @@ body.board-empty main#board {
 
 .due-date-action.due-date-tomorrow {
   color: var(--due-date-tomorrow-color);
+}
+
+.task-progress-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.task-progress-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.task-progress-badge-complete {
+  color: var(--task-progress-complete-color);
+}
+
+.task-progress-badge-inline {
+  padding: 3px;
 }
 
 .card-body svg {
@@ -1786,6 +1889,52 @@ select:disabled {
   margin-top: 20px;
 }
 
+#cardEditorOverType .overtype-container {
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+#cardEditorOverType .task-line-due-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+#cardEditorOverType .task-line-due-control {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 84%, transparent);
+  background: color-mix(in oklab, var(--bg-card) 90%, transparent);
+  color: var(--muted);
+  box-shadow: 0 1px 3px var(--shadow-card);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+#cardEditorOverType .task-line-due-control:hover {
+  border-color: color-mix(in oklab, var(--accent) 48%, var(--border));
+  color: color-mix(in oklab, var(--accent) 78%, var(--text));
+}
+
+#cardEditorOverType .task-line-due-control.has-due {
+  color: color-mix(in oklab, var(--accent) 80%, var(--text));
+}
+
+#cardEditorOverType .task-line-due-control svg {
+  width: 13px;
+  height: 13px;
+}
+
+#cardEditorOverType .overtype-container.preview-mode .task-line-due-layer {
+  display: none;
+}
+
 .overtype-container {
   --toolbar-hover: color-mix(in oklab, var(--bg-card) 88%, var(--border));
   --toolbar-active: color-mix(in oklab, var(--text) 12%, var(--bg-card));
@@ -1803,12 +1952,25 @@ select:disabled {
   padding: 8px important!;
 }
 
-/* Keep preview glyph widths aligned with textarea caret metrics while editing. */
-#cardEditorOverType .overtype-wrapper .overtype-preview strong,
+#cardEditorOverType .overtype-wrapper .overtype-preview strong {
+  font-weight: 700 !important;
+}
+
 #cardEditorOverType .overtype-wrapper .overtype-preview h1,
 #cardEditorOverType .overtype-wrapper .overtype-preview h2,
 #cardEditorOverType .overtype-wrapper .overtype-preview h3 {
-  font-weight: inherit !important;
+  font-weight: 700 !important;
+}
+
+#cardEditorOverType .overtype-wrapper .overtype-preview h3 {
+  font-weight: 600 !important;
+}
+
+#cardEditorOverType .overtype-wrapper .overtype-preview strong .syntax-marker,
+#cardEditorOverType .overtype-wrapper .overtype-preview h1 .syntax-marker,
+#cardEditorOverType .overtype-wrapper .overtype-preview h2 .syntax-marker,
+#cardEditorOverType .overtype-wrapper .overtype-preview h3 .syntax-marker {
+  opacity: 0.8;
 }
 
 /* 10) Small screens */

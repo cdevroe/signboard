@@ -6,6 +6,8 @@ cat \
   app/utilities/santizeFileName.js \
   app/utilities/timestampListItem.js \
   app/utilities/dueDateStatus.js \
+  app/utilities/taskList.js \
+  app/utilities/dueNotifications.js \
   app/board/boardLabels.js \
   app/board/boardSearch.js \
   app/board/boardViews.js \

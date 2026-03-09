@@ -93,6 +93,9 @@ async function createFixtureBoard() {
       '  - template',
       '---',
       'Customer details go here.',
+      '- [ ] Initial outreach',
+      '- [x ] (due: 2026-03-20) Send proposal',
+      '- [ X] Confirm timeline',
       '',
     ].join('\n'),
     'utf8',
@@ -305,6 +308,18 @@ async function runForTransport(transportMode, fixture) {
     throw new Error(`duplicate_card did not remove template label (${transportMode}).`);
   }
 
+  if (
+    !duplicateOutput.taskSummary ||
+    duplicateOutput.taskSummary.total !== 3 ||
+    duplicateOutput.taskSummary.completed !== 2
+  ) {
+    throw new Error(`duplicate_card taskSummary mismatch (${transportMode}): ${JSON.stringify(duplicateOutput)}`);
+  }
+
+  if (!Array.isArray(duplicateOutput.taskDueDates) || !duplicateOutput.taskDueDates.includes('2026-03-20')) {
+    throw new Error(`duplicate_card taskDueDates mismatch (${transportMode}): ${JSON.stringify(duplicateOutput)}`);
+  }
+
   send({
     jsonrpc: '2.0',
     id: 5,
@@ -371,6 +386,14 @@ async function runForTransport(transportMode, fixture) {
   const viewIds = new Set(boardViews.map((view) => view && view.id).filter(Boolean));
   if (!viewIds.has('calendar') || !viewIds.has('this-week')) {
     throw new Error(`list_board_views missing calendar/this-week (${transportMode}): ${JSON.stringify(boardViews)}`);
+  }
+  const calendarView = boardViews.find((view) => view && view.id === 'calendar');
+  const thisWeekView = boardViews.find((view) => view && view.id === 'this-week');
+  if (!calendarView || !/task due-date markers/i.test(String(calendarView.description || ''))) {
+    throw new Error(`calendar view description missing task due markers (${transportMode}): ${JSON.stringify(calendarView)}`);
+  }
+  if (!thisWeekView || !/task due-date markers/i.test(String(thisWeekView.description || ''))) {
+    throw new Error(`this-week view description missing task due markers (${transportMode}): ${JSON.stringify(thisWeekView)}`);
   }
 
   send({
@@ -469,21 +492,124 @@ async function runForTransport(transportMode, fixture) {
     throw new Error(`list_lists after move_board failed (${transportMode}): ${JSON.stringify(movedBoardListsResponse.error)}`);
   }
 
+  send({
+    jsonrpc: '2.0',
+    id: 12,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.read_card',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        listName: fixture.leadsList,
+        cardFile: fixture.templateCardFile,
+      },
+    },
+  });
+
+  const readCardResponse = await waitForResponse(12);
+  if (readCardResponse.error) {
+    throw new Error(`read_card failed (${transportMode}): ${JSON.stringify(readCardResponse.error)}`);
+  }
+
+  const readCardOutput = readCardResponse.result?.structuredContent || {};
+  if (!readCardOutput.taskSummary || readCardOutput.taskSummary.total !== 3 || readCardOutput.taskSummary.completed !== 2) {
+    throw new Error(`read_card taskSummary mismatch (${transportMode}): ${JSON.stringify(readCardOutput)}`);
+  }
+  if (!Array.isArray(readCardOutput.taskDueDates) || !readCardOutput.taskDueDates.includes('2026-03-20')) {
+    throw new Error(`read_card taskDueDates mismatch (${transportMode}): ${JSON.stringify(readCardOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 13,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.update_card',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        listName: fixture.leadsList,
+        cardFile: fixture.templateCardFile,
+        body: [
+          'Customer details go here.',
+          '- [x ] Initial outreach',
+          '- [x ] (due: 2026-03-20) Send proposal',
+          '- [ X] Confirm timeline',
+          '',
+        ].join('\n'),
+      },
+    },
+  });
+
+  const updateCardResponse = await waitForResponse(13);
+  if (updateCardResponse.error) {
+    throw new Error(`update_card failed (${transportMode}): ${JSON.stringify(updateCardResponse.error)}`);
+  }
+
+  const updateCardOutput = updateCardResponse.result?.structuredContent || {};
+  if (!updateCardOutput.taskSummary || updateCardOutput.taskSummary.total !== 3 || updateCardOutput.taskSummary.completed !== 3) {
+    throw new Error(`update_card taskSummary mismatch (${transportMode}): ${JSON.stringify(updateCardOutput)}`);
+  }
+  if (!Array.isArray(updateCardOutput.taskDueDates) || !updateCardOutput.taskDueDates.includes('2026-03-20')) {
+    throw new Error(`update_card taskDueDates mismatch (${transportMode}): ${JSON.stringify(updateCardOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 14,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.create_card',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        listName: fixture.leadsList,
+        title: 'Task metadata coverage',
+        body: [
+          'Created by MCP test.',
+          '- [x ] (due: 2026-03-21) Complete prep',
+          '- [ X] (due: 2026-03-22) Confirm review',
+          '- [ x] Share recap',
+          '- [ ] Follow up',
+          '',
+        ].join('\n'),
+      },
+    },
+  });
+
+  const createCardResponse = await waitForResponse(14);
+  if (createCardResponse.error) {
+    throw new Error(`create_card failed (${transportMode}): ${JSON.stringify(createCardResponse.error)}`);
+  }
+
+  const createCardOutput = createCardResponse.result?.structuredContent || {};
+  if (!createCardOutput.taskSummary || createCardOutput.taskSummary.total !== 4 || createCardOutput.taskSummary.completed !== 3) {
+    throw new Error(`create_card taskSummary mismatch (${transportMode}): ${JSON.stringify(createCardOutput)}`);
+  }
+  const expectedDueDates = ['2026-03-21', '2026-03-22'];
+  if (
+    !Array.isArray(createCardOutput.taskDueDates) ||
+    createCardOutput.taskDueDates.length !== expectedDueDates.length ||
+    expectedDueDates.some((dateValue) => !createCardOutput.taskDueDates.includes(dateValue))
+  ) {
+    throw new Error(`create_card taskDueDates mismatch (${transportMode}): ${JSON.stringify(createCardOutput)}`);
+  }
+
   child.stdin.end();
   await waitForExit;
 }
 
 async function run() {
-  const fixture = await createFixtureBoard();
+  const transportModes = [HEADER_TRANSPORT, HEADER_BOM_TRANSPORT, NDJSON_TRANSPORT];
 
-  try {
-    await runForTransport(HEADER_TRANSPORT, fixture);
-    await runForTransport(HEADER_BOM_TRANSPORT, fixture);
-    await runForTransport(NDJSON_TRANSPORT, fixture);
-    console.log('MCP server smoke test passed (header + header-bom + ndjson).');
-  } finally {
-    await fs.rm(fixture.cleanupRoot, { recursive: true, force: true });
+  for (const transportMode of transportModes) {
+    const fixture = await createFixtureBoard();
+    try {
+      await runForTransport(transportMode, fixture);
+    } finally {
+      await fs.rm(fixture.cleanupRoot, { recursive: true, force: true });
+    }
   }
+
+  console.log('MCP server smoke test passed (header + header-bom + ndjson).');
 }
 
 run().catch((error) => {

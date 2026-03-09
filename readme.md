@@ -14,6 +14,8 @@ A local-first kanban desktop app built with HTML, CSS, and JavaScript. Signboard
 - 🖌️ Custom color scheme per board
 - 🏷 Per-card labels with light/dark colors
 - 📅 Due dates
+- ✅ Task progress counters on cards (`completed/total`)
+- 🗓 Per-task due dates that feed Calendar and This Week views
 - 🔎 Live search across
 - 🖥 Runs as a desktop app
 - 🪶 Minimal dependencies 😅, just plain JavaScript + Electron
@@ -43,6 +45,26 @@ Signboard includes a built-in MCP server mode so agents can interact with local 
 - Signboard app auto-refreshes when board files change externally (including MCP actions)
 - Optional agent skill: `skills/signboard-mcp/SKILL.md`
 
+## ✅ Task List Items
+
+- Card counters now use `completed/total` task checklist totals and stay visible while tasks exist.
+- Counter badges render in Board, Calendar, and This Week card UI.
+- Counter badges turn green when all tasks on a card are complete.
+- Task list lines can include a task-level due date marker at the start of the task content:
+  - `(due: YYYY-MM-DD)`
+- Cards appear in Calendar and This Week for both card due dates and task due markers.
+- A card appears at most once per day in Calendar/This Week, even if multiple tasks share the same date.
+- Due-date notifications include task-level due items and include both card title and task summary text when applicable.
+
+Example checklist syntax:
+
+```md
+- [ ] Draft update
+- [x ] (due: 2026-03-20) Send proposal
+- [ X] Confirm scope
+- [ x ] Share notes
+```
+
 ## 🔄 Automatic Updates
 
 - Packaged Signboard builds can check GitHub releases for updates automatically.
@@ -64,6 +86,17 @@ git clone https://github.com/cdevroe/signboard.git
 cd signboard
 npm install
 npm start
+```
+
+### Tests
+
+```bash
+npm run test:frontmatter
+npm run test:board-labels
+npm run test:board-card-metadata
+npm run test:due-notifications
+npm run test:task-list
+npm run test:mcp
 ```
 
 ---

@@ -22,10 +22,12 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `app/signboard.js` - Generated concatenated renderer file loaded by `index.html`.
 - `app/utilities/santizeFileName.js` - Filename sanitization + random suffix helper.
+- `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, task-summary counters, and task progress badge creation.
+- `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and task due markers.
 - `app/board/boardLabels.js` - Board-label state, toolbar filter UI, card label popovers, and board settings label editor.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
-- `app/board/boardViews.js` - Board view state, `Views` menu wiring, and Calendar + This Week rendering/navigation/drag-to-reschedule logic.
-- `app/cards/createCardElement.js` - Card DOM rendering and click behavior.
+- `app/board/boardViews.js` - Board view state, `Views` menu wiring, Calendar + This Week rendering/navigation/drag-to-reschedule logic, and temporal card placement by card due/task due markers.
+- `app/cards/createCardElement.js` - Card DOM rendering, task progress badge display, and click behavior.
 - `app/cards/processAddNewCard.js` - New card creation flow.
 - `app/cards/processAddNewList.js` - New list creation flow.
 - `app/lists/createListElement.js` - List DOM rendering, sanitized rename, card DnD handling.
@@ -35,7 +37,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/modals/toggleAddCardModal.js` - Add-card modal position/toggle.
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
-- `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic with debounced + serialized saves.
+- `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic with debounced + serialized saves and task-line due-date controls.
 - `app/listeners/window.js` - Keyboard shortcuts (`Esc`, `Cmd/Ctrl+N`, `Cmd/Ctrl+Shift+N`).
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, and external board-change auto-refresh sync loop.
 - `app/ui/theme.js` - Theme toggle + OverType theme integration.
@@ -45,16 +47,19 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support.
 - `lib/boardLabels.js` - Board-level label settings read/write/defaults/filter helpers (`board-settings.md`).
-- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings operations.
+- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings operations plus task-summary metadata on card tools.
 
 ## Scripts (`scripts/`)
 
 - `scripts/test-frontmatter.js` - Node assertions for frontmatter behavior.
 - `scripts/test-board-labels.js` - Node assertions for board label settings defaults/migration/filter logic.
+- `scripts/test-board-card-metadata.js` - Board card metadata rendering assertions (due/labels/task badge behavior).
+- `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
+- `scripts/test-task-list-parser.js` - Task checklist parser assertions (`completed/total` and task due-date extraction).
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
 - `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux.
-- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports.
+- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including card task metadata assertions.
 
 ## Static assets (`static/`)
 

@@ -94,10 +94,10 @@ The server currently exposes these tools:
 - `signboard.resolve_board_by_name`
 - `signboard.list_lists`
 - `signboard.list_cards`
-- `signboard.read_card`
-- `signboard.create_card` (write mode only)
-- `signboard.update_card` (write mode only)
-- `signboard.duplicate_card` (write mode only)
+- `signboard.read_card` (includes `taskSummary` + `taskDueDates`)
+- `signboard.create_card` (write mode only, includes `taskSummary` + `taskDueDates`)
+- `signboard.update_card` (write mode only, includes `taskSummary` + `taskDueDates`)
+- `signboard.duplicate_card` (write mode only, includes `taskSummary` + `taskDueDates`)
 - `signboard.archive_card` (write mode only)
 - `signboard.move_card` (write mode only)
 - `signboard.create_list` (write mode only)
@@ -108,6 +108,39 @@ The server currently exposes these tools:
 
 All tools take absolute `boardRoot` paths and reject path traversal.
 Board settings tools include labels, theme overrides, and notification preferences.
+
+## Task Metadata in Card Tool Responses
+
+`signboard.read_card`, `signboard.create_card`, `signboard.update_card`, and `signboard.duplicate_card` return:
+
+- `taskSummary`: `{ total, completed, remaining }`
+- `taskDueDates`: sorted unique ISO dates found in task lines (`YYYY-MM-DD`)
+
+Task parsing rules:
+
+- Checklist items are recognized from markdown checkbox lines (for example: `- [ ]`, `- [x]`, `- [X]`, `- [x ]`, `- [ x]`, `- [ x ]`).
+- Task-level due dates are recognized only when the task content starts with:
+  - `(due: YYYY-MM-DD)`
+
+Example:
+
+```md
+- [ ] (due: 2026-03-20) Draft announcement
+- [x ] Confirm reviewers
+```
+
+Returned metadata shape:
+
+```json
+{
+  "taskSummary": {
+    "total": 2,
+    "completed": 1,
+    "remaining": 1
+  },
+  "taskDueDates": ["2026-03-20"]
+}
+```
 
 ## Board name lookup
 
@@ -156,6 +189,7 @@ If `SIGNBOARD_MCP_ALLOWED_ROOTS` is not set, the resolver tool returns an error.
 - In MCP mode, Signboard does not open its desktop window.
 - The process communicates over stdio (MCP JSON-RPC framing).
 - The stdio parser accepts both header-framed MCP and newline-delimited JSON-RPC payloads.
+- `signboard.list_board_views` describes that Calendar/This Week group cards by both card due dates and task due markers.
 - Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`).
 - Board settings use Signboard's existing settings logic (`lib/boardLabels.js`).
 - When the desktop app is open, external board edits (including MCP edits) are watched and auto-refreshed.
