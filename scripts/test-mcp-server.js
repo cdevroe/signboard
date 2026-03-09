@@ -225,6 +225,7 @@ async function runForTransport(transportMode, fixture) {
 
   const requiredToolNames = [
     'signboard.get_config',
+    'signboard.list_board_views',
     'signboard.resolve_board_by_name',
     'signboard.list_lists',
     'signboard.list_cards',
@@ -235,6 +236,8 @@ async function runForTransport(transportMode, fixture) {
     'signboard.archive_card',
     'signboard.move_card',
     'signboard.create_list',
+    'signboard.rename_board',
+    'signboard.move_board',
     'signboard.read_board_settings',
     'signboard.update_board_settings',
   ];
@@ -347,6 +350,123 @@ async function runForTransport(transportMode, fixture) {
   const archiveCards = archiveListResponse.result?.structuredContent?.cardFiles || [];
   if (!archiveCards.includes(archiveOutput.archivedCardFile)) {
     throw new Error(`Archived card missing from archive list (${transportMode}).`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 7,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.list_board_views',
+      arguments: {},
+    },
+  });
+
+  const viewsResponse = await waitForResponse(7);
+  if (viewsResponse.error) {
+    throw new Error(`list_board_views failed (${transportMode}): ${JSON.stringify(viewsResponse.error)}`);
+  }
+
+  const boardViews = viewsResponse.result?.structuredContent?.views || [];
+  const viewIds = new Set(boardViews.map((view) => view && view.id).filter(Boolean));
+  if (!viewIds.has('calendar') || !viewIds.has('this-week')) {
+    throw new Error(`list_board_views missing calendar/this-week (${transportMode}): ${JSON.stringify(boardViews)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 8,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.update_board_settings',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        notifications: {
+          enabled: true,
+          time: '08:30',
+        },
+      },
+    },
+  });
+
+  const settingsResponse = await waitForResponse(8);
+  if (settingsResponse.error) {
+    throw new Error(`update_board_settings failed (${transportMode}): ${JSON.stringify(settingsResponse.error)}`);
+  }
+
+  const updatedNotifications = settingsResponse.result?.structuredContent?.settings?.notifications || {};
+  if (updatedNotifications.enabled !== true || updatedNotifications.time !== '08:30') {
+    throw new Error(`update_board_settings did not persist notifications (${transportMode}): ${JSON.stringify(updatedNotifications)}`);
+  }
+
+  const boardToRename = path.join(fixture.allowedRoot, `RenameMove-${transportMode}`);
+  await fs.mkdir(path.join(boardToRename, '000-To-do-stock'), { recursive: true });
+
+  send({
+    jsonrpc: '2.0',
+    id: 9,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.rename_board',
+      arguments: {
+        boardRoot: boardToRename,
+        newBoardName: `Renamed-${transportMode}`,
+      },
+    },
+  });
+
+  const renameResponse = await waitForResponse(9);
+  if (renameResponse.error) {
+    throw new Error(`rename_board failed (${transportMode}): ${JSON.stringify(renameResponse.error)}`);
+  }
+
+  const renamedBoardRoot = renameResponse.result?.structuredContent?.newBoardRoot;
+  if (!renamedBoardRoot || renamedBoardRoot === boardToRename) {
+    throw new Error(`rename_board returned invalid newBoardRoot (${transportMode}): ${JSON.stringify(renameResponse.result?.structuredContent)}`);
+  }
+
+  const moveTargetParent = path.join(fixture.allowedRoot, `MovedBoards-${transportMode}`);
+  await fs.mkdir(moveTargetParent, { recursive: true });
+
+  send({
+    jsonrpc: '2.0',
+    id: 10,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.move_board',
+      arguments: {
+        boardRoot: renamedBoardRoot,
+        targetParentRoot: moveTargetParent,
+      },
+    },
+  });
+
+  const moveResponse = await waitForResponse(10);
+  if (moveResponse.error) {
+    throw new Error(`move_board failed (${transportMode}): ${JSON.stringify(moveResponse.error)}`);
+  }
+
+  const movedBoardRoot = moveResponse.result?.structuredContent?.newBoardRoot;
+  const expectedMovedBoardRoot = path.resolve(path.join(moveTargetParent, path.basename(renamedBoardRoot)));
+  if (movedBoardRoot !== expectedMovedBoardRoot) {
+    throw new Error(`move_board returned unexpected newBoardRoot (${transportMode}): ${JSON.stringify(moveResponse.result?.structuredContent)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 11,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.list_lists',
+      arguments: {
+        boardRoot: movedBoardRoot,
+      },
+    },
+  });
+
+  const movedBoardListsResponse = await waitForResponse(11);
+  if (movedBoardListsResponse.error) {
+    throw new Error(`list_lists after move_board failed (${transportMode}): ${JSON.stringify(movedBoardListsResponse.error)}`);
   }
 
   child.stdin.end();

@@ -90,6 +90,7 @@ Use it to standardize how agents call `signboard.*` tools (safety checks, read/w
 The server currently exposes these tools:
 
 - `signboard.get_config`
+- `signboard.list_board_views`
 - `signboard.resolve_board_by_name`
 - `signboard.list_lists`
 - `signboard.list_cards`
@@ -100,10 +101,13 @@ The server currently exposes these tools:
 - `signboard.archive_card` (write mode only)
 - `signboard.move_card` (write mode only)
 - `signboard.create_list` (write mode only)
+- `signboard.rename_board` (write mode only)
+- `signboard.move_board` (write mode only)
 - `signboard.read_board_settings`
 - `signboard.update_board_settings` (write mode only)
 
 All tools take absolute `boardRoot` paths and reject path traversal.
+Board settings tools include labels, theme overrides, and notification preferences.
 
 ## Board name lookup
 

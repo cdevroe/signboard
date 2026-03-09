@@ -1,6 +1,6 @@
 ---
 name: signboard-mcp
-description: Use this skill when working with Signboard boards through the local MCP server (listing lists/cards, reading cards, and safely creating/updating/moving cards or board settings).
+description: Use this skill when working with Signboard boards through the local MCP server (listing views/lists/cards, reading cards, and safely creating/updating/moving cards, boards, or board settings).
 ---
 
 # Signboard MCP Skill
@@ -35,6 +35,8 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
    - `signboard.archive_card`
    - `signboard.move_card`
    - `signboard.create_list`
+   - `signboard.rename_board`
+   - `signboard.move_board`
    - `signboard.update_board_settings`
 
 ## Safety Rules
@@ -48,6 +50,7 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 ## Tool Reference
 
 - `signboard.get_config`: inspect MCP mode and path constraints.
+- `signboard.list_board_views`: list available board views (`kanban`, `calendar`, `this-week`).
 - `signboard.resolve_board_by_name`: map a board directory name to absolute board paths under allowed roots.
 - `signboard.list_lists`: get list directory names in a board.
 - `signboard.list_cards`: get card markdown files in a list.
@@ -58,8 +61,10 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 - `signboard.archive_card`: move a card to `XXX-Archive`.
 - `signboard.move_card`: move card between lists.
 - `signboard.create_list`: create a list directory.
-- `signboard.read_board_settings`: read labels/theme settings.
-- `signboard.update_board_settings`: update labels/theme settings.
+- `signboard.rename_board`: rename a board directory.
+- `signboard.move_board`: move a board directory to a new parent directory.
+- `signboard.read_board_settings`: read labels/theme/notification settings.
+- `signboard.update_board_settings`: update labels/theme/notification settings.
 
 ## Output Style
 
