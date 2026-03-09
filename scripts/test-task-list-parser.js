@@ -58,6 +58,21 @@ function run() {
     'Expected unique sorted task due dates',
   );
 
+  const withHeadingsAndPlainLists = [
+    '## Notes',
+    '',
+    '- Plain bullet item',
+    '1. Numbered item',
+    '* Another plain bullet',
+    '- [ ] Actual task item',
+    '',
+  ].join('\n');
+  assert.deepStrictEqual(
+    toPlain(getTaskListSummary(withHeadingsAndPlainLists)),
+    { total: 1, completed: 0, remaining: 1 },
+    'Expected only checklist lines to be parsed as tasks',
+  );
+
   console.log('Task list parser tests passed.');
 }
 

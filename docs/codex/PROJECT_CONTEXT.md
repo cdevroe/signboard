@@ -145,6 +145,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
   - Renders task-line due-date controls at the start of each parsed checklist line in the editor.
+  - Uses measured textarea line-start coordinates for control placement so wrapped lines do not drift button positions.
   - Handles due date picker, labels picker, duplicate, and archive actions.
 - `app/utilities/taskList.js`:
   - Parses checklist items from card markdown body.

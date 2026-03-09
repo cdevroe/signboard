@@ -373,29 +373,94 @@ function setupTaskLineDueDateControls(editor) {
         return Number.isFinite(parsed) ? parsed : fallback;
     };
 
-    function getTextareaMetrics() {
+    function createTextareaMeasurementMirror() {
         const style = window.getComputedStyle(textarea);
-        const fontSize = toFiniteNumber(style.fontSize, 16);
-        const lineHeight = Math.max(toFiniteNumber(style.lineHeight, fontSize * 1.6), 1);
-        const paddingTop = toFiniteNumber(style.paddingTop, 0);
-        const paddingLeft = toFiniteNumber(style.paddingLeft, 0);
+        const mirror = document.createElement('div');
 
-        const measure = document.createElement('span');
-        measure.style.position = 'absolute';
-        measure.style.visibility = 'hidden';
-        measure.style.whiteSpace = 'pre';
-        measure.style.font = style.font;
-        measure.textContent = '0';
-        wrapper.appendChild(measure);
-        const charWidth = Math.max(measure.getBoundingClientRect().width, 6);
-        measure.remove();
+        mirror.style.position = 'absolute';
+        mirror.style.top = '0';
+        mirror.style.left = '-99999px';
+        mirror.style.visibility = 'hidden';
+        mirror.style.pointerEvents = 'none';
+        mirror.style.whiteSpace = 'pre-wrap';
+        mirror.style.wordWrap = 'break-word';
+        mirror.style.overflowWrap = 'break-word';
+        mirror.style.boxSizing = 'border-box';
+        mirror.style.width = `${Math.max(textarea.clientWidth, 1)}px`;
+        mirror.style.padding = style.padding;
+        mirror.style.margin = '0';
+        mirror.style.border = '0';
+        mirror.style.font = style.font;
+        mirror.style.lineHeight = style.lineHeight;
+        mirror.style.letterSpacing = style.letterSpacing;
+        mirror.style.textIndent = style.textIndent;
+        mirror.style.textTransform = style.textTransform;
+        mirror.style.textAlign = style.textAlign;
+        mirror.style.direction = style.direction;
+        mirror.style.tabSize = style.tabSize;
+        mirror.style.wordSpacing = style.wordSpacing;
+        mirror.style.webkitTextSizeAdjust = '100%';
 
-        return {
-            lineHeight,
-            paddingTop,
-            paddingLeft,
-            charWidth,
-        };
+        wrapper.appendChild(mirror);
+        return mirror;
+    }
+
+    function getLineStartPositionByTaskIndex(taskItems) {
+        const positions = new Map();
+        if (!Array.isArray(taskItems) || taskItems.length === 0) {
+            return positions;
+        }
+
+        const textValue = String(textarea.value || '');
+        const mirror = createTextareaMeasurementMirror();
+        try {
+            const sortedTaskItems = [...taskItems]
+                .filter((item) => item && Number.isInteger(item.lineIndex) && Number.isInteger(item.lineStart))
+                .sort((a, b) => a.lineStart - b.lineStart);
+            const textNode = document.createTextNode(textValue || ' ');
+            mirror.appendChild(textNode);
+
+            const mirrorRect = mirror.getBoundingClientRect();
+            const range = document.createRange();
+            const textLength = textNode.length;
+
+            for (const taskItem of sortedTaskItems) {
+                const rawLineStart = Math.min(
+                    Math.max(0, Number(taskItem.lineStart)),
+                    Math.max(0, textLength - 1),
+                );
+                const lineText = String(taskItem.line || '');
+                const leadingWhitespaceMatch = lineText.match(/^\s*/);
+                const leadingWhitespaceLength = leadingWhitespaceMatch ? leadingWhitespaceMatch[0].length : 0;
+                let anchorOffset = Math.min(rawLineStart + leadingWhitespaceLength, Math.max(0, textLength - 1));
+
+                while (anchorOffset < textLength && textValue.charAt(anchorOffset) === '\n') {
+                    anchorOffset += 1;
+                }
+
+                if (anchorOffset >= textLength) {
+                    continue;
+                }
+
+                range.setStart(textNode, anchorOffset);
+                range.setEnd(textNode, Math.min(anchorOffset + 1, textLength));
+                const rect = range.getClientRects()[0] || range.getBoundingClientRect();
+                if (!rect || (!Number.isFinite(rect.top) || !Number.isFinite(rect.left))) {
+                    continue;
+                }
+
+                positions.set(taskItem.lineIndex, {
+                    top: rect.top - mirrorRect.top,
+                    left: rect.left - mirrorRect.left,
+                });
+            }
+
+            range.detach();
+        } finally {
+            mirror.remove();
+        }
+
+        return positions;
     }
 
     function renderTaskLineDueButtons() {
@@ -406,24 +471,30 @@ function setupTaskLineDueDateControls(editor) {
             return;
         }
 
-        const { lineHeight, paddingTop, paddingLeft, charWidth } = getTextareaMetrics();
-        const visibleTop = textarea.scrollTop - lineHeight;
-        const visibleBottom = textarea.scrollTop + textarea.clientHeight + lineHeight;
+        const style = window.getComputedStyle(textarea);
+        const fontSize = toFiniteNumber(style.fontSize, 16);
+        const lineHeight = Math.max(toFiniteNumber(style.lineHeight, fontSize * 1.6), 1);
+        const lineStartPositions = getLineStartPositionByTaskIndex(taskItems);
+        const visibleTop = -lineHeight;
+        const visibleBottom = textarea.clientHeight + lineHeight;
 
         for (const taskItem of taskItems) {
-            const absoluteTop = paddingTop + (taskItem.lineIndex * lineHeight);
-            if (absoluteTop < visibleTop || absoluteTop > visibleBottom) {
+            const linePosition = lineStartPositions.get(taskItem.lineIndex);
+            if (!linePosition) {
                 continue;
             }
 
-            const indentMatch = String(taskItem.line || '').match(/^(\s*)/);
-            const indentWidth = indentMatch ? indentMatch[1].length * charWidth : 0;
+            const buttonTop = Math.round(linePosition.top - textarea.scrollTop + 1);
+            if (buttonTop < visibleTop || buttonTop > visibleBottom) {
+                continue;
+            }
+
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'task-line-due-control';
             button.dataset.lineIndex = String(taskItem.lineIndex);
-            button.style.top = `${Math.round(absoluteTop - textarea.scrollTop + 1)}px`;
-            button.style.left = `${Math.max(2, Math.round(paddingLeft + indentWidth - textarea.scrollLeft - 20))}px`;
+            button.style.top = `${buttonTop}px`;
+            button.style.left = `${Math.max(2, Math.round(linePosition.left - textarea.scrollLeft - 20))}px`;
 
             if (taskItem.due) {
                 button.classList.add('has-due');
