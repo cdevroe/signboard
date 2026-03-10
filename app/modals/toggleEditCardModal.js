@@ -889,8 +889,9 @@ async function toggleEditCardModal(cardPath, options = {}) {
         const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
         await window.board.moveCard( cardEditorCardPath.value, window.boardRoot + 'XXX-Archive/' + window.board.getCardFileName(cardEditorCardPath.value));
-        e.target.id = 'board';
-        await closeAllModals(e);
+        e.preventDefault();
+        e.stopPropagation();
+        await closeAllModals(createCloseAllModalsRequest());
 
         return;
     };
@@ -1268,9 +1269,9 @@ async function handleChangeCardListSelect(e) {
 }
 
 async function handleClickCloseCard( e ) {
-    e.target.id = 'board';
+    e.preventDefault();
     e.stopPropagation();
-    await closeAllModals(e);
+    await closeAllModals(createCloseAllModalsRequest());
     return;
 }
 
@@ -1317,8 +1318,9 @@ async function handleClickDuplicateCard( e ) {
         body: card.body,
     });
 
-    e.target.id = 'board';
-    await closeAllModals(e, { rerender: true });
+    e.preventDefault();
+    e.stopPropagation();
+    await closeAllModals(createCloseAllModalsRequest(), { rerender: true });
     await toggleEditCardModal(newCardPath);
 
     return;

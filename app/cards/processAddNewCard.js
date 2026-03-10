@@ -13,7 +13,5 @@ async function processAddNewCard( cardName, listPath ){
 
     await window.board.createCard( listPath + fileName, cardName);
     
-    let e = {}; e.target = {}; e.target.id = 'board';
-    
-    await closeAllModals(e, { rerender: true });
+    await closeAllModals(createCloseAllModalsRequest(), { rerender: true });
 }

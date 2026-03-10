@@ -58,6 +58,15 @@ function isCardEditorRelatedClickTarget(target) {
     return false;
 }
 
+function createCloseAllModalsRequest() {
+    return {
+        type: 'click',
+        target: {
+            id: 'board',
+        },
+    };
+}
+
 async function closeAllModals(e, options = {}){
     const eventTarget = e && e.target ? e.target : null;
     const isEscape = e && e.key === 'Escape';

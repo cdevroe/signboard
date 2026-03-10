@@ -13,8 +13,6 @@ async function processAddNewList( listName ){
 
     await window.board.createList( window.boardRoot + fileName );
     
-    let e = {}; e.target = {}; e.target.id = 'board';
-    
-    await closeAllModals(e, { rerender: true });
+    await closeAllModals(createCloseAllModalsRequest(), { rerender: true });
     return;
 }
