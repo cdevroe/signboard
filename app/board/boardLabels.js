@@ -1210,9 +1210,6 @@ function updateBoardLabel(index, key, value) {
   });
 
   setBoardLabels(nextLabels);
-  if (key === 'colorLight') {
-    renderBoardSettingsLabels();
-  }
   renderBoardLabelFilterButton();
   renderBoardLabelFilterPopover();
   scheduleBoardLabelSettingsSave();
