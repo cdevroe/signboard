@@ -334,21 +334,19 @@ function destroyTaskLineDueDateControls() {
 }
 
 function getTaskLineDueControlIconMarkup(hasDueDate) {
-    const iconName = hasDueDate ? 'calendar' : 'plus-circle';
-
     if (
         window.feather &&
         window.feather.icons &&
-        typeof window.feather.icons[iconName]?.toSvg === 'function'
+        typeof window.feather.icons.calendar?.toSvg === 'function'
     ) {
-        return window.feather.icons[iconName].toSvg({
-            width: 14,
-            height: 14,
+        return window.feather.icons.calendar.toSvg({
+            width: 16,
+            height: 16,
             stroke: 'currentColor',
         });
     }
 
-    return `<i data-feather="${iconName}" aria-hidden="true"></i>`;
+    return '<i data-feather="calendar" aria-hidden="true"></i>';
 }
 
 function setupTaskLineDueDateControls(editor) {
@@ -360,6 +358,7 @@ function setupTaskLineDueDateControls(editor) {
 
     const textarea = editor.textarea;
     const wrapper = editor.container.querySelector('.overtype-wrapper');
+    const preview = editor.container.querySelector('.overtype-preview');
     if (!wrapper) {
         return;
     }
@@ -373,13 +372,40 @@ function setupTaskLineDueDateControls(editor) {
         return Number.isFinite(parsed) ? parsed : fallback;
     };
 
+    function getTaskLineAnchorOffset(taskItem, textValue, textLength) {
+        if (!taskItem || !Number.isInteger(taskItem.lineStart)) {
+            return null;
+        }
+
+        const rawLineStart = Math.min(
+            Math.max(0, Number(taskItem.lineStart)),
+            Math.max(0, textLength - 1),
+        );
+        const lineText = String(taskItem.line || '');
+        const leadingWhitespaceMatch = lineText.match(/^\s*/);
+        const leadingWhitespaceLength = leadingWhitespaceMatch ? leadingWhitespaceMatch[0].length : 0;
+        let anchorOffset = Math.min(rawLineStart + leadingWhitespaceLength, Math.max(0, textLength - 1));
+
+        while (anchorOffset < textLength && textValue.charAt(anchorOffset) === '\n') {
+            anchorOffset += 1;
+        }
+
+        if (anchorOffset >= textLength) {
+            return null;
+        }
+
+        return anchorOffset;
+    }
+
     function createTextareaMeasurementMirror() {
         const style = window.getComputedStyle(textarea);
         const mirror = document.createElement('div');
+        const textareaRect = textarea.getBoundingClientRect();
+        const layerRect = layer.getBoundingClientRect();
 
         mirror.style.position = 'absolute';
-        mirror.style.top = '0';
-        mirror.style.left = '-99999px';
+        mirror.style.top = `${Math.round(textareaRect.top - layerRect.top)}px`;
+        mirror.style.left = `${Math.round(textareaRect.left - layerRect.left)}px`;
         mirror.style.visibility = 'hidden';
         mirror.style.pointerEvents = 'none';
         mirror.style.whiteSpace = 'pre-wrap';
@@ -401,8 +427,36 @@ function setupTaskLineDueDateControls(editor) {
         mirror.style.wordSpacing = style.wordSpacing;
         mirror.style.webkitTextSizeAdjust = '100%';
 
-        wrapper.appendChild(mirror);
+        layer.appendChild(mirror);
         return mirror;
+    }
+
+    function getFirstRenderedLineRect(element) {
+        if (!element || typeof element.getBoundingClientRect !== 'function') {
+            return null;
+        }
+
+        const fallbackRect = element.getBoundingClientRect();
+        if (typeof document.createRange !== 'function') {
+            return fallbackRect;
+        }
+
+        const range = document.createRange();
+        try {
+            range.selectNodeContents(element);
+            const clientRects = Array.from(range.getClientRects()).filter((rect) => (
+                rect &&
+                Number.isFinite(rect.top) &&
+                Number.isFinite(rect.left) &&
+                Number.isFinite(rect.height) &&
+                rect.height > 0
+            ));
+            return clientRects[0] || fallbackRect;
+        } finally {
+            if (typeof range.detach === 'function') {
+                range.detach();
+            }
+        }
     }
 
     function getLineStartPositionByTaskIndex(taskItems) {
@@ -411,56 +465,131 @@ function setupTaskLineDueDateControls(editor) {
             return positions;
         }
 
+        if (preview) {
+            const previewChildren = Array.from(preview.children);
+            const previewLineElements = new Map();
+            const rawLines = String(textarea.value || '').split('\n');
+            let lineIndex = 0;
+
+            for (const child of previewChildren) {
+                if (!(child instanceof HTMLElement)) {
+                    continue;
+                }
+
+                const tagName = child.tagName;
+                if (tagName === 'UL' || tagName === 'OL') {
+                    const listItems = Array.from(child.children).filter((element) => element instanceof HTMLElement);
+                    for (const listItem of listItems) {
+                        previewLineElements.set(lineIndex, listItem);
+                        lineIndex += 1;
+                    }
+                    continue;
+                }
+
+                if (tagName === 'PRE') {
+                    const codeElement = child.querySelector('code');
+                    const codeText = codeElement ? String(codeElement.textContent || '') : String(child.textContent || '');
+                    const codeLineCount = Math.max(1, codeText.split('\n').length + 2);
+                    for (let offset = 0; offset < codeLineCount; offset += 1) {
+                        previewLineElements.set(lineIndex, child);
+                        lineIndex += 1;
+                    }
+                    continue;
+                }
+
+                previewLineElements.set(lineIndex, child);
+                lineIndex += 1;
+
+                if (lineIndex >= rawLines.length) {
+                    break;
+                }
+            }
+
+            if (previewLineElements.size > 0) {
+                const layerRect = layer.getBoundingClientRect();
+                for (const taskItem of taskItems) {
+                    const lineElement = previewLineElements.get(taskItem.lineIndex);
+                    if (!lineElement) {
+                        continue;
+                    }
+
+                    const rect = getFirstRenderedLineRect(lineElement);
+                    if (!rect || (!Number.isFinite(rect.top) || !Number.isFinite(rect.left))) {
+                        continue;
+                    }
+
+                    positions.set(taskItem.lineIndex, {
+                        top: rect.top - layerRect.top + preview.scrollTop,
+                        left: rect.left - layerRect.left + preview.scrollLeft,
+                        height: rect.height,
+                    });
+                }
+            }
+
+            if (positions.size > 0) {
+                return positions;
+            }
+        }
+
         const textValue = String(textarea.value || '');
         const mirror = createTextareaMeasurementMirror();
         try {
             const sortedTaskItems = [...taskItems]
                 .filter((item) => item && Number.isInteger(item.lineIndex) && Number.isInteger(item.lineStart))
                 .sort((a, b) => a.lineStart - b.lineStart);
-            const textNode = document.createTextNode(textValue || ' ');
-            mirror.appendChild(textNode);
-
-            const mirrorRect = mirror.getBoundingClientRect();
-            const range = document.createRange();
-            const textLength = textNode.length;
+            const textLength = textValue.length;
+            const layerRect = layer.getBoundingClientRect();
+            let cursor = 0;
+            const markersByLineIndex = new Map();
 
             for (const taskItem of sortedTaskItems) {
-                const rawLineStart = Math.min(
-                    Math.max(0, Number(taskItem.lineStart)),
-                    Math.max(0, textLength - 1),
-                );
-                const lineText = String(taskItem.line || '');
-                const leadingWhitespaceMatch = lineText.match(/^\s*/);
-                const leadingWhitespaceLength = leadingWhitespaceMatch ? leadingWhitespaceMatch[0].length : 0;
-                let anchorOffset = Math.min(rawLineStart + leadingWhitespaceLength, Math.max(0, textLength - 1));
-
-                while (anchorOffset < textLength && textValue.charAt(anchorOffset) === '\n') {
-                    anchorOffset += 1;
-                }
-
-                if (anchorOffset >= textLength) {
+                const anchorOffset = getTaskLineAnchorOffset(taskItem, textValue, textLength);
+                if (anchorOffset === null) {
                     continue;
                 }
 
-                range.setStart(textNode, anchorOffset);
-                range.setEnd(textNode, Math.min(anchorOffset + 1, textLength));
-                let rect = range.getClientRects()[0] || range.getBoundingClientRect();
-                if (!rect || !Number.isFinite(rect.height) || rect.height <= 0) {
-                    range.setEnd(textNode, anchorOffset);
-                    rect = range.getBoundingClientRect();
+                if (anchorOffset > cursor) {
+                    mirror.appendChild(document.createTextNode(textValue.slice(cursor, anchorOffset)));
                 }
+
+                const marker = document.createElement('span');
+                marker.textContent = '\u200b';
+                marker.setAttribute('aria-hidden', 'true');
+                marker.style.display = 'inline';
+                marker.style.padding = '0';
+                marker.style.margin = '0';
+                marker.style.border = '0';
+                marker.style.lineHeight = 'inherit';
+                marker.style.pointerEvents = 'none';
+                mirror.appendChild(marker);
+                markersByLineIndex.set(taskItem.lineIndex, marker);
+
+                cursor = anchorOffset;
+            }
+
+            if (cursor < textLength) {
+                mirror.appendChild(document.createTextNode(textValue.slice(cursor)));
+            } else if (textLength === 0) {
+                mirror.appendChild(document.createTextNode(' '));
+            }
+
+            for (const taskItem of sortedTaskItems) {
+                const marker = markersByLineIndex.get(taskItem.lineIndex);
+                if (!marker) {
+                    continue;
+                }
+
+                const rect = marker.getBoundingClientRect();
                 if (!rect || (!Number.isFinite(rect.top) || !Number.isFinite(rect.left))) {
                     continue;
                 }
 
                 positions.set(taskItem.lineIndex, {
-                    top: rect.top - mirrorRect.top + 18,
-                    left: rect.left - mirrorRect.left,
+                    top: rect.top - layerRect.top,
+                    left: rect.left - layerRect.left,
                     height: rect.height,
                 });
             }
-
-            range.detach();
         } finally {
             mirror.remove();
         }
@@ -479,7 +608,7 @@ function setupTaskLineDueDateControls(editor) {
         const style = window.getComputedStyle(textarea);
         const fontSize = toFiniteNumber(style.fontSize, 16);
         const lineHeight = Math.max(toFiniteNumber(style.lineHeight, fontSize * 1.6), 1);
-        const controlSize = 18;
+        const controlSize = 20;
         const lineStartPositions = getLineStartPositionByTaskIndex(taskItems);
         const visibleTop = -lineHeight;
         const visibleBottom = textarea.clientHeight + lineHeight;
@@ -503,12 +632,13 @@ function setupTaskLineDueDateControls(editor) {
             button.className = 'task-line-due-control';
             button.dataset.lineIndex = String(taskItem.lineIndex);
             button.style.top = `${buttonTop}px`;
-            button.style.left = `${Math.max(2, Math.round(linePosition.left - textarea.scrollLeft - 20))}px`;
+            button.style.left = `${Math.max(1, Math.round(linePosition.left - textarea.scrollLeft - 22))}px`;
 
             if (taskItem.due) {
+                const dueLabel = formatLongDueDateLabel(taskItem.due);
                 button.classList.add('has-due');
-                button.title = `Task due ${taskItem.due}`;
-                button.setAttribute('aria-label', `Task due ${taskItem.due}. Change due date.`);
+                button.title = `Due ${dueLabel}`;
+                button.setAttribute('aria-label', `Due ${dueLabel}. Change due date.`);
             } else {
                 button.title = 'Set task due date';
                 button.setAttribute('aria-label', 'Set task due date');
@@ -535,11 +665,17 @@ function setupTaskLineDueDateControls(editor) {
                             return;
                         }
 
+                        const caretPosition = getLineEndOffsetByLineIndex(nextValue, targetLineIndex);
                         textarea.value = nextValue;
                         textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                        if (typeof textarea.focus === 'function') {
-                            textarea.focus();
-                        }
+                        window.requestAnimationFrame(() => {
+                            if (typeof textarea.focus === 'function') {
+                                textarea.focus();
+                            }
+                            if (typeof textarea.setSelectionRange === 'function') {
+                                textarea.setSelectionRange(caretPosition, caretPosition);
+                            }
+                        });
                     },
                 });
             });
@@ -563,6 +699,36 @@ function setupTaskLineDueDateControls(editor) {
     textarea.addEventListener('input', requestRender);
     textarea.addEventListener('scroll', requestRender);
     window.addEventListener('resize', requestRender);
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver === 'function') {
+        resizeObserver = new ResizeObserver(() => {
+            requestRender();
+        });
+        resizeObserver.observe(textarea);
+        resizeObserver.observe(wrapper);
+        if (editor.container) {
+            resizeObserver.observe(editor.container);
+        }
+    }
+
+    let containerMutationObserver = null;
+    if (typeof MutationObserver === 'function' && editor.container) {
+        containerMutationObserver = new MutationObserver(() => {
+            requestRender();
+        });
+        containerMutationObserver.observe(editor.container, {
+            attributes: true,
+            attributeFilter: ['class', 'style'],
+        });
+    }
+
+    if (document.fonts && typeof document.fonts.ready?.then === 'function') {
+        document.fonts.ready.then(() => {
+            requestRender();
+        }).catch(() => {});
+    }
+
     requestRender();
 
     taskLineDueControlsTeardown = () => {
@@ -574,6 +740,12 @@ function setupTaskLineDueDateControls(editor) {
         textarea.removeEventListener('input', requestRender);
         textarea.removeEventListener('scroll', requestRender);
         window.removeEventListener('resize', requestRender);
+        if (resizeObserver) {
+            resizeObserver.disconnect();
+        }
+        if (containerMutationObserver) {
+            containerMutationObserver.disconnect();
+        }
 
         if (layer.parentNode) {
             layer.parentNode.removeChild(layer);

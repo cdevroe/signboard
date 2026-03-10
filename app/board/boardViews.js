@@ -284,6 +284,57 @@ function truncateCalendarCardTitle(titleText) {
   return normalized.replace(/^#\s+/, '');
 }
 
+function getTaskItemsDueOnDate(taskItems, dueDateValue) {
+  const normalizedDueDate = normalizeTaskDueDateValue(dueDateValue);
+  if (!normalizedDueDate || !Array.isArray(taskItems)) {
+    return [];
+  }
+
+  return taskItems.filter((taskItem) => normalizeTaskDueDateValue(taskItem && taskItem.due) === normalizedDueDate);
+}
+
+function formatTemporalTaskTitle(taskItems) {
+  if (!Array.isArray(taskItems) || taskItems.length === 0) {
+    return 'Task due';
+  }
+
+  const firstTask = taskItems[0];
+  const firstTaskText = truncateCalendarCardTitle(firstTask && (firstTask.contentWithoutDue || firstTask.content));
+  const additionalCount = Math.max(0, taskItems.length - 1);
+
+  if (additionalCount <= 0) {
+    return firstTaskText;
+  }
+
+  return `${firstTaskText} +${additionalCount} more`;
+}
+
+function createTemporalPlacementForDate(cardEntry, dueDateValue) {
+  const normalizedDueDate = normalizeTaskDueDateValue(dueDateValue);
+  if (!normalizedDueDate) {
+    return null;
+  }
+
+  const taskItemsDueOnDate = getTaskItemsDueOnDate(cardEntry.taskItems, normalizedDueDate);
+  if (taskItemsDueOnDate.length > 0) {
+    return {
+      ...cardEntry,
+      temporalDisplayTitle: formatTemporalTaskTitle(taskItemsDueOnDate),
+      temporalDisplaySubtitle: cardEntry.title,
+      temporalReason: 'task',
+      temporalTaskCount: taskItemsDueOnDate.length,
+    };
+  }
+
+  return {
+    ...cardEntry,
+    temporalDisplayTitle: cardEntry.title,
+    temporalDisplaySubtitle: '',
+    temporalReason: 'card',
+    temporalTaskCount: 0,
+  };
+}
+
 async function collectCardsForCalendar(boardRoot, lists) {
   const listNames = Array.isArray(lists) ? lists : [];
   const cardPaths = [];
@@ -312,6 +363,7 @@ async function collectCardsForCalendar(boardRoot, lists) {
         ? card.frontmatter
         : {};
       const body = String(card && card.body ? card.body : '');
+      const taskItems = parseTaskListItems(body);
 
       return {
         cardPath,
@@ -322,6 +374,7 @@ async function collectCardsForCalendar(boardRoot, lists) {
           : [],
         body,
         taskSummary: getTaskListSummary(body),
+        taskItems,
         taskDueDates: getTaskListDueDates(body),
       };
     }),
@@ -379,7 +432,10 @@ function buildCalendarCardBuckets(cardEntries, monthCursor) {
         buckets.set(isoDate, []);
       }
 
-      buckets.get(isoDate).push(entry);
+      const placement = createTemporalPlacementForDate(entry, dueDateValue);
+      if (placement) {
+        buckets.get(isoDate).push(placement);
+      }
     }
   }
 
@@ -434,7 +490,10 @@ function buildWeekCardBuckets(cardEntries, weekStartDate) {
         buckets.set(isoDate, []);
       }
 
-      buckets.get(isoDate).push(entry);
+      const placement = createTemporalPlacementForDate(entry, dueDateValue);
+      if (placement) {
+        buckets.get(isoDate).push(placement);
+      }
     }
   }
 
@@ -479,6 +538,25 @@ function syncBoardViewControlState() {
   renderBoardViewPopover();
 }
 
+function getBoardViewIconMarkup(viewId) {
+  const normalizedViewId = normalizeBoardViewId(viewId);
+  const iconName = BOARD_VIEW_ICON_BY_ID[normalizedViewId] || BOARD_VIEW_ICON_BY_ID[BOARD_VIEW_IDS.KANBAN];
+
+  if (
+    window.feather &&
+    window.feather.icons &&
+    typeof window.feather.icons[iconName]?.toSvg === 'function'
+  ) {
+    return window.feather.icons[iconName].toSvg({
+      width: 14,
+      height: 14,
+      stroke: 'currentColor',
+    });
+  }
+
+  return `<i data-feather="${iconName}" aria-hidden="true"></i>`;
+}
+
 function closeBoardViewPopover() {
   const popover = document.getElementById('boardViewPopover');
   if (!popover) {
@@ -519,7 +597,8 @@ function renderBoardViewPopover() {
     optionButton.setAttribute('aria-pressed', String(option.id === activeView));
     optionButton.innerHTML = `
       <span class="board-view-option-check">${option.id === activeView ? '✓' : ''}</span>
-      <span>${option.label}</span>
+      <span class="board-view-option-icon" aria-hidden="true">${getBoardViewIconMarkup(option.id)}</span>
+      <span class="board-view-option-label">${option.label}</span>
     `;
     optionButton.addEventListener('click', (event) => {
       event.preventDefault();
@@ -613,8 +692,17 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
 
   const title = document.createElement('span');
   title.className = 'board-temporal-card-title';
-  title.textContent = cardEntry.title;
+  title.textContent = cardEntry.temporalDisplayTitle || cardEntry.title;
   cardButton.appendChild(title);
+
+  const subtitleText = String(cardEntry.temporalDisplaySubtitle || '').trim();
+  if (subtitleText) {
+    cardButton.classList.add('has-context');
+    const subtitle = document.createElement('span');
+    subtitle.className = 'board-temporal-card-context';
+    subtitle.textContent = subtitleText;
+    cardButton.appendChild(subtitle);
+  }
 
   const taskProgressBadge = createTaskProgressBadge(
     cardEntry.taskSummary,

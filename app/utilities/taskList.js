@@ -177,3 +177,35 @@ function setTaskListItemDueDateByLineIndex(bodyValue, lineIndex, dueDateValue) {
   const newline = body.includes('\r\n') ? '\r\n' : '\n';
   return lines.join(newline);
 }
+
+function getLineEndOffsetByLineIndex(bodyValue, lineIndex) {
+  const body = String(bodyValue || '');
+  const requestedLineIndex = Number(lineIndex);
+  if (!Number.isInteger(requestedLineIndex) || requestedLineIndex < 0) {
+    return body.length;
+  }
+
+  let currentLineIndex = 0;
+  let cursor = 0;
+
+  while (currentLineIndex < requestedLineIndex) {
+    const newlineIndex = body.indexOf('\n', cursor);
+    if (newlineIndex === -1) {
+      return body.length;
+    }
+
+    cursor = newlineIndex + 1;
+    currentLineIndex += 1;
+  }
+
+  let lineEnd = body.indexOf('\n', cursor);
+  if (lineEnd === -1) {
+    lineEnd = body.length;
+  }
+
+  if (lineEnd > cursor && body.charAt(lineEnd - 1) === '\r') {
+    lineEnd -= 1;
+  }
+
+  return lineEnd;
+}

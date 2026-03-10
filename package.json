@@ -44,6 +44,7 @@
     "test:board-labels": "node scripts/test-board-labels.js",
     "test:mcp": "node scripts/test-mcp-server.js",
     "test:board-card-metadata": "node scripts/test-board-card-metadata.js",
+    "test:board-views": "node scripts/test-board-views.js",
     "test:due-notifications": "node scripts/test-due-notifications.js",
     "test:task-list": "node scripts/test-task-list-parser.js",
     "test:timestamp": "node scripts/test-timestamp-format.js",

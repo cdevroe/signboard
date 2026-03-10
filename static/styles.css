@@ -561,11 +561,14 @@ main#board.board-view-week {
 
 .board-calendar-day-cards {
   flex: 1 1 auto;
-  min-height: 68px;
+  min-height: 0;
   padding: 2px 8px 8px;
   display: grid;
   align-content: start;
   gap: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .board-calendar-card {
@@ -656,11 +659,14 @@ main#board.board-view-week {
 
 .board-this-week-day-cards {
   flex: 1 1 auto;
-  min-height: 68px;
+  min-height: 0;
   padding: 8px;
   display: grid;
   align-content: start;
   gap: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .board-this-week-card {
@@ -692,6 +698,17 @@ main#board.board-view-week {
 .board-temporal-card-title {
   display: block;
   width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-temporal-card-context {
+  display: block;
+  width: 100%;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1631,6 +1648,25 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   flex: 0 0 12px;
 }
 
+.board-view-option-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+  flex: 0 0 14px;
+}
+
+.board-view-option-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.board-view-option-label {
+  min-width: 0;
+}
+
 .label-color-swatch {
   height: 12px;
   width: 12px;
@@ -1905,8 +1941,8 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border-radius: 999px;
   border: 1px solid color-mix(in oklab, var(--border) 84%, transparent);
@@ -1923,12 +1959,15 @@ select:disabled {
 }
 
 #cardEditorOverType .task-line-due-control.has-due {
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
   color: color-mix(in oklab, var(--accent) 80%, var(--text));
 }
 
 #cardEditorOverType .task-line-due-control svg {
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 #cardEditorOverType .overtype-container.preview-mode .task-line-due-layer {

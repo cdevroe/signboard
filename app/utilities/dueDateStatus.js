@@ -2,6 +2,12 @@ const DUE_DATE_VISUAL_CLASSES = Object.freeze([
   'due-date-today',
   'due-date-tomorrow',
 ]);
+const longDueDateFormatter = new Intl.DateTimeFormat('en-US', {
+  weekday: 'long',
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+});
 
 function parseIsoDateStringToLocalDate(dateValue) {
   const normalized = String(dateValue || '').trim();
@@ -25,6 +31,15 @@ function parseIsoDateStringToLocalDate(dateValue) {
   }
 
   return parsedDate;
+}
+
+function formatLongDueDateLabel(dateValue) {
+  const parsedDate = parseIsoDateStringToLocalDate(dateValue);
+  if (!parsedDate) {
+    return String(dateValue || '').trim();
+  }
+
+  return longDueDateFormatter.format(parsedDate);
 }
 
 function getDueDateVisualClass(dueDateValue) {
