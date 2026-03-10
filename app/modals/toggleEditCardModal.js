@@ -83,18 +83,34 @@ function setEditorLabelDisplay(labelIds) {
         return;
     }
 
+    cardEditorCardLabels.innerHTML = '';
+
     const ids = Array.isArray(labelIds) ? labelIds.map((labelId) => String(labelId)) : [];
     if (ids.length === 0) {
-        cardEditorCardLabels.textContent = '';
+        cardEditorCardLabels.classList.remove('card-labels', 'card-editor-labels');
         return;
     }
 
-    const names = ids.map((labelId) => {
-        const label = getBoardLabelById(labelId);
-        return label ? label.name : 'Unknown label';
-    });
+    cardEditorCardLabels.classList.add('card-labels', 'card-editor-labels');
 
-    cardEditorCardLabels.textContent = names.join(', ');
+    for (const labelId of ids) {
+        const label = getBoardLabelById(labelId);
+        const labelChip = document.createElement('span');
+        labelChip.className = 'card-label-chip';
+
+        if (label) {
+            const chipColor = getBoardLabelColor(label);
+            labelChip.textContent = label.name;
+            labelChip.style.backgroundColor = `${chipColor}22`;
+            labelChip.style.borderColor = chipColor;
+        } else {
+            labelChip.classList.add('card-label-chip-unknown');
+            labelChip.textContent = 'Unknown label';
+            labelChip.title = labelId;
+        }
+
+        cardEditorCardLabels.appendChild(labelChip);
+    }
 }
 
 let pendingEditorBody = '';

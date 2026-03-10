@@ -135,6 +135,21 @@ class MockElement {
     return this.attributes[name];
   }
 
+  removeAttribute(name) {
+    delete this.attributes[name];
+    if (name.startsWith('data-')) {
+      const key = name
+        .slice(5)
+        .split('-')
+        .map((part, index) => (index === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+        .join('');
+      delete this.dataset[key];
+    }
+    if (name === 'class') {
+      this.className = '';
+    }
+  }
+
   addEventListener(type, handler) {
     if (!this.listeners[type]) {
       this.listeners[type] = [];

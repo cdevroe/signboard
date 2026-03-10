@@ -1812,7 +1812,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 #modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
 #modalEditCard #cardEditorCardDueDateDisplay { font-size: var(--font-sm); color: var(--muted); }
-#modalEditCard #cardEditorSetDueDateLink { text-decoration: none; }
+#modalEditCard #cardEditorSetDueDateLink,
+#modalEditCard #cardEditorSetLabelsLink { text-decoration: none; }
 #modalEditCard .cardEditorMetadataButtons #cardEditorSetDueDateLink.due-date-today { color: var(--due-date-today-color); }
 #modalEditCard .cardEditorMetadataButtons #cardEditorSetDueDateLink.due-date-tomorrow { color: var(--due-date-tomorrow-color); }
 
@@ -1869,8 +1870,30 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   color: var(--text);
   animation: card-editor-list-move-check-pop 180ms ease;
 }
-#modalEditCard .cardEditorMetadataButtons a { color: var(--muted); }
-#modalEditCard .cardEditorMetadataButtons span { vertical-align: top; margin-right: 15px; }
+#modalEditCard .cardEditorMetadataButtons {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+#modalEditCard .cardEditorMetadataButtons a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+#modalEditCard #cardEditorCardDueDateDisplay,
+#modalEditCard #cardEditorCardLabels { margin-right: 0; }
+#modalEditCard #cardEditorCardLabels.card-editor-labels {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-right: 0;
+}
+#modalEditCard #cardEditorCardLabels.card-editor-labels .card-label-chip {
+  cursor: inherit;
+}
 #modalEditCard .cardEditorHeader a svg, #modalEditCard .cardEditorMetadataButtons a svg { height: 18px; }
 
 @keyframes card-editor-list-move-check-pop {
