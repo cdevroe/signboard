@@ -130,10 +130,12 @@ function createTaskProgressBadge(taskSummary, className = '') {
   }
 
   const completed = Number(summary.completed) || 0;
+  const progressLabel = `${completed}/${total} tasks completed`;
   const badge = document.createElement('span');
   badge.className = `task-progress-badge ${className}`.trim();
-  badge.title = `${completed}/${total} tasks completed`;
-  badge.setAttribute('aria-label', `${completed}/${total} tasks completed`);
+  badge.title = progressLabel;
+  badge.setAttribute('data-sb-tooltip', progressLabel);
+  badge.setAttribute('aria-label', progressLabel);
 
   if (completed >= total) {
     badge.classList.add('task-progress-badge-complete');

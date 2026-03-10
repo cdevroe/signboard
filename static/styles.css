@@ -1070,6 +1070,7 @@ body.board-empty main#board {
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
+  cursor: pointer;
 }
 
 .card-label-chip {
@@ -1081,6 +1082,7 @@ body.board-empty main#board {
   font-size: 11px;
   color: var(--text);
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .card-label-chip-unknown {

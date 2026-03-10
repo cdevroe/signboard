@@ -1,4 +1,4 @@
-const TOOLTIP_TARGET_SELECTOR = 'button, a[href], [role="button"], select, input[type="button"], input[type="submit"]';
+const TOOLTIP_TARGET_SELECTOR = 'button, a[href], [role="button"], select, input[type="button"], input[type="submit"], [data-sb-tooltip]';
 const TOOLTIP_EXCLUDED_CONTAINER_SELECTOR = '#boardTabs';
 const TOOLTIP_TEXT_ATTR = 'data-sb-tooltip';
 const TOOLTIP_ID = 'sbTooltip';
@@ -94,9 +94,24 @@ function syncTooltipTarget(element) {
     return;
   }
 
+  const setTooltipText = (text) => {
+    const normalizedText = collapseTooltipText(text);
+    const currentText = collapseTooltipText(element.getAttribute(TOOLTIP_TEXT_ATTR));
+    if (!normalizedText) {
+      if (element.hasAttribute(TOOLTIP_TEXT_ATTR)) {
+        element.removeAttribute(TOOLTIP_TEXT_ATTR);
+      }
+      return;
+    }
+
+    if (currentText !== normalizedText) {
+      element.setAttribute(TOOLTIP_TEXT_ATTR, normalizedText);
+    }
+  };
+
   const title = collapseTooltipText(element.getAttribute('title'));
   if (title) {
-    element.setAttribute(TOOLTIP_TEXT_ATTR, title);
+    setTooltipText(title);
     if (!element.hasAttribute('aria-label')) {
       element.setAttribute('aria-label', title);
     }
@@ -106,9 +121,9 @@ function syncTooltipTarget(element) {
 
   const tooltipText = getTooltipTextFromElement(element);
   if (tooltipText) {
-    element.setAttribute(TOOLTIP_TEXT_ATTR, tooltipText);
+    setTooltipText(tooltipText);
   } else {
-    element.removeAttribute(TOOLTIP_TEXT_ATTR);
+    setTooltipText('');
   }
 }
 
@@ -290,7 +305,7 @@ function observeTooltipTargets() {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['title', 'aria-label', 'alt', 'data-tooltip', 'data-sb-tooltip-disabled'],
+    attributeFilter: ['title', 'aria-label', 'alt', 'data-tooltip', 'data-sb-tooltip', 'data-sb-tooltip-disabled'],
   });
 
   state.observer = observer;

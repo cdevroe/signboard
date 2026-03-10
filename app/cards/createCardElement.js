@@ -96,9 +96,11 @@ async function createCardElement(cardPath) {
     if (hasLabels) {
       labelButton.title = 'Edit labels';
       labelButton.setAttribute('aria-label', 'Edit labels');
+      cardLabelsWrap.setAttribute('data-sb-tooltip', 'Edit labels');
     } else {
       labelButton.title = 'Set labels';
       labelButton.setAttribute('aria-label', 'Set labels');
+      cardLabelsWrap.removeAttribute('data-sb-tooltip');
     }
   }
 
@@ -163,6 +165,17 @@ async function createCardElement(cardPath) {
     }
   }
 
+  function openCardLabelChooser(anchorElement) {
+    toggleCardLabelSelector(
+      anchorElement,
+      cardPath,
+      selectedLabelIds,
+      async (nextLabelIds) => {
+        await updateCardLabels(nextLabelIds);
+      },
+    );
+  }
+
   await renderDueDateDisplay();
   renderCardLabels();
 
@@ -181,15 +194,18 @@ async function createCardElement(cardPath) {
   labelButton.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
+    openCardLabelChooser(labelButton);
+  });
 
-    toggleCardLabelSelector(
-      labelButton,
-      cardPath,
-      selectedLabelIds,
-      async (nextLabelIds) => {
-        await updateCardLabels(nextLabelIds);
-      },
-    );
+  cardLabelsWrap.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target.closest('.card-label-chip') : null;
+    if (!target || !cardLabelsWrap.contains(target)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    openCardLabelChooser(cardLabelsWrap);
   });
 
   body.appendChild(metadata);
