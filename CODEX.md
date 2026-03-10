@@ -14,6 +14,7 @@ Start here before opening source files.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
 - `preload.js` exposes board filesystem watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`) and `app/init.js` uses them to auto-refresh UI after external board changes.
 - Board view switching (Kanban/Calendar/This Week) is managed in `app/board/boardViews.js`; temporal views include cards by card due date and task-level due markers (`(due: YYYY-MM-DD)`).
+- Keyboard shortcut handling is centralized in `app/listeners/window.js`; the hold-for-2-seconds shortcut helper modal is rendered in `index.html` as `#modalKeyboardShortcuts` and must be kept in sync whenever shortcuts change.
 - Task checklist parsing + counters + task due-date helpers live in `app/utilities/taskList.js` and feed Board/Calendar/This Week card badges.
 - Due notification aggregation/formatting (including task-due item snippets) lives in `app/utilities/dueNotifications.js` and is consumed by `app/init.js`.
 - Task-line due-date controls in the editor are positioned from measured textarea line-start coordinates (not raw line index math) to stay aligned with wrapped content.

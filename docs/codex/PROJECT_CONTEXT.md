@@ -161,12 +161,14 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 ### Keyboard shortcuts
 - `app/listeners/window.js`:
+  - Holding `Cmd` (macOS) or `Ctrl` (Windows/Linux) for 2+ seconds opens the keyboard shortcuts helper modal and releasing that key closes it.
   - `Esc`: close modals.
   - `Cmd/Ctrl + N`: add card (with list picker modal).
   - `Cmd/Ctrl + Shift + N`: add list.
   - `Cmd/Ctrl + 1`: switch to Kanban view.
   - `Cmd/Ctrl + 2`: switch to Calendar view.
   - `Cmd/Ctrl + 3`: switch to This Week view.
+  - Any shortcut changes must update the helper list in `index.html` (`#modalKeyboardShortcuts`) in the same change.
 
 ### Theme support
 - `app/ui/theme.js`:

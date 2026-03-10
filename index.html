@@ -73,6 +73,54 @@
     <p><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"> <button id="btnAddCardToList" title="Add card to selected list">Add</button></p>
   </div>
 
+  <div id="modalKeyboardShortcuts" class="modal keyboard-shortcuts-modal hidden" aria-hidden="true">
+    <div class="keyboard-shortcuts-header">
+      <h2>Keyboard Shortcuts</h2>
+      <p>Hold <span class="shortcut-modifier-label">Command</span> for two seconds to open this list.</p>
+    </div>
+    <div class="keyboard-shortcuts-grid">
+      <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-create">
+        <h3 id="keyboard-shortcuts-section-create">Create</h3>
+        <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Add card</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + N</kbd>
+          </li>
+          <li>
+            <span>Add list</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + Shift + N</kbd>
+          </li>
+        </ul>
+      </section>
+      <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-views">
+        <h3 id="keyboard-shortcuts-section-views">Switch Views</h3>
+        <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Kanban view</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + 1</kbd>
+          </li>
+          <li>
+            <span>Calendar view</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + 2</kbd>
+          </li>
+          <li>
+            <span>This Week view</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + 3</kbd>
+          </li>
+        </ul>
+      </section>
+      <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-modals">
+        <h3 id="keyboard-shortcuts-section-modals">Modals</h3>
+        <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Close open modals</span>
+            <kbd>Esc</kbd>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
   <div id="modalBoardSettings" class="modal hidden">
     <div class="boardSettingsHeader">
       <h2>Board Settings</h2>
