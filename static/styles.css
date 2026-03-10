@@ -244,6 +244,9 @@ body.board-empty #boardViewButton {
 
 /* Theme toggle button (uses your existing button element) */
 #themeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--bg-card);
   color: var(--text);
   border: 1px solid var(--border);
@@ -256,6 +259,10 @@ body.board-empty #boardViewButton {
 #themeToggle:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)); }
 #themeToggle:active { transform: translateY(1px); }
 #themeToggle:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card)); }
+#themeToggle svg {
+  width: 16px;
+  height: 16px;
+}
 
 #boardTabsWrapper {
   width: 100%;
@@ -714,9 +721,37 @@ main#board.board-view-week {
   text-overflow: ellipsis;
 }
 
+.board-temporal-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.board-temporal-card-list {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 6px;
+  border: 1px solid color-mix(in oklab, var(--border) 84%, transparent);
+  background: color-mix(in oklab, var(--bg-card) 76%, var(--border));
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.15;
+  letter-spacing: .01em;
+  padding: 2px 6px;
+}
+
 .board-temporal-task-progress {
+  margin-left: auto;
   font-size: 11px;
   line-height: 1;
+  flex: 0 0 auto;
 }
 
 .board-temporal-task-progress svg {

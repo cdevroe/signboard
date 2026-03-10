@@ -26,7 +26,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and task due markers.
 - `app/board/boardLabels.js` - Board-label state, toolbar filter UI, card label popovers, and board settings label editor.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
-- `app/board/boardViews.js` - Board view state, `Views` menu wiring, Calendar + This Week rendering/navigation/drag-to-reschedule logic, and temporal card placement by card due/task due markers.
+- `app/board/boardViews.js` - Board view state, `Views` menu wiring, Calendar + This Week rendering/navigation/drag-to-reschedule logic, temporal card placement by card due/task due markers, and source-list labels on temporal cards.
 - `app/cards/createCardElement.js` - Card DOM rendering, task progress badge display, and click behavior.
 - `app/cards/processAddNewCard.js` - New card creation flow.
 - `app/cards/processAddNewList.js` - New list creation flow.

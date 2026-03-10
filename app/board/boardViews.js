@@ -284,6 +284,20 @@ function truncateCalendarCardTitle(titleText) {
   return normalized.replace(/^#\s+/, '');
 }
 
+function getBoardListDisplayName(listName) {
+  const normalized = String(listName || '').trim();
+  if (!normalized) {
+    return 'Untitled';
+  }
+
+  const listNameMatch = normalized.match(/^\d{3}-(.*?)(-[^-]{5}|-stock)$/);
+  if (listNameMatch) {
+    return String(listNameMatch[1] || '').trim() || 'Untitled';
+  }
+
+  return normalized;
+}
+
 function getTaskItemsDueOnDate(taskItems, dueDateValue) {
   const normalizedDueDate = normalizeTaskDueDateValue(dueDateValue);
   if (!normalizedDueDate || !Array.isArray(taskItems)) {
@@ -344,20 +358,26 @@ async function collectCardsForCalendar(boardRoot, lists) {
       const listPath = `${boardRoot}${listName}`;
       const cardNames = await window.board.listCards(listPath);
       return {
+        listName,
+        listDisplayName: getBoardListDisplayName(listName),
         listPath,
         cardNames: Array.isArray(cardNames) ? cardNames : [],
       };
     }),
   );
 
-  for (const { listPath, cardNames } of listEntries) {
+  for (const { listName, listDisplayName, listPath, cardNames } of listEntries) {
     for (const cardName of cardNames) {
-      cardPaths.push(`${listPath}/${cardName}`);
+      cardPaths.push({
+        listName,
+        listDisplayName,
+        cardPath: `${listPath}/${cardName}`,
+      });
     }
   }
 
   const cardEntries = await Promise.all(
-    cardPaths.map(async (cardPath) => {
+    cardPaths.map(async ({ listName, listDisplayName, cardPath }) => {
       const card = await window.board.readCard(cardPath);
       const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
         ? card.frontmatter
@@ -367,6 +387,8 @@ async function collectCardsForCalendar(boardRoot, lists) {
 
       return {
         cardPath,
+        listName,
+        listDisplayName,
         title: truncateCalendarCardTitle(frontmatter.title),
         due: String(frontmatter.due || '').trim(),
         labels: Array.isArray(frontmatter.labels)
@@ -704,12 +726,28 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
     cardButton.appendChild(subtitle);
   }
 
+  const footer = document.createElement('span');
+  footer.className = 'board-temporal-card-footer';
+
+  const listNameText = String(cardEntry.listDisplayName || '').trim();
+  if (listNameText) {
+    const listName = document.createElement('span');
+    listName.className = 'board-temporal-card-list';
+    listName.textContent = listNameText;
+    listName.title = `In ${listNameText}`;
+    footer.appendChild(listName);
+  }
+
   const taskProgressBadge = createTaskProgressBadge(
     cardEntry.taskSummary,
     'board-temporal-task-progress',
   );
   if (taskProgressBadge) {
-    cardButton.appendChild(taskProgressBadge);
+    footer.appendChild(taskProgressBadge);
+  }
+
+  if (footer.childElementCount > 0) {
+    cardButton.appendChild(footer);
   }
 
   cardButton.addEventListener('click', (event) => {

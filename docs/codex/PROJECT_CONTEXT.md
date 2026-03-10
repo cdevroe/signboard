@@ -115,7 +115,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Renders This Week layout, week navigation, and current-day highlighting.
   - Renders due-date cards in temporal views and updates card due dates by drag/drop across days.
   - Includes cards by both card due date and task due markers, deduped per day per card.
-  - Shows task progress badges on temporal cards.
+  - Shows task progress badges and a subdued source-list label on temporal cards.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior.
   - Enables card drag-and-drop reorder and cross-list move.
