@@ -1,3 +1,44 @@
+function isEditableShortcutTarget(target) {
+    if (!target) {
+        return false;
+    }
+
+    if (target.isContentEditable) {
+        return true;
+    }
+
+    if (typeof target.closest !== 'function') {
+        return false;
+    }
+
+    return Boolean(target.closest('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]'));
+}
+
+function handleBoardViewShortcut(e) {
+    if (e.shiftKey || e.altKey || isEditableShortcutTarget(e.target) || typeof setActiveBoardView !== 'function') {
+        return false;
+    }
+
+    let nextViewId = '';
+    switch (e.code) {
+        case 'Digit1':
+            nextViewId = 'kanban';
+            break;
+        case 'Digit2':
+            nextViewId = 'calendar';
+            break;
+        case 'Digit3':
+            nextViewId = 'this-week';
+            break;
+        default:
+            return false;
+    }
+
+    e.preventDefault();
+    setActiveBoardView(nextViewId);
+    return true;
+}
+
 window.addEventListener('keydown', async (e) => {
 
         if ( e.key == 'Escape' ) {
@@ -6,8 +47,12 @@ window.addEventListener('keydown', async (e) => {
         }
     
         if (!e.ctrlKey && !e.metaKey) return;
+
+        if (handleBoardViewShortcut(e)) {
+            return;
+        }
         
-        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        if ((e.ctrlKey || e.metaKey) && String(e.key || '').toLowerCase() === 'n') {
             e.preventDefault(); // Prevent default behavior (if any)
             
             if ( e.shiftKey ) { // Add List

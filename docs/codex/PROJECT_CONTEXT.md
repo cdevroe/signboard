@@ -164,6 +164,9 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Esc`: close modals.
   - `Cmd/Ctrl + N`: add card (with list picker modal).
   - `Cmd/Ctrl + Shift + N`: add list.
+  - `Cmd/Ctrl + 1`: switch to Kanban view.
+  - `Cmd/Ctrl + 2`: switch to Calendar view.
+  - `Cmd/Ctrl + 3`: switch to This Week view.
 
 ### Theme support
 - `app/ui/theme.js`:
