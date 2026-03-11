@@ -5,6 +5,9 @@
   "license": "MIT",
   "author": "Colin Devroe <colin@cdevroe.com> (https://cdevroe.com)",
   "main": "main.js",
+  "bin": {
+    "signboard": "./bin/signboard.js"
+  },
   "build": {
     "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
     "nsis": {
@@ -37,9 +40,13 @@
   "scripts": {
     "prestart": "npm run build:js",
     "start": "electron .",
+    "cli": "node ./bin/signboard.js",
     "mcp:server": "electron . --mcp-server",
     "mcp:config": "electron . --mcp-config",
     "build:js": "./buildjs.sh",
+    "test:cli": "node scripts/test-cli.js",
+    "test:cli-install": "node scripts/test-cli-install.js",
+    "test:desktop-cli": "node scripts/test-desktop-cli.js",
     "test:frontmatter": "node scripts/test-frontmatter.js",
     "test:board-labels": "node scripts/test-board-labels.js",
     "test:mcp": "node scripts/test-mcp-server.js",

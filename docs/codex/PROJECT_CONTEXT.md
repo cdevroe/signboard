@@ -30,6 +30,9 @@ File: `main.js`
 - Uses `preload.js` for renderer API exposure.
 - In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
+- Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card management.
+- The packaged Electron executable also routes `lists ...` and `cards ...` CLI invocations through `main.js` without opening the desktop window.
+- Help menu includes `Install Signboard CLI` on macOS/Linux, which installs a per-user shim and PATH profile block for the packaged app executable.
 - Security-related window settings are:
   - `contextIsolation: true`
   - `nodeIntegration: false`
@@ -210,6 +213,12 @@ File: `lib/boardLabels.js`
 ### Run locally
 - `npm start`
 
+### Run CLI locally
+- `npm run cli -- <command>`
+- `node bin/signboard.js <command>`
+- `electron . <command>` routes through the desktop executable path used by packaged builds.
+- CLI board selection is stateful: `signboard use /path/to/board`, then `signboard lists`, `signboard cards`, or `signboard cards "List Name"`.
+
 ### Run MCP server locally
 - `npm run mcp:server`
 
@@ -219,6 +228,13 @@ File: `lib/boardLabels.js`
 ### Rebuild renderer bundle after module edits
 - `./buildjs.sh`
 - Concatenates module files into `app/signboard.js` in strict order.
+
+### CLI internals
+- `lib/cliBoard.js` owns CLI board/list/card filesystem operations.
+- `lib/taskList.js` exposes shared task parsing and due-date helpers for CLI filtering.
+- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable.
+- `lib/cliInstall.js` owns user-level CLI shim + shell profile installation.
+- `lib/cliState.js` persists the currently selected board for subsequent CLI commands.
 
 ### Frontmatter tests
 - `npm run test:frontmatter`
@@ -232,6 +248,21 @@ File: `lib/boardLabels.js`
 - `npm run test:mcp`
 - Script: `scripts/test-mcp-server.js`
 - Asserts card tool outputs include `taskSummary` + `taskDueDates`.
+
+### CLI smoke test
+- `npm run test:cli`
+- Script: `scripts/test-cli.js`
+- Covers list creation/rename plus card create/edit/read/filter flows.
+
+### Desktop CLI smoke test
+- `npm run test:desktop-cli`
+- Script: `scripts/test-desktop-cli.js`
+- Verifies Electron executable CLI dispatch without opening the UI.
+
+### CLI installer test
+- `npm run test:cli-install`
+- Script: `scripts/test-cli-install.js`
+- Verifies shim creation plus shell profile PATH updates for zsh/fish installs.
 
 ### Task list parser tests
 - `npm run test:task-list`

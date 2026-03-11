@@ -9,6 +9,8 @@ const { autoUpdater } = require('electron-updater');
 const fs = require('fs').promises;
 const path = require('path');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
+const { isCliInvocation, runCli } = require('./lib/cliApp');
+const { installCliForCurrentUser } = require('./lib/cliInstall');
 
 const GITHUB_OWNER = 'cdevroe';
 const GITHUB_REPO = 'signboard';
@@ -17,8 +19,29 @@ const UPDATE_REMINDER_DELAY_MS = 24 * 60 * 60 * 1000;
 const UPDATE_PREFS_FILE = 'update-preferences.json';
 const MCP_SERVER_ARG = '--mcp-server';
 const MCP_CONFIG_ARG = '--mcp-config';
-const isMcpServerMode = process.argv.includes(MCP_SERVER_ARG);
-const isMcpConfigMode = process.argv.includes(MCP_CONFIG_ARG);
+
+function getUserArgsFromProcessArgv(argv = process.argv) {
+  if (!Array.isArray(argv) || argv.length <= 1) {
+    return [];
+  }
+
+  if (process.defaultApp) {
+    return argv.slice(2);
+  }
+
+  const secondArg = String(argv[1] || '');
+  const secondArgBaseName = path.basename(secondArg).toLowerCase();
+  if (secondArgBaseName === 'main.js') {
+    return argv.slice(2);
+  }
+
+  return argv.slice(1);
+}
+
+const signboardArgs = getUserArgsFromProcessArgv();
+const isMcpServerMode = signboardArgs.includes(MCP_SERVER_ARG);
+const isMcpConfigMode = signboardArgs.includes(MCP_CONFIG_ARG);
+const isCliMode = isCliInvocation(signboardArgs);
 let mainWindow = null;
 let isAppQuitting = false;
 let mcpPowerSaveBlockerId = null;
@@ -202,6 +225,51 @@ async function copyMcpConfigToClipboard() {
     buttons: ['OK'],
     noLink: true,
   });
+}
+
+async function installCliFromApp() {
+  const win = getMainWindow();
+  if (!win) {
+    return;
+  }
+
+  try {
+    const result = await installCliForCurrentUser({
+      executablePath: process.execPath,
+      appPath: app.getAppPath(),
+      isPackaged: app.isPackaged,
+    });
+
+    const profileLines = [...result.updatedProfiles, ...result.untouchedProfiles]
+      .map((profilePath) => `- ${profilePath}`)
+      .join('\n');
+
+    await dialog.showMessageBox(win, {
+      type: 'info',
+      title: 'Signboard CLI Installed',
+      message: 'The `signboard` command is ready for new Terminal sessions.',
+      detail: [
+        `Command: ${result.commandPreview}`,
+        `Shim: ${result.scriptPath}`,
+        '',
+        'Updated shell profile(s):',
+        profileLines || '- none',
+        '',
+        'Open a new Terminal window, then run `signboard help`.',
+      ].join('\n'),
+      buttons: ['OK'],
+      noLink: true,
+    });
+  } catch (error) {
+    await dialog.showMessageBox(win, {
+      type: 'error',
+      title: 'Install Signboard CLI Failed',
+      message: 'Signboard could not install the terminal command.',
+      detail: String(error?.message || error || 'Unknown error'),
+      buttons: ['OK'],
+      noLink: true,
+    });
+  }
 }
 
 function printMcpConfigToStdout() {
@@ -689,6 +757,13 @@ function buildApplicationMenu() {
       }
     },
   });
+  const createInstallCliMenuItem = () => ({
+    label: 'Install Signboard CLI',
+    enabled: process.platform === 'darwin' || process.platform === 'linux',
+    click: async () => {
+      await installCliFromApp();
+    },
+  });
 
   const template = [];
 
@@ -743,6 +818,7 @@ function buildApplicationMenu() {
     role: 'help',
     submenu: [
       !isMac ? createCheckForUpdatesMenuItem() : null,
+      createInstallCliMenuItem(),
       createCopyMcpConfigMenuItem(),
       isPreviewMode
         ? {
@@ -880,6 +956,27 @@ app.whenReady().then(async () => {
     return;
   }
 
+  if (isCliMode) {
+    if (app.dock && typeof app.dock.hide === 'function') {
+      app.dock.hide();
+    }
+
+    let exitCode = 0;
+    try {
+      exitCode = await runCli(signboardArgs, {
+        commandName: app.isPackaged ? 'Signboard' : 'signboard',
+        stdout: process.stdout,
+        stderr: process.stderr,
+      });
+    } catch (error) {
+      console.error(error.message || error);
+      exitCode = 1;
+    }
+
+    app.exit(Number.isInteger(exitCode) ? exitCode : 0);
+    return;
+  }
+
   await loadUpdatePreferences();
   createWindow();
   buildApplicationMenu();
@@ -887,7 +984,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('activate', () => {
-  if (isMcpServerMode) {
+  if (isMcpServerMode || isCliMode) {
     return;
   }
 
@@ -935,7 +1032,7 @@ app.on('before-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-  if (isMcpServerMode) {
+  if (isMcpServerMode || isCliMode) {
     return;
   }
 

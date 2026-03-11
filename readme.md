@@ -45,6 +45,58 @@ Signboard includes a built-in MCP server mode so agents can interact with local 
 - Signboard app auto-refreshes when board files change externally (including MCP actions)
 - Optional agent skill: `skills/signboard-mcp/SKILL.md`
 
+## 💻 CLI
+
+Signboard now includes a terminal CLI for direct board management without going through MCP.
+
+- In the desktop app on macOS/Linux: `Help` -> `Install Signboard CLI`
+  - Creates a per-user `signboard` shim in `~/.local/bin`
+  - Updates your shell profile so new Terminal sessions can find it
+  - No admin access or manual PATH editing required
+- Use `signboard use /Path/to/Board` once to remember the active board for later commands
+- Packaged desktop app executable also accepts CLI commands directly:
+  - macOS: `/Applications/Signboard.app/Contents/MacOS/Signboard <command>`
+  - Windows: `Signboard.exe <command>`
+  - Linux AppImage: `./signboard_*.AppImage <command>`
+
+Examples:
+
+```bash
+# Select a board once
+signboard use /Path/to/Board
+
+# Lists
+signboard lists
+signboard lists create "Waiting"
+signboard lists rename "Waiting" "Blocked"
+
+# Cards
+signboard cards --due next:7
+signboard cards "To do"
+signboard cards --label Urgent --search launch
+signboard cards create --list "To do" --title "Ship release notes" --due 2026-03-20
+signboard cards edit --card ab123 --due none --move-to Doing
+signboard cards read --list Doing --card ab123
+
+# Or run through the packaged app executable
+/Applications/Signboard.app/Contents/MacOS/Signboard use /Path/to/Board
+/Applications/Signboard.app/Contents/MacOS/Signboard cards --due next:7
+```
+
+Interesting card listing filters:
+
+- `--due today`
+- `--due tomorrow`
+- `--due overdue`
+- `--due this-week`
+- `--due next:7` / `next:14` / `next:30`
+- `--due-source card|task|any`
+- `--label <name-or-id>` (repeatable)
+- `--label-mode any|all`
+- `--search <query>`
+- `--sort list|due|title|updated`
+- `--json` for scripting output
+
 ## ✅ Task List Items
 
 - Card counters now use `completed/total` task checklist totals and stay visible while tasks exist.
@@ -97,6 +149,9 @@ npm run test:board-card-metadata
 npm run test:due-notifications
 npm run test:task-list
 npm run test:mcp
+npm run test:cli
+npm run test:cli-install
+npm run test:desktop-cli
 ```
 
 ---
