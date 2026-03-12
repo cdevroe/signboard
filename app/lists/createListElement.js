@@ -78,9 +78,10 @@ async function createListElement(name, listPath, cardNames, options = {}) {
       return null;
     }
 
-    return new Sortable(cardsEl, {
+    return new Sortable(cardsEl, createBoardCardSortableOptions({
       group: 'cards',
       animation: 150,
+      draggable: '.card',
       disabled: isBoardLabelFilterActive(),
       onEnd: async (evt) => {
 
@@ -122,7 +123,7 @@ async function createListElement(name, listPath, cardNames, options = {}) {
           await renderBoard();
           
       }
-    });
+    }));
   };
 
   if (options.deferSortableInit) {

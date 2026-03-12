@@ -712,10 +712,14 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
   cardButton.dataset.due = isoDate;
   cardButton.setAttribute('data-sb-tooltip-disabled', 'true');
 
+  const cardFrame = document.createElement('span');
+  cardFrame.className = 'card-drag-frame board-temporal-card-frame';
+  cardButton.appendChild(cardFrame);
+
   const title = document.createElement('span');
   title.className = 'board-temporal-card-title';
   title.textContent = cardEntry.temporalDisplayTitle || cardEntry.title;
-  cardButton.appendChild(title);
+  cardFrame.appendChild(title);
 
   const subtitleText = String(cardEntry.temporalDisplaySubtitle || '').trim();
   if (subtitleText) {
@@ -723,7 +727,7 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
     const subtitle = document.createElement('span');
     subtitle.className = 'board-temporal-card-context';
     subtitle.textContent = subtitleText;
-    cardButton.appendChild(subtitle);
+    cardFrame.appendChild(subtitle);
   }
 
   const footer = document.createElement('span');
@@ -747,7 +751,7 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
   }
 
   if (footer.childElementCount > 0) {
-    cardButton.appendChild(footer);
+    cardFrame.appendChild(footer);
   }
 
   cardButton.addEventListener('click', (event) => {
@@ -1113,14 +1117,14 @@ async function renderThisWeekBoard(boardEl, boardRoot, lists, options = {}) {
       return [];
     }
 
-    return sortableContainers.map((container) => new Sortable(container, {
+    return sortableContainers.map((container) => new Sortable(container, createBoardCardSortableOptions({
       group: 'this-week-cards',
       animation: 150,
       draggable: '.board-this-week-card',
       onEnd: async (evt) => {
         await handleWeekCardDrop(evt, weekStartDate);
       },
-    }));
+    })));
   };
 
   if (options.deferSortableInit) {
@@ -1192,14 +1196,14 @@ async function renderCalendarBoard(boardEl, boardRoot, lists, options = {}) {
       return [];
     }
 
-    return sortableContainers.map((container) => new Sortable(container, {
+    return sortableContainers.map((container) => new Sortable(container, createBoardCardSortableOptions({
       group: 'calendar-cards',
       animation: 150,
       draggable: '.board-calendar-card',
       onEnd: async (evt) => {
         await handleCalendarCardDrop(evt, monthCursor);
       },
-    }));
+    })));
   };
 
   if (options.deferSortableInit) {

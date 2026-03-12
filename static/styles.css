@@ -579,29 +579,41 @@ main#board.board-view-week {
 }
 
 .board-calendar-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+  cursor: grab;
+}
+
+.board-temporal-card-frame {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
   width: 100%;
-  text-align: left;
+  min-width: 0;
   border-radius: 9px;
   border: 1px solid color-mix(in oklab, var(--border) 84%, var(--bg-card));
   background: color-mix(in oklab, var(--bg-card) 92%, var(--bg));
   color: var(--text);
   box-shadow: 0 1px 6px var(--shadow-card);
   padding: 6px 8px;
-  font-size: 13px;
-  line-height: 1.25;
-  cursor: grab;
 }
 
-.board-calendar-card:hover {
+.board-calendar-card:hover .board-temporal-card-frame {
   background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
 }
 
 .board-calendar-card:active {
   cursor: grabbing;
+  transform: none;
 }
 
 .board-this-week {
@@ -677,29 +689,26 @@ main#board.board-view-week {
 }
 
 .board-this-week-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  display: block;
   width: 100%;
   text-align: left;
-  border-radius: 9px;
-  border: 1px solid color-mix(in oklab, var(--border) 84%, var(--bg-card));
-  background: color-mix(in oklab, var(--bg-card) 92%, var(--bg));
-  color: var(--text);
-  box-shadow: 0 1px 6px var(--shadow-card);
-  padding: 6px 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
   font-size: 13px;
   line-height: 1.25;
   cursor: grab;
 }
 
-.board-this-week-card:hover {
+.board-this-week-card:hover .board-temporal-card-frame {
   background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
 }
 
 .board-this-week-card:active {
   cursor: grabbing;
+  transform: none;
 }
 
 .board-temporal-card-title {
@@ -983,21 +992,54 @@ body.board-empty main#board {
 
 /* 5) Cards */
 .card {
-  background: var(--bg-card);
   margin-bottom: var(--card-spacing);
+  cursor: grab;
+}
+
+.card-drag-frame {
+  min-width: 0;
+  transform-origin: center center;
+  transition: transform .12s ease, background .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+
+.card > .card-drag-frame {
+  background: var(--bg-card);
   color: var(--text);
   border: 1px solid color-mix(in oklab, var(--border) 92%, var(--bg-card));
   border-radius: var(--radius);
   padding: 10px 10px;
   box-shadow: 0 2px 10px var(--shadow-card);
-  cursor: grab;
-  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
+
 .card:active { cursor: grabbing; }
-.card:hover {
+.card:hover > .card-drag-frame {
   transform: translateY(-1px);
   border-color: color-mix(in oklab, var(--border) 70%, var(--paynes-gray));
   box-shadow: 0 6px 18px var(--shadow-card);
+}
+
+.card-sortable--chosen > .card-drag-frame {
+  box-shadow: 0 10px 24px var(--shadow-card);
+}
+
+.card-sortable--ghost {
+  opacity: .34;
+}
+
+.card-sortable--dragging,
+.card-sortable--fallback {
+  cursor: grabbing;
+}
+
+.card-sortable--dragging > .card-drag-frame,
+.card-sortable--fallback > .card-drag-frame {
+  transform: rotate(var(--card-drag-tilt, 0deg));
+}
+
+body.board-card-drag-active,
+body.board-card-drag-active * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
 }
 
 .card h3 {

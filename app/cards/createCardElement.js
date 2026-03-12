@@ -16,9 +16,13 @@ async function createCardElement(cardPath) {
   cardEl.className = 'card';
   cardEl.dataset.path = cardPath;
 
+  const cardFrame = document.createElement('div');
+  cardFrame.className = 'card-drag-frame';
+  cardEl.appendChild(cardFrame);
+
   const title = document.createElement('h3');
   title.textContent = titleContent.replace('# ', '');
-  cardEl.appendChild(title);
+  cardFrame.appendChild(title);
 
   const body = document.createElement('div');
   body.className = 'card-body';
@@ -209,8 +213,8 @@ async function createCardElement(cardPath) {
   });
 
   body.appendChild(metadata);
-    
-  cardEl.appendChild(body);
+
+  cardFrame.appendChild(body);
 
   const matchesLabelFilter = cardMatchesBoardLabelFilter(
     selectedLabelIds,
