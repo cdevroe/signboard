@@ -1,4 +1,4 @@
-async function createListElement(name, listPath, cardNames) {
+async function createListElement(name, listPath, cardNames, options = {}) {
   const listEl = document.createElement('div');
   listEl.className = 'list';
   listEl.dataset.path = listPath;
@@ -73,53 +73,66 @@ async function createListElement(name, listPath, cardNames) {
     cardsEl.appendChild(cardEl);
   }
 
-  // Enable SortableJS on this column
-  new Sortable(cardsEl, {
-    group: 'cards',
-    animation: 150,
-    disabled: isBoardLabelFilterActive(),
-    onEnd: async (evt) => {
-
-        const finalOrder = [...evt.to.querySelectorAll('.card')].map(card =>
-            card.getAttribute('data-path')  // array of CURRENT filenames in final order
-        );
-
-        const allCardsInList = await window.board.listCards(evt.to.dataset.path);
-
-        let tempFileCounter = 0;
-        for (const fileName of allCardsInList) {
-            await window.board.moveCard(evt.to.dataset.path + '/' + fileName, evt.to.dataset.path + '/' + fileName.replace('.md','.tmp'));
-        }
-
-        let fileCounter = 0;
-        for (const filePath of finalOrder) {
-
-            let fileNumber = (fileCounter).toLocaleString('en-US', {
-                minimumIntegerDigits: 3,
-                useGrouping: false
-            });
-
-            let adjustedFrom;
-
-            if ( !filePath.includes( evt.to.dataset.path ) ) {
-                adjustedFrom = filePath;
-            } else {
-                adjustedFrom = filePath.replace('.md','.tmp');
-            }
-
-            let adjustedTo = evt.to.dataset.path + '/' + fileNumber + await window.board.getCardFileName(filePath).slice(3).replace('.tmp','.md');
-
-            await window.board.moveCard(adjustedFrom, adjustedTo);
-
-            fileCounter++;
-
-        }
-
-        await renderBoard();
-        
+  const initializeSortable = () => {
+    if (typeof Sortable !== 'function') {
+      return null;
     }
-  });
 
+    return new Sortable(cardsEl, {
+      group: 'cards',
+      animation: 150,
+      disabled: isBoardLabelFilterActive(),
+      onEnd: async (evt) => {
+
+          const finalOrder = [...evt.to.querySelectorAll('.card')].map(card =>
+              card.getAttribute('data-path')  // array of CURRENT filenames in final order
+          );
+
+          const allCardsInList = await window.board.listCards(evt.to.dataset.path);
+
+          let tempFileCounter = 0;
+          for (const fileName of allCardsInList) {
+              await window.board.moveCard(evt.to.dataset.path + '/' + fileName, evt.to.dataset.path + '/' + fileName.replace('.md','.tmp'));
+          }
+
+          let fileCounter = 0;
+          for (const filePath of finalOrder) {
+
+              let fileNumber = (fileCounter).toLocaleString('en-US', {
+                  minimumIntegerDigits: 3,
+                  useGrouping: false
+              });
+
+              let adjustedFrom;
+
+              if ( !filePath.includes( evt.to.dataset.path ) ) {
+                  adjustedFrom = filePath;
+              } else {
+                  adjustedFrom = filePath.replace('.md','.tmp');
+              }
+
+              let adjustedTo = evt.to.dataset.path + '/' + fileNumber + await window.board.getCardFileName(filePath).slice(3).replace('.tmp','.md');
+
+              await window.board.moveCard(adjustedFrom, adjustedTo);
+
+              fileCounter++;
+
+          }
+
+          await renderBoard();
+          
+      }
+    });
+  };
+
+  if (options.deferSortableInit) {
+    return {
+      listEl,
+      initializeSortable,
+    };
+  }
+
+  initializeSortable();
   return listEl;
 }
 

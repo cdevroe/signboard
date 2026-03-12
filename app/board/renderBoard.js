@@ -14,6 +14,49 @@ function setBoardChromeState(hasOpenBoard) {
   }
 }
 
+function getBoardRenderState() {
+  if (!window.__boardRenderState) {
+    window.__boardRenderState = {
+      requestId: 0,
+      activeSortables: [],
+    };
+  }
+
+  return window.__boardRenderState;
+}
+
+function destroyBoardSortables() {
+  const state = getBoardRenderState();
+
+  for (const sortable of state.activeSortables) {
+    if (sortable && typeof sortable.destroy === 'function') {
+      sortable.destroy();
+    }
+  }
+
+  state.activeSortables = [];
+}
+
+function storeBoardSortables(sortables) {
+  const state = getBoardRenderState();
+  state.activeSortables = Array.isArray(sortables)
+    ? sortables.filter(Boolean)
+    : [];
+}
+
+function isCurrentBoardRenderRequest(requestId) {
+  return getBoardRenderState().requestId === requestId;
+}
+
+function syncBoardViewLayout(boardEl, activeBoardView) {
+  if (!boardEl) {
+    return;
+  }
+
+  boardEl.classList.toggle('board-view-calendar', activeBoardView === 'calendar');
+  boardEl.classList.toggle('board-view-week', activeBoardView === 'this-week');
+}
+
 async function handleEmptyBoardCallToActionClick(buttonEl) {
   if (!buttonEl || buttonEl.disabled) {
     return;
@@ -132,8 +175,8 @@ function renderMissingBoardAlert(boardPath) {
     return;
   }
 
-  boardEl.classList.remove('board-view-calendar');
-  boardEl.classList.remove('board-view-week');
+  destroyBoardSortables();
+  syncBoardViewLayout(boardEl, '');
 
   setBoardChromeState(false);
   renderBoardTabs();
@@ -143,7 +186,7 @@ function renderMissingBoardAlert(boardPath) {
     boardNameEl.textContent = getBoardLabelFromPath(boardPath);
   }
 
-  boardEl.innerHTML = '';
+  boardEl.replaceChildren();
 
   const alertEl = document.createElement('section');
   alertEl.className = 'board-missing-alert';
@@ -255,13 +298,15 @@ function renderBoardEmptyState() {
     return;
   }
 
-  boardEl.classList.remove('board-view-calendar');
-  boardEl.classList.remove('board-view-week');
-  boardEl.innerHTML = '';
-  boardEl.appendChild(createEmptyBoardCallToAction());
+  destroyBoardSortables();
+  syncBoardViewLayout(boardEl, '');
+  boardEl.replaceChildren(createEmptyBoardCallToAction());
 }
 
 async function renderBoard() {
+  const renderState = getBoardRenderState();
+  const requestId = renderState.requestId + 1;
+  renderState.requestId = requestId;
   const boardRoot = window.boardRoot; // set in the drop-zone handler
 
   if (!boardRoot) {
@@ -291,20 +336,34 @@ async function renderBoard() {
       ensureBoardLabelsLoaded(),
     ]);
 
-    if (boardNameEl) {
-      boardNameEl.textContent = boardName;
+    if (!isCurrentBoardRenderRequest(requestId)) {
+      return;
     }
-    renderBoardTabs();
-    boardEl.innerHTML = '';
 
     const activeBoardView = typeof getActiveBoardView === 'function'
       ? getActiveBoardView()
       : 'kanban';
 
     if (activeBoardView === 'calendar' && typeof renderCalendarBoard === 'function') {
-      boardEl.classList.add('board-view-calendar');
-      boardEl.classList.remove('board-view-week');
-      await renderCalendarBoard(boardEl, boardRoot, lists);
+      const stagingEl = document.createElement('div');
+      const renderResult = await renderCalendarBoard(stagingEl, boardRoot, lists, {
+        deferSortableInit: true,
+      });
+
+      if (!isCurrentBoardRenderRequest(requestId)) {
+        return;
+      }
+
+      if (boardNameEl) {
+        boardNameEl.textContent = boardName;
+      }
+      renderBoardTabs();
+      syncBoardViewLayout(boardEl, activeBoardView);
+      destroyBoardSortables();
+      boardEl.replaceChildren(...Array.from(stagingEl.childNodes));
+      storeBoardSortables(renderResult && typeof renderResult.initializeSortables === 'function'
+        ? renderResult.initializeSortables()
+        : []);
 
       if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
         feather.replace();
@@ -313,18 +372,31 @@ async function renderBoard() {
     }
 
     if (activeBoardView === 'this-week' && typeof renderThisWeekBoard === 'function') {
-      boardEl.classList.remove('board-view-calendar');
-      boardEl.classList.add('board-view-week');
-      await renderThisWeekBoard(boardEl, boardRoot, lists);
+      const stagingEl = document.createElement('div');
+      const renderResult = await renderThisWeekBoard(stagingEl, boardRoot, lists, {
+        deferSortableInit: true,
+      });
+
+      if (!isCurrentBoardRenderRequest(requestId)) {
+        return;
+      }
+
+      if (boardNameEl) {
+        boardNameEl.textContent = boardName;
+      }
+      renderBoardTabs();
+      syncBoardViewLayout(boardEl, activeBoardView);
+      destroyBoardSortables();
+      boardEl.replaceChildren(...Array.from(stagingEl.childNodes));
+      storeBoardSortables(renderResult && typeof renderResult.initializeSortables === 'function'
+        ? renderResult.initializeSortables()
+        : []);
 
       if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
         feather.replace();
       }
       return;
     }
-
-    boardEl.classList.remove('board-view-calendar');
-    boardEl.classList.remove('board-view-week');
 
     const listsWithCards = await Promise.all(
       lists.map(async (listName) => {
@@ -334,17 +406,51 @@ async function renderBoard() {
       })
     );
 
-    const listElements = await Promise.all(
-      listsWithCards.map(({ listName, listPath, cards }) => createListElement(listName, listPath, cards))
+    const listBuilds = await Promise.all(
+      listsWithCards.map(({ listName, listPath, cards }) => createListElement(listName, listPath, cards, {
+        deferSortableInit: true,
+      }))
     );
 
-    for (const listEl of listElements) {
-      boardEl.appendChild(listEl);
+    if (!isCurrentBoardRenderRequest(requestId)) {
+      return;
     }
 
+    const stagingEl = document.createElement('div');
+    const nextSortables = [];
+
+    for (const listBuild of listBuilds) {
+      const listEl = listBuild && listBuild.listEl
+        ? listBuild.listEl
+        : listBuild;
+      if (!listEl) {
+        continue;
+      }
+
+      stagingEl.appendChild(listEl);
+      if (listBuild && typeof listBuild.initializeSortable === 'function') {
+        nextSortables.push(listBuild.initializeSortable);
+      }
+    }
+
+    if (boardNameEl) {
+      boardNameEl.textContent = boardName;
+    }
+    renderBoardTabs();
+    syncBoardViewLayout(boardEl, activeBoardView);
+    destroyBoardSortables();
+    boardEl.replaceChildren(...Array.from(stagingEl.childNodes));
+
+    const activeSortables = [];
     if (typeof Sortable === 'function') {
-      // Enable SortableJS on this column
-      new Sortable(boardEl, {
+      for (const initializeSortable of nextSortables) {
+        const sortable = initializeSortable();
+        if (sortable) {
+          activeSortables.push(sortable);
+        }
+      }
+
+      activeSortables.push(new Sortable(boardEl, {
         group: 'lists',
         animation: 150,
         onEnd: async (evt) => {
@@ -368,8 +474,10 @@ async function renderBoard() {
 
           await renderBoard();
         }
-      });
+      }));
     }
+
+    storeBoardSortables(activeSortables);
 
     if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
       feather.replace();

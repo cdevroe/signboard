@@ -1041,11 +1041,7 @@ function createThisWeekDayCell({
   return { dayCell, cardsWrap };
 }
 
-async function renderThisWeekBoard(boardEl, boardRoot, lists) {
-  if (!boardEl) {
-    return;
-  }
-
+async function renderThisWeekBoard(boardEl, boardRoot, lists, options = {}) {
   const weekStartDate = getBoardWeekCursorDate();
   const allCards = await collectCardsForCalendar(boardRoot, lists);
   const cardsByDate = buildWeekCardBuckets(allCards, weekStartDate);
@@ -1108,29 +1104,39 @@ async function renderThisWeekBoard(boardEl, boardRoot, lists) {
   );
 
   weekEl.appendChild(grid);
-  boardEl.appendChild(weekEl);
-
-  if (typeof Sortable !== 'function') {
-    return;
+  if (boardEl) {
+    boardEl.appendChild(weekEl);
   }
 
-  for (const container of sortableContainers) {
-    new Sortable(container, {
+  const initializeSortables = () => {
+    if (typeof Sortable !== 'function') {
+      return [];
+    }
+
+    return sortableContainers.map((container) => new Sortable(container, {
       group: 'this-week-cards',
       animation: 150,
       draggable: '.board-this-week-card',
       onEnd: async (evt) => {
         await handleWeekCardDrop(evt, weekStartDate);
       },
-    });
+    }));
+  };
+
+  if (options.deferSortableInit) {
+    return {
+      root: weekEl,
+      initializeSortables,
+    };
   }
+
+  return {
+    root: weekEl,
+    sortables: initializeSortables(),
+  };
 }
 
-async function renderCalendarBoard(boardEl, boardRoot, lists) {
-  if (!boardEl) {
-    return;
-  }
-
+async function renderCalendarBoard(boardEl, boardRoot, lists, options = {}) {
   const monthCursor = getBoardCalendarCursorDate();
   const allCards = await collectCardsForCalendar(boardRoot, lists);
   const cardsByDate = buildCalendarCardBuckets(allCards, monthCursor);
@@ -1177,20 +1183,34 @@ async function renderCalendarBoard(boardEl, boardRoot, lists) {
   }
 
   calendarEl.appendChild(grid);
-  boardEl.appendChild(calendarEl);
-
-  if (typeof Sortable !== 'function') {
-    return;
+  if (boardEl) {
+    boardEl.appendChild(calendarEl);
   }
 
-  for (const container of sortableContainers) {
-    new Sortable(container, {
+  const initializeSortables = () => {
+    if (typeof Sortable !== 'function') {
+      return [];
+    }
+
+    return sortableContainers.map((container) => new Sortable(container, {
       group: 'calendar-cards',
       animation: 150,
       draggable: '.board-calendar-card',
       onEnd: async (evt) => {
         await handleCalendarCardDrop(evt, monthCursor);
       },
-    });
+    }));
+  };
+
+  if (options.deferSortableInit) {
+    return {
+      root: calendarEl,
+      initializeSortables,
+    };
   }
+
+  return {
+    root: calendarEl,
+    sortables: initializeSortables(),
+  };
 }
