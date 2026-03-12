@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker, nativeImage } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker, nativeImage, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const fsPromises = fs.promises;
@@ -18,6 +18,12 @@ const GITHUB_REPO = 'signboard';
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const UPDATE_REMINDER_DELAY_MS = 24 * 60 * 60 * 1000;
 const UPDATE_PREFS_FILE = 'update-preferences.json';
+const WINDOW_STATE_FILE = 'window-state.json';
+const DEFAULT_WINDOW_WIDTH = 1280;
+const DEFAULT_WINDOW_HEIGHT = 860;
+const MIN_WINDOW_WIDTH = 960;
+const MIN_WINDOW_HEIGHT = 680;
+const WINDOW_STATE_SAVE_DEBOUNCE_MS = 250;
 const MCP_SERVER_ARG = '--mcp-server';
 const MCP_CONFIG_ARG = '--mcp-config';
 const RUNTIME_APP_ICON_PATH = path.join(__dirname, 'build', 'icon-macos.png');
@@ -72,6 +78,134 @@ app.on('ready', () => {
   }
 });
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getWindowStatePath() {
+  return path.join(app.getPath('userData'), WINDOW_STATE_FILE);
+}
+
+function normalizeWindowBounds(bounds) {
+  if (!bounds || typeof bounds !== 'object') {
+    return null;
+  }
+
+  const x = Number(bounds.x);
+  const y = Number(bounds.y);
+  const width = Number(bounds.width);
+  const height = Number(bounds.height);
+
+  if (![x, y, width, height].every(Number.isFinite)) {
+    return null;
+  }
+
+  if (width < 320 || height < 240) {
+    return null;
+  }
+
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    width: Math.round(width),
+    height: Math.round(height),
+  };
+}
+
+function getDefaultWindowBounds() {
+  const { workArea } = screen.getPrimaryDisplay();
+  const minWidth = Math.min(MIN_WINDOW_WIDTH, workArea.width);
+  const minHeight = Math.min(MIN_WINDOW_HEIGHT, workArea.height);
+  const width = Math.min(
+    DEFAULT_WINDOW_WIDTH,
+    Math.max(Math.round(workArea.width * 0.9), minWidth)
+  );
+  const height = Math.min(
+    DEFAULT_WINDOW_HEIGHT,
+    Math.max(Math.round(workArea.height * 0.9), minHeight)
+  );
+
+  return {
+    x: Math.round(workArea.x + ((workArea.width - width) / 2)),
+    y: Math.round(workArea.y + ((workArea.height - height) / 2)),
+    width,
+    height,
+  };
+}
+
+function constrainWindowBounds(bounds) {
+  const normalizedBounds = normalizeWindowBounds(bounds);
+  if (!normalizedBounds) {
+    return getDefaultWindowBounds();
+  }
+
+  const targetDisplay = screen.getDisplayMatching(normalizedBounds) || screen.getPrimaryDisplay();
+  const { workArea } = targetDisplay;
+  const minWidth = Math.min(MIN_WINDOW_WIDTH, workArea.width);
+  const minHeight = Math.min(MIN_WINDOW_HEIGHT, workArea.height);
+  const width = clamp(normalizedBounds.width, minWidth, workArea.width);
+  const height = clamp(normalizedBounds.height, minHeight, workArea.height);
+  const x = clamp(normalizedBounds.x, workArea.x, workArea.x + workArea.width - width);
+  const y = clamp(normalizedBounds.y, workArea.y, workArea.y + workArea.height - height);
+
+  return {
+    x,
+    y,
+    width,
+    height,
+  };
+}
+
+function readWindowState() {
+  try {
+    const raw = fs.readFileSync(getWindowStatePath(), 'utf8');
+    const parsed = JSON.parse(raw);
+    const bounds = constrainWindowBounds(parsed.bounds);
+
+    return {
+      bounds,
+      isMaximized: Boolean(parsed.isMaximized),
+    };
+  } catch (error) {
+    if (error && error.code !== 'ENOENT') {
+      console.error('Failed to read window state.', error);
+    }
+
+    return {
+      bounds: getDefaultWindowBounds(),
+      isMaximized: false,
+    };
+  }
+}
+
+function getWindowStateSnapshot(win) {
+  if (!win || win.isDestroyed()) {
+    return null;
+  }
+
+  return {
+    bounds: constrainWindowBounds(win.getNormalBounds()),
+    isMaximized: win.isMaximized(),
+  };
+}
+
+function writeWindowState(windowState) {
+  if (!windowState || !windowState.bounds) {
+    return;
+  }
+
+  try {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    fs.writeFileSync(
+      getWindowStatePath(),
+      JSON.stringify(windowState, null, 2),
+      'utf8'
+    );
+  } catch (error) {
+    console.error('Failed to write window state.', error);
+  }
+}
+
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) {
@@ -81,9 +215,53 @@ function createWindow() {
     return mainWindow;
   }
 
+  const windowState = readWindowState();
+  const initialDisplay = screen.getDisplayMatching(windowState.bounds) || screen.getPrimaryDisplay();
+  const minWindowWidth = Math.min(MIN_WINDOW_WIDTH, initialDisplay.workArea.width);
+  const minWindowHeight = Math.min(MIN_WINDOW_HEIGHT, initialDisplay.workArea.height);
+  let pendingWindowStateWrite = null;
+  let pendingWindowStateTimer = null;
+
+  const saveWindowState = () => {
+    if (!pendingWindowStateWrite) {
+      return;
+    }
+
+    const stateToWrite = pendingWindowStateWrite;
+    pendingWindowStateWrite = null;
+    writeWindowState(stateToWrite);
+  };
+
+  const queueWindowStateSave = (win) => {
+    pendingWindowStateWrite = getWindowStateSnapshot(win);
+    if (!pendingWindowStateWrite) {
+      return;
+    }
+
+    if (pendingWindowStateTimer) {
+      clearTimeout(pendingWindowStateTimer);
+    }
+
+    pendingWindowStateTimer = setTimeout(() => {
+      pendingWindowStateTimer = null;
+      saveWindowState();
+    }, WINDOW_STATE_SAVE_DEBOUNCE_MS);
+  };
+
+  const flushWindowStateSave = (win) => {
+    pendingWindowStateWrite = getWindowStateSnapshot(win);
+    if (pendingWindowStateTimer) {
+      clearTimeout(pendingWindowStateTimer);
+      pendingWindowStateTimer = null;
+    }
+
+    saveWindowState();
+  };
+
   const win = new BrowserWindow({
-    width: 1400,
-    height: 1024,
+    ...windowState.bounds,
+    minWidth: minWindowWidth,
+    minHeight: minWindowHeight,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -173,11 +351,40 @@ function createWindow() {
     createWindow();
   });
 
+  win.on('resize', () => {
+    queueWindowStateSave(win);
+  });
+
+  win.on('move', () => {
+    queueWindowStateSave(win);
+  });
+
+  win.on('maximize', () => {
+    queueWindowStateSave(win);
+  });
+
+  win.on('unmaximize', () => {
+    queueWindowStateSave(win);
+  });
+
+  win.on('close', () => {
+    flushWindowStateSave(win);
+  });
+
   win.on('closed', () => {
+    if (pendingWindowStateTimer) {
+      clearTimeout(pendingWindowStateTimer);
+      pendingWindowStateTimer = null;
+    }
+
     if (mainWindow === win) {
       mainWindow = null;
     }
   });
+
+  if (windowState.isMaximized) {
+    win.maximize();
+  }
 
   win.loadFile('index.html');
   return win;
