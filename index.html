@@ -24,6 +24,10 @@
             <div id="boardViewPopover" class="label-popover board-view-popover hidden"></div>
           </div>
           <button id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode"><i data-feather="moon"></i></button>
+          <button id="openCommercialLicenseModal" class="support-signboard-button" type="button" title="Support Signboard for commercial use" aria-label="Support Signboard for commercial use">
+            <i data-feather="heart"></i>
+            <span>Support</span>
+          </button>
         </div>
         <div id="boardControls">
           <input id="boardSearchInput" type="search" placeholder="Search cards">
@@ -119,6 +123,37 @@
         </ul>
       </section>
     </div>
+  </div>
+
+  <div id="modalCommercialLicense" class="modal commercial-license-modal hidden" role="dialog" aria-modal="true" aria-labelledby="commercialLicenseTitle" aria-hidden="true">
+    <div class="commercial-license-header">
+      <div>
+        <p class="commercial-license-eyebrow">Free for personal use</p>
+        <h2 id="commercialLicenseTitle">Support Signboard when it supports your work</h2>
+      </div>
+      <button id="commercialLicenseClose" class="commercial-license-close" type="button" title="Close commercial use modal" aria-label="Close commercial use modal"><i data-feather="x"></i></button>
+    </div>
+    <div class="commercial-license-copy">
+      <p>Hi, I’m Colin. I want Signboard to stay open source and free for personal use.</p>
+      <p>If you start using Signboard to manage work that earns you money, I’d really appreciate your support with a one-time commercial-use payment.</p>
+    </div>
+    <div class="commercial-license-card">
+      <div class="commercial-license-card-copy">
+        <p class="commercial-license-card-label">Commercial-use support</p>
+        <p class="commercial-license-card-price"><span data-commercial-license-price>$49</span> one-time</p>
+        <p class="commercial-license-card-note">No subscription. Pay once and keep using Signboard for commercial work.</p>
+      </div>
+      <button id="commercialLicensePayButton" class="commercial-license-pay-button" type="button">Pay $49</button>
+    </div>
+    <div class="commercial-license-tip">
+      <div class="commercial-license-tip-copy">
+        <p class="commercial-license-tip-title">Using Signboard personally?</p>
+        <p class="commercial-license-tip-note">If it helps with your own projects and you want to support development, you can leave a tip in any amount.</p>
+      </div>
+      <button id="commercialLicenseTipButton" class="commercial-license-tip-button" type="button">Leave a Tip</button>
+    </div>
+    <p id="commercialLicensePaymentHelper" class="commercial-license-helper">Personal use stays free.</p>
+    <p class="commercial-license-signoff">Thanks for your support.<br>Colin</p>
   </div>
 
   <div id="modalBoardSettings" class="modal hidden">

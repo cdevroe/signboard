@@ -3,6 +3,9 @@ const EXTERNAL_BOARD_RENDER_DEBOUNCE_MS = 150;
 const DUE_NOTIFICATION_CHECK_INTERVAL_MS = 60 * 1000;
 const DUE_NOTIFICATION_LAST_RUN_MAP_KEY = 'dueCardsNotificationLastRunByBoard';
 const DEFAULT_DUE_NOTIFICATION_TIME = '09:00';
+const SIGNBOARD_COMMERCIAL_LICENSE_PRICE = 49;
+const SIGNBOARD_COMMERCIAL_LICENSE_PAYMENT_URL = 'https://buy.stripe.com/7sY4gAaT14WO3dY2mg8N205';
+const SIGNBOARD_TIP_JAR_PAYMENT_URL = 'https://donate.stripe.com/14A3cw1ircpgeWGf928N206';
 
 let externalBoardSyncIntervalId = null;
 let externalBoardSyncInFlight = false;
@@ -167,7 +170,166 @@ function isModalOpen(modalId) {
 }
 
 function isExternalBoardRefreshBlocked() {
-    return isModalOpen('modalEditCard') || isModalOpen('modalBoardSettings');
+    return isModalOpen('modalEditCard') || isModalOpen('modalBoardSettings') || isModalOpen('modalCommercialLicense');
+}
+
+function getCommercialLicensePriceLabel() {
+    return `$${SIGNBOARD_COMMERCIAL_LICENSE_PRICE}`;
+}
+
+function getCommercialLicensePaymentUrl() {
+    return getValidatedExternalUrl(SIGNBOARD_COMMERCIAL_LICENSE_PAYMENT_URL);
+}
+
+function getTipJarPaymentUrl() {
+    return getValidatedExternalUrl(SIGNBOARD_TIP_JAR_PAYMENT_URL);
+}
+
+function getValidatedExternalUrl(rawValue) {
+    const candidate = String(rawValue || '').trim();
+    if (!candidate) {
+        return '';
+    }
+
+    try {
+        const parsedUrl = new URL(candidate);
+        if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+            return parsedUrl.href;
+        }
+    } catch {
+        return '';
+    }
+
+    return '';
+}
+
+function renderCommercialLicenseModalState() {
+    const priceLabel = getCommercialLicensePriceLabel();
+    const payButton = document.getElementById('commercialLicensePayButton');
+    const tipButton = document.getElementById('commercialLicenseTipButton');
+    const helper = document.getElementById('commercialLicensePaymentHelper');
+    const paymentUrl = getCommercialLicensePaymentUrl();
+    const tipUrl = getTipJarPaymentUrl();
+
+    document.querySelectorAll('[data-commercial-license-price]').forEach((element) => {
+        element.textContent = priceLabel;
+    });
+
+    if (payButton) {
+        payButton.textContent = `Pay ${priceLabel}`;
+        payButton.disabled = !paymentUrl;
+        payButton.dataset.paymentUrl = paymentUrl;
+        payButton.setAttribute('aria-disabled', paymentUrl ? 'false' : 'true');
+    }
+
+    if (tipButton) {
+        tipButton.disabled = !tipUrl;
+        tipButton.dataset.paymentUrl = tipUrl;
+        tipButton.setAttribute('aria-disabled', tipUrl ? 'false' : 'true');
+    }
+
+    if (helper) {
+        const helperMessages = [];
+        if (!paymentUrl) {
+            helperMessages.push('Add your commercial Stripe Payment Link to SIGNBOARD_COMMERCIAL_LICENSE_PAYMENT_URL before release.');
+        }
+        if (!tipUrl) {
+            helperMessages.push('Add your tip link to SIGNBOARD_TIP_JAR_PAYMENT_URL before release.');
+        }
+
+        helper.textContent = helperMessages.length > 0
+            ? helperMessages.join(' ')
+            : 'Personal use stays free. Commercial use is a simple one-time payment, and personal users can optionally leave a tip.';
+    }
+}
+
+function openCommercialLicenseModal() {
+    const modal = document.getElementById('modalCommercialLicense');
+    if (!modal) {
+        return;
+    }
+
+    renderCommercialLicenseModalState();
+    modal.style.display = 'block';
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+
+    if (typeof setBoardInteractive === 'function') {
+        setBoardInteractive(false);
+    }
+}
+
+function closeCommercialLicenseModal() {
+    const modal = document.getElementById('modalCommercialLicense');
+    if (!modal || modal.style.display !== 'block') {
+        return;
+    }
+
+    modal.style.display = 'none';
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+
+    if (typeof setBoardInteractive === 'function') {
+        setBoardInteractive(true);
+    }
+}
+
+function initializeCommercialLicenseControls() {
+    const openButton = document.getElementById('openCommercialLicenseModal');
+    const closeButton = document.getElementById('commercialLicenseClose');
+    const payButton = document.getElementById('commercialLicensePayButton');
+    const tipButton = document.getElementById('commercialLicenseTipButton');
+
+    renderCommercialLicenseModalState();
+
+    if (openButton) {
+        openButton.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof closeAllModals === 'function') {
+                await closeAllModals({ key: 'Escape' });
+            }
+            openCommercialLicenseModal();
+        });
+    }
+
+    if (closeButton) {
+        closeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            closeCommercialLicenseModal();
+        });
+    }
+
+    if (payButton) {
+        payButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const paymentUrl = String(payButton.dataset.paymentUrl || '').trim();
+            if (!paymentUrl) {
+                return;
+            }
+
+            if (window.electronAPI && typeof window.electronAPI.openExternal === 'function') {
+                window.electronAPI.openExternal(paymentUrl);
+            }
+        });
+    }
+
+    if (tipButton) {
+        tipButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const paymentUrl = String(tipButton.dataset.paymentUrl || '').trim();
+            if (!paymentUrl) {
+                return;
+            }
+
+            if (window.electronAPI && typeof window.electronAPI.openExternal === 'function') {
+                window.electronAPI.openExternal(paymentUrl);
+            }
+        });
+    }
 }
 
 function scheduleExternalBoardRefresh() {
@@ -295,6 +457,7 @@ async function init() {
 
     const restoredBoard = restoreBoardTabs();
     const initializeHeaderControls = () => {
+        initializeCommercialLicenseControls();
         initializeBoardLabelControls();
         initializeBoardSearchControls();
         initializeBoardViewControls();

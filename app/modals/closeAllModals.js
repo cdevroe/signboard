@@ -84,6 +84,7 @@ async function closeAllModals(e, options = {}){
     const modalAddCardToList = document.getElementById('modalAddCardToList');
     const modalAddList = document.getElementById('modalAddList');
     const modalBoardSettings = document.getElementById('modalBoardSettings');
+    const modalCommercialLicense = document.getElementById('modalCommercialLicense');
     const editModalWasOpen = modalEditCard.style.display === 'block';
     const boardSettingsWasOpen = modalBoardSettings && modalBoardSettings.style.display === 'block';
 
@@ -123,6 +124,12 @@ async function closeAllModals(e, options = {}){
             setBoardInteractive(true);
             boardSettingsClosed = true;
         }
+        if ( modalCommercialLicense && modalCommercialLicense.style.display === 'block' ) {
+            modalCommercialLicense.style.display = 'none';
+            modalCommercialLicense.classList.add('hidden');
+            modalCommercialLicense.setAttribute('aria-hidden', 'true');
+            setBoardInteractive(true);
+        }
     } else {
         if ( modalAddCard.style.display === 'block' && eventTarget && !modalAddCard.contains(eventTarget) ) {
             modalAddCard.style.display = 'none';
@@ -156,6 +163,13 @@ async function closeAllModals(e, options = {}){
             modalBoardSettings.style.display = 'none';
             setBoardInteractive(true);
             boardSettingsClosed = true;
+        }
+
+        if ( modalCommercialLicense && modalCommercialLicense.style.display === 'block' && eventTarget && !modalCommercialLicense.contains(eventTarget) ) {
+            modalCommercialLicense.style.display = 'none';
+            modalCommercialLicense.classList.add('hidden');
+            modalCommercialLicense.setAttribute('aria-hidden', 'true');
+            setBoardInteractive(true);
         }
     }
 

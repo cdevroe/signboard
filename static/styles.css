@@ -208,6 +208,23 @@ header h1 {
   padding: 8px 12px;
 }
 
+.support-signboard-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
+  border-color: color-mix(in oklab, var(--accent) 28%, var(--border));
+  color: var(--text);
+  font-weight: 600;
+}
+
+.support-signboard-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 .board-toolbar-group {
   position: relative;
 }
@@ -1296,6 +1313,176 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   padding: 18px 20px;
 }
 
+.commercial-license-modal {
+  position: fixed;
+  z-index: 45;
+  top: max(72px, calc(env(safe-area-inset-top) + 16px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 28px));
+  max-width: 620px;
+  padding: 20px;
+}
+
+.commercial-license-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.commercial-license-eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.commercial-license-header h2 {
+  margin: 0;
+  max-width: 14ch;
+}
+
+.commercial-license-close {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.commercial-license-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.commercial-license-copy {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.commercial-license-copy p,
+.commercial-license-helper,
+.commercial-license-signoff {
+  margin: 0;
+}
+
+.commercial-license-copy p,
+.commercial-license-helper {
+  color: var(--muted);
+}
+
+.commercial-license-card {
+  margin-top: 18px;
+  border: 1px solid color-mix(in oklab, var(--accent) 24%, var(--border));
+  border-radius: 18px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top right, color-mix(in oklab, var(--accent) 16%, transparent), transparent 40%),
+    color-mix(in oklab, var(--bg-card) 90%, var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.commercial-license-card-copy {
+  min-width: 0;
+}
+
+.commercial-license-card-label {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.commercial-license-card-price {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 36px);
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.commercial-license-card-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  max-width: 34ch;
+}
+
+.commercial-license-pay-button {
+  min-width: 140px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 72%, var(--border));
+  color: var(--accent-contrast);
+  font-size: var(--font-md);
+  font-weight: 700;
+}
+
+.commercial-license-pay-button[disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.commercial-license-tip {
+  margin-top: 14px;
+  border: 1px solid color-mix(in oklab, var(--border) 88%, var(--accent));
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.commercial-license-tip-copy {
+  min-width: 0;
+}
+
+.commercial-license-tip-title {
+  margin: 0;
+  font-size: var(--font-md);
+  font-weight: 650;
+}
+
+.commercial-license-tip-note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  max-width: 46ch;
+}
+
+.commercial-license-tip-button {
+  min-width: 124px;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+
+.commercial-license-tip-button[disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.commercial-license-helper {
+  margin-top: 14px;
+  font-size: var(--font-sm);
+}
+
+.commercial-license-signoff {
+  margin-top: 14px;
+  font-weight: 600;
+}
+
 .keyboard-shortcuts-header h2 {
   margin: 0;
   font-size: 24px;
@@ -1712,6 +1899,34 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 @media (max-width: 720px) {
+  .support-signboard-button span {
+    display: none;
+  }
+
+  .commercial-license-modal {
+    top: max(12px, env(safe-area-inset-top));
+    width: calc(100vw - 14px);
+    padding: 18px;
+  }
+
+  .commercial-license-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .commercial-license-tip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .commercial-license-pay-button {
+    width: 100%;
+  }
+
+  .commercial-license-tip-button {
+    width: 100%;
+  }
+
   #modalBoardSettings {
     top: max(12px, env(safe-area-inset-top));
     min-height: calc(100vh - 16px);

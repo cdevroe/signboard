@@ -276,17 +276,28 @@ Contributions in all forms are welcome!
 
 ## 💖 Support the Project
 
-If you find Signboard useful and want to support development, you can donate here:
+Signboard now includes an in-app support modal with two options:
 
-👉 [https://cdevroe.com/donate](https://cdevroe.com/donate)
+- Personal use: free, with an optional tip in any amount.
+- Commercial use: requested one-time support payment of `$49`.
 
-Thank you!
+If you are using Signboard in a paid or commercial context, the app asks you to support development through that one-time payment. If you are using it for personal projects, you can keep using it for free and optionally leave a tip.
 
 ---
 
 ## 📜 License
 
+The source code in this repository is licensed under the [MIT](./LICENSE) license.
+
 [MIT](./LICENSE) © 2025-2026 Colin Devroe - https://cdevroe.com
+
+Important clarification:
+
+- The MIT license allows personal and commercial use of the source code.
+- The in-app `$49` commercial-use payment is currently a support request and honor-system purchase model for packaged app users.
+- The optional personal-use tip is also a support mechanism, not a separate software license.
+
+If Signboard should require a different legally binding commercial license in the future, the repository `LICENSE` file and any distribution terms should be updated to match.
 
 # Third-Party Notices
 
