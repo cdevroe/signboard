@@ -216,7 +216,7 @@ Notes:
 
 Use this process for every release if you want in-app updates to work across macOS, Windows, and Linux.
 
-1. Bump `version` in `package.json` (for example `0.6.0` -> `0.7.0`).
+1. Bump `version` in `package.json` (for example `1.0.0` -> `1.0.1`).
 2. Build every target:
 ```bash
 npm run dist:mac:all
@@ -227,7 +227,7 @@ npm run dist:linux:all
 ```bash
 npm run release:verify
 ```
-4. Create a GitHub release/tag (for example `v0.7.0`) and upload every file printed by `npm run release:verify`.
+4. Create a GitHub release/tag (for example `v1.0.1`) and upload every file printed by `npm run release:verify`.
 5. Publish the release (do not leave it as draft).
 
 You can also run the build + verification chain in one command:
