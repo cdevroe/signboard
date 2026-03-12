@@ -3,9 +3,16 @@
   "productName": "Signboard",
   "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
   "files": [
-    "dist/**",
+    "app/**",
+    "lib/**",
+    "static/**",
+    "index.html",
     "main.js",
-    "!**/*.map"
+    "preload.js",
+    "build/icon-macos.png",
+    "!**/*.map",
+    "!**/.DS_Store",
+    "!dist/**"
   ],
   "win": {
     "target": [

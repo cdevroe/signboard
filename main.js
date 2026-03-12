@@ -4,9 +4,10 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker, nativeImage } = require('electron');
 const { autoUpdater } = require('electron-updater');
-const fs = require('fs').promises;
+const fs = require('fs');
+const fsPromises = fs.promises;
 const path = require('path');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
@@ -19,6 +20,7 @@ const UPDATE_REMINDER_DELAY_MS = 24 * 60 * 60 * 1000;
 const UPDATE_PREFS_FILE = 'update-preferences.json';
 const MCP_SERVER_ARG = '--mcp-server';
 const MCP_CONFIG_ARG = '--mcp-config';
+const RUNTIME_APP_ICON_PATH = path.join(__dirname, 'build', 'icon-macos.png');
 
 function getUserArgsFromProcessArgv(argv = process.argv) {
   if (!Array.isArray(argv) || argv.length <= 1) {
@@ -61,6 +63,13 @@ const updateState = {
 
 app.on('ready', () => {
   app.setName('SignBoard');
+
+  if (process.platform === 'darwin' && app.dock && fs.existsSync(RUNTIME_APP_ICON_PATH)) {
+    const dockIcon = nativeImage.createFromPath(RUNTIME_APP_ICON_PATH);
+    if (!dockIcon.isEmpty()) {
+      app.dock.setIcon(dockIcon);
+    }
+  }
 });
 
 function createWindow() {
@@ -285,7 +294,7 @@ async function loadUpdatePreferences() {
   const prefsPath = getUpdatePreferencesPath();
 
   try {
-    const raw = await fs.readFile(prefsPath, 'utf8');
+    const raw = await fsPromises.readFile(prefsPath, 'utf8');
     const parsed = JSON.parse(raw);
     updateState.reminderByVersion =
       parsed && typeof parsed === 'object' && parsed.reminderByVersion && typeof parsed.reminderByVersion === 'object'
@@ -304,7 +313,7 @@ async function saveUpdatePreferences() {
   const payload = {
     reminderByVersion: updateState.reminderByVersion,
   };
-  await fs.writeFile(prefsPath, JSON.stringify(payload, null, 2), 'utf8');
+  await fsPromises.writeFile(prefsPath, JSON.stringify(payload, null, 2), 'utf8');
 }
 
 function isReminderExpired(version) {
@@ -870,7 +879,7 @@ ipcMain.handle('share-file', async (event, filePath) => {
   }
 
   try {
-    await fs.access(normalizedPath);
+    await fsPromises.access(normalizedPath);
   } catch {
     return { ok: false, error: 'FILE_NOT_FOUND' };
   }

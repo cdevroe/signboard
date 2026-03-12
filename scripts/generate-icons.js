@@ -2,10 +2,17 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const sharp = require('sharp');
+const { Icns, IcnsImage } = require('@fiahfy/icns');
 
 const repoRoot = path.resolve(__dirname, '..');
 const buildDir = path.join(repoRoot, 'build');
+const linuxIconsDir = path.join(buildDir, 'icons');
+const windowsPngDir = path.join(buildDir, '.windows-icons');
+const macOutputPath = path.join(buildDir, 'icon.icns');
+const macRuntimePngPath = path.join(buildDir, 'icon-macos.png');
+const windowsOutputPath = path.join(buildDir, 'icon.ico');
+
 const sourceCandidates = [
   path.join(buildDir, 'Icon.svg'),
   path.join(buildDir, 'icon-source.svg'),
@@ -23,168 +30,117 @@ if (availableSourcePaths.length === 0) {
   process.exit(1);
 }
 
-const macIconsetDir = path.join(buildDir, 'icon.iconset');
-const linuxIconsDir = path.join(buildDir, 'icons');
-const macOutputPath = path.join(buildDir, 'icon.icns');
-const windowsOutputPath = path.join(buildDir, 'icon.ico');
-
-const macIconsetFiles = [
-  ['icon_16x16.png', 16],
-  ['icon_16x16@2x.png', 32],
-  ['icon_32x32.png', 32],
-  ['icon_32x32@2x.png', 64],
-  ['icon_128x128.png', 128],
-  ['icon_128x128@2x.png', 256],
-  ['icon_256x256.png', 256],
-  ['icon_256x256@2x.png', 512],
-  ['icon_512x512.png', 512],
-  ['icon_512x512@2x.png', 1024],
-];
-
+const sourcePath = availableSourcePaths[0];
 const linuxSizes = [16, 24, 32, 48, 64, 96, 128, 256, 512];
 const windowsSizes = [16, 24, 32, 48, 64, 128, 256];
+const MAC_CORNER_RADIUS_RATIO = 0.224;
 
-function run(command, args) {
-  const result = spawnSync(command, args, { encoding: 'utf8' });
-  if (result.status !== 0) {
-    if (result.stdout) {
-      process.stdout.write(result.stdout);
-    }
-    if (result.stderr) {
-      process.stderr.write(result.stderr);
-    }
-    throw new Error(`${command} ${args.join(' ')} failed with exit code ${result.status}`);
+function roundedRectSvg(size, radius) {
+  return Buffer.from(
+    `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><rect width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`
+  );
+}
+
+async function renderPng(size, options = {}) {
+  const { roundedCorners = false } = options;
+  const renderedBuffer = await sharp(sourcePath, { density: 1024 })
+    .resize(size, size, {
+      fit: 'cover',
+      position: 'centre',
+    })
+    .png()
+    .toBuffer();
+
+  if (!roundedCorners) {
+    return renderedBuffer;
+  }
+
+  const radius = Math.round(size * MAC_CORNER_RADIUS_RATIO);
+  return sharp(renderedBuffer)
+    .ensureAlpha()
+    .composite([
+      {
+        input: roundedRectSvg(size, radius),
+        blend: 'dest-in',
+      },
+    ])
+    .png()
+    .toBuffer();
+}
+
+async function writePng(buffer, outputPath) {
+  await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
+  await fs.promises.writeFile(outputPath, buffer);
+}
+
+async function buildMacIcns() {
+  const icns = new Icns();
+  const macEntries = [
+    ['icp4', 16],
+    ['icp5', 32],
+    ['icp6', 64],
+    ['ic07', 128],
+    ['ic08', 256],
+    ['ic09', 512],
+    ['ic10', 1024],
+    ['ic11', 32],
+    ['ic12', 64],
+    ['ic13', 256],
+    ['ic14', 512],
+  ];
+
+  for (const [type, size] of macEntries) {
+    const pngBuffer = await renderPng(size, { roundedCorners: true });
+    icns.append(IcnsImage.fromPNG(pngBuffer, type));
+  }
+
+  await fs.promises.writeFile(macOutputPath, icns.data);
+  await writePng(await renderPng(512, { roundedCorners: true }), macRuntimePngPath);
+}
+
+async function buildWindowsIco() {
+  const { default: pngToIco } = await import('png-to-ico');
+  await fs.promises.rm(windowsPngDir, { recursive: true, force: true });
+  await fs.promises.mkdir(windowsPngDir, { recursive: true });
+
+  const inputPaths = [];
+  for (const size of windowsSizes) {
+    const outputPath = path.join(windowsPngDir, `${size}x${size}.png`);
+    await writePng(await renderPng(size), outputPath);
+    inputPaths.push(outputPath);
+  }
+
+  const icoBuffer = await pngToIco(inputPaths);
+  await fs.promises.writeFile(windowsOutputPath, icoBuffer);
+  await fs.promises.rm(windowsPngDir, { recursive: true, force: true });
+}
+
+async function buildLinuxIcons() {
+  await fs.promises.rm(linuxIconsDir, { recursive: true, force: true });
+  await fs.promises.mkdir(linuxIconsDir, { recursive: true });
+
+  for (const size of linuxSizes) {
+    const outputPath = path.join(linuxIconsDir, `${size}x${size}.png`);
+    await writePng(await renderPng(size), outputPath);
   }
 }
 
-function runMaybe(command, args) {
-  return spawnSync(command, args, { encoding: 'utf8' });
+async function main() {
+  await fs.promises.mkdir(buildDir, { recursive: true });
+  await Promise.all([
+    buildMacIcns(),
+    buildWindowsIco(),
+    buildLinuxIcons(),
+  ]);
+
+  console.log(`Generated icons from ${path.relative(repoRoot, sourcePath)}`);
+  console.log(`- ${path.relative(repoRoot, macOutputPath)}`);
+  console.log(`- ${path.relative(repoRoot, macRuntimePngPath)}`);
+  console.log(`- ${path.relative(repoRoot, windowsOutputPath)}`);
+  console.log(`- ${path.relative(repoRoot, linuxIconsDir)}`);
 }
 
-let activeSourcePath = null;
-
-function renderPng(size, outputPath) {
-  const attemptedSources = activeSourcePath ? [activeSourcePath] : availableSourcePaths;
-  const failures = [];
-
-  for (const candidate of attemptedSources) {
-    const result = runMaybe('sips', ['-z', String(size), String(size), candidate, '--out', outputPath]);
-    if (result.status === 0) {
-      activeSourcePath = candidate;
-      return;
-    }
-
-    failures.push({
-      candidate,
-      stdout: result.stdout,
-      stderr: result.stderr,
-      status: result.status,
-    });
-  }
-
-  for (const failure of failures) {
-    if (failure.stdout) {
-      process.stdout.write(failure.stdout);
-    }
-    if (failure.stderr) {
-      process.stderr.write(failure.stderr);
-    }
-    console.error(`Failed to rasterize ${path.relative(repoRoot, failure.candidate)} (exit ${failure.status})`);
-  }
-
-  throw new Error(`Unable to render icon assets to ${path.relative(repoRoot, outputPath)}`);
-}
-
-function writeIco(entries, outputPath) {
-  const headerSize = 6;
-  const directoryEntrySize = 16;
-  const directorySize = headerSize + (entries.length * directoryEntrySize);
-  let imageOffset = directorySize;
-
-  const header = Buffer.alloc(headerSize);
-  header.writeUInt16LE(0, 0);
-  header.writeUInt16LE(1, 2);
-  header.writeUInt16LE(entries.length, 4);
-
-  const directoryEntries = [];
-  const imageBuffers = [];
-
-  for (const entry of entries) {
-    const image = fs.readFileSync(entry.filePath);
-    const directoryEntry = Buffer.alloc(directoryEntrySize);
-    directoryEntry.writeUInt8(entry.size >= 256 ? 0 : entry.size, 0);
-    directoryEntry.writeUInt8(entry.size >= 256 ? 0 : entry.size, 1);
-    directoryEntry.writeUInt8(0, 2);
-    directoryEntry.writeUInt8(0, 3);
-    directoryEntry.writeUInt16LE(1, 4);
-    directoryEntry.writeUInt16LE(32, 6);
-    directoryEntry.writeUInt32LE(image.length, 8);
-    directoryEntry.writeUInt32LE(imageOffset, 12);
-
-    directoryEntries.push(directoryEntry);
-    imageBuffers.push(image);
-    imageOffset += image.length;
-  }
-
-  fs.writeFileSync(outputPath, Buffer.concat([header, ...directoryEntries, ...imageBuffers]));
-}
-
-function writeIcns(entries, outputPath) {
-  const chunks = entries.map((entry) => {
-    const image = fs.readFileSync(entry.filePath);
-    const chunkHeader = Buffer.alloc(8);
-    chunkHeader.write(entry.type, 0, 4, 'ascii');
-    chunkHeader.writeUInt32BE(image.length + 8, 4);
-    return Buffer.concat([chunkHeader, image]);
-  });
-
-  const totalLength = 8 + chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const header = Buffer.alloc(8);
-  header.write('icns', 0, 4, 'ascii');
-  header.writeUInt32BE(totalLength, 4);
-
-  fs.writeFileSync(outputPath, Buffer.concat([header, ...chunks]));
-}
-
-fs.mkdirSync(buildDir, { recursive: true });
-fs.rmSync(macIconsetDir, { recursive: true, force: true });
-fs.rmSync(linuxIconsDir, { recursive: true, force: true });
-fs.mkdirSync(macIconsetDir, { recursive: true });
-fs.mkdirSync(linuxIconsDir, { recursive: true });
-
-for (const [fileName, size] of macIconsetFiles) {
-  renderPng(size, path.join(macIconsetDir, fileName));
-}
-
-for (const size of linuxSizes) {
-  renderPng(size, path.join(linuxIconsDir, `${size}x${size}.png`));
-}
-
-const windowsPngDir = path.join(buildDir, '.windows-icons');
-fs.rmSync(windowsPngDir, { recursive: true, force: true });
-fs.mkdirSync(windowsPngDir, { recursive: true });
-
-const windowsEntries = windowsSizes.map((size) => {
-  const filePath = path.join(windowsPngDir, `${size}x${size}.png`);
-  renderPng(size, filePath);
-  return { size, filePath };
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
 });
-
-writeIcns([
-  { type: 'icp4', filePath: path.join(macIconsetDir, 'icon_16x16.png') },
-  { type: 'icp5', filePath: path.join(macIconsetDir, 'icon_32x32.png') },
-  { type: 'icp6', filePath: path.join(macIconsetDir, 'icon_32x32@2x.png') },
-  { type: 'ic07', filePath: path.join(macIconsetDir, 'icon_128x128.png') },
-  { type: 'ic08', filePath: path.join(macIconsetDir, 'icon_256x256.png') },
-  { type: 'ic09', filePath: path.join(macIconsetDir, 'icon_512x512.png') },
-  { type: 'ic10', filePath: path.join(macIconsetDir, 'icon_512x512@2x.png') },
-], macOutputPath);
-writeIco(windowsEntries, windowsOutputPath);
-
-fs.rmSync(windowsPngDir, { recursive: true, force: true });
-fs.rmSync(macIconsetDir, { recursive: true, force: true });
-
-console.log(`Generated icons from ${path.relative(repoRoot, activeSourcePath || availableSourcePaths[0])}`);
-console.log(`- ${path.relative(repoRoot, macOutputPath)}`);
-console.log(`- ${path.relative(repoRoot, windowsOutputPath)}`);
-console.log(`- ${path.relative(repoRoot, linuxIconsDir)}`);
