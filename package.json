@@ -8,6 +8,12 @@
   "bin": {
     "signboard": "./bin/signboard.js"
   },
+  "build": {
+    "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
+    "nsis": {
+      "artifactName": "signboard_${version}_${os}_${arch}.${ext}"
+    }
+  },
   "private": true,
   "scripts": {
     "prestart": "npm run build:js",
