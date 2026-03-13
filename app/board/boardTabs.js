@@ -100,6 +100,42 @@ function ensureBoardInTabs(boardPath) {
     };
 }
 
+function replaceStoredBoardPath(previousPath, nextPath) {
+    const normalizedPreviousPath = normalizeBoardPath(previousPath);
+    const normalizedNextPath = normalizeBoardPath(nextPath);
+
+    if (!normalizedPreviousPath || !normalizedNextPath) {
+        return false;
+    }
+
+    if (normalizedPreviousPath === normalizedNextPath) {
+        return true;
+    }
+
+    const openBoards = getStoredOpenBoards();
+    const previousIndex = openBoards.indexOf(normalizedPreviousPath);
+    if (previousIndex === -1) {
+        return false;
+    }
+
+    const updatedOpenBoards = openBoards.filter((path) => path !== normalizedPreviousPath);
+    if (!updatedOpenBoards.includes(normalizedNextPath)) {
+        updatedOpenBoards.splice(Math.min(previousIndex, updatedOpenBoards.length), 0, normalizedNextPath);
+    }
+
+    setStoredOpenBoards(updatedOpenBoards);
+
+    if (normalizeBoardPath(window.boardRoot) === normalizedPreviousPath) {
+        window.boardRoot = normalizedNextPath;
+    }
+
+    if (getStoredActiveBoard() === normalizedPreviousPath) {
+        setStoredActiveBoard(normalizedNextPath);
+    }
+
+    return true;
+}
+
 function clearRenderedBoard() {
     if (typeof setBoardChromeState === 'function') {
         setBoardChromeState(false);

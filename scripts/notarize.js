@@ -6,6 +6,14 @@ exports.default = async function notarizeApp(context) {
   const { electronPlatformName, appOutDir, packager } = context;
   if (electronPlatformName !== 'darwin') return;
 
+  const skipNotarization = ['1', 'true', 'yes'].includes(
+    String(process.env.SIGNBOARD_SKIP_NOTARIZATION || '').toLowerCase()
+  );
+  if (skipNotarization) {
+    console.warn('Skipping notarization: SIGNBOARD_SKIP_NOTARIZATION is enabled.');
+    return;
+  }
+
   const appName = packager.appInfo.productFilename;
 
   const appleId = process.env.APPLE_ID;

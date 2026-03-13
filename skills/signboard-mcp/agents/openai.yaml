@@ -1,0 +1,5 @@
+interface:
+  display_name: "Signboard MCP"
+  short_description: "Use Signboard MCP tools safely for board updates"
+  brand_color: "#2563eb"
+  default_prompt: "Use $signboard-mcp to inspect my board, then apply safe card and list updates."

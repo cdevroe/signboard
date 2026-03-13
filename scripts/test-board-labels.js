@@ -22,6 +22,7 @@ async function run() {
     assert.strictEqual(defaults.labels.length, 3);
     assert.strictEqual(defaults.labels[0].id, 'label-1');
     assert.deepStrictEqual(defaults.themeOverrides, { light: {}, dark: {} });
+    assert.deepStrictEqual(defaults.notifications, { enabled: false, time: '09:00' });
 
     const settingsPath = path.join(boardPath, 'board-settings.md');
     const writtenRaw = await fs.readFile(settingsPath, 'utf8');
@@ -47,6 +48,7 @@ async function run() {
     const reloaded = await readBoardSettings(boardPath);
     assert.deepStrictEqual(reloaded.labels, updatedLabels);
     assert.deepStrictEqual(reloaded.themeOverrides, { light: {}, dark: {} });
+    assert.deepStrictEqual(reloaded.notifications, { enabled: false, time: '09:00' });
 
     // 3) Theme overrides should persist and normalize values.
     await updateBoardThemeOverrides(boardPath, {
@@ -58,15 +60,24 @@ async function run() {
       light: { boardBackground: '#dfe4f2' },
       dark: { boardBackground: '#0b1220' },
     });
+    assert.deepStrictEqual(withThemeOverrides.notifications, { enabled: false, time: '09:00' });
 
     // 4) Updating full settings can clear overrides and preserve labels.
     await updateBoardSettings(boardPath, {
       labels: updatedLabels,
       themeOverrides: { light: {}, dark: {} },
+      notifications: { enabled: true, time: '08:30' },
     });
     const clearedOverrides = await readBoardSettings(boardPath);
     assert.deepStrictEqual(clearedOverrides.themeOverrides, { light: {}, dark: {} });
     assert.deepStrictEqual(clearedOverrides.labels, updatedLabels);
+    assert.deepStrictEqual(clearedOverrides.notifications, { enabled: true, time: '08:30' });
+
+    await updateBoardSettings(boardPath, {
+      notifications: { enabled: true, time: '24:15' },
+    });
+    const withLateNotifications = await readBoardSettings(boardPath);
+    assert.deepStrictEqual(withLateNotifications.notifications, { enabled: true, time: '24:15' });
 
     // 5) Legacy labels.md file should be migrated to board-settings.md.
     const legacyBoardPath = path.join(tmpDir, 'board-two');

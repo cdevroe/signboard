@@ -54,29 +54,69 @@ function addTimestampToolbarButton(editor) {
     toolbar.appendChild(button);
 }
 
+function removeViewModeToolbarButton(editor) {
+    if (!editor || !editor.container) {
+        return;
+    }
+
+    const toolbar = editor.container.querySelector('.overtype-toolbar');
+    if (!toolbar) {
+        return;
+    }
+
+    const viewModeButton = toolbar.querySelector('[data-action="toggle-view-menu"]');
+    if (!viewModeButton) {
+        return;
+    }
+
+    const separatorBefore = viewModeButton.previousElementSibling;
+    if (separatorBefore && separatorBefore.classList.contains('overtype-toolbar-separator')) {
+        separatorBefore.remove();
+    }
+
+    viewModeButton.remove();
+}
+
 function setEditorLabelDisplay(labelIds) {
     const cardEditorCardLabels = document.getElementById('cardEditorCardLabels');
     if (!cardEditorCardLabels) {
         return;
     }
 
+    cardEditorCardLabels.innerHTML = '';
+
     const ids = Array.isArray(labelIds) ? labelIds.map((labelId) => String(labelId)) : [];
     if (ids.length === 0) {
-        cardEditorCardLabels.textContent = '';
+        cardEditorCardLabels.classList.remove('card-labels', 'card-editor-labels');
         return;
     }
 
-    const names = ids.map((labelId) => {
-        const label = getBoardLabelById(labelId);
-        return label ? label.name : 'Unknown label';
-    });
+    cardEditorCardLabels.classList.add('card-labels', 'card-editor-labels');
 
-    cardEditorCardLabels.textContent = names.join(', ');
+    for (const labelId of ids) {
+        const label = getBoardLabelById(labelId);
+        const labelChip = document.createElement('span');
+        labelChip.className = 'card-label-chip';
+
+        if (label) {
+            const chipColor = getBoardLabelColor(label);
+            labelChip.textContent = label.name;
+            labelChip.style.backgroundColor = `${chipColor}22`;
+            labelChip.style.borderColor = chipColor;
+        } else {
+            labelChip.classList.add('card-label-chip-unknown');
+            labelChip.textContent = 'Unknown label';
+            labelChip.title = labelId;
+        }
+
+        cardEditorCardLabels.appendChild(labelChip);
+    }
 }
 
 let pendingEditorBody = '';
 let pendingEditorSaveTimer = null;
 let editorSaveInFlight = Promise.resolve();
+let cardEditorListMoveFeedbackTimer = null;
 
 function getActiveEditorCardPath() {
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
@@ -173,6 +213,7 @@ async function saveEditorCard(bodyValue) {
 }
 
 let activeDueDatePickerInput = null;
+let taskLineDueControlsTeardown = null;
 
 function destroyActiveDueDatePicker() {
     if (activeDueDatePickerInput && activeDueDatePickerInput._fdatepicker) {
@@ -300,9 +341,438 @@ function openDueDatePickerAtTrigger({
     }
 }
 
+function destroyTaskLineDueDateControls() {
+    if (typeof taskLineDueControlsTeardown === 'function') {
+        taskLineDueControlsTeardown();
+    }
+
+    taskLineDueControlsTeardown = null;
+}
+
+function getTaskLineDueControlIconMarkup(hasDueDate) {
+    if (
+        window.feather &&
+        window.feather.icons &&
+        typeof window.feather.icons.calendar?.toSvg === 'function'
+    ) {
+        return window.feather.icons.calendar.toSvg({
+            width: 16,
+            height: 16,
+            stroke: 'currentColor',
+        });
+    }
+
+    return '<i data-feather="calendar" aria-hidden="true"></i>';
+}
+
+function setupTaskLineDueDateControls(editor) {
+    destroyTaskLineDueDateControls();
+
+    if (!editor || !editor.textarea || !editor.container) {
+        return;
+    }
+
+    const textarea = editor.textarea;
+    const wrapper = editor.container.querySelector('.overtype-wrapper');
+    const preview = editor.container.querySelector('.overtype-preview');
+    if (!wrapper) {
+        return;
+    }
+
+    const layer = document.createElement('div');
+    layer.className = 'task-line-due-layer';
+    wrapper.appendChild(layer);
+
+    const toFiniteNumber = (value, fallback = 0) => {
+        const parsed = Number.parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    };
+
+    function getTaskLineAnchorOffset(taskItem, textValue, textLength) {
+        if (!taskItem || !Number.isInteger(taskItem.lineStart)) {
+            return null;
+        }
+
+        const rawLineStart = Math.min(
+            Math.max(0, Number(taskItem.lineStart)),
+            Math.max(0, textLength - 1),
+        );
+        const lineText = String(taskItem.line || '');
+        const leadingWhitespaceMatch = lineText.match(/^\s*/);
+        const leadingWhitespaceLength = leadingWhitespaceMatch ? leadingWhitespaceMatch[0].length : 0;
+        let anchorOffset = Math.min(rawLineStart + leadingWhitespaceLength, Math.max(0, textLength - 1));
+
+        while (anchorOffset < textLength && textValue.charAt(anchorOffset) === '\n') {
+            anchorOffset += 1;
+        }
+
+        if (anchorOffset >= textLength) {
+            return null;
+        }
+
+        return anchorOffset;
+    }
+
+    function createTextareaMeasurementMirror() {
+        const style = window.getComputedStyle(textarea);
+        const mirror = document.createElement('div');
+        const textareaRect = textarea.getBoundingClientRect();
+        const layerRect = layer.getBoundingClientRect();
+
+        mirror.style.position = 'absolute';
+        mirror.style.top = `${Math.round(textareaRect.top - layerRect.top)}px`;
+        mirror.style.left = `${Math.round(textareaRect.left - layerRect.left)}px`;
+        mirror.style.visibility = 'hidden';
+        mirror.style.pointerEvents = 'none';
+        mirror.style.whiteSpace = 'pre-wrap';
+        mirror.style.wordWrap = 'break-word';
+        mirror.style.overflowWrap = 'break-word';
+        mirror.style.boxSizing = 'border-box';
+        mirror.style.width = `${Math.max(textarea.clientWidth, 1)}px`;
+        mirror.style.padding = style.padding;
+        mirror.style.margin = '0';
+        mirror.style.border = '0';
+        mirror.style.font = style.font;
+        mirror.style.lineHeight = style.lineHeight;
+        mirror.style.letterSpacing = style.letterSpacing;
+        mirror.style.textIndent = style.textIndent;
+        mirror.style.textTransform = style.textTransform;
+        mirror.style.textAlign = style.textAlign;
+        mirror.style.direction = style.direction;
+        mirror.style.tabSize = style.tabSize;
+        mirror.style.wordSpacing = style.wordSpacing;
+        mirror.style.webkitTextSizeAdjust = '100%';
+
+        layer.appendChild(mirror);
+        return mirror;
+    }
+
+    function getFirstRenderedLineRect(element) {
+        if (!element || typeof element.getBoundingClientRect !== 'function') {
+            return null;
+        }
+
+        const fallbackRect = element.getBoundingClientRect();
+        if (typeof document.createRange !== 'function') {
+            return fallbackRect;
+        }
+
+        const range = document.createRange();
+        try {
+            range.selectNodeContents(element);
+            const clientRects = Array.from(range.getClientRects()).filter((rect) => (
+                rect &&
+                Number.isFinite(rect.top) &&
+                Number.isFinite(rect.left) &&
+                Number.isFinite(rect.height) &&
+                rect.height > 0
+            ));
+            return clientRects[0] || fallbackRect;
+        } finally {
+            if (typeof range.detach === 'function') {
+                range.detach();
+            }
+        }
+    }
+
+    function getLineStartPositionByTaskIndex(taskItems) {
+        const positions = new Map();
+        if (!Array.isArray(taskItems) || taskItems.length === 0) {
+            return positions;
+        }
+
+        if (preview) {
+            const previewChildren = Array.from(preview.children);
+            const previewLineElements = new Map();
+            const rawLines = String(textarea.value || '').split('\n');
+            let lineIndex = 0;
+
+            for (const child of previewChildren) {
+                if (!(child instanceof HTMLElement)) {
+                    continue;
+                }
+
+                const tagName = child.tagName;
+                if (tagName === 'UL' || tagName === 'OL') {
+                    const listItems = Array.from(child.children).filter((element) => element instanceof HTMLElement);
+                    for (const listItem of listItems) {
+                        previewLineElements.set(lineIndex, listItem);
+                        lineIndex += 1;
+                    }
+                    continue;
+                }
+
+                if (tagName === 'PRE') {
+                    const codeElement = child.querySelector('code');
+                    const codeText = codeElement ? String(codeElement.textContent || '') : String(child.textContent || '');
+                    const codeLineCount = Math.max(1, codeText.split('\n').length + 2);
+                    for (let offset = 0; offset < codeLineCount; offset += 1) {
+                        previewLineElements.set(lineIndex, child);
+                        lineIndex += 1;
+                    }
+                    continue;
+                }
+
+                previewLineElements.set(lineIndex, child);
+                lineIndex += 1;
+
+                if (lineIndex >= rawLines.length) {
+                    break;
+                }
+            }
+
+            if (previewLineElements.size > 0) {
+                const layerRect = layer.getBoundingClientRect();
+                for (const taskItem of taskItems) {
+                    const lineElement = previewLineElements.get(taskItem.lineIndex);
+                    if (!lineElement) {
+                        continue;
+                    }
+
+                    const rect = getFirstRenderedLineRect(lineElement);
+                    if (!rect || (!Number.isFinite(rect.top) || !Number.isFinite(rect.left))) {
+                        continue;
+                    }
+
+                    positions.set(taskItem.lineIndex, {
+                        top: rect.top - layerRect.top + preview.scrollTop,
+                        left: rect.left - layerRect.left + preview.scrollLeft,
+                        height: rect.height,
+                    });
+                }
+            }
+
+            if (positions.size > 0) {
+                return positions;
+            }
+        }
+
+        const textValue = String(textarea.value || '');
+        const mirror = createTextareaMeasurementMirror();
+        try {
+            const sortedTaskItems = [...taskItems]
+                .filter((item) => item && Number.isInteger(item.lineIndex) && Number.isInteger(item.lineStart))
+                .sort((a, b) => a.lineStart - b.lineStart);
+            const textLength = textValue.length;
+            const layerRect = layer.getBoundingClientRect();
+            let cursor = 0;
+            const markersByLineIndex = new Map();
+
+            for (const taskItem of sortedTaskItems) {
+                const anchorOffset = getTaskLineAnchorOffset(taskItem, textValue, textLength);
+                if (anchorOffset === null) {
+                    continue;
+                }
+
+                if (anchorOffset > cursor) {
+                    mirror.appendChild(document.createTextNode(textValue.slice(cursor, anchorOffset)));
+                }
+
+                const marker = document.createElement('span');
+                marker.textContent = '\u200b';
+                marker.setAttribute('aria-hidden', 'true');
+                marker.style.display = 'inline';
+                marker.style.padding = '0';
+                marker.style.margin = '0';
+                marker.style.border = '0';
+                marker.style.lineHeight = 'inherit';
+                marker.style.pointerEvents = 'none';
+                mirror.appendChild(marker);
+                markersByLineIndex.set(taskItem.lineIndex, marker);
+
+                cursor = anchorOffset;
+            }
+
+            if (cursor < textLength) {
+                mirror.appendChild(document.createTextNode(textValue.slice(cursor)));
+            } else if (textLength === 0) {
+                mirror.appendChild(document.createTextNode(' '));
+            }
+
+            for (const taskItem of sortedTaskItems) {
+                const marker = markersByLineIndex.get(taskItem.lineIndex);
+                if (!marker) {
+                    continue;
+                }
+
+                const rect = marker.getBoundingClientRect();
+                if (!rect || (!Number.isFinite(rect.top) || !Number.isFinite(rect.left))) {
+                    continue;
+                }
+
+                positions.set(taskItem.lineIndex, {
+                    top: rect.top - layerRect.top,
+                    left: rect.left - layerRect.left,
+                    height: rect.height,
+                });
+            }
+        } finally {
+            mirror.remove();
+        }
+
+        return positions;
+    }
+
+    function renderTaskLineDueButtons() {
+        const taskItems = parseTaskListItems(textarea.value);
+        layer.innerHTML = '';
+
+        if (taskItems.length === 0) {
+            return;
+        }
+
+        const style = window.getComputedStyle(textarea);
+        const fontSize = toFiniteNumber(style.fontSize, 16);
+        const lineHeight = Math.max(toFiniteNumber(style.lineHeight, fontSize * 1.6), 1);
+        const controlSize = 20;
+        const lineStartPositions = getLineStartPositionByTaskIndex(taskItems);
+        const visibleTop = -lineHeight;
+        const visibleBottom = textarea.clientHeight + lineHeight;
+
+        for (const taskItem of taskItems) {
+            const linePosition = lineStartPositions.get(taskItem.lineIndex);
+            if (!linePosition) {
+                continue;
+            }
+
+            const measuredLineHeight = Math.max(toFiniteNumber(linePosition.height, lineHeight), lineHeight);
+            const buttonTop = Math.round(
+                linePosition.top - textarea.scrollTop + ((measuredLineHeight - controlSize) / 2),
+            );
+            if (buttonTop < visibleTop || buttonTop > visibleBottom) {
+                continue;
+            }
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'task-line-due-control';
+            button.dataset.lineIndex = String(taskItem.lineIndex);
+            button.style.top = `${buttonTop}px`;
+            button.style.left = `${Math.max(1, Math.round(linePosition.left - textarea.scrollLeft - 22))}px`;
+
+            if (taskItem.due) {
+                const dueLabel = formatLongDueDateLabel(taskItem.due);
+                button.classList.add('has-due');
+                button.title = `Due ${dueLabel}`;
+                button.setAttribute('aria-label', `Due ${dueLabel}. Change due date.`);
+            } else {
+                button.title = 'Set task due date';
+                button.setAttribute('aria-label', 'Set task due date');
+            }
+
+            button.innerHTML = getTaskLineDueControlIconMarkup(Boolean(taskItem.due));
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const targetLineIndex = Number(button.dataset.lineIndex);
+                const liveTaskItems = parseTaskListItems(textarea.value);
+                const liveTaskItem = liveTaskItems.find((item) => item.lineIndex === targetLineIndex);
+                if (!liveTaskItem) {
+                    return;
+                }
+
+                openDueDatePickerAtTrigger({
+                    triggerElement: button,
+                    dueDateValue: liveTaskItem.due,
+                    onSelect: async (value) => {
+                        const nextValue = setTaskListItemDueDateByLineIndex(textarea.value, targetLineIndex, value);
+                        if (nextValue === textarea.value) {
+                            return;
+                        }
+
+                        const caretPosition = getLineEndOffsetByLineIndex(nextValue, targetLineIndex);
+                        textarea.value = nextValue;
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        window.requestAnimationFrame(() => {
+                            if (typeof textarea.focus === 'function') {
+                                textarea.focus();
+                            }
+                            if (typeof textarea.setSelectionRange === 'function') {
+                                textarea.setSelectionRange(caretPosition, caretPosition);
+                            }
+                        });
+                    },
+                });
+            });
+
+            layer.appendChild(button);
+        }
+    }
+
+    let renderRafId = 0;
+    const requestRender = () => {
+        if (renderRafId) {
+            return;
+        }
+
+        renderRafId = window.requestAnimationFrame(() => {
+            renderRafId = 0;
+            renderTaskLineDueButtons();
+        });
+    };
+
+    textarea.addEventListener('input', requestRender);
+    textarea.addEventListener('scroll', requestRender);
+    window.addEventListener('resize', requestRender);
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver === 'function') {
+        resizeObserver = new ResizeObserver(() => {
+            requestRender();
+        });
+        resizeObserver.observe(textarea);
+        resizeObserver.observe(wrapper);
+        if (editor.container) {
+            resizeObserver.observe(editor.container);
+        }
+    }
+
+    let containerMutationObserver = null;
+    if (typeof MutationObserver === 'function' && editor.container) {
+        containerMutationObserver = new MutationObserver(() => {
+            requestRender();
+        });
+        containerMutationObserver.observe(editor.container, {
+            attributes: true,
+            attributeFilter: ['class', 'style'],
+        });
+    }
+
+    if (document.fonts && typeof document.fonts.ready?.then === 'function') {
+        document.fonts.ready.then(() => {
+            requestRender();
+        }).catch(() => {});
+    }
+
+    requestRender();
+
+    taskLineDueControlsTeardown = () => {
+        if (renderRafId) {
+            window.cancelAnimationFrame(renderRafId);
+            renderRafId = 0;
+        }
+
+        textarea.removeEventListener('input', requestRender);
+        textarea.removeEventListener('scroll', requestRender);
+        window.removeEventListener('resize', requestRender);
+        if (resizeObserver) {
+            resizeObserver.disconnect();
+        }
+        if (containerMutationObserver) {
+            containerMutationObserver.disconnect();
+        }
+
+        if (layer.parentNode) {
+            layer.parentNode.removeChild(layer);
+        }
+    };
+}
+
 async function toggleEditCardModal(cardPath, options = {}) {
     const shouldOpenDueDatePicker = Boolean(options && options.openDueDatePicker);
     const modalEditCard = document.getElementById('modalEditCard');
+    destroyTaskLineDueDateControls();
 
     const card = await window.board.readCard(cardPath);
 
@@ -317,23 +787,26 @@ async function toggleEditCardModal(cardPath, options = {}) {
 
     const cardEditorTitle = document.getElementById('cardEditorTitle');
     const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
+    const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
     const cardEditorSetLabelsLink = document.getElementById('cardEditorSetLabelsLink');
 
     setEditorFrontmatter(card.frontmatter);
     cardEditorCardPath.value = cardPath;
     cardEditorTitle.textContent = card.frontmatter.title || '';
     cardEditorCardDueDateDisplay.textContent = '';
+    setDueDateVisualClass(cardEditorSetDueDateLink, '');
     setEditorLabelDisplay(card.frontmatter.labels);
 
     if (card.frontmatter.due) {
         cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(card.frontmatter.due);
+        setDueDateVisualClass(cardEditorSetDueDateLink, card.frontmatter.due);
     }
 
     const [editor] = new OverType('#cardEditorOverType', {
         value: card.body,
         fontSize: '16px',
         lineHeight: 1.6,
-        fontFamily: 'system-ui',
+        fontFamily: '"JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         padding: '16px',
         toolbar: true,
         placeholder: 'Notes...',
@@ -349,7 +822,11 @@ async function toggleEditCardModal(cardPath, options = {}) {
     }
 
     editor.setValue(card.body);
+    removeViewModeToolbarButton(editor);
+    editor.container.classList.remove('preview-mode');
+    editor.container.classList.remove('plain-mode');
     addTimestampToolbarButton(editor);
+    setupTaskLineDueDateControls(editor);
 
     cardEditorTitle.onkeydown = (e) => {
         if ( e.code == 'Enter' ) { e.preventDefault(); return; }
@@ -362,7 +839,6 @@ async function toggleEditCardModal(cardPath, options = {}) {
         await handleNotesSave(cardEditorContents[0].value,false);
     };
 
-    const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
     const openDueDatePickerControl = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -413,8 +889,9 @@ async function toggleEditCardModal(cardPath, options = {}) {
         const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
         await window.board.moveCard( cardEditorCardPath.value, window.boardRoot + 'XXX-Archive/' + window.board.getCardFileName(cardEditorCardPath.value));
-        e.target.id = 'board';
-        await closeAllModals(e);
+        e.preventDefault();
+        e.stopPropagation();
+        await closeAllModals(createCloseAllModalsRequest());
 
         return;
     };
@@ -423,6 +900,12 @@ async function toggleEditCardModal(cardPath, options = {}) {
     cardEditorDupeLink.removeEventListener('click', handleClickDuplicateCard, { once: true });
     cardEditorDupeLink.addEventListener('click', handleClickDuplicateCard, {once:true});
 
+    const cardEditorShareLink = document.getElementById('cardEditorShareLink');
+    if (cardEditorShareLink) {
+        cardEditorShareLink.removeEventListener('click', handleClickShareCard);
+        cardEditorShareLink.addEventListener('click', handleClickShareCard);
+    }
+
     const cardEditorMoveListLink = document.getElementById('cardEditorMoveListLink');
     if (cardEditorMoveListLink) {
         cardEditorMoveListLink.removeEventListener('click', handleClickMoveCard);
@@ -430,11 +913,21 @@ async function toggleEditCardModal(cardPath, options = {}) {
         await updateCardEditorMoveLink(cardEditorCardPath.value);
     }
 
+    const cardEditorListSelect = document.getElementById('cardEditorListSelect');
+    if (cardEditorListSelect) {
+        cardEditorListSelect.removeEventListener('change', handleChangeCardListSelect);
+        cardEditorListSelect.addEventListener('change', handleChangeCardListSelect);
+        await updateCardEditorListDropdown(cardEditorCardPath.value);
+    }
+
     const cardEditorClose = document.getElementById('cardEditorClose');
     cardEditorClose.removeEventListener('click', handleClickCloseCard, { once: true });
     cardEditorClose.addEventListener('click', handleClickCloseCard, {once:true});
 
     modalEditCard.style.display = 'block'; // Display after everything is loaded
+    if (editor && editor.textarea) {
+        editor.textarea.dispatchEvent(new Event('scroll', { bubbles: true }));
+    }
 
     if (typeof setBoardInteractive === 'function') {
         setBoardInteractive(false);
@@ -496,11 +989,14 @@ async function handleMetadataSave(value,metaName) {
     await enqueueEditorSave(pendingEditorBody);
 
     const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
+    const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
 
     if ( normalizedFrontmatter.due ) {
         cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(normalizedFrontmatter.due);
+        setDueDateVisualClass(cardEditorSetDueDateLink, normalizedFrontmatter.due);
     } else {
         cardEditorCardDueDateDisplay.textContent = '';
+        setDueDateVisualClass(cardEditorSetDueDateLink, '');
     }
 
     return;
@@ -515,12 +1011,69 @@ function getCardListPath(cardPath) {
     return normalized.slice(0, lastSlash);
 }
 
+function getPathDirectoryName(filePath) {
+    const normalized = String(filePath || '').replace(/\\/g, '/');
+    const segments = normalized.split('/').filter(Boolean);
+    return segments.length > 0 ? segments[segments.length - 1] : '';
+}
+
+function getCardEditorListDisplayName(directoryName) {
+    const normalized = String(directoryName || '');
+    const listNameMatch = normalized.match(/^\d{3}-(.*?)(-[^-]{5}|-stock)$/);
+    if (listNameMatch) {
+        return listNameMatch[1];
+    }
+
+    if (/^\d{3}-.+/.test(normalized)) {
+        return normalized.slice(4);
+    }
+
+    return normalized || 'Untitled';
+}
+
 async function getOrderedListPaths() {
     if (!window.boardRoot) {
         return [];
     }
     const listNames = await window.board.listLists(window.boardRoot);
     return listNames.map((listName) => window.boardRoot + listName);
+}
+
+async function updateCardEditorListDropdown(cardPath) {
+    const listSelect = document.getElementById('cardEditorListSelect');
+    if (!listSelect) {
+        return;
+    }
+
+    const listPaths = await getOrderedListPaths();
+    const currentListPath = getCardListPath(cardPath);
+
+    listSelect.innerHTML = '';
+
+    if (listPaths.length === 0) {
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = 'No lists';
+        listSelect.appendChild(emptyOption);
+        listSelect.disabled = true;
+        return;
+    }
+
+    for (const listPath of listPaths) {
+        const option = document.createElement('option');
+        option.value = listPath;
+        option.textContent = getCardEditorListDisplayName(getPathDirectoryName(listPath));
+        if (listPath === currentListPath) {
+            option.selected = true;
+        }
+        listSelect.appendChild(option);
+    }
+
+    if (!listPaths.includes(currentListPath)) {
+        listSelect.value = listPaths[0];
+    }
+
+    listSelect.disabled = false;
 }
 
 async function resolveCardMoveTarget(cardPath) {
@@ -571,6 +1124,58 @@ async function getNextCardNumber(listPath) {
     });
 }
 
+async function moveCardToListPath(cardPath, targetListPath) {
+    if (!cardPath || !targetListPath) {
+        return '';
+    }
+
+    const fileName = await window.board.getCardFileName(cardPath);
+    const suffix = fileName.replace(/^\d{3}/, '');
+    const nextNumber = await getNextCardNumber(targetListPath);
+    const newFileName = nextNumber + suffix;
+    const newPath = targetListPath + '/' + newFileName;
+
+    await window.board.moveCard(cardPath, newPath);
+    return newPath;
+}
+
+function showCardEditorListMoveFeedback() {
+    const feedbackEl = document.getElementById('cardEditorListMoveFeedback');
+    if (!feedbackEl) {
+        return;
+    }
+
+    if (cardEditorListMoveFeedbackTimer) {
+        clearTimeout(cardEditorListMoveFeedbackTimer);
+        cardEditorListMoveFeedbackTimer = null;
+    }
+
+    feedbackEl.classList.remove('is-visible');
+    void feedbackEl.offsetWidth;
+    feedbackEl.classList.add('is-visible');
+
+    cardEditorListMoveFeedbackTimer = setTimeout(() => {
+        feedbackEl.classList.remove('is-visible');
+        cardEditorListMoveFeedbackTimer = null;
+    }, 1200);
+}
+
+async function refreshCardEditorAfterMove(newPath) {
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    if (cardEditorCardPath) {
+        cardEditorCardPath.value = newPath;
+    }
+
+    const cardEditorCardID = document.getElementById('cardEditorCardID');
+    if (cardEditorCardID) {
+        cardEditorCardID.textContent = await window.board.getCardID(newPath);
+    }
+
+    await renderBoard();
+    await updateCardEditorMoveLink(newPath);
+    await updateCardEditorListDropdown(newPath);
+}
+
 function setCardEditorMoveIcon(moveLink, iconName) {
     if (!moveLink || !window.feather || !window.feather.icons || !window.feather.icons[iconName]) {
         return;
@@ -616,32 +1221,80 @@ async function handleClickMoveCard(e) {
         return;
     }
 
-    const fileName = await window.board.getCardFileName(cardEditorCardPath.value);
-    const suffix = fileName.replace(/^\d{3}/, '');
-    const nextNumber = await getNextCardNumber(moveInfo.targetPath);
-    const newFileName = nextNumber + suffix;
-    const newPath = moveInfo.targetPath + '/' + newFileName;
-
-    await window.board.moveCard(cardEditorCardPath.value, newPath);
-
-    cardEditorCardPath.value = newPath;
-
-    const cardEditorCardID = document.getElementById('cardEditorCardID');
-    if (cardEditorCardID) {
-        cardEditorCardID.textContent = await window.board.getCardID(newPath);
+    const newPath = await moveCardToListPath(cardEditorCardPath.value, moveInfo.targetPath);
+    if (!newPath) {
+        return;
     }
 
-    await renderBoard();
-    await updateCardEditorMoveLink(newPath);
+    await refreshCardEditorAfterMove(newPath);
+    return;
+}
+
+async function handleChangeCardListSelect(e) {
+    e.stopPropagation();
+
+    const listSelect = e.currentTarget;
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    if (!listSelect || !cardEditorCardPath || !cardEditorCardPath.value) {
+        return;
+    }
+
+    const targetListPath = String(listSelect.value || '').trim();
+    if (!targetListPath) {
+        return;
+    }
+
+    const currentListPath = getCardListPath(cardEditorCardPath.value);
+    if (targetListPath === currentListPath) {
+        return;
+    }
+
+    listSelect.disabled = true;
+
+    try {
+        await flushEditorSaveIfNeeded();
+        const newPath = await moveCardToListPath(cardEditorCardPath.value, targetListPath);
+        if (!newPath) {
+            return;
+        }
+
+        await refreshCardEditorAfterMove(newPath);
+        showCardEditorListMoveFeedback();
+    } finally {
+        const latestCardPath = document.getElementById('cardEditorCardPath')?.value || cardEditorCardPath.value;
+        await updateCardEditorListDropdown(latestCardPath);
+    }
 
     return;
 }
 
 async function handleClickCloseCard( e ) {
-    e.target.id = 'board';
+    e.preventDefault();
     e.stopPropagation();
-    await closeAllModals(e);
+    await closeAllModals(createCloseAllModalsRequest());
     return;
+}
+
+async function handleClickShareCard(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    const cardPath = cardEditorCardPath ? String(cardEditorCardPath.value || '').trim() : '';
+    if (!cardPath) {
+        return;
+    }
+
+    await flushEditorSaveIfNeeded();
+
+    try {
+        const result = await window.board.shareCard(cardPath);
+        if (!result || result.ok !== true) {
+            console.error('Unable to share card file.', result && result.error ? result.error : 'UNKNOWN');
+        }
+    } catch (error) {
+        console.error('Unable to share card file.', error);
+    }
 }
 
 async function handleClickDuplicateCard( e ) {
@@ -665,8 +1318,9 @@ async function handleClickDuplicateCard( e ) {
         body: card.body,
     });
 
-    e.target.id = 'board';
-    await closeAllModals(e, { rerender: true });
+    e.preventDefault();
+    e.stopPropagation();
+    await closeAllModals(createCloseAllModalsRequest(), { rerender: true });
     await toggleEditCardModal(newCardPath);
 
     return;

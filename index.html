@@ -19,18 +19,26 @@
         <div id="boardPathWrapper">
           <input id="boardPath" type="text" class="hidden" readonly>
           <button id="openBoardSettings" title="Open board settings"><i data-feather="sliders"></i></button>
-          <button id="themeToggle" title="Toggle dark mode">🌙</button>
+          <div class="board-toolbar-group" id="boardViewGroup">
+            <button id="boardViewButton" title="Switch board view" aria-label="Switch board view"><i data-feather="columns"></i></button>
+            <div id="boardViewPopover" class="label-popover board-view-popover hidden"></div>
+          </div>
+          <button id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode"><i data-feather="moon"></i></button>
+          <button id="openCommercialLicenseModal" class="support-signboard-button" type="button" title="Support Signboard for commercial use" aria-label="Support Signboard for commercial use">
+            <i data-feather="heart"></i>
+            <span>Support</span>
+          </button>
         </div>
         <div id="boardControls">
           <input id="boardSearchInput" type="search" placeholder="Search cards">
           <div class="board-toolbar-group">
-            <button id="labelFilterButton" title="Filter cards by labels">
+            <button id="labelFilterButton" title="Sort and filter cards">
               <i data-feather="tag" class="label-toolbar-icon"></i>
               <span id="labelFilterButtonText">Sort</span>
             </button>
             <div id="labelFilterPopover" class="label-popover hidden"></div>
           </div>
-          <button id="btnAddNewList">+ Add List</button>
+          <button id="btnAddNewList" title="Add new list">+ Add List</button>
         </div>
       </div>
     </div>
@@ -40,7 +48,7 @@
   </header>
 
   <main id="board">
-    <button id="emptyBoardCallToAction" class="empty-board-cta" type="button" aria-label="Select a directory to create a board">
+    <button id="emptyBoardCallToAction" class="empty-board-cta" type="button" title="Select a directory to create a board" aria-label="Select a directory to create a board">
       <span class="empty-board-cta-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
@@ -55,18 +63,97 @@
 
   <div id="modalAddList" class="modal hidden">
     <input id="userInputListName" type="text" placeholder="Backlog">
-    <button id="btnAddList">Add List</button>
+    <button id="btnAddList" title="Add list">Add List</button>
   </div>
 
   <div id="modalAddCard" class="modal hidden">
     <input id="userInput" type="text" placeholder="A small task">
     <input id="hiddenListPath" type="hidden" value="">
-    <button id="btnAddCard">Add card</button>
+    <button id="btnAddCard" title="Add card">Add card</button>
   </div>
 
   <div id="modalAddCardToList" class="modal hidden">
      <p><select id="userInputListPath"></select></p>
-    <p><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"> <button id="btnAddCardToList">Add</button></p>
+    <p><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"> <button id="btnAddCardToList" title="Add card to selected list">Add</button></p>
+  </div>
+
+  <div id="modalKeyboardShortcuts" class="modal keyboard-shortcuts-modal hidden" aria-hidden="true">
+    <div class="keyboard-shortcuts-header">
+      <h2>Keyboard Shortcuts</h2>
+      <p>Hold <span class="shortcut-modifier-label">Command</span> for two seconds to open this list.</p>
+    </div>
+    <div class="keyboard-shortcuts-grid">
+      <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-create">
+        <h3 id="keyboard-shortcuts-section-create">Create</h3>
+        <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Add card</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + N</kbd>
+          </li>
+          <li>
+            <span>Add list</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + Shift + N</kbd>
+          </li>
+        </ul>
+      </section>
+      <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-views">
+        <h3 id="keyboard-shortcuts-section-views">Switch Views</h3>
+        <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Kanban view</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + 1</kbd>
+          </li>
+          <li>
+            <span>Calendar view</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + 2</kbd>
+          </li>
+          <li>
+            <span>This Week view</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + 3</kbd>
+          </li>
+        </ul>
+      </section>
+      <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-modals">
+        <h3 id="keyboard-shortcuts-section-modals">Modals</h3>
+        <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Close open modals</span>
+            <kbd>Esc</kbd>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <div id="modalCommercialLicense" class="modal commercial-license-modal hidden" role="dialog" aria-modal="true" aria-labelledby="commercialLicenseTitle" aria-hidden="true">
+    <div class="commercial-license-header">
+      <div>
+        <p class="commercial-license-eyebrow">Free for personal use</p>
+        <h2 id="commercialLicenseTitle">Support Signboard when it supports your work</h2>
+      </div>
+      <button id="commercialLicenseClose" class="commercial-license-close" type="button" title="Close commercial use modal" aria-label="Close commercial use modal"><i data-feather="x"></i></button>
+    </div>
+    <div class="commercial-license-copy">
+      <p>Hi, I’m Colin. I want Signboard to stay open source and free for personal use.</p>
+      <p>If you start using Signboard to manage work that earns you money, I’d really appreciate your support with a one-time commercial-use payment.</p>
+    </div>
+    <div class="commercial-license-card">
+      <div class="commercial-license-card-copy">
+        <p class="commercial-license-card-label">Commercial-use support</p>
+        <p class="commercial-license-card-price"><span data-commercial-license-price>$49</span> one-time</p>
+        <p class="commercial-license-card-note">No subscription. Pay once and keep using Signboard for commercial work.</p>
+      </div>
+      <button id="commercialLicensePayButton" class="commercial-license-pay-button" type="button">Pay $49</button>
+    </div>
+    <div class="commercial-license-tip">
+      <div class="commercial-license-tip-copy">
+        <p class="commercial-license-tip-title">Using Signboard personally?</p>
+        <p class="commercial-license-tip-note">If it helps with your own projects and you want to support development, you can leave a tip in any amount.</p>
+      </div>
+      <button id="commercialLicenseTipButton" class="commercial-license-tip-button" type="button">Leave a Tip</button>
+    </div>
+    <p id="commercialLicensePaymentHelper" class="commercial-license-helper">Personal use stays free.</p>
+    <p class="commercial-license-signoff">Thanks for your support.<br>Colin</p>
   </div>
 
   <div id="modalBoardSettings" class="modal hidden">
@@ -74,49 +161,103 @@
       <h2>Board Settings</h2>
       <a href="#" id="boardSettingsClose" title="Close settings"><i data-feather="x"></i></a>
     </div>
-    <section class="boardSettingsSection">
-      <h3>Labels</h3>
-      <p class="boardSettingsHint">Rename labels and choose colors for light and dark mode.</p>
-      <div class="boardSettingsLabelsHeader">
-        <span>Name</span>
-        <span>Light</span>
-        <span>Dark</span>
-        <span>Action</span>
+    <div class="board-settings-layout">
+      <nav class="board-settings-nav" aria-label="Settings sections">
+        <button id="boardSettingsNavGeneral" type="button" class="board-settings-nav-button is-active" data-settings-panel="general">General</button>
+        <button id="boardSettingsNavLabels" type="button" class="board-settings-nav-button" data-settings-panel="labels">Labels</button>
+        <button id="boardSettingsNavColors" type="button" class="board-settings-nav-button" data-settings-panel="colors">Colors</button>
+        <button id="boardSettingsNavNotifications" type="button" class="board-settings-nav-button" data-settings-panel="notifications">Notifications</button>
+      </nav>
+      <div class="board-settings-panels">
+        <section id="boardSettingsPanelGeneral" class="boardSettingsSection board-settings-panel is-active" data-settings-panel="general">
+          <h3>General</h3>
+          <div class="board-settings-group">
+            <label for="boardSettingsBoardNameInput">Board name</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsBoardNameInput" type="text" placeholder="Board name">
+              <button id="btnRenameBoard" type="button" title="Rename board">Rename Board</button>
+            </div>
+            <p class="boardSettingsHint">Renaming updates this board folder name in its current location.</p>
+          </div>
+          <div class="board-settings-group">
+            <label for="boardSettingsBoardPathInput">Current path</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsBoardPathInput" type="text" readonly>
+              <button id="btnMoveBoard" type="button" title="Move board">Move Board</button>
+            </div>
+            <p class="boardSettingsHint">Move this board folder to another location on your computer.</p>
+          </div>
+        </section>
+
+        <section id="boardSettingsPanelLabels" class="boardSettingsSection board-settings-panel" data-settings-panel="labels">
+          <h3>Labels</h3>
+          <p class="boardSettingsHint">Rename labels, choose a color, add new labels, and remove labels.</p>
+          <div id="boardSettingsLabels"></div>
+          <button id="btnAddBoardLabel" type="button" title="Add label">Add label</button>
+        </section>
+
+        <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" data-settings-panel="colors">
+          <h3>Colors</h3>
+          <p class="boardSettingsHint">Choose the board background color and the rest of the palette is chosen automatically for readability.</p>
+          <div class="board-theme-settings-grid">
+            <div class="board-theme-settings-mode">
+              <h4>Light theme</h4>
+              <input id="boardThemeLightBackground" type="color" value="#f7f8fa">
+              <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
+              <button id="btnResetLightTheme" type="button" title="Reset light theme colors">Reset Light Theme</button>
+            </div>
+            <div class="board-theme-settings-mode">
+              <h4>Dark theme</h4>
+              <input id="boardThemeDarkBackground" type="color" value="#091102">
+              <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
+              <button id="btnResetDarkTheme" type="button" title="Reset dark theme colors">Reset Dark Theme</button>
+            </div>
+          </div>
+          <p id="boardThemeColorsWarning" class="boardSettingsHint board-theme-warning hidden"></p>
+          <div class="board-theme-settings-actions">
+            <button id="btnResetAllThemeColors" type="button" title="Reset all theme colors">Reset All Theme Colors</button>
+            <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply theme colors to all open boards">Apply to all Open Boards</button>
+          </div>
+        </section>
+
+        <section id="boardSettingsPanelNotifications" class="boardSettingsSection board-settings-panel" data-settings-panel="notifications">
+          <h3>Notifications</h3>
+          <div class="board-settings-toggle-row">
+            <div>
+              <p class="boardSettingsHint boardSettingsHintTight">Daily due date reminders</p>
+              <p class="boardSettingsHint">Signboard checks this board each day at your selected local time and notifies you if cards are due.</p>
+            </div>
+            <label class="board-settings-switch" for="boardSettingsNotificationsToggle" title="Enable due date notifications">
+              <input id="boardSettingsNotificationsToggle" type="checkbox" role="switch" aria-label="Enable due date notifications">
+              <span class="board-settings-switch-track" aria-hidden="true"></span>
+            </label>
+          </div>
+          <div class="board-settings-group">
+            <label for="boardSettingsNotificationsTime">Notification time (local)</label>
+            <input id="boardSettingsNotificationsTime" type="text" value="09:00" placeholder="HH:MM" inputmode="numeric" maxlength="5" width="10" pattern="(?:0[1-9]|1[0-9]|2[0-4]):[0-5][0-9]">
+            <p class="boardSettingsHint">Use HH:MM in 24-hour format. Hours can be 01 through 24 (example: 21:30).</p>
+          </div>
+          <div class="board-theme-settings-actions">
+            <button id="btnApplyNotificationsToOpenBoards" type="button" title="Apply notification settings to all open boards">Apply to all Open Boards</button>
+          </div>
+        </section>
       </div>
-      <div id="boardSettingsLabels"></div>
-      <button id="btnAddBoardLabel" type="button">Add label</button>
-    </section>
-    <section class="boardSettingsSection">
-      <h3>Theme Colors</h3>
-      <p class="boardSettingsHint">Choose the board background color and the rest of the palette is chosen automatically for readability.</p>
-      <div class="board-theme-settings-grid">
-        <div class="board-theme-settings-mode">
-          <h4>Light theme</h4>
-          <input id="boardThemeLightBackground" type="color" value="#f7f8fa">
-          <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
-          <button id="btnResetLightTheme" type="button">Reset Light Theme</button>
-        </div>
-        <div class="board-theme-settings-mode">
-          <h4>Dark theme</h4>
-          <input id="boardThemeDarkBackground" type="color" value="#091102">
-          <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
-          <button id="btnResetDarkTheme" type="button">Reset Dark Theme</button>
-        </div>
-      </div>
-      <p id="boardThemeColorsWarning" class="boardSettingsHint board-theme-warning hidden"></p>
-      <div class="board-theme-settings-actions">
-        <button id="btnResetAllThemeColors" type="button">Reset All Theme Colors</button>
-        <button id="btnApplyThemeColorsToOpenBoards" type="button">Apply to all Open Boards</button>
-      </div>
-    </section>
+    </div>
   </div>
 
   <div id="modalEditCard" class="modal hidden">
     <div class="cardEditorHeader">
-      <a href="#" id="cardEditorArchiveLink" title="Archive"><i data-feather="archive"></i></a>
-      <a href="#" id="cardEditorDupeLink" title="Duplicate"><i data-feather="copy"></i></a>
-      <a href="#" id="cardEditorMoveListLink" title="Move to next list"><i data-feather="arrow-right"></i></a>
-      <a href="#" id="cardEditorClose" title="Close"><i data-feather="x"></i></a>
+      <div class="cardEditorListControl">
+        <select id="cardEditorListSelect" title="Move card to list" aria-label="Move card to list"></select>
+        <span id="cardEditorListMoveFeedback" aria-hidden="true">✓</span>
+      </div>
+      <div class="cardEditorHeaderActions">
+        <a href="#" id="cardEditorArchiveLink" title="Archive"><i data-feather="archive"></i></a>
+        <a href="#" id="cardEditorShareLink" title="Share"><i data-feather="share-2"></i></a>
+        <a href="#" id="cardEditorDupeLink" title="Duplicate"><i data-feather="copy"></i></a>
+        <a href="#" id="cardEditorMoveListLink" title="Move to next list"><i data-feather="arrow-right"></i></a>
+        <a href="#" id="cardEditorClose" title="Close"><i data-feather="x"></i></a>
+      </div>
     </div>
     <span id="cardEditorCardID" title="Open this card's file"></span>
     

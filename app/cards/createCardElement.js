@@ -5,6 +5,8 @@ async function createCardElement(cardPath) {
   let selectedLabelIds = Array.isArray(card.frontmatter.labels)
     ? card.frontmatter.labels.map((labelId) => String(labelId))
     : [];
+  const taskSummary = getTaskListSummary(card.body);
+  const taskDueDates = getTaskListDueDates(card.body);
 
   const previewText = card.body
     .split(/\r?\n/)
@@ -14,9 +16,13 @@ async function createCardElement(cardPath) {
   cardEl.className = 'card';
   cardEl.dataset.path = cardPath;
 
+  const cardFrame = document.createElement('div');
+  cardFrame.className = 'card-drag-frame';
+  cardEl.appendChild(cardFrame);
+
   const title = document.createElement('h3');
   title.textContent = titleContent.replace('# ', '');
-  cardEl.appendChild(title);
+  cardFrame.appendChild(title);
 
   const body = document.createElement('div');
   body.className = 'card-body';
@@ -41,6 +47,14 @@ async function createCardElement(cardPath) {
   dueButton.appendChild(formattedDue);
   metadata.appendChild(dueButton);
 
+  const taskProgressBadge = createTaskProgressBadge(
+    taskSummary,
+    'metadata-action task-progress-badge-inline',
+  );
+  if (taskProgressBadge) {
+    metadata.appendChild(taskProgressBadge);
+  }
+
   const labelButton = document.createElement('button');
   labelButton.type = 'button';
   labelButton.className = 'metadata-action card-label-button';
@@ -57,16 +71,19 @@ async function createCardElement(cardPath) {
   async function renderDueDateDisplay() {
     if (!dueDateValue) {
       formattedDue.textContent = '';
+      setDueDateVisualClass(dueButton, '');
       return;
     }
 
     formattedDue.textContent = await window.board.formatDueDate(dueDateValue);
+    setDueDateVisualClass(dueButton, dueDateValue);
   }
 
   function setMetadataActionVisibility() {
     const hasDueDate = dueDateValue.length > 0;
     const hasLabels = selectedLabelIds.length > 0;
-    const hasAnyMetadata = hasDueDate || hasLabels;
+    const hasTasks = taskSummary.total > 0;
+    const hasAnyMetadata = hasDueDate || hasLabels || hasTasks;
 
     metadata.classList.toggle('metadata-discovery', !hasAnyMetadata);
     dueButton.classList.toggle('metadata-action-empty', !hasDueDate);
@@ -83,9 +100,11 @@ async function createCardElement(cardPath) {
     if (hasLabels) {
       labelButton.title = 'Edit labels';
       labelButton.setAttribute('aria-label', 'Edit labels');
+      cardLabelsWrap.setAttribute('data-sb-tooltip', 'Edit labels');
     } else {
       labelButton.title = 'Set labels';
       labelButton.setAttribute('aria-label', 'Set labels');
+      cardLabelsWrap.removeAttribute('data-sb-tooltip');
     }
   }
 
@@ -128,6 +147,11 @@ async function createCardElement(cardPath) {
     await window.board.updateFrontmatter(cardPath, { due: nextDueDate });
     await renderDueDateDisplay();
     setMetadataActionVisibility();
+
+    const hasAnyDueDate = dueDateValue.length > 0 || taskDueDates.length > 0;
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, hasAnyDueDate)) {
+      await renderBoard();
+    }
   }
 
   async function updateCardLabels(nextLabelIds) {
@@ -139,9 +163,21 @@ async function createCardElement(cardPath) {
     await window.board.updateFrontmatter(cardPath, { labels: selectedLabelIds });
     renderCardLabels();
 
-    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds)) {
+    const hasAnyDueDate = dueDateValue.length > 0 || taskDueDates.length > 0;
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, hasAnyDueDate)) {
       await renderBoard();
     }
+  }
+
+  function openCardLabelChooser(anchorElement) {
+    toggleCardLabelSelector(
+      anchorElement,
+      cardPath,
+      selectedLabelIds,
+      async (nextLabelIds) => {
+        await updateCardLabels(nextLabelIds);
+      },
+    );
   }
 
   await renderDueDateDisplay();
@@ -162,22 +198,28 @@ async function createCardElement(cardPath) {
   labelButton.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
+    openCardLabelChooser(labelButton);
+  });
 
-    toggleCardLabelSelector(
-      labelButton,
-      cardPath,
-      selectedLabelIds,
-      async (nextLabelIds) => {
-        await updateCardLabels(nextLabelIds);
-      },
-    );
+  cardLabelsWrap.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target.closest('.card-label-chip') : null;
+    if (!target || !cardLabelsWrap.contains(target)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    openCardLabelChooser(cardLabelsWrap);
   });
 
   body.appendChild(metadata);
-    
-  cardEl.appendChild(body);
 
-  const matchesLabelFilter = cardMatchesBoardLabelFilter(selectedLabelIds);
+  cardFrame.appendChild(body);
+
+  const matchesLabelFilter = cardMatchesBoardLabelFilter(
+    selectedLabelIds,
+    dueDateValue.length > 0 || taskDueDates.length > 0,
+  );
   const matchesSearchFilter = cardMatchesBoardSearch(card.frontmatter.title, card.body);
 
   if (!matchesLabelFilter || !matchesSearchFilter) {

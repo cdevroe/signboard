@@ -1,45 +1,38 @@
 {
   "name": "signboard",
   "productName": "Signboard",
-  "version": "0.5.1",
+  "version": "1.0.0",
   "license": "MIT",
   "author": "Colin Devroe <colin@cdevroe.com> (https://cdevroe.com)",
   "main": "main.js",
-  "build": {
-    "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
-    "mac": {
-      "category": "public.app-category.productivity",
-      "target": ["dmg", "zip"],
-      "icon": "build/icon.icns",
-      "hardenedRuntime": true,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "gatekeeperAssess": false
-    },
-    "afterSign": "scripts/notarize.js",
-    "asar": true,
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "cdevroe",
-        "repo": "signboard",
-        "releaseType": "draft"
-      }
-    ]
+  "bin": {
+    "signboard": "./bin/signboard.js"
   },
   "private": true,
   "scripts": {
     "prestart": "npm run build:js",
     "start": "electron .",
+    "cli": "node ./bin/signboard.js",
+    "mcp:server": "electron . --mcp-server",
+    "mcp:config": "electron . --mcp-config",
+    "build:icons": "node scripts/generate-icons.js",
     "build:js": "./buildjs.sh",
+    "test:cli": "node scripts/test-cli.js",
+    "test:cli-install": "node scripts/test-cli-install.js",
+    "test:desktop-cli": "node scripts/test-desktop-cli.js",
     "test:frontmatter": "node scripts/test-frontmatter.js",
     "test:board-labels": "node scripts/test-board-labels.js",
+    "test:mcp": "node scripts/test-mcp-server.js",
     "test:board-card-metadata": "node scripts/test-board-card-metadata.js",
+    "test:board-views": "node scripts/test-board-views.js",
+    "test:due-notifications": "node scripts/test-due-notifications.js",
+    "test:task-list": "node scripts/test-task-list-parser.js",
     "test:timestamp": "node scripts/test-timestamp-format.js",
     "migrate:legacy-cards": "node scripts/migrate-legacy-cards.js",
     "dist": "npm run dist:mac",
     "dist:mac": "npm run build:js && electron-builder --mac --publish never",
     "dist:mac:arm64": "npm run build:js && electron-builder --mac --arm64 --publish never",
+    "dist:mac:arm64:no-notarize": "CSC_LINK= CSC_KEY_PASSWORD= SIGNBOARD_SKIP_NOTARIZATION=1 npm run build:js && CSC_LINK= CSC_KEY_PASSWORD= SIGNBOARD_SKIP_NOTARIZATION=1 electron-builder --mac --arm64 --publish never",
     "dist:mac:x64": "npm run build:js && electron-builder --mac --x64 --publish never",
     "dist:mac:universal": "npm run build:js && electron-builder --mac --universal --publish never",
     "dist:mac:all": "npm run dist:mac:arm64 && npm run dist:mac:x64 && npm run dist:mac:universal",
@@ -49,24 +42,31 @@
     "dist:win": "npm run dist:win:all",
     "dist:win:x64": "npm run build:js && electron-builder --win nsis --x64 --publish never",
     "dist:win:arm64": "npm run build:js && electron-builder --win nsis --arm64 --publish never",
-    "dist:win:all": "npm run build:js && electron-builder --win nsis --x64 --arm64 --publish never",
+    "dist:win:all": "npm run dist:win:x64 && npm run dist:win:arm64",
     "dist:winarm64": "npm run dist:win:arm64",
     "dist:winx64": "npm run dist:win:x64",
     "dist:linux": "npm run dist:linux:all",
     "dist:linux:x64": "npm run build:js && electron-builder --linux AppImage deb --x64 --publish never",
     "dist:linux:arm64": "npm run build:js && electron-builder --linux AppImage deb --arm64 --publish never",
-    "dist:linux:all": "npm run build:js && electron-builder --linux AppImage deb --x64 --arm64 --publish never",
+    "dist:linux:all": "npm run dist:linux:x64 && npm run dist:linux:arm64",
     "dist:linux:rpm:x64": "npm run build:js && electron-builder --linux rpm --x64 --publish never",
     "dist:linux:rpm:arm64": "npm run build:js && electron-builder --linux rpm --arm64 --publish never",
     "dist:linux:rpm:all": "npm run build:js && electron-builder --linux rpm --x64 --arm64 --publish never",
-    "dist:all": "npm run dist:mac:all && npm run dist:win:all && npm run dist:linux:all"
+    "dist:all": "npm run dist:mac:all && npm run dist:win:all && npm run dist:linux:all",
+    "release:verify": "node scripts/verify-release-assets.js",
+    "release:verify:partial": "node scripts/verify-release-assets.js --allow-partial",
+    "release:prepare": "npm run dist:all && npm run release:verify"
   },
   "devDependencies": {
+    "@fiahfy/icns": "^0.0.7",
     "dotenv": "^17.3.1",
     "electron": "^40.6.0",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.5"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "js-yaml": "^4.1.1",
     "turndown": "^7.2.2"
   }

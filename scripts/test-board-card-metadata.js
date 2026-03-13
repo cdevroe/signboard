@@ -135,6 +135,21 @@ class MockElement {
     return this.attributes[name];
   }
 
+  removeAttribute(name) {
+    delete this.attributes[name];
+    if (name.startsWith('data-')) {
+      const key = name
+        .slice(5)
+        .split('-')
+        .map((part, index) => (index === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+        .join('');
+      delete this.dataset[key];
+    }
+    if (name === 'class') {
+      this.className = '';
+    }
+  }
+
   addEventListener(type, handler) {
     if (!this.listeners[type]) {
       this.listeners[type] = [];
@@ -182,7 +197,17 @@ function clickEvent() {
   };
 }
 
-function createContext(cardFactory, callbacks) {
+function createContext(cardFactory, callbacks, options = {}) {
+  const getTaskListSummary = typeof options.getTaskListSummary === 'function'
+    ? options.getTaskListSummary
+    : () => ({ total: 0, completed: 0, remaining: 0 });
+  const getTaskListDueDates = typeof options.getTaskListDueDates === 'function'
+    ? options.getTaskListDueDates
+    : () => [];
+  const createTaskProgressBadge = typeof options.createTaskProgressBadge === 'function'
+    ? options.createTaskProgressBadge
+    : () => null;
+
   const context = {
     window: {
       board: {
@@ -215,6 +240,10 @@ function createContext(cardFactory, callbacks) {
     isBoardLabelFilterActive: () => false,
     cardMatchesBoardLabelFilter: () => true,
     cardMatchesBoardSearch: () => true,
+    setDueDateVisualClass: () => '',
+    getTaskListSummary,
+    getTaskListDueDates,
+    createTaskProgressBadge,
     renderBoard: async () => {},
     toggleCardLabelSelector: callbacks.toggleCardLabelSelector,
     toggleEditCardModal: callbacks.toggleEditCardModal,
@@ -337,6 +366,41 @@ async function run() {
   assert.strictEqual(dueButtonLabelOnly.classList.contains('metadata-action-empty'), true);
   assert.strictEqual(labelButtonLabelOnly.classList.contains('metadata-action-empty'), false);
   assert.strictEqual(labelButtonLabelOnly.getAttribute('aria-label'), 'Edit labels');
+
+  const contextTaskSummary = createContext(
+    () => ({
+      frontmatter: {
+        title: 'Card D',
+        labels: [],
+        due: null,
+      },
+      body: '- [ ] Task one\n- [x ] Task two\n- [ ] Task three',
+    }),
+    {
+      toggleCardLabelSelector: () => {},
+      toggleEditCardModal: async () => {},
+      openDueDatePickerAtTrigger: () => {},
+    },
+    {
+      getTaskListSummary: () => ({ total: 3, completed: 1, remaining: 2 }),
+      getTaskListDueDates: () => [],
+      createTaskProgressBadge: (taskSummary, className) => {
+        const badge = new MockElement('span');
+        badge.className = className;
+        badge.setAttribute('data-progress', `${taskSummary.completed}/${taskSummary.total}`);
+        return badge;
+      },
+    },
+  );
+
+  const cardTaskSummary = await contextTaskSummary.createCardElement('/tmp/card-d.md');
+  const metadataTaskSummary = findFirstByClass(cardTaskSummary, 'metadata');
+  const taskBadge = findFirstByClass(cardTaskSummary, 'task-progress-badge-inline');
+
+  assert(metadataTaskSummary, 'expected task summary metadata');
+  assert(taskBadge, 'expected task progress badge');
+  assert.strictEqual(metadataTaskSummary.classList.contains('metadata-discovery'), false);
+  assert.strictEqual(taskBadge.getAttribute('data-progress'), '1/3');
 
   const styles = fs.readFileSync(path.join(__dirname, '../static/styles.css'), 'utf8');
   assert(

@@ -3,6 +3,66 @@
 *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-400-normal.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-400-italic.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-400-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-600-normal.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-600-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-600-italic.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-600-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-700-normal.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-700-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Local";
+  src:
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-ext-700-italic.woff2") format("woff2"),
+    url("fonts/jetbrains-mono/jetbrains-mono-latin-700-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   /* CSS HEX */
   --rich-black: #02111bff;
@@ -42,6 +102,9 @@ html, body { margin: 0; height: 100%; }
   --shadow-card: var(--sb-light-shadow-card);
   --accent: var(--sb-light-accent);
   --accent-contrast: var(--sb-light-accent-contrast);
+  --due-date-today-color: color-mix(in oklab, #d92d20 72%, var(--text));
+  --due-date-tomorrow-color: color-mix(in oklab, #15803d 78%, var(--text));
+  --task-progress-complete-color: color-mix(in oklab, #15803d 78%, var(--text));
 
   /* Radius / spacing / type sizes */
   --radius: 10px;
@@ -71,6 +134,9 @@ html, body { margin: 0; height: 100%; }
   --shadow-card: var(--sb-dark-shadow-card);
   --accent: var(--sb-dark-accent);
   --accent-contrast: var(--sb-dark-accent-contrast);
+  --due-date-today-color: color-mix(in oklab, #ff6b6b 80%, var(--text));
+  --due-date-tomorrow-color: color-mix(in oklab, #4ade80 80%, var(--text));
+  --task-progress-complete-color: color-mix(in oklab, #4ade80 84%, var(--text));
 }
 
 body {
@@ -142,6 +208,23 @@ header h1 {
   padding: 8px 12px;
 }
 
+.support-signboard-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
+  border-color: color-mix(in oklab, var(--accent) 28%, var(--border));
+  color: var(--text);
+  font-weight: 600;
+}
+
+.support-signboard-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 .board-toolbar-group {
   position: relative;
 }
@@ -155,7 +238,8 @@ header h1 {
 }
 
 body.board-empty #boardControls,
-body.board-empty #openBoardSettings {
+body.board-empty #openBoardSettings,
+body.board-empty #boardViewButton {
   display: none;
 }
 
@@ -177,6 +261,9 @@ body.board-empty #openBoardSettings {
 
 /* Theme toggle button (uses your existing button element) */
 #themeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--bg-card);
   color: var(--text);
   border: 1px solid var(--border);
@@ -189,6 +276,10 @@ body.board-empty #openBoardSettings {
 #themeToggle:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)); }
 #themeToggle:active { transform: translateY(1px); }
 #themeToggle:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card)); }
+#themeToggle svg {
+  width: 16px;
+  height: 16px;
+}
 
 #boardTabsWrapper {
   width: 100%;
@@ -312,16 +403,24 @@ body.board-empty #openBoardSettings {
   opacity: .6;
 }
 
-#openBoardSettings {
+#openBoardSettings,
+#boardViewButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 7px 10px;
 }
 
-#openBoardSettings svg {
+#openBoardSettings svg,
+#boardViewButton svg {
   height: 16px;
   width: 16px;
+}
+
+#boardViewPopover {
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 170px;
 }
 
 /* 4) Board layout */
@@ -336,6 +435,367 @@ main#board {
   overflow-x: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+main#board.board-view-calendar,
+main#board.board-view-week {
+  display: block;
+  padding: 16px;
+}
+
+.board-calendar {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+  min-width: 900px;
+  min-height: 640px;
+  height: 100%;
+}
+
+.board-calendar-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.board-calendar-nav {
+  grid-column: 1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.board-calendar-nav-button,
+.board-calendar-today-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+}
+
+.board-calendar-nav-button {
+  width: 34px;
+  padding: 0;
+}
+
+.board-calendar-nav-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.board-calendar-month-label {
+  grid-column: 2;
+  justify-self: center;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: .01em;
+  text-align: center;
+}
+
+.board-calendar-today-button {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: var(--font-sm);
+}
+
+.board-calendar-today-button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+.board-calendar-weekdays,
+.board-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.board-calendar-grid {
+  min-height: 600px;
+  height: 100%;
+  grid-auto-rows: minmax(138px, 1fr);
+}
+
+.board-calendar-weekday {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 620;
+  padding: 4px 8px;
+}
+
+.board-calendar-weekday.is-weekend {
+  color: color-mix(in oklab, var(--muted) 88%, var(--text));
+}
+
+.board-calendar-day {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--bg));
+  box-shadow: 0 2px 8px var(--shadow);
+  min-height: 138px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.board-calendar-day.is-weekend {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+}
+
+.board-calendar-day--outside {
+  background: color-mix(in oklab, var(--bg) 90%, var(--border));
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.board-calendar-day.is-today {
+  border-color: color-mix(in oklab, var(--accent) 58%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 45%, transparent), 0 8px 18px var(--shadow);
+}
+
+.board-calendar-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 6px;
+}
+
+.board-calendar-day-number {
+  font-size: var(--font-sm);
+  font-weight: 620;
+}
+
+.board-calendar-today-badge {
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--accent) 48%, var(--border));
+  background: color-mix(in oklab, var(--accent) 16%, var(--bg-card));
+  color: color-mix(in oklab, var(--accent) 82%, var(--text));
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 700;
+  padding: 1px 8px;
+}
+
+.board-calendar-day-cards {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 2px 8px 8px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.board-calendar-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+  cursor: grab;
+}
+
+.board-temporal-card-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  border-radius: 9px;
+  border: 1px solid color-mix(in oklab, var(--border) 84%, var(--bg-card));
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--bg));
+  color: var(--text);
+  box-shadow: 0 1px 6px var(--shadow-card);
+  padding: 6px 8px;
+}
+
+.board-calendar-card:hover .board-temporal-card-frame {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+}
+
+.board-calendar-card:active {
+  cursor: grabbing;
+  transform: none;
+}
+
+.board-this-week {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  min-width: 900px;
+  min-height: 640px;
+  height: 100%;
+}
+
+.board-this-week-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "mon thu"
+    "tue fri"
+    "wed weekend";
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-height: 600px;
+  height: 100%;
+}
+
+.board-this-week-day {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--bg));
+  box-shadow: 0 2px 8px var(--shadow);
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.board-this-week-day.is-weekend {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+}
+
+.board-this-week-day.is-today {
+  border-color: color-mix(in oklab, var(--accent) 58%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 45%, transparent), 0 8px 18px var(--shadow);
+}
+
+.board-this-week-day-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
+}
+
+.board-this-week-day-title {
+  font-size: var(--font-sm);
+  font-weight: 620;
+}
+
+.board-this-week-day-date {
+  font-size: var(--font-xs);
+  color: var(--muted);
+}
+
+.board-this-week-day-cards {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.board-this-week-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+  cursor: grab;
+}
+
+.board-this-week-card:hover .board-temporal-card-frame {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+}
+
+.board-this-week-card:active {
+  cursor: grabbing;
+  transform: none;
+}
+
+.board-temporal-card-title {
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-temporal-card-context {
+  display: block;
+  width: 100%;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-temporal-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.board-temporal-card-list {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 6px;
+  border: 1px solid color-mix(in oklab, var(--border) 84%, transparent);
+  background: color-mix(in oklab, var(--bg-card) 76%, var(--border));
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.15;
+  letter-spacing: .01em;
+  padding: 2px 6px;
+}
+
+.board-temporal-task-progress {
+  margin-left: auto;
+  font-size: 11px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.board-temporal-task-progress svg {
+  width: 12px;
+  height: 12px;
+}
+
+.board-this-week-day.day-mon { grid-area: mon; }
+.board-this-week-day.day-tue { grid-area: tue; }
+.board-this-week-day.day-wed { grid-area: wed; }
+.board-this-week-day.day-thu { grid-area: thu; }
+.board-this-week-day.day-fri { grid-area: fri; }
+
+.board-this-week-weekend {
+  grid-area: weekend;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 body.board-empty main#board {
@@ -405,6 +865,94 @@ body.board-empty main#board {
   color: var(--muted);
 }
 
+.board-missing-alert {
+  width: min(760px, calc(100vw - 48px));
+  border-radius: 24px;
+  border: 1px solid color-mix(in oklab, #dc2626 35%, var(--border));
+  background: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--bg-card) 88%, #fca5a5) 0%,
+    color-mix(in oklab, var(--bg) 90%, #fee2e2) 100%
+  );
+  box-shadow: 0 20px 36px var(--shadow-card);
+  padding: 24px 24px 22px;
+  display: grid;
+  gap: 12px;
+}
+
+.board-missing-alert-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, #dc2626 18%, transparent);
+  color: color-mix(in oklab, #dc2626 72%, var(--text));
+}
+
+.board-missing-alert-icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.board-missing-alert-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 670;
+  letter-spacing: .01em;
+}
+
+.board-missing-alert-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.board-missing-alert-path {
+  border: 1px solid color-mix(in oklab, var(--border) 70%, #fca5a5);
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--border));
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.board-missing-alert-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.board-missing-alert-actions button {
+  padding: 9px 14px;
+  min-height: 40px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  border-radius: 11px;
+}
+
+.board-missing-alert-locate {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: color-mix(in oklab, var(--accent) 70%, var(--border));
+}
+
+.board-missing-alert-locate:hover {
+  background: color-mix(in oklab, var(--accent) 85%, var(--bg-card));
+}
+
+.board-missing-alert-remove {
+  background: color-mix(in oklab, var(--bg-card) 85%, #fee2e2);
+}
+
+.board-missing-alert-remove:hover {
+  background: color-mix(in oklab, var(--bg-card) 75%, #fecaca);
+}
+
 /* Lists (columns) */
 .list {
   cursor: grab;
@@ -461,21 +1009,54 @@ body.board-empty main#board {
 
 /* 5) Cards */
 .card {
-  background: var(--bg-card);
   margin-bottom: var(--card-spacing);
+  cursor: grab;
+}
+
+.card-drag-frame {
+  min-width: 0;
+  transform-origin: center center;
+  transition: transform .12s ease, background .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+
+.card > .card-drag-frame {
+  background: var(--bg-card);
   color: var(--text);
   border: 1px solid color-mix(in oklab, var(--border) 92%, var(--bg-card));
   border-radius: var(--radius);
   padding: 10px 10px;
   box-shadow: 0 2px 10px var(--shadow-card);
-  cursor: grab;
-  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
+
 .card:active { cursor: grabbing; }
-.card:hover {
+.card:hover > .card-drag-frame {
   transform: translateY(-1px);
   border-color: color-mix(in oklab, var(--border) 70%, var(--paynes-gray));
   box-shadow: 0 6px 18px var(--shadow-card);
+}
+
+.card-sortable--chosen > .card-drag-frame {
+  box-shadow: 0 10px 24px var(--shadow-card);
+}
+
+.card-sortable--ghost {
+  opacity: .34;
+}
+
+.card-sortable--dragging,
+.card-sortable--fallback {
+  cursor: grabbing;
+}
+
+.card-sortable--dragging > .card-drag-frame,
+.card-sortable--fallback > .card-drag-frame {
+  transform: rotate(var(--card-drag-tilt, 0deg));
+}
+
+body.board-card-drag-active,
+body.board-card-drag-active * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
 }
 
 .card h3 {
@@ -541,6 +1122,35 @@ body.board-empty main#board {
   vertical-align: top;
 }
 
+.due-date-action.due-date-today {
+  color: var(--due-date-today-color);
+}
+
+.due-date-action.due-date-tomorrow {
+  color: var(--due-date-tomorrow-color);
+}
+
+.task-progress-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.task-progress-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.task-progress-badge-complete {
+  color: var(--task-progress-complete-color);
+}
+
+.task-progress-badge-inline {
+  padding: 3px;
+}
+
 .card-body svg {
   height: 16px;
 }
@@ -554,6 +1164,7 @@ body.board-empty main#board {
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
+  cursor: pointer;
 }
 
 .card-label-chip {
@@ -565,6 +1176,7 @@ body.board-empty main#board {
   font-size: 11px;
   color: var(--text);
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .card-label-chip-unknown {
@@ -586,9 +1198,79 @@ button {
   cursor: pointer;
   box-shadow: 0 1px 0 rgba(0,0,0,.02);
 }
-button:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)); }
 button:active { transform: translateY(1px); }
 button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card)); }
+
+/* Lightweight custom tooltip system */
+.sb-tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  max-width: min(300px, calc(100vw - 24px));
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, var(--text));
+  background: color-mix(in oklab, var(--bg-card) 90%, var(--text));
+  color: var(--text);
+  font-size: var(--font-xs);
+  line-height: 1.3;
+  box-shadow: 0 8px 24px var(--shadow-card);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 12000;
+  transform: translate(-50%, -6px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.sb-tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  background: inherit;
+  border-right: 1px solid color-mix(in oklab, var(--border) 80%, var(--text));
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, var(--text));
+  transform: rotate(45deg);
+}
+
+.sb-tooltip[data-placement="top"]::after {
+  bottom: -5px;
+}
+
+.sb-tooltip[data-placement="bottom"]::after {
+  top: -5px;
+  transform: rotate(225deg);
+}
+
+.sb-tooltip.is-visible {
+  opacity: 1;
+}
+
+.sb-tooltip[data-placement="top"].is-visible {
+  transform: translate(-50%, -10px);
+}
+
+.sb-tooltip[data-placement="bottom"] {
+  transform: translate(-50%, 6px);
+}
+
+.sb-tooltip[data-placement="bottom"].is-visible {
+  transform: translate(-50%, 10px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-tooltip {
+    transition: none;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .sb-tooltip {
+    display: none !important;
+  }
+}
 
 /* 7) Modals (Add Card, Add Card To List) */
 .modal {
@@ -618,6 +1300,256 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 /* Specific modal bits you used */
 #modalAddCardToList button { margin-top: 10px; }
 
+#modalKeyboardShortcuts {
+  position: fixed;
+  z-index: 40;
+  top: max(64px, calc(env(safe-area-inset-top) + 14px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(760px, calc(100vw - 28px));
+  max-width: 760px;
+  max-height: min(78vh, calc(100vh - 28px));
+  overflow-y: auto;
+  padding: 18px 20px;
+}
+
+.commercial-license-modal {
+  position: fixed;
+  z-index: 45;
+  top: max(72px, calc(env(safe-area-inset-top) + 16px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 28px));
+  max-width: 620px;
+  padding: 20px;
+}
+
+.commercial-license-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.commercial-license-eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.commercial-license-header h2 {
+  margin: 0;
+  max-width: 14ch;
+}
+
+.commercial-license-close {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.commercial-license-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.commercial-license-copy {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.commercial-license-copy p,
+.commercial-license-helper,
+.commercial-license-signoff {
+  margin: 0;
+}
+
+.commercial-license-copy p,
+.commercial-license-helper {
+  color: var(--muted);
+}
+
+.commercial-license-card {
+  margin-top: 18px;
+  border: 1px solid color-mix(in oklab, var(--accent) 24%, var(--border));
+  border-radius: 18px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top right, color-mix(in oklab, var(--accent) 16%, transparent), transparent 40%),
+    color-mix(in oklab, var(--bg-card) 90%, var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.commercial-license-card-copy {
+  min-width: 0;
+}
+
+.commercial-license-card-label {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.commercial-license-card-price {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 36px);
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.commercial-license-card-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  max-width: 34ch;
+}
+
+.commercial-license-pay-button {
+  min-width: 140px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 72%, var(--border));
+  color: var(--accent-contrast);
+  font-size: var(--font-md);
+  font-weight: 700;
+}
+
+.commercial-license-pay-button[disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.commercial-license-tip {
+  margin-top: 14px;
+  border: 1px solid color-mix(in oklab, var(--border) 88%, var(--accent));
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.commercial-license-tip-copy {
+  min-width: 0;
+}
+
+.commercial-license-tip-title {
+  margin: 0;
+  font-size: var(--font-md);
+  font-weight: 650;
+}
+
+.commercial-license-tip-note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  max-width: 46ch;
+}
+
+.commercial-license-tip-button {
+  min-width: 124px;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+
+.commercial-license-tip-button[disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.commercial-license-helper {
+  margin-top: 14px;
+  font-size: var(--font-sm);
+}
+
+.commercial-license-signoff {
+  margin-top: 14px;
+  font-weight: 600;
+}
+
+.keyboard-shortcuts-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+}
+
+.keyboard-shortcuts-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.keyboard-shortcuts-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.keyboard-shortcuts-section {
+  border: 1px solid color-mix(in oklab, var(--border) 85%, var(--text));
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
+  padding: 12px;
+  min-width: 0;
+}
+
+.keyboard-shortcuts-section h3 {
+  margin: 0;
+  font-size: var(--font-md);
+  letter-spacing: .01em;
+}
+
+.keyboard-shortcuts-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.keyboard-shortcuts-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--font-sm);
+  line-height: 1.4;
+}
+
+.keyboard-shortcuts-list li span {
+  color: var(--text);
+}
+
+.keyboard-shortcuts-list kbd {
+  border: 1px solid color-mix(in oklab, var(--border) 85%, var(--text));
+  border-radius: 7px;
+  background: color-mix(in oklab, var(--bg) 90%, var(--border));
+  color: var(--text);
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
 #modalEditCard {
   position: fixed;
   z-index: 30;
@@ -638,14 +1570,16 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 #modalBoardSettings {
   position: fixed;
-  top: 10vh;
+  top: max(54px, calc(env(safe-area-inset-top) + 12px));
   left: 50%;
   transform: translateX(-50%);
-  width: min(700px, calc(100vw - 30px));
-  max-width: 700px;
-  max-height: 80vh;
+  width: min(980px, calc(100vw - 30px));
+  max-width: 980px;
+  min-height: min(760px, calc(100vh - 26px));
+  max-height: calc(100vh - 26px);
   overflow-y: auto;
   z-index: 20;
+  padding: 16px 16px 26px;
 }
 
 .boardSettingsHeader {
@@ -665,8 +1599,51 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   color: var(--muted);
 }
 
-.boardSettingsSection {
+.board-settings-layout {
   margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.board-settings-nav {
+  display: grid;
+  gap: 6px;
+  position: sticky;
+  top: 0;
+}
+
+.board-settings-nav-button {
+  width: 100%;
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  font-size: var(--font-md);
+  font-weight: 620;
+  padding: 9px 11px;
+}
+
+.board-settings-nav-button:hover {
+  color: var(--text);
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
+}
+
+.board-settings-nav-button.is-active {
+  color: var(--text);
+  border-color: color-mix(in oklab, var(--border) 84%, var(--text));
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
+}
+
+.board-settings-panels {
+  min-width: 0;
+}
+
+.boardSettingsSection {
+  margin-top: 0;
 }
 
 .boardSettingsSection h3 {
@@ -679,20 +1656,124 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   font-size: var(--font-sm);
 }
 
-.boardSettingsLabelsHeader,
-.board-settings-label-row {
-  display: grid;
-  grid-template-columns: 1fr 82px 82px auto;
-  gap: 8px;
-  align-items: center;
+.boardSettingsHintTight {
+  margin-bottom: 4px;
 }
 
-.boardSettingsLabelsHeader {
-  margin-bottom: 8px;
+.board-settings-panel {
+  display: none;
+}
+
+.board-settings-panel.is-active {
+  display: block;
+}
+
+.board-settings-group {
+  margin-top: 12px;
+}
+
+.board-settings-group label {
+  display: block;
+  margin-bottom: 6px;
   color: var(--muted);
   font-size: var(--font-xs);
   text-transform: uppercase;
   letter-spacing: .04em;
+}
+
+.board-settings-inline-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.board-settings-inline-actions input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.board-settings-inline-actions-right {
+  justify-content: flex-end;
+}
+
+#boardSettingsNotificationsTime {
+  width: 8ch;
+  min-width: 8ch;
+}
+
+.board-settings-toggle-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 95%, var(--border));
+  padding: 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.board-settings-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.board-settings-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.board-settings-switch-track {
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg) 70%, var(--border));
+  position: relative;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.board-settings-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  box-shadow: 0 1px 4px var(--shadow-card);
+  transition: transform .15s ease;
+}
+
+.board-settings-switch input:checked + .board-settings-switch-track {
+  background: color-mix(in oklab, var(--accent) 72%, var(--bg-card));
+  border-color: color-mix(in oklab, var(--accent) 62%, var(--border));
+}
+
+.board-settings-switch input:checked + .board-settings-switch-track::after {
+  transform: translateX(20px);
+}
+
+.board-settings-switch input:focus-visible + .board-settings-switch-track {
+  outline: 2px solid color-mix(in oklab, var(--accent) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.board-settings-label-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 95%, var(--border));
+  padding: 8px;
 }
 
 #boardSettingsLabels {
@@ -712,11 +1793,20 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 .board-settings-label-delete {
-  width: auto;
-  min-width: 64px;
-  padding: 6px 10px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
   font-size: var(--font-xs);
   box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-settings-label-delete svg {
+  width: 15px;
+  height: 15px;
 }
 
 .board-theme-settings-grid {
@@ -809,14 +1899,67 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 @media (max-width: 720px) {
+  .support-signboard-button span {
+    display: none;
+  }
+
+  .commercial-license-modal {
+    top: max(12px, env(safe-area-inset-top));
+    width: calc(100vw - 14px);
+    padding: 18px;
+  }
+
+  .commercial-license-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .commercial-license-tip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .commercial-license-pay-button {
+    width: 100%;
+  }
+
+  .commercial-license-tip-button {
+    width: 100%;
+  }
+
+  #modalBoardSettings {
+    top: max(12px, env(safe-area-inset-top));
+    min-height: calc(100vh - 16px);
+    max-height: calc(100vh - 16px);
+    width: calc(100vw - 14px);
+  }
+
+  .board-settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .board-settings-nav {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .board-theme-settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .board-settings-toggle-row {
+    flex-direction: column;
+  }
+
+  .board-settings-inline-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
 .label-popover {
   position: absolute;
-  z-index: 15;
+  z-index: 12020;
   min-width: 220px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -826,8 +1969,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 #labelFilterPopover {
-  right: 0;
-  top: calc(100% + 6px);
+  right: auto;
+  top: auto;
 }
 
 #labelFilterButton {
@@ -854,11 +1997,62 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   padding: 4px 2px;
 }
 
+.board-view-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--font-sm);
+  padding: 7px 8px;
+  text-align: left;
+}
+
+.board-view-option:hover {
+  background: color-mix(in oklab, var(--bg-card) 86%, var(--border));
+}
+
+.board-view-option-check {
+  width: 12px;
+  color: color-mix(in oklab, var(--accent) 70%, var(--text));
+  font-weight: 700;
+  flex: 0 0 12px;
+}
+
+.board-view-option-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+  flex: 0 0 14px;
+}
+
+.board-view-option-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.board-view-option-label {
+  min-width: 0;
+}
+
 .label-color-swatch {
   height: 12px;
   width: 12px;
   border-radius: 999px;
   border: 1px solid color-mix(in oklab, var(--border) 60%, var(--text));
+  flex: 0 0 12px;
+}
+
+.label-filter-feature-icon {
+  height: 12px;
+  width: 12px;
+  color: var(--muted);
   flex: 0 0 12px;
 }
 
@@ -875,13 +2069,95 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 #modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
 #modalEditCard #cardEditorCardDueDateDisplay { font-size: var(--font-sm); color: var(--muted); }
-#modalEditCard #cardEditorSetDueDateLink { text-decoration: none; }
+#modalEditCard #cardEditorSetDueDateLink,
+#modalEditCard #cardEditorSetLabelsLink { text-decoration: none; }
+#modalEditCard .cardEditorMetadataButtons #cardEditorSetDueDateLink.due-date-today { color: var(--due-date-today-color); }
+#modalEditCard .cardEditorMetadataButtons #cardEditorSetDueDateLink.due-date-tomorrow { color: var(--due-date-tomorrow-color); }
 
-#modalEditCard .cardEditorHeader { border-bottom: 1px solid var(--border); height: 30px; text-align: right; }
-#modalEditCard .cardEditorHeader a { color: var(--muted); margin-left: 20px; }
-#modalEditCard .cardEditorMetadataButtons a { color: var(--muted); }
-#modalEditCard .cardEditorMetadataButtons span { vertical-align: top; margin-right: 15px; }
+#modalEditCard .cardEditorHeader {
+  border-bottom: 1px solid var(--border);
+  min-height: 36px;
+  padding: 3px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#modalEditCard .cardEditorListControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+#modalEditCard .cardEditorHeaderActions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+#modalEditCard .cardEditorHeaderActions a { color: var(--muted); }
+#modalEditCard .cardEditorHeaderActions a + a { margin-left: 20px; }
+#modalEditCard #cardEditorListSelect {
+  width: 100%;
+  max-width: 280px;
+  min-width: 160px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  padding: 4px 30px 4px 10px;
+  background-position: right 8px center;
+  background-size: 10px 7px;
+}
+#modalEditCard #cardEditorListSelect:hover,
+#modalEditCard #cardEditorListSelect:focus-visible {
+  color: var(--text);
+}
+#modalEditCard #cardEditorListMoveFeedback {
+  color: var(--muted);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0;
+  transform: translateX(-4px) scale(0.9);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+  user-select: none;
+}
+#modalEditCard #cardEditorListMoveFeedback.is-visible {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  color: var(--text);
+  animation: card-editor-list-move-check-pop 180ms ease;
+}
+#modalEditCard .cardEditorMetadataButtons {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+#modalEditCard .cardEditorMetadataButtons a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+#modalEditCard #cardEditorCardDueDateDisplay,
+#modalEditCard #cardEditorCardLabels { margin-right: 0; }
+#modalEditCard #cardEditorCardLabels.card-editor-labels {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-right: 0;
+}
+#modalEditCard #cardEditorCardLabels.card-editor-labels .card-label-chip {
+  cursor: inherit;
+}
 #modalEditCard .cardEditorHeader a svg, #modalEditCard .cardEditorMetadataButtons a svg { height: 18px; }
+
+@keyframes card-editor-list-move-check-pop {
+  0% { transform: translateX(-4px) scale(0.9); }
+  65% { transform: translateX(0) scale(1.06); }
+  100% { transform: translateX(0) scale(1); }
+}
 
 #modalEditCard h4.label { font-size: var(--font-sm); text-transform: uppercase; color: var(--muted); margin-bottom: 1px; }
 #modalEditCard #cardEditorContents { background: var(--bg); border-radius: var(--radius); min-height: 75px; padding: 8px 10px; font-size: var(--font-lg); max-width: 75%; border: 1px solid transparent; }
@@ -1046,6 +2322,55 @@ select:disabled {
   margin-top: 20px;
 }
 
+#cardEditorOverType .overtype-container {
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+#cardEditorOverType .task-line-due-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+#cardEditorOverType .task-line-due-control {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 84%, transparent);
+  background: color-mix(in oklab, var(--bg-card) 90%, transparent);
+  color: var(--muted);
+  box-shadow: 0 1px 3px var(--shadow-card);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+#cardEditorOverType .task-line-due-control:hover {
+  border-color: color-mix(in oklab, var(--accent) 48%, var(--border));
+  color: color-mix(in oklab, var(--accent) 78%, var(--text));
+}
+
+#cardEditorOverType .task-line-due-control.has-due {
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
+  color: color-mix(in oklab, var(--accent) 80%, var(--text));
+}
+
+#cardEditorOverType .task-line-due-control svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+#cardEditorOverType .overtype-container.preview-mode .task-line-due-layer {
+  display: none;
+}
+
 .overtype-container {
   --toolbar-hover: color-mix(in oklab, var(--bg-card) 88%, var(--border));
   --toolbar-active: color-mix(in oklab, var(--text) 12%, var(--bg-card));
@@ -1063,12 +2388,25 @@ select:disabled {
   padding: 8px important!;
 }
 
-/* Keep preview glyph widths aligned with textarea caret metrics while editing. */
-#cardEditorOverType .overtype-wrapper .overtype-preview strong,
+#cardEditorOverType .overtype-wrapper .overtype-preview strong {
+  font-weight: 700 !important;
+}
+
 #cardEditorOverType .overtype-wrapper .overtype-preview h1,
 #cardEditorOverType .overtype-wrapper .overtype-preview h2,
 #cardEditorOverType .overtype-wrapper .overtype-preview h3 {
-  font-weight: inherit !important;
+  font-weight: 700 !important;
+}
+
+#cardEditorOverType .overtype-wrapper .overtype-preview h3 {
+  font-weight: 600 !important;
+}
+
+#cardEditorOverType .overtype-wrapper .overtype-preview strong .syntax-marker,
+#cardEditorOverType .overtype-wrapper .overtype-preview h1 .syntax-marker,
+#cardEditorOverType .overtype-wrapper .overtype-preview h2 .syntax-marker,
+#cardEditorOverType .overtype-wrapper .overtype-preview h3 .syntax-marker {
+  opacity: 0.8;
 }
 
 /* 10) Small screens */
@@ -1087,14 +2425,58 @@ select:disabled {
   main#board {
     padding: 12px;
   }
+  main#board.board-view-calendar {
+    padding: 12px;
+  }
+  main#board.board-view-week {
+    padding: 12px;
+  }
+  .board-calendar {
+    min-width: 740px;
+  }
+  .board-this-week {
+    min-width: 740px;
+  }
+  .board-this-week-grid {
+    min-height: 520px;
+  }
+  .board-calendar-header {
+    grid-template-columns: 1fr;
+  }
+  .board-calendar-month-label {
+    grid-column: 1;
+    justify-self: center;
+    text-align: center;
+  }
   .empty-board-cta {
     width: min(760px, calc(100vw - 24px));
     min-height: 230px;
     padding: 24px 20px;
     border-radius: 18px;
   }
+  .board-missing-alert {
+    width: min(760px, calc(100vw - 24px));
+    border-radius: 18px;
+    padding: 20px 18px;
+  }
   .empty-board-cta-title {
     font-size: 21px;
+  }
+  .board-missing-alert-title {
+    font-size: 21px;
+  }
+  #modalKeyboardShortcuts {
+    top: max(8px, env(safe-area-inset-top));
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    padding: 14px;
+  }
+  .keyboard-shortcuts-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .keyboard-shortcuts-header h2 {
+    font-size: 22px;
   }
 }
 

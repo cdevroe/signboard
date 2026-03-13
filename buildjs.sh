@@ -5,8 +5,13 @@
 cat \
   app/utilities/santizeFileName.js \
   app/utilities/timestampListItem.js \
+  app/utilities/dueDateStatus.js \
+  app/utilities/taskList.js \
+  app/utilities/dueNotifications.js \
+  app/utilities/cardDragTilt.js \
   app/board/boardLabels.js \
   app/board/boardSearch.js \
+  app/board/boardViews.js \
   app/cards/createCardElement.js \
   app/cards/processAddNewCard.js \
   app/lists/createListElement.js \
@@ -18,6 +23,7 @@ cat \
   app/modals/toggleAddCardToListModal.js \
   app/modals/toggleEditCardModal.js \
   app/ui/theme.js \
+  app/ui/tooltips.js \
   app/board/boardTabs.js \
   app/board/renderBoard.js \
   app/board/openBoard.js \

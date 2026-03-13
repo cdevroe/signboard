@@ -58,6 +58,15 @@ function isCardEditorRelatedClickTarget(target) {
     return false;
 }
 
+function createCloseAllModalsRequest() {
+    return {
+        type: 'click',
+        target: {
+            id: 'board',
+        },
+    };
+}
+
 async function closeAllModals(e, options = {}){
     const eventTarget = e && e.target ? e.target : null;
     const isEscape = e && e.key === 'Escape';
@@ -75,6 +84,7 @@ async function closeAllModals(e, options = {}){
     const modalAddCardToList = document.getElementById('modalAddCardToList');
     const modalAddList = document.getElementById('modalAddList');
     const modalBoardSettings = document.getElementById('modalBoardSettings');
+    const modalCommercialLicense = document.getElementById('modalCommercialLicense');
     const editModalWasOpen = modalEditCard.style.display === 'block';
     const boardSettingsWasOpen = modalBoardSettings && modalBoardSettings.style.display === 'block';
 
@@ -114,6 +124,12 @@ async function closeAllModals(e, options = {}){
             setBoardInteractive(true);
             boardSettingsClosed = true;
         }
+        if ( modalCommercialLicense && modalCommercialLicense.style.display === 'block' ) {
+            modalCommercialLicense.style.display = 'none';
+            modalCommercialLicense.classList.add('hidden');
+            modalCommercialLicense.setAttribute('aria-hidden', 'true');
+            setBoardInteractive(true);
+        }
     } else {
         if ( modalAddCard.style.display === 'block' && eventTarget && !modalAddCard.contains(eventTarget) ) {
             modalAddCard.style.display = 'none';
@@ -148,9 +164,19 @@ async function closeAllModals(e, options = {}){
             setBoardInteractive(true);
             boardSettingsClosed = true;
         }
+
+        if ( modalCommercialLicense && modalCommercialLicense.style.display === 'block' && eventTarget && !modalCommercialLicense.contains(eventTarget) ) {
+            modalCommercialLicense.style.display = 'none';
+            modalCommercialLicense.classList.add('hidden');
+            modalCommercialLicense.setAttribute('aria-hidden', 'true');
+            setBoardInteractive(true);
+        }
     }
 
     if (editModalClosed) {
+        if (typeof destroyTaskLineDueDateControls === 'function') {
+            destroyTaskLineDueDateControls();
+        }
         FDatepicker.destroyAll();
         OverType.destroyAll();
         if (typeof clearQueuedEditorSave === 'function') {
