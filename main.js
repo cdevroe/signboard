@@ -27,6 +27,11 @@ const WINDOW_STATE_SAVE_DEBOUNCE_MS = 250;
 const MCP_SERVER_ARG = '--mcp-server';
 const MCP_CONFIG_ARG = '--mcp-config';
 const RUNTIME_APP_ICON_PATH = path.join(__dirname, 'build', 'icon-macos.png');
+const SIGNBOARD_USER_DATA_DIR = String(process.env.SIGNBOARD_USER_DATA_DIR || '').trim();
+
+if (SIGNBOARD_USER_DATA_DIR) {
+  app.setPath('userData', path.resolve(SIGNBOARD_USER_DATA_DIR));
+}
 
 function getUserArgsFromProcessArgv(argv = process.argv) {
   if (!Array.isArray(argv) || argv.length <= 1) {
@@ -210,6 +215,9 @@ function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) {
       mainWindow.restore();
+    }
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
     }
     mainWindow.focus();
     return mainWindow;
@@ -396,6 +404,54 @@ function getMainWindow() {
   }
 
   return BrowserWindow.getAllWindows()[0] || null;
+}
+
+function showDockIcon() {
+  if (process.platform === 'darwin' && app.dock && typeof app.dock.show === 'function') {
+    app.dock.show();
+  }
+}
+
+function ensureMainWindowVisible() {
+  showDockIcon();
+
+  const win = createWindow();
+  if (!win || win.isDestroyed()) {
+    return null;
+  }
+
+  if (!Menu.getApplicationMenu()) {
+    buildApplicationMenu();
+  }
+
+  if (win.isMinimized()) {
+    win.restore();
+  }
+
+  if (!win.isVisible()) {
+    win.show();
+  }
+
+  win.focus();
+  return win;
+}
+
+function sendToMainWindow(channel) {
+  const win = ensureMainWindowVisible();
+  if (!win || win.isDestroyed()) {
+    return;
+  }
+
+  if (win.webContents.isLoadingMainFrame()) {
+    win.webContents.once('did-finish-load', () => {
+      if (!win.isDestroyed()) {
+        win.webContents.send(channel);
+      }
+    });
+    return;
+  }
+
+  win.webContents.send(channel);
 }
 
 function buildMcpConfigTemplate() {
@@ -980,6 +1036,13 @@ function buildApplicationMenu() {
       await installCliFromApp();
     },
   });
+  const createKeyboardShortcutsMenuItem = () => ({
+    label: 'Keyboard Shortcuts',
+    accelerator: 'CmdOrCtrl+/',
+    click: () => {
+      sendToMainWindow('open-keyboard-shortcuts');
+    },
+  });
 
   const template = [];
 
@@ -1036,6 +1099,7 @@ function buildApplicationMenu() {
       !isMac ? createCheckForUpdatesMenuItem() : null,
       createInstallCliMenuItem(),
       createCopyMcpConfigMenuItem(),
+      createKeyboardShortcutsMenuItem(),
       isPreviewMode
         ? {
             label: 'Preview Update Available...',
@@ -1200,37 +1264,14 @@ app.whenReady().then(async () => {
 });
 
 app.on('activate', () => {
-  if (isMcpServerMode || isCliMode) {
+  if (isCliMode) {
     return;
   }
 
-  const win = getMainWindow();
-  if (win && !win.isDestroyed()) {
-    if (win.isMinimized()) {
-      win.restore();
-    }
-    if (!win.isVisible()) {
-      win.show();
-    }
-    win.focus();
+  const win = ensureMainWindowVisible();
+  if (win) {
     return;
   }
-
-  if (BrowserWindow.getAllWindows().length > 0) {
-    const fallbackWindow = BrowserWindow.getAllWindows()[0];
-    if (fallbackWindow && !fallbackWindow.isDestroyed()) {
-      if (fallbackWindow.isMinimized()) {
-        fallbackWindow.restore();
-      }
-      if (!fallbackWindow.isVisible()) {
-        fallbackWindow.show();
-      }
-      fallbackWindow.focus();
-      return;
-    }
-  }
-
-  createWindow();
 });
 
 app.on('before-quit', () => {

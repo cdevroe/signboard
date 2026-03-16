@@ -1,7 +1,5 @@
-const SHORTCUT_HELP_HOLD_DELAY_MS = 2000;
 const SHORTCUT_HELP_MODAL_ID = 'modalKeyboardShortcuts';
 
-let shortcutHelpHoldTimerId = null;
 let shortcutHelpVisible = false;
 
 function isMacShortcutPlatform() {
@@ -13,26 +11,8 @@ function isMacShortcutPlatform() {
 
 const usesMetaShortcutModifier = isMacShortcutPlatform();
 
-function isShortcutHelpModifierKey(event) {
-    const key = String(event.key || '').toLowerCase();
-    return usesMetaShortcutModifier ? key === 'meta' : key === 'control';
-}
-
-function isShortcutHelpModifierPressed(event) {
-    return usesMetaShortcutModifier ? event.metaKey : event.ctrlKey;
-}
-
 function getShortcutHelpModal() {
     return document.getElementById(SHORTCUT_HELP_MODAL_ID);
-}
-
-function clearShortcutHelpHoldTimer() {
-    if (!shortcutHelpHoldTimerId) {
-        return;
-    }
-
-    window.clearTimeout(shortcutHelpHoldTimerId);
-    shortcutHelpHoldTimerId = null;
 }
 
 function showShortcutHelpModal() {
@@ -60,19 +40,7 @@ function hideShortcutHelpModal() {
     shortcutHelpVisible = false;
 }
 
-function startShortcutHelpHoldTimer() {
-    if (shortcutHelpHoldTimerId || shortcutHelpVisible) {
-        return;
-    }
-
-    shortcutHelpHoldTimerId = window.setTimeout(() => {
-        shortcutHelpHoldTimerId = null;
-        showShortcutHelpModal();
-    }, SHORTCUT_HELP_HOLD_DELAY_MS);
-}
-
 function syncShortcutHelpModifierLabels() {
-    // Keep the modal list and hint text aligned with the platform shortcut modifier.
     const modifierLabel = usesMetaShortcutModifier ? 'Command' : 'Control';
     const modifierKey = usesMetaShortcutModifier ? '⌘' : 'Ctrl';
 
@@ -125,33 +93,51 @@ function handleBoardViewShortcut(e) {
     return true;
 }
 
+function isKeyboardShortcutsShortcut(event) {
+    if (!event || (!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey) {
+        return false;
+    }
+
+    const key = String(event.key || '').trim();
+    return event.code === 'Slash' || key === '/';
+}
+
 syncShortcutHelpModifierLabels();
 
-window.addEventListener('keydown', async (e) => {
-        if (isShortcutHelpModifierKey(e) && isShortcutHelpModifierPressed(e)) {
-            startShortcutHelpHoldTimer();
-        } else if (!isShortcutHelpModifierPressed(e)) {
-            clearShortcutHelpHoldTimer();
-            hideShortcutHelpModal();
-        } else if (!isShortcutHelpModifierKey(e)) {
-            // Any shortcut selection while holding the modifier should close the helper.
-            clearShortcutHelpHoldTimer();
-            hideShortcutHelpModal();
-        }
+if (window.electronAPI && typeof window.electronAPI.onOpenKeyboardShortcuts === 'function') {
+    window.electronAPI.onOpenKeyboardShortcuts(() => {
+        showShortcutHelpModal();
+    });
+}
 
+window.addEventListener('keydown', async (e) => {
         if ( e.key == 'Escape' ) {
+            hideShortcutHelpModal();
             await closeAllModals(e);
             return;
         }
     
         if (!e.ctrlKey && !e.metaKey) return;
 
+        if (isKeyboardShortcutsShortcut(e)) {
+            e.preventDefault();
+
+            if (shortcutHelpVisible) {
+                hideShortcutHelpModal();
+            } else {
+                showShortcutHelpModal();
+            }
+            return;
+        }
+
         if (handleBoardViewShortcut(e)) {
+            hideShortcutHelpModal();
             return;
         }
         
         if ((e.ctrlKey || e.metaKey) && String(e.key || '').toLowerCase() === 'n') {
             e.preventDefault(); // Prevent default behavior (if any)
+            hideShortcutHelpModal();
             
             if ( e.shiftKey ) { // Add List
                 const listName = document.getElementById('userInputListName');
@@ -219,21 +205,23 @@ window.addEventListener('keydown', async (e) => {
         }
     });
 
-window.addEventListener('keyup', (e) => {
-    if (isShortcutHelpModifierKey(e) || !isShortcutHelpModifierPressed(e)) {
-        clearShortcutHelpHoldTimer();
-        hideShortcutHelpModal();
-    }
-});
-
 window.addEventListener('blur', () => {
-    clearShortcutHelpHoldTimer();
     hideShortcutHelpModal();
 });
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') {
-        clearShortcutHelpHoldTimer();
+        hideShortcutHelpModal();
+    }
+});
+
+document.addEventListener('click', (event) => {
+    if (!shortcutHelpVisible) {
+        return;
+    }
+
+    const modal = getShortcutHelpModal();
+    if (modal && !modal.contains(event.target)) {
         hideShortcutHelpModal();
     }
 });

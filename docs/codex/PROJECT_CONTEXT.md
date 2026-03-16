@@ -164,7 +164,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 ### Keyboard shortcuts
 - `app/listeners/window.js`:
-  - Holding `Cmd` (macOS) or `Ctrl` (Windows/Linux) for 2+ seconds opens the keyboard shortcuts helper modal and releasing that key closes it.
+  - `Cmd/Ctrl + /`: open the keyboard shortcuts helper modal.
   - `Esc`: close modals.
   - `Cmd/Ctrl + N`: add card (with list picker modal).
   - `Cmd/Ctrl + Shift + N`: add list.

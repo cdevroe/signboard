@@ -74,13 +74,14 @@
 
   <div id="modalAddCardToList" class="modal hidden">
      <p><select id="userInputListPath"></select></p>
-    <p><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"> <button id="btnAddCardToList" title="Add card to selected list">Add</button></p>
+    <p class="modalAddCardToListInputRow"><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"></p>
+    <button id="btnAddCardToList" title="Add card to selected list">Add</button>
   </div>
 
   <div id="modalKeyboardShortcuts" class="modal keyboard-shortcuts-modal hidden" aria-hidden="true">
     <div class="keyboard-shortcuts-header">
       <h2>Keyboard Shortcuts</h2>
-      <p>Hold <span class="shortcut-modifier-label">Command</span> for two seconds to open this list.</p>
+      <p>Press <span class="shortcut-modifier-label">Command</span> + / to open this list.</p>
     </div>
     <div class="keyboard-shortcuts-grid">
       <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-create">
@@ -116,6 +117,10 @@
       <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-modals">
         <h3 id="keyboard-shortcuts-section-modals">Modals</h3>
         <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Keyboard shortcuts</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + /</kbd>
+          </li>
           <li>
             <span>Close open modals</span>
             <kbd>Esc</kbd>
@@ -186,6 +191,16 @@
               <button id="btnMoveBoard" type="button" title="Move board">Move Board</button>
             </div>
             <p class="boardSettingsHint">Move this board folder to another location on your computer.</p>
+          </div>
+          <div class="board-settings-toggle-row">
+            <div>
+              <p class="boardSettingsHint boardSettingsHintTight">Tooltips</p>
+              <p class="boardSettingsHint">Show button and control hints throughout this board.</p>
+            </div>
+            <label class="board-settings-switch" for="boardSettingsTooltipsToggle" title="Enable tooltips">
+              <input id="boardSettingsTooltipsToggle" type="checkbox" role="switch" aria-label="Enable tooltips">
+              <span class="board-settings-switch-track" aria-hidden="true"></span>
+            </label>
           </div>
         </section>
 

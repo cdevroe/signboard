@@ -116,6 +116,14 @@ async function main() {
   assert.strictEqual(lists.length, 2);
   assert.strictEqual(lists[0].displayName, 'To do');
 
+  const defaultSettings = JSON.parse(runCli(['settings', '--json'], env).stdout);
+  assert.strictEqual(defaultSettings.tooltipsEnabled, true);
+
+  const updatedSettings = JSON.parse(
+    runCli(['settings', 'edit', '--tooltips', 'off', '--json'], env).stdout
+  );
+  assert.strictEqual(updatedSettings.tooltipsEnabled, false);
+
   const createdList = JSON.parse(
     runCli(['lists', 'create', 'Blocked', '--json'], env).stdout
   );
@@ -197,6 +205,7 @@ async function main() {
     ], env).stdout
   );
   assert.strictEqual(editedCard.listDisplayName, 'Doing');
+  assert.ok(editedCard.fileName.startsWith('000-'));
   assert.strictEqual(editedCard.due, null);
   assert.deepStrictEqual(editedCard.labels.sort(), ['client', 'urgent']);
   assert.ok(editedCard.body.includes('Escalated yesterday.'));
@@ -213,6 +222,15 @@ async function main() {
   );
   assert.strictEqual(readCard.title, 'Needs approval');
   assert.strictEqual(readCard.listDisplayName, 'Doing');
+
+  const doingCards = JSON.parse(
+    runCli([
+      'cards',
+      'Doing',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(doingCards[0].title, 'Needs approval');
 
   console.log('CLI tests passed.');
 }

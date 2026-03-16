@@ -78,10 +78,13 @@ async function createFixtureBoard() {
   const boardName = 'Good-Migrations';
   const boardRoot = path.join(root, boardName);
   const leadsList = '000-Leads-stock';
+  const workingList = '001-Working-stock';
   const archiveList = 'XXX-Archive';
   const templateCardFile = '001-template-card-ab123.md';
+  const workingCardFile = '001-existing-work-xy987.md';
 
   await fs.mkdir(path.join(boardRoot, leadsList), { recursive: true });
+  await fs.mkdir(path.join(boardRoot, workingList), { recursive: true });
   await fs.mkdir(path.join(boardRoot, archiveList), { recursive: true });
 
   await fs.writeFile(
@@ -101,14 +104,28 @@ async function createFixtureBoard() {
     'utf8',
   );
 
+  await fs.writeFile(
+    path.join(boardRoot, workingList, workingCardFile),
+    [
+      '---',
+      'title: Existing Work',
+      '---',
+      'Already in progress.',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+
   return {
     cleanupRoot: root,
     allowedRoot: root,
     boardName,
     boardRoot,
     leadsList,
+    workingList,
     archiveList,
     templateCardFile,
+    workingCardFile,
   };
 }
 
@@ -230,6 +247,7 @@ async function runForTransport(transportMode, fixture) {
     'signboard.get_config',
     'signboard.list_board_views',
     'signboard.resolve_board_by_name',
+    'signboard.create_board',
     'signboard.list_lists',
     'signboard.list_cards',
     'signboard.read_card',
@@ -274,6 +292,65 @@ async function runForTransport(transportMode, fixture) {
   const resolveOutput = resolveResponse.result?.structuredContent || {};
   if (!Array.isArray(resolveOutput.matches) || !resolveOutput.matches.includes(path.resolve(fixture.boardRoot))) {
     throw new Error(`Resolver did not return fixture board (${transportMode}): ${JSON.stringify(resolveOutput)}`);
+  }
+
+  const createdBoardName = `Created-${transportMode}`;
+  send({
+    jsonrpc: '2.0',
+    id: 301,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.create_board',
+      arguments: {
+        parentRoot: fixture.allowedRoot,
+        boardName: createdBoardName,
+      },
+    },
+  });
+
+  const createBoardResponse = await waitForResponse(301);
+  if (createBoardResponse.error) {
+    throw new Error(`create_board failed (${transportMode}): ${JSON.stringify(createBoardResponse.error)}`);
+  }
+
+  const createBoardOutput = createBoardResponse.result?.structuredContent || {};
+  const createdBoardRoot = path.resolve(path.join(fixture.allowedRoot, createdBoardName));
+  if (createBoardOutput.boardRoot !== createdBoardRoot) {
+    throw new Error(`create_board returned unexpected boardRoot (${transportMode}): ${JSON.stringify(createBoardOutput)}`);
+  }
+  const expectedCreatedLists = ['000-To-do-stock', '001-Doing-stock', '002-Done-stock', 'XXX-Archive'];
+  if (
+    !Array.isArray(createBoardOutput.listNames) ||
+    expectedCreatedLists.some((listName) => !createBoardOutput.listNames.includes(listName))
+  ) {
+    throw new Error(`create_board listNames mismatch (${transportMode}): ${JSON.stringify(createBoardOutput)}`);
+  }
+  if (createBoardOutput.cardFile !== '000-hello-stock.md') {
+    throw new Error(`create_board did not seed starter card (${transportMode}): ${JSON.stringify(createBoardOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 302,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.read_card',
+      arguments: {
+        boardRoot: createdBoardRoot,
+        listName: '000-To-do-stock',
+        cardFile: '000-hello-stock.md',
+      },
+    },
+  });
+
+  const createdBoardCardResponse = await waitForResponse(302);
+  if (createdBoardCardResponse.error) {
+    throw new Error(`read_card starter card failed (${transportMode}): ${JSON.stringify(createdBoardCardResponse.error)}`);
+  }
+
+  const createdBoardCard = createdBoardCardResponse.result?.structuredContent?.card || {};
+  if (createdBoardCard.frontmatter?.title !== '👋 Start Here') {
+    throw new Error(`create_board starter card title mismatch (${transportMode}): ${JSON.stringify(createdBoardCard)}`);
   }
 
   send({
@@ -408,6 +485,7 @@ async function runForTransport(transportMode, fixture) {
           enabled: true,
           time: '08:30',
         },
+        tooltipsEnabled: false,
       },
     },
   });
@@ -420,6 +498,10 @@ async function runForTransport(transportMode, fixture) {
   const updatedNotifications = settingsResponse.result?.structuredContent?.settings?.notifications || {};
   if (updatedNotifications.enabled !== true || updatedNotifications.time !== '08:30') {
     throw new Error(`update_board_settings did not persist notifications (${transportMode}): ${JSON.stringify(updatedNotifications)}`);
+  }
+  const updatedTooltipsEnabled = settingsResponse.result?.structuredContent?.settings?.tooltipsEnabled;
+  if (updatedTooltipsEnabled !== false) {
+    throw new Error(`update_board_settings did not persist tooltipsEnabled (${transportMode}): ${JSON.stringify(settingsResponse.result?.structuredContent)}`);
   }
 
   const boardToRename = path.join(fixture.allowedRoot, `RenameMove-${transportMode}`);
@@ -529,13 +611,7 @@ async function runForTransport(transportMode, fixture) {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
         cardFile: fixture.templateCardFile,
-        body: [
-          'Customer details go here.',
-          '- [x ] Initial outreach',
-          '- [x ] (due: 2026-03-20) Send proposal',
-          '- [ X] Confirm timeline',
-          '',
-        ].join('\n'),
+        body: 'Customer details go here.\\n- [x ] Initial outreach\\n- [x ] (due: 2026-03-20) Send proposal\\n- [ X] Confirm timeline\\n',
       },
     },
   });
@@ -563,14 +639,7 @@ async function runForTransport(transportMode, fixture) {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
         title: 'Task metadata coverage',
-        body: [
-          'Created by MCP test.',
-          '- [x ] (due: 2026-03-21) Complete prep',
-          '- [ X] (due: 2026-03-22) Confirm review',
-          '- [ x] Share recap',
-          '- [ ] Follow up',
-          '',
-        ].join('\n'),
+        body: 'Created by MCP test.\\n- [x ] (due: 2026-03-21) Complete prep\\n- [ X] (due: 2026-03-22) Confirm review\\n- [ x] Share recap\\n- [ ] Follow up\\n',
       },
     },
   });
@@ -591,6 +660,54 @@ async function runForTransport(transportMode, fixture) {
     expectedDueDates.some((dateValue) => !createCardOutput.taskDueDates.includes(dateValue))
   ) {
     throw new Error(`create_card taskDueDates mismatch (${transportMode}): ${JSON.stringify(createCardOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 15,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.move_card',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        fromListName: fixture.leadsList,
+        toListName: fixture.workingList,
+        cardFile: createCardOutput.cardFile,
+      },
+    },
+  });
+
+  const moveCardResponse = await waitForResponse(15);
+  if (moveCardResponse.error) {
+    throw new Error(`move_card failed (${transportMode}): ${JSON.stringify(moveCardResponse.error)}`);
+  }
+
+  const moveCardOutput = moveCardResponse.result?.structuredContent || {};
+  if (!String(moveCardOutput.newCardFile || '').startsWith('000-')) {
+    throw new Error(`move_card did not place card at top (${transportMode}): ${JSON.stringify(moveCardOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 16,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.list_cards',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        listName: fixture.workingList,
+      },
+    },
+  });
+
+  const movedListResponse = await waitForResponse(16);
+  if (movedListResponse.error) {
+    throw new Error(`list_cards after move_card failed (${transportMode}): ${JSON.stringify(movedListResponse.error)}`);
+  }
+
+  const movedListCards = movedListResponse.result?.structuredContent?.cardFiles || [];
+  if (movedListCards[0] !== moveCardOutput.newCardFile) {
+    throw new Error(`move_card did not sort moved card first (${transportMode}): ${JSON.stringify(movedListCards)}`);
   }
 
   child.stdin.end();

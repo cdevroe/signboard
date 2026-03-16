@@ -65,6 +65,7 @@ const DEFAULT_BOARD_NOTIFICATION_SETTINGS = Object.freeze({
   enabled: false,
   time: '09:00',
 });
+const DEFAULT_BOARD_TOOLTIPS_ENABLED = true;
 
 function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -405,6 +406,10 @@ function normalizeBoardNotificationSettings(rawNotificationSettings) {
   };
 }
 
+function normalizeBoardTooltipsEnabled(value) {
+  return value === false ? false : DEFAULT_BOARD_TOOLTIPS_ENABLED;
+}
+
 function hasThemeModeOverride(themeModeOverrides) {
   return Boolean(themeModeOverrides && typeof themeModeOverrides.boardBackground === 'string' && themeModeOverrides.boardBackground.length > 0);
 }
@@ -423,6 +428,7 @@ function getBoardLabelState() {
         dark: { ...DEFAULT_BOARD_THEME_PALETTES.dark },
       },
       notificationSettings: { ...DEFAULT_BOARD_NOTIFICATION_SETTINGS },
+      tooltipsEnabled: DEFAULT_BOARD_TOOLTIPS_ENABLED,
       activeSettingsPanel: 'general',
       settingsSaveTimer: null,
       settingsSaveInFlight: Promise.resolve(),
@@ -475,6 +481,19 @@ function getBoardNotificationSettings() {
 function setBoardNotificationSettings(notificationSettings) {
   const state = getBoardLabelState();
   state.notificationSettings = normalizeBoardNotificationSettings(notificationSettings);
+}
+
+function getBoardTooltipsEnabled() {
+  return normalizeBoardTooltipsEnabled(getBoardLabelState().tooltipsEnabled);
+}
+
+function setBoardTooltipsEnabled(value) {
+  const state = getBoardLabelState();
+  state.tooltipsEnabled = normalizeBoardTooltipsEnabled(value);
+
+  if (typeof setTooltipsEnabled === 'function') {
+    setTooltipsEnabled(state.tooltipsEnabled);
+  }
 }
 
 function getBoardThemePalettes() {
@@ -1358,13 +1377,16 @@ function persistBoardSettings() {
         labels: getBoardLabels(),
         themeOverrides: getBoardThemeOverrides(),
         notifications: getBoardNotificationSettings(),
+        tooltipsEnabled: getBoardTooltipsEnabled(),
       });
       setBoardLabels(result.labels || []);
       applyDerivedBoardThemes(result.themeOverrides || {}, { renderControls: false });
       setBoardNotificationSettings(result.notifications || DEFAULT_BOARD_NOTIFICATION_SETTINGS);
+      setBoardTooltipsEnabled(result.tooltipsEnabled);
       if (!isBoardSettingsModalOpen()) {
         renderBoardSettingsLabels();
         renderBoardThemeSettingsControls();
+        renderBoardGeneralSettingsControls();
         renderNotificationSettingsControls();
       }
       renderBoardLabelFilterButton();
@@ -1456,6 +1478,7 @@ function setActiveBoardSettingsPanel(panelId) {
 function renderBoardGeneralSettingsControls() {
   const boardNameInput = document.getElementById('boardSettingsBoardNameInput');
   const boardPathInput = document.getElementById('boardSettingsBoardPathInput');
+  const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
   const boardInfo = getBoardRootInfo();
 
   if (boardNameInput) {
@@ -1464,6 +1487,10 @@ function renderBoardGeneralSettingsControls() {
 
   if (boardPathInput) {
     boardPathInput.value = boardInfo ? boardInfo.normalizedRoot.replace(/\/+$/, '') : '';
+  }
+
+  if (tooltipsToggle) {
+    tooltipsToggle.checked = getBoardTooltipsEnabled();
   }
 }
 
@@ -1583,9 +1610,11 @@ async function ensureBoardLabelsLoaded() {
     setBoardLabels([]);
     applyDerivedBoardThemes({ light: {}, dark: {} }, { renderControls: false });
     setBoardNotificationSettings(DEFAULT_BOARD_NOTIFICATION_SETTINGS);
+    setBoardTooltipsEnabled(DEFAULT_BOARD_TOOLTIPS_ENABLED);
     renderBoardLabelFilterButton();
     renderBoardLabelFilterPopover();
     renderBoardThemeSettingsControls();
+    renderBoardGeneralSettingsControls();
     renderNotificationSettingsControls();
     return;
   }
@@ -1594,9 +1623,11 @@ async function ensureBoardLabelsLoaded() {
   setBoardLabels(settings.labels || []);
   applyDerivedBoardThemes(settings.themeOverrides || {}, { renderControls: false });
   setBoardNotificationSettings(settings.notifications || DEFAULT_BOARD_NOTIFICATION_SETTINGS);
+  setBoardTooltipsEnabled(settings.tooltipsEnabled);
   renderBoardLabelFilterButton();
   renderBoardLabelFilterPopover();
   renderBoardThemeSettingsControls();
+  renderBoardGeneralSettingsControls();
   renderNotificationSettingsControls();
 }
 
@@ -1627,6 +1658,7 @@ function initializeBoardLabelControls() {
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
   const applyNotificationsToOpenBoardsButton = document.getElementById('btnApplyNotificationsToOpenBoards');
+  const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
 
   if (filterButton) {
     filterButton.addEventListener('click', (event) => {
@@ -1824,6 +1856,14 @@ function initializeBoardLabelControls() {
         enabled: Boolean(event.target.checked),
       });
       renderNotificationSettingsControls();
+      scheduleBoardSettingsSave();
+    });
+  }
+
+  if (tooltipsToggle) {
+    tooltipsToggle.addEventListener('change', (event) => {
+      setBoardTooltipsEnabled(Boolean(event.target.checked));
+      renderBoardGeneralSettingsControls();
       scheduleBoardSettingsSave();
     });
   }

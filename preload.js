@@ -402,6 +402,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openExternal: (url) => shell.openExternal(url),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   notifyDueCards: (payload) => ipcRenderer.invoke('notify-due-cards', payload),
+  onOpenKeyboardShortcuts: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = () => {
+      callback();
+    };
+
+    ipcRenderer.on('open-keyboard-shortcuts', listener);
+    return () => {
+      ipcRenderer.removeListener('open-keyboard-shortcuts', listener);
+    };
+  },
 });
 
 // Remove characters that are not allowed in filenames

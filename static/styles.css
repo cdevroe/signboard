@@ -1295,10 +1295,46 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   color: var(--text);
   padding: 10px 12px;
   font-size: var(--font-md);
+  box-sizing: border-box;
+}
+.modal select {
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* Specific modal bits you used */
-#modalAddCardToList button { margin-top: 10px; }
+#modalAddCard,
+#modalAddList,
+#modalAddCardToList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(360px, calc(100vw - 28px));
+}
+
+#modalAddCard.hidden,
+#modalAddList.hidden,
+#modalAddCardToList.hidden {
+  display: none !important;
+}
+
+#modalAddCardToList p {
+  margin: 0;
+}
+
+.modal textarea:focus-visible,
+.modal input:focus-visible,
+.modal select:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 1px;
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--border));
+}
+
+#modalAddCard button,
+#modalAddList button,
+#modalAddCardToList button {
+  align-self: flex-start;
+  margin-top: 6px;
+}
 
 #modalKeyboardShortcuts {
   position: fixed;

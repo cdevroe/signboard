@@ -7,6 +7,7 @@ function getTooltipState() {
   if (!window.__sbTooltipState) {
     window.__sbTooltipState = {
       initialized: false,
+      enabled: true,
       tooltipEl: null,
       observer: null,
       activeTarget: null,
@@ -14,6 +15,22 @@ function getTooltipState() {
   }
 
   return window.__sbTooltipState;
+}
+
+function areTooltipsEnabled() {
+  return getTooltipState().enabled !== false;
+}
+
+function setTooltipsEnabled(enabled) {
+  const state = getTooltipState();
+  state.enabled = enabled !== false;
+
+  if (!state.enabled) {
+    hideTooltip();
+    return;
+  }
+
+  syncTooltipTargets(document);
 }
 
 function ensureTooltipElement() {
@@ -224,6 +241,10 @@ function showTooltipForTarget(target) {
 }
 
 function handleTooltipPointerOver(event) {
+  if (!areTooltipsEnabled()) {
+    return;
+  }
+
   const target = findTooltipTarget(event.target);
   if (!target) {
     return;
@@ -247,6 +268,10 @@ function handleTooltipPointerOut(event) {
 }
 
 function handleTooltipFocusIn(event) {
+  if (!areTooltipsEnabled()) {
+    return;
+  }
+
   const target = findTooltipTarget(event.target);
   if (!target) {
     return;
@@ -270,6 +295,11 @@ function handleTooltipFocusOut(event) {
 }
 
 function handleTooltipViewportChange() {
+  if (!areTooltipsEnabled()) {
+    hideTooltip();
+    return;
+  }
+
   const state = getTooltipState();
   if (!state.activeTarget || !state.activeTarget.isConnected) {
     hideTooltip();

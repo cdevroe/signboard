@@ -38,7 +38,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
 - `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic with debounced + serialized saves and task-line due-date controls aligned from measured line coordinates.
-- `app/listeners/window.js` - Keyboard shortcuts, including the hold-`Cmd/Ctrl` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
+- `app/listeners/window.js` - Keyboard shortcuts, including the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, and external board-change auto-refresh sync loop.
 - `app/ui/theme.js` - Theme toggle + OverType theme integration.
 - `app/ui/tooltips.js` - Lightweight custom tooltip engine (event delegation + mutation observer) using existing element label attributes.
@@ -47,7 +47,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support.
 - `lib/boardLabels.js` - Board-level label settings read/write/defaults/filter helpers (`board-settings.md`).
-- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings operations plus task-summary metadata on card tools.
+- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings operations, safe board creation, and task-summary metadata on card tools.
 
 ## Scripts (`scripts/`)
 

@@ -34,6 +34,7 @@
     "test:due-notifications": "node scripts/test-due-notifications.js",
     "test:task-list": "node scripts/test-task-list-parser.js",
     "test:timestamp": "node scripts/test-timestamp-format.js",
+    "test:playwright": "npm run build:js && playwright test",
     "migrate:legacy-cards": "node scripts/migrate-legacy-cards.js",
     "dist": "npm run dist:mac",
     "dist:mac": "npm run build:js && electron-builder --mac --publish never",
@@ -65,6 +66,7 @@
   },
   "devDependencies": {
     "@fiahfy/icns": "^0.0.7",
+    "@playwright/test": "^1.58.2",
     "dotenv": "^17.3.1",
     "electron": "^40.6.0",
     "electron-builder": "^26.8.1",
