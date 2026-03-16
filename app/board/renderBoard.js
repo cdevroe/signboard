@@ -132,19 +132,20 @@ function isLikelyBoardDirectoryName(directoryName) {
 }
 
 async function shouldUseLocatedBoardDirectory(nextPath) {
-  if (!nextPath) {
+  const normalizedPath = getDirectorySelectionPath(nextPath);
+  if (!normalizedPath) {
     return false;
   }
 
   try {
-    const directoryNames = await window.board.listDirectories(normalizeBoardPath(nextPath));
+    const directoryNames = await window.board.listDirectories(normalizedPath);
     const looksLikeBoard = Array.isArray(directoryNames) && directoryNames.some(isLikelyBoardDirectoryName);
 
     if (looksLikeBoard) {
       return true;
     }
   } catch (error) {
-    console.warn(`Unable to inspect selected directory: ${nextPath}`, error);
+    console.warn(`Unable to inspect selected directory: ${normalizedPath}`, error);
   }
 
   if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
@@ -258,24 +259,29 @@ function renderMissingBoardAlert(boardPath) {
 
     setButtonsDisabled(true);
     try {
-      const nextPath = await window.chooser.pickDirectory({
+      const selection = await window.chooser.pickDirectory({
         defaultPath: getDirectoryPickerDefaultPath(boardPath),
       });
-      if (!nextPath) {
+      if (!selection) {
         return;
       }
 
-      const useSelectedDirectory = await shouldUseLocatedBoardDirectory(nextPath);
+      const authorizedBoardPath = await authorizeBoardAccess(selection);
+      if (!authorizedBoardPath) {
+        return;
+      }
+
+      const useSelectedDirectory = await shouldUseLocatedBoardDirectory(authorizedBoardPath);
       if (!useSelectedDirectory) {
         return;
       }
 
       if (typeof replaceStoredBoardPath === 'function') {
-        replaceStoredBoardPath(boardPath, nextPath);
+        replaceStoredBoardPath(boardPath, authorizedBoardPath);
       }
 
       renderBoardTabs();
-      await openBoard(nextPath);
+      await openBoard(authorizedBoardPath);
     } finally {
       setButtonsDisabled(false);
     }

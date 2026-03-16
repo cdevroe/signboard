@@ -12,7 +12,7 @@ Start here before opening source files.
 - Main window stability guards are in `main.js` (`unresponsive` dialog + renderer crash recovery window recreate).
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
-- `preload.js` exposes board filesystem watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`) and `app/init.js` uses them to auto-refresh UI after external board changes.
+- `preload.js` is now a thin IPC bridge only; board filesystem access, trusted-board validation, and filesystem watch helpers live in `main.js`, while `app/init.js` still uses the same watch methods to auto-refresh after external board changes.
 - Board view switching (Kanban/Calendar/This Week) is managed in `app/board/boardViews.js`; temporal views include cards by card due date and task-level due markers (`(due: YYYY-MM-DD)`).
 - Calendar and This Week cards also show a subdued source-list label so users can tell which Kanban list a due item currently belongs to without opening it.
 - Keyboard shortcut handling is centralized in `app/listeners/window.js`; the hold-for-2-seconds shortcut helper modal is rendered in `index.html` as `#modalKeyboardShortcuts` and must be kept in sync whenever shortcuts change.

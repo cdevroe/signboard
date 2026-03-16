@@ -16,6 +16,55 @@ function normalizeBoardPath(dir) {
     return normalizedDir.endsWith('/') ? normalizedDir : `${normalizedDir}/`;
 }
 
+function getDirectorySelectionPath(selection) {
+    if (!selection) {
+        return '';
+    }
+
+    if (typeof selection === 'string') {
+        return normalizeBoardPath(selection);
+    }
+
+    if (selection && typeof selection === 'object' && typeof selection.path === 'string') {
+        return normalizeBoardPath(selection.path);
+    }
+
+    return '';
+}
+
+async function authorizeBoardAccess(selection) {
+    const normalizedPath = getDirectorySelectionPath(selection);
+    if (!normalizedPath || !window.board) {
+        return '';
+    }
+
+    let result = null;
+    if (
+        selection &&
+        typeof selection === 'object' &&
+        typeof selection.token === 'string' &&
+        typeof window.board.authorizeBoardSelection === 'function'
+    ) {
+        result = await window.board.authorizeBoardSelection(selection.token);
+    } else if (typeof window.board.setActiveBoardRoot === 'function') {
+        result = await window.board.setActiveBoardRoot(normalizedPath);
+    }
+
+    if (result && result.ok && typeof result.boardRoot === 'string') {
+        return normalizeBoardPath(result.boardRoot);
+    }
+
+    return result && result.ok ? normalizedPath : '';
+}
+
+async function clearAuthorizedBoardAccess() {
+    if (!window.board || typeof window.board.clearActiveBoardRoot !== 'function') {
+        return;
+    }
+
+    await window.board.clearActiveBoardRoot();
+}
+
 function getBoardLabelFromPath(boardPath) {
     const normalizedPath = normalizeBoardPath(boardPath).replace(/\/+$/, '');
     const pathParts = normalizedPath.split('/').filter(Boolean);
@@ -175,6 +224,7 @@ async function closeBoardTab(boardPath) {
     const closedActiveBoard = activeBoard === normalizedPath;
 
     if (updatedOpenBoards.length === 0) {
+        await clearAuthorizedBoardAccess();
         window.boardRoot = '';
         setStoredActiveBoard('');
         renderBoardTabs();
@@ -192,8 +242,18 @@ async function closeBoardTab(boardPath) {
 
     const nextActiveIndex = Math.min(removedIndex, updatedOpenBoards.length - 1);
     const nextActiveBoard = updatedOpenBoards[nextActiveIndex];
-    window.boardRoot = nextActiveBoard;
-    setStoredActiveBoard(nextActiveBoard);
+    const authorizedBoardPath = await authorizeBoardAccess(nextActiveBoard);
+    if (!authorizedBoardPath) {
+        await clearAuthorizedBoardAccess();
+        window.boardRoot = '';
+        setStoredActiveBoard('');
+        renderBoardTabs();
+        clearRenderedBoard();
+        return;
+    }
+
+    window.boardRoot = authorizedBoardPath;
+    setStoredActiveBoard(authorizedBoardPath);
     await renderBoard();
 }
 
@@ -328,8 +388,13 @@ function renderBoardTabs() {
                 await flushBoardLabelSettingsSave();
             }
 
-            window.boardRoot = boardPath;
-            setStoredActiveBoard(boardPath);
+            const authorizedBoardPath = await authorizeBoardAccess(boardPath);
+            if (!authorizedBoardPath) {
+                return;
+            }
+
+            window.boardRoot = authorizedBoardPath;
+            setStoredActiveBoard(authorizedBoardPath);
             await renderBoard();
         });
 

@@ -51,22 +51,28 @@ async function normalizeBoardPrefixes(boardPath) {
 }
 
 async function pickAndOpenBoard() {
-    const dir = await window.chooser.pickDirectory({ /* defaultPath: '/some/path' */ });
-    if (!dir) {
+    const selection = await window.chooser.pickDirectory({ /* defaultPath: '/some/path' */ });
+    if (!selection) {
         return false;
     }
 
+    const selectedPath = getDirectorySelectionPath(selection);
     const boardPathInput = document.getElementById('boardPath');
-    if (boardPathInput) {
-        boardPathInput.value = dir;
+    if (boardPathInput && selectedPath) {
+        boardPathInput.value = selectedPath;
     }
 
-    await window.board.importFromTrello(dir);
-    return openBoard(dir);
+    const authorizedBoardPath = await authorizeBoardAccess(selection);
+    if (!authorizedBoardPath) {
+        return false;
+    }
+
+    await window.board.importFromTrello(authorizedBoardPath);
+    return openBoard(authorizedBoardPath);
 }
 
 async function openBoard( dir ) {
-    const boardPath = normalizeBoardPath(dir);
+    const boardPath = await authorizeBoardAccess(dir);
     if (!boardPath) {
         return false;
     }

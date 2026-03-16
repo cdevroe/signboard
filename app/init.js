@@ -455,6 +455,14 @@ function startExternalBoardSync() {
 async function init() {
     initializeTooltips();
 
+    if (window.board && typeof window.board.adoptLegacyBoardRoots === 'function' && typeof getStoredOpenBoards === 'function') {
+        try {
+            await window.board.adoptLegacyBoardRoots(getStoredOpenBoards());
+        } catch (error) {
+            console.warn('Unable to migrate previously opened boards into trusted board access.', error);
+        }
+    }
+
     const restoredBoard = restoreBoardTabs();
     const initializeHeaderControls = () => {
         initializeCommercialLicenseControls();
@@ -486,9 +494,23 @@ async function init() {
     }
 
     if (restoredBoard) {
-        window.boardRoot = restoredBoard;
-        renderBoard().catch((error) => {
-            console.error('Failed to render board on startup.', error);
+        authorizeBoardAccess(restoredBoard).then((authorizedBoardPath) => {
+            if (!authorizedBoardPath) {
+                window.boardRoot = '';
+                setStoredActiveBoard('');
+                renderBoardTabs();
+                if (typeof setBoardChromeState === 'function') {
+                    setBoardChromeState(false);
+                }
+                return;
+            }
+
+            window.boardRoot = authorizedBoardPath;
+            renderBoard().catch((error) => {
+                console.error('Failed to render board on startup.', error);
+            });
+        }).catch((error) => {
+            console.error('Failed to authorize restored board.', error);
         });
     }
 

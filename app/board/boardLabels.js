@@ -1787,7 +1787,8 @@ function initializeBoardLabelControls() {
 
       moveBoardButton.disabled = true;
       try {
-        const nextParentDirectory = await window.chooser.pickDirectory({ defaultPath });
+        const nextParentDirectorySelection = await window.chooser.pickDirectory({ defaultPath });
+        const nextParentDirectory = getDirectorySelectionPath(nextParentDirectorySelection);
         if (!nextParentDirectory) {
           return;
         }

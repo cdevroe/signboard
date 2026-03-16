@@ -27,7 +27,8 @@ File: `main.js`
 - Handles renderer freeze/crash resilience with an unresponsive recovery dialog and renderer crash auto-recreate.
 - Shows native update dialogs with release notes, changelog links, remind-later, and install/relaunch actions.
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
-- Uses `preload.js` for renderer API exposure.
+- Uses `preload.js` as a thin renderer bridge into main-process IPC.
+- Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
 - In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
 - Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card management.
@@ -36,19 +37,16 @@ File: `main.js`
 - Security-related window settings are:
   - `contextIsolation: true`
   - `nodeIntegration: false`
-  - `sandbox: false` (required because `preload.js` currently uses Node `fs`/`path` APIs directly)
+  - `sandbox: true`
 
 ### Preload Bridge
 File: `preload.js`
 
-- Exposes `window.board` (filesystem + card operations), `window.chooser`, and `window.electronAPI`.
+- Exposes `window.board`, `window.chooser`, and `window.electronAPI`.
 - `window.electronAPI` includes external-link opening and manual update checks.
-- Wraps card reads/writes through `lib/cardFrontmatter.js`.
-- Handles operations like list/card enumerate, move, create, and Trello import.
-- Exposes board watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`) for detecting external filesystem changes.
-- Uses `path.basename(path.normalize(...))` for cross-platform path parsing.
-- Reuses shared `Intl.Collator` and `Intl.DateTimeFormat` instances for faster repeated sorting/date formatting.
-- Trello import writes cards with awaited loops to avoid race conditions.
+- Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
+- Does not use Node filesystem APIs directly.
+- Still exposes board watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`), but the watcher implementation now lives in `main.js`.
 
 ### Renderer
 Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
@@ -94,6 +92,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/init.js`:
   - Initializes board tab controls in the header.
   - Restores previous board tab session from localStorage.
+  - Re-authorizes restored boards through the main-process trusted-board gate before rendering.
   - Hooks global click handling and top-level modal triggers.
   - Initializes board label toolbar/settings controls.
   - Initializes board search input for live filtering.

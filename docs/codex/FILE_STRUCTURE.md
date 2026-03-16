@@ -4,9 +4,9 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + native menu + GitHub-release auto-update flow (`electron-updater`).
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu + GitHub-release auto-update flow (`electron-updater`).
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
-- `preload.js` - Renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) + filesystem/date/sort helpers + board filesystem watch helpers + manual update trigger.
+- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC.
 - `index.html` - App shell, header board tab strip, modal markup (including `#modalKeyboardShortcuts`), and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `package.json` - Runtime/build scripts and dependencies.
