@@ -1,19 +1,28 @@
-const assert = require('assert');
-const fs = require('fs').promises;
-const os = require('os');
-const path = require('path');
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
+import { createRequire } from 'module';
 
+const require = createRequire(import.meta.url);
 const {
   readCard,
   writeCard,
   updateFrontmatter,
 } = require('../lib/cardFrontmatter');
 
-async function run() {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-frontmatter-'));
+describe('cardFrontmatter', () => {
+  let tmpDir;
 
-  try {
-    // 1) Parse existing legacy file format
+  beforeAll(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-frontmatter-'));
+  });
+
+  afterAll(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('should parse existing legacy file format', async () => {
     const legacyPath = path.join(tmpDir, '001-legacy-card.md');
     const legacyContent = [
       '# Legacy title',
@@ -30,13 +39,14 @@ async function run() {
     await fs.writeFile(legacyPath, legacyContent, 'utf8');
 
     const legacyCard = await readCard(legacyPath);
-    assert.strictEqual(legacyCard.frontmatter.title, 'Legacy title');
-    assert.strictEqual(legacyCard.frontmatter.due, '2026-03-14');
-    assert.deepStrictEqual(legacyCard.frontmatter.labels, ['bug', 'urgent']);
-    assert.strictEqual(legacyCard.frontmatter.Owner, 'Colin');
-    assert.strictEqual(legacyCard.body, 'Body line 1\nBody line 2');
+    expect(legacyCard.frontmatter.title).toBe('Legacy title');
+    expect(legacyCard.frontmatter.due).toBe('2026-03-14');
+    expect(legacyCard.frontmatter.labels).toEqual(['bug', 'urgent']);
+    expect(legacyCard.frontmatter.Owner).toBe('Colin');
+    expect(legacyCard.body).toBe('Body line 1\nBody line 2');
+  });
 
-    // 2) Round-trip body equality
+  it('should preserve body on round-trip', async () => {
     const roundTripPath = path.join(tmpDir, '002-roundtrip.md');
     const roundTripContent = [
       '---',
@@ -65,17 +75,20 @@ async function run() {
     await writeCard(roundTripPath, firstRead);
 
     const secondRead = await readCard(roundTripPath);
-    assert.strictEqual(secondRead.body, bodyBefore);
+    expect(secondRead.body).toBe(bodyBefore);
+  });
 
-    // 3) Update one field without losing unknown fields
+  it('should update one field without losing unknown fields', async () => {
+    const roundTripPath = path.join(tmpDir, '002-roundtrip.md');
     await updateFrontmatter(roundTripPath, { due: '2026-05-20' });
     const updated = await readCard(roundTripPath);
-    assert.strictEqual(updated.frontmatter.title, 'Keep body exact');
-    assert.strictEqual(updated.frontmatter.due, '2026-05-20');
-    assert.strictEqual(updated.frontmatter.owner, 'Colin');
-    assert.deepStrictEqual(updated.frontmatter.labels, ['alpha']);
+    expect(updated.frontmatter.title).toBe('Keep body exact');
+    expect(updated.frontmatter.due).toBe('2026-05-20');
+    expect(updated.frontmatter.owner).toBe('Colin');
+    expect(updated.frontmatter.labels).toEqual(['alpha']);
+  });
 
-    // 4) Missing frontmatter should still work
+  it('should handle missing frontmatter', async () => {
     const plainPath = path.join(tmpDir, '010-plain-note.md');
     const plainContent = [
       'Just markdown body',
@@ -86,27 +99,18 @@ async function run() {
     await fs.writeFile(plainPath, plainContent, 'utf8');
 
     const plainCard = await readCard(plainPath);
-    assert.strictEqual(plainCard.frontmatter.title, 'plain-note');
-    assert.deepStrictEqual(plainCard.frontmatter.labels, []);
-    assert.strictEqual(plainCard.body, plainContent);
+    expect(plainCard.frontmatter.title).toBe('plain-note');
+    expect(plainCard.frontmatter.labels).toEqual([]);
+    expect(plainCard.body).toBe(plainContent);
+  });
 
-    // 5) due should not be written when null/empty
+  it('should not write due field when null/empty', async () => {
     const noDuePath = path.join(tmpDir, '020-no-due.md');
     await writeCard(noDuePath, {
       frontmatter: { title: 'No Due', due: null, labels: [] },
       body: 'Body',
     });
     const noDueRaw = await fs.readFile(noDuePath, 'utf8');
-    assert(!noDueRaw.includes('\ndue:'), 'due field should be omitted when null/empty');
-
-    console.log('Frontmatter tests passed.');
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
-}
-
-run().catch((error) => {
-  console.error('Frontmatter tests failed.');
-  console.error(error);
-  process.exitCode = 1;
+    expect(noDueRaw).not.toContain('\ndue:');
+  });
 });

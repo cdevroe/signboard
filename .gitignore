@@ -4,3 +4,5 @@ node_modules
 certificate.p12
 dist
 app/signboard.js
+
+.claude/
