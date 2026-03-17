@@ -64,9 +64,24 @@ contextBridge.exposeInMainWorld('chooser', {
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  getAppInfo: () => ipcRenderer.invoke('get-app-info'),
   openExternal: (url) => ipcRenderer.invoke('open-external-url', url),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   notifyDueCards: (payload) => ipcRenderer.invoke('notify-due-cards', payload),
+  onOpenAboutSignboard: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = () => {
+      callback();
+    };
+
+    ipcRenderer.on('open-about-signboard', listener);
+    return () => {
+      ipcRenderer.removeListener('open-about-signboard', listener);
+    };
+  },
   onOpenKeyboardShortcuts: (callback) => {
     if (typeof callback !== 'function') {
       return () => {};

@@ -37,6 +37,11 @@ const TRUSTED_BOARD_ROOTS_FILE = 'trusted-board-roots.json';
 const DIRECTORY_SELECTION_MAX_AGE_MS = 5 * 60 * 1000;
 const BOARD_WATCH_RESCAN_DELAY_MS = 180;
 const SUPPORTS_RECURSIVE_WATCH = process.platform === 'darwin' || process.platform === 'win32';
+const APP_AUTHOR_NAME = 'Colin Devroe';
+const APP_AUTHOR_URL = 'https://cdevroe.com/';
+const APP_COPYRIGHT = '© 2025-2026 Colin Devroe';
+const APP_LICENSE = 'MIT';
+const APP_WEBSITE_URL = 'https://cdevroe.com/signboard/';
 const dueDateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
@@ -1661,6 +1666,12 @@ function buildApplicationMenu() {
       sendToMainWindow('open-keyboard-shortcuts');
     },
   });
+  const createAboutSignboardMenuItem = () => ({
+    label: 'About Signboard',
+    click: () => {
+      sendToMainWindow('open-about-signboard');
+    },
+  });
 
   const template = [];
 
@@ -1668,7 +1679,7 @@ function buildApplicationMenu() {
     template.push({
       label: app.name,
       submenu: [
-        { role: 'about' },
+        createAboutSignboardMenuItem(),
         { type: 'separator' },
         createCheckForUpdatesMenuItem(),
         { type: 'separator' },
@@ -1714,6 +1725,7 @@ function buildApplicationMenu() {
   template.push({
     role: 'help',
     submenu: [
+      !isMac ? createAboutSignboardMenuItem() : null,
       !isMac ? createCheckForUpdatesMenuItem() : null,
       createInstallCliMenuItem(),
       createCopyMcpConfigMenuItem(),
@@ -2083,6 +2095,16 @@ ipcMain.handle('open-external-url', async (_event, rawUrl) => {
     return { ok: false, error: error?.message || 'OPEN_EXTERNAL_FAILED' };
   }
 });
+
+ipcMain.handle('get-app-info', async () => ({
+  appName: app.getName(),
+  appVersion: app.getVersion(),
+  authorName: APP_AUTHOR_NAME,
+  authorUrl: APP_AUTHOR_URL,
+  copyright: APP_COPYRIGHT,
+  license: APP_LICENSE,
+  websiteUrl: APP_WEBSITE_URL,
+}));
 
 ipcMain.handle('notify-due-cards', async (_event, payload = {}) => {
   if (typeof Notification.isSupported === 'function' && !Notification.isSupported()) {

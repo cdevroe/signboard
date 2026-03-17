@@ -88,6 +88,7 @@ async function closeAllModals(e, options = {}){
     const modalAddCardToList = document.getElementById('modalAddCardToList');
     const modalAddList = document.getElementById('modalAddList');
     const modalBoardSettings = document.getElementById('modalBoardSettings');
+    const modalAboutSignboard = document.getElementById('modalAboutSignboard');
     const modalCommercialLicense = document.getElementById('modalCommercialLicense');
     const editModalWasOpen = modalEditCard.style.display === 'block';
     const boardSettingsWasOpen = modalBoardSettings && modalBoardSettings.style.display === 'block';
@@ -131,6 +132,12 @@ async function closeAllModals(e, options = {}){
             setBoardInteractive(true);
             boardSettingsClosed = true;
         }
+        if ( modalAboutSignboard && modalAboutSignboard.style.display === 'block' ) {
+            modalAboutSignboard.style.display = 'none';
+            modalAboutSignboard.classList.add('hidden');
+            modalAboutSignboard.setAttribute('aria-hidden', 'true');
+            setBoardInteractive(true);
+        }
         if ( modalCommercialLicense && modalCommercialLicense.style.display === 'block' ) {
             modalCommercialLicense.style.display = 'none';
             modalCommercialLicense.classList.add('hidden');
@@ -173,6 +180,13 @@ async function closeAllModals(e, options = {}){
             modalBoardSettings.style.display = 'none';
             setBoardInteractive(true);
             boardSettingsClosed = true;
+        }
+
+        if ( modalAboutSignboard && modalAboutSignboard.style.display === 'block' && eventTarget && !modalAboutSignboard.contains(eventTarget) ) {
+            modalAboutSignboard.style.display = 'none';
+            modalAboutSignboard.classList.add('hidden');
+            modalAboutSignboard.setAttribute('aria-hidden', 'true');
+            setBoardInteractive(true);
         }
 
         if ( modalCommercialLicense && modalCommercialLicense.style.display === 'block' && eventTarget && !modalCommercialLicense.contains(eventTarget) ) {
