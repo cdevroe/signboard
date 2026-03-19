@@ -34,6 +34,8 @@ const sourcePath = availableSourcePaths[0];
 const linuxSizes = [16, 24, 32, 48, 64, 96, 128, 256, 512];
 const windowsSizes = [16, 24, 32, 48, 64, 128, 256];
 const MAC_CORNER_RADIUS_RATIO = 0.224;
+const MAC_TEMPLATE_SHAPE_SIZE_RATIO = 824 / 1024;
+const MAC_INSET_RATIO = (1 - MAC_TEMPLATE_SHAPE_SIZE_RATIO) / 2;
 
 function roundedRectSvg(size, radius) {
   return Buffer.from(
@@ -42,26 +44,50 @@ function roundedRectSvg(size, radius) {
 }
 
 async function renderPng(size, options = {}) {
-  const { roundedCorners = false } = options;
+  const { roundedCorners = false, insetRatio = 0 } = options;
+  const inset = Math.max(0, Math.round(size * insetRatio));
+  const renderedSize = Math.max(1, size - (inset * 2));
   const renderedBuffer = await sharp(sourcePath, { density: 1024 })
-    .resize(size, size, {
+    .resize(renderedSize, renderedSize, {
       fit: 'cover',
       position: 'centre',
     })
     .png()
     .toBuffer();
 
-  if (!roundedCorners) {
-    return renderedBuffer;
+  let outputBuffer = renderedBuffer;
+
+  if (roundedCorners) {
+    const radius = Math.round(renderedSize * MAC_CORNER_RADIUS_RATIO);
+    outputBuffer = await sharp(renderedBuffer)
+      .ensureAlpha()
+      .composite([
+        {
+          input: roundedRectSvg(renderedSize, radius),
+          blend: 'dest-in',
+        },
+      ])
+      .png()
+      .toBuffer();
   }
 
-  const radius = Math.round(size * MAC_CORNER_RADIUS_RATIO);
-  return sharp(renderedBuffer)
-    .ensureAlpha()
+  if (inset === 0) {
+    return outputBuffer;
+  }
+
+  return sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
     .composite([
       {
-        input: roundedRectSvg(size, radius),
-        blend: 'dest-in',
+        input: outputBuffer,
+        left: inset,
+        top: inset,
       },
     ])
     .png()
@@ -90,12 +116,21 @@ async function buildMacIcns() {
   ];
 
   for (const [type, size] of macEntries) {
-    const pngBuffer = await renderPng(size, { roundedCorners: true });
+    const pngBuffer = await renderPng(size, {
+      roundedCorners: true,
+      insetRatio: MAC_INSET_RATIO,
+    });
     icns.append(IcnsImage.fromPNG(pngBuffer, type));
   }
 
   await fs.promises.writeFile(macOutputPath, icns.data);
-  await writePng(await renderPng(512, { roundedCorners: true }), macRuntimePngPath);
+  await writePng(
+    await renderPng(512, {
+      roundedCorners: true,
+      insetRatio: MAC_INSET_RATIO,
+    }),
+    macRuntimePngPath
+  );
 }
 
 async function buildWindowsIco() {
