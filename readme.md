@@ -30,6 +30,15 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 1. Go to the [Releases page](../../releases).
 2. On the latest release, download the correct file for your operating system.
 
+## ⌨️ Keyboard Shortcuts
+
+- `Cmd/Ctrl + /`: open the keyboard shortcuts helper
+- `Cmd/Ctrl + N`: add card
+- `Cmd/Ctrl + Shift + N`: add list
+- `Cmd/Ctrl + 1`, `2`, `3`: switch board views
+- `Esc`: close open modals
+- In app: `Help` -> `Keyboard Shortcuts`
+
 ## 🤖 MCP Server
 
 Signboard includes a built-in MCP server so agents can interact with local boards.
@@ -39,6 +48,7 @@ Signboard includes a built-in MCP server so agents can interact with local board
 - Print ready-to-paste config JSON: `npm run mcp:config`
 - Run from packaged app: launch Signboard executable with `--mcp-server`
 - In app: `Help` -> `Copy MCP Config`
+- Board creation tool: `signboard.create_board`
 - Board-name lookup tool: `signboard.resolve_board_by_name`
 - Optional agent skill: `skills/signboard-mcp/SKILL.md`
 
@@ -142,6 +152,7 @@ npm run test:mcp
 npm run test:cli
 npm run test:cli-install
 npm run test:desktop-cli
+npm run test:playwright
 ```
 
 ---

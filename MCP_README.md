@@ -92,6 +92,7 @@ The server currently exposes these tools:
 - `signboard.get_config`
 - `signboard.list_board_views`
 - `signboard.resolve_board_by_name`
+- `signboard.create_board` (write mode only)
 - `signboard.list_lists`
 - `signboard.list_cards`
 - `signboard.read_card` (includes `taskSummary` + `taskDueDates`)
@@ -106,7 +107,7 @@ The server currently exposes these tools:
 - `signboard.read_board_settings`
 - `signboard.update_board_settings` (write mode only)
 
-All tools take absolute `boardRoot` paths and reject path traversal.
+Board-scoped tools take absolute `boardRoot` paths, `signboard.create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
 Board settings tools include labels, theme overrides, and notification preferences.
 
 ## Task Metadata in Card Tool Responses
@@ -186,10 +187,11 @@ If `SIGNBOARD_MCP_ALLOWED_ROOTS` is not set, the resolver tool returns an error.
 
 ## Behavior notes
 
-- In MCP mode, Signboard does not open its desktop window.
+- In MCP mode, Signboard starts headless, but activating the app can still reveal the desktop window.
 - The process communicates over stdio (MCP JSON-RPC framing).
 - The stdio parser accepts both header-framed MCP and newline-delimited JSON-RPC payloads.
 - `signboard.list_board_views` describes that Calendar/This Week group cards by both card due dates and task due markers.
 - Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`).
+- `signboard.create_card` and `signboard.update_card` normalize literal `\n` / `\N` escape sequences in body input into real line breaks.
 - Board settings use Signboard's existing settings logic (`lib/boardLabels.js`).
 - When the desktop app is open, external board edits (including MCP edits) are watched and auto-refreshed.

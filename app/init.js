@@ -6,6 +6,15 @@ const DEFAULT_DUE_NOTIFICATION_TIME = '09:00';
 const SIGNBOARD_COMMERCIAL_LICENSE_PRICE = 49;
 const SIGNBOARD_COMMERCIAL_LICENSE_PAYMENT_URL = 'https://buy.stripe.com/7sY4gAaT14WO3dY2mg8N205';
 const SIGNBOARD_TIP_JAR_PAYMENT_URL = 'https://donate.stripe.com/14A3cw1ircpgeWGf928N206';
+const ABOUT_SIGNBOARD_FALLBACK_INFO = Object.freeze({
+    appName: 'Signboard',
+    appVersion: '',
+    authorName: 'Colin Devroe',
+    authorUrl: 'https://cdevroe.com/',
+    copyright: '© 2025-2026 Colin Devroe',
+    license: 'MIT',
+    websiteUrl: 'https://cdevroe.com/signboard/',
+});
 
 let externalBoardSyncIntervalId = null;
 let externalBoardSyncInFlight = false;
@@ -15,6 +24,7 @@ let externalBoardRefreshPending = false;
 let externalBoardRenderTimeoutId = null;
 let externalBoardRenderInFlight = false;
 let dueCardNotificationIntervalId = null;
+let aboutSignboardInfoPromise = null;
 
 function formatLocalIsoDate(dateValue = new Date()) {
     const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
@@ -170,7 +180,10 @@ function isModalOpen(modalId) {
 }
 
 function isExternalBoardRefreshBlocked() {
-    return isModalOpen('modalEditCard') || isModalOpen('modalBoardSettings') || isModalOpen('modalCommercialLicense');
+    return isModalOpen('modalEditCard')
+        || isModalOpen('modalBoardSettings')
+        || isModalOpen('modalCommercialLicense')
+        || isModalOpen('modalAboutSignboard');
 }
 
 function getCommercialLicensePriceLabel() {
@@ -240,6 +253,135 @@ function renderCommercialLicenseModalState() {
         helper.textContent = helperMessages.length > 0
             ? helperMessages.join(' ')
             : 'Personal use stays free. Commercial use is a simple one-time payment, and personal users can optionally leave a tip.';
+    }
+}
+
+function normalizeAboutSignboardInfo(rawInfo = {}) {
+    const info = rawInfo && typeof rawInfo === 'object' ? rawInfo : {};
+    return {
+        appName: String(info.appName || ABOUT_SIGNBOARD_FALLBACK_INFO.appName).trim() || ABOUT_SIGNBOARD_FALLBACK_INFO.appName,
+        appVersion: String(info.appVersion || '').trim(),
+        authorName: String(info.authorName || ABOUT_SIGNBOARD_FALLBACK_INFO.authorName).trim() || ABOUT_SIGNBOARD_FALLBACK_INFO.authorName,
+        authorUrl: getValidatedExternalUrl(info.authorUrl || ABOUT_SIGNBOARD_FALLBACK_INFO.authorUrl) || ABOUT_SIGNBOARD_FALLBACK_INFO.authorUrl,
+        copyright: String(info.copyright || ABOUT_SIGNBOARD_FALLBACK_INFO.copyright).trim() || ABOUT_SIGNBOARD_FALLBACK_INFO.copyright,
+        license: String(info.license || ABOUT_SIGNBOARD_FALLBACK_INFO.license).trim() || ABOUT_SIGNBOARD_FALLBACK_INFO.license,
+        websiteUrl: getValidatedExternalUrl(info.websiteUrl || ABOUT_SIGNBOARD_FALLBACK_INFO.websiteUrl) || ABOUT_SIGNBOARD_FALLBACK_INFO.websiteUrl,
+    };
+}
+
+async function getAboutSignboardInfo() {
+    if (aboutSignboardInfoPromise) {
+        return aboutSignboardInfoPromise;
+    }
+
+    if (!window.electronAPI || typeof window.electronAPI.getAppInfo !== 'function') {
+        aboutSignboardInfoPromise = Promise.resolve(ABOUT_SIGNBOARD_FALLBACK_INFO);
+        return aboutSignboardInfoPromise;
+    }
+
+    aboutSignboardInfoPromise = window.electronAPI.getAppInfo()
+        .then((info) => normalizeAboutSignboardInfo(info))
+        .catch((error) => {
+            console.error('Failed to load About Signboard info.', error);
+            return ABOUT_SIGNBOARD_FALLBACK_INFO;
+        });
+
+    return aboutSignboardInfoPromise;
+}
+
+function applyAboutSignboardInfo(info) {
+    const normalizedInfo = normalizeAboutSignboardInfo(info);
+    const versionLabel = normalizedInfo.appVersion
+        ? `Version ${normalizedInfo.appVersion}`
+        : 'Version unavailable';
+
+    document.querySelectorAll('[data-about-app-version]').forEach((element) => {
+        element.textContent = versionLabel;
+    });
+    document.querySelectorAll('[data-about-license]').forEach((element) => {
+        element.textContent = normalizedInfo.license;
+    });
+    document.querySelectorAll('[data-about-copyright]').forEach((element) => {
+        element.textContent = normalizedInfo.copyright;
+    });
+}
+
+async function renderAboutSignboardModalState() {
+    const info = await getAboutSignboardInfo();
+    applyAboutSignboardInfo(info);
+}
+
+async function openAboutSignboardModal() {
+    const modal = document.getElementById('modalAboutSignboard');
+    if (!modal) {
+        return;
+    }
+
+    await renderAboutSignboardModalState();
+
+    if (typeof hideShortcutHelpModal === 'function') {
+        hideShortcutHelpModal();
+    }
+
+    if (typeof closeAllModals === 'function') {
+        await closeAllModals({ key: 'Escape' });
+    }
+
+    modal.style.display = 'block';
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+
+    if (typeof setBoardInteractive === 'function') {
+        setBoardInteractive(false);
+    }
+}
+
+function closeAboutSignboardModal() {
+    const modal = document.getElementById('modalAboutSignboard');
+    if (!modal || modal.style.display !== 'block') {
+        return;
+    }
+
+    modal.style.display = 'none';
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+
+    if (typeof setBoardInteractive === 'function') {
+        setBoardInteractive(true);
+    }
+}
+
+function initializeAboutSignboardControls() {
+    const closeButton = document.getElementById('aboutSignboardClose');
+    const supportButton = document.getElementById('aboutSignboardSupportButton');
+
+    renderAboutSignboardModalState().catch((error) => {
+        console.error('Failed to initialize About Signboard modal.', error);
+    });
+
+    if (window.electronAPI && typeof window.electronAPI.onOpenAboutSignboard === 'function') {
+        window.electronAPI.onOpenAboutSignboard(() => {
+            openAboutSignboardModal().catch((error) => {
+                console.error('Failed to open About Signboard modal.', error);
+            });
+        });
+    }
+
+    if (closeButton) {
+        closeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            closeAboutSignboardModal();
+        });
+    }
+
+    if (supportButton) {
+        supportButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            closeAboutSignboardModal();
+            openCommercialLicenseModal();
+        });
     }
 }
 
@@ -455,8 +597,17 @@ function startExternalBoardSync() {
 async function init() {
     initializeTooltips();
 
+    if (window.board && typeof window.board.adoptLegacyBoardRoots === 'function' && typeof getStoredOpenBoards === 'function') {
+        try {
+            await window.board.adoptLegacyBoardRoots(getStoredOpenBoards());
+        } catch (error) {
+            console.warn('Unable to migrate previously opened boards into trusted board access.', error);
+        }
+    }
+
     const restoredBoard = restoreBoardTabs();
     const initializeHeaderControls = () => {
+        initializeAboutSignboardControls();
         initializeCommercialLicenseControls();
         initializeBoardLabelControls();
         initializeBoardSearchControls();
@@ -486,9 +637,23 @@ async function init() {
     }
 
     if (restoredBoard) {
-        window.boardRoot = restoredBoard;
-        renderBoard().catch((error) => {
-            console.error('Failed to render board on startup.', error);
+        authorizeBoardAccess(restoredBoard).then((authorizedBoardPath) => {
+            if (!authorizedBoardPath) {
+                window.boardRoot = '';
+                setStoredActiveBoard('');
+                renderBoardTabs();
+                if (typeof setBoardChromeState === 'function') {
+                    setBoardChromeState(false);
+                }
+                return;
+            }
+
+            window.boardRoot = authorizedBoardPath;
+            renderBoard().catch((error) => {
+                console.error('Failed to render board on startup.', error);
+            });
+        }).catch((error) => {
+            console.error('Failed to authorize restored board.', error);
         });
     }
 

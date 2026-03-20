@@ -97,6 +97,16 @@ async function main() {
   assert.strictEqual(cards.length, 1);
   assert.strictEqual(cards[0].title, 'Launch plan');
 
+  const settingsResult = runDesktopCli([
+    'settings',
+    'edit',
+    '--tooltips',
+    'off',
+    '--json',
+  ], env);
+  const settings = JSON.parse(settingsResult.stdout);
+  assert.strictEqual(settings.tooltipsEnabled, false);
+
   console.log('Desktop CLI tests passed.');
 }
 

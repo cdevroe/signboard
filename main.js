@@ -6,9 +6,13 @@
 
 const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker, nativeImage, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
+const { randomUUID } = require('crypto');
 const fs = require('fs');
 const fsPromises = fs.promises;
 const path = require('path');
+const { pathToFileURL } = require('url');
+const cardFrontmatter = require('./lib/cardFrontmatter');
+const boardLabels = require('./lib/boardLabels');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
 const { installCliForCurrentUser } = require('./lib/cliInstall');
@@ -27,6 +31,25 @@ const WINDOW_STATE_SAVE_DEBOUNCE_MS = 250;
 const MCP_SERVER_ARG = '--mcp-server';
 const MCP_CONFIG_ARG = '--mcp-config';
 const RUNTIME_APP_ICON_PATH = path.join(__dirname, 'build', 'icon-macos.png');
+const SIGNBOARD_USER_DATA_DIR = String(process.env.SIGNBOARD_USER_DATA_DIR || '').trim();
+const APP_ENTRY_URL = pathToFileURL(path.join(__dirname, 'index.html'));
+const TRUSTED_BOARD_ROOTS_FILE = 'trusted-board-roots.json';
+const DIRECTORY_SELECTION_MAX_AGE_MS = 5 * 60 * 1000;
+const BOARD_WATCH_RESCAN_DELAY_MS = 180;
+const SUPPORTS_RECURSIVE_WATCH = process.platform === 'darwin' || process.platform === 'win32';
+const APP_AUTHOR_NAME = 'Colin Devroe';
+const APP_AUTHOR_URL = 'https://cdevroe.com/';
+const APP_COPYRIGHT = '© 2025-2026 Colin Devroe';
+const APP_LICENSE = 'MIT';
+const APP_WEBSITE_URL = 'https://cdevroe.com/signboard/';
+const dueDateFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+});
+
+if (SIGNBOARD_USER_DATA_DIR) {
+  app.setPath('userData', path.resolve(SIGNBOARD_USER_DATA_DIR));
+}
 
 function getUserArgsFromProcessArgv(argv = process.argv) {
   if (!Array.isArray(argv) || argv.length <= 1) {
@@ -66,6 +89,596 @@ const updateState = {
   reminderByVersion: {},
   checkIntervalId: null,
 };
+
+const pendingDirectorySelectionsBySender = new Map();
+const boardAccessStateBySender = new Map();
+const senderCleanupRegistered = new Set();
+let trustedBoardRootsCache = null;
+
+function normalizeAbsolutePath(rawPath) {
+  const input = typeof rawPath === 'string' ? rawPath.trim() : '';
+  if (!input) {
+    return '';
+  }
+
+  return path.resolve(input);
+}
+
+function normalizeBoardRootPath(rawPath) {
+  return normalizeAbsolutePath(rawPath);
+}
+
+function isPathInsideRoot(rootPath, targetPath) {
+  const normalizedRoot = normalizeBoardRootPath(rootPath);
+  const normalizedTarget = normalizeAbsolutePath(targetPath);
+  if (!normalizedRoot || !normalizedTarget) {
+    return false;
+  }
+
+  const relative = path.relative(normalizedRoot, normalizedTarget);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function getTrustedBoardRootsPath() {
+  return path.join(app.getPath('userData'), TRUSTED_BOARD_ROOTS_FILE);
+}
+
+function readTrustedBoardRoots() {
+  if (trustedBoardRootsCache) {
+    return new Set(trustedBoardRootsCache);
+  }
+
+  try {
+    const raw = fs.readFileSync(getTrustedBoardRootsPath(), 'utf8');
+    const parsed = JSON.parse(raw);
+    const normalizedRoots = Array.isArray(parsed)
+      ? parsed.map((boardRoot) => normalizeBoardRootPath(boardRoot)).filter(Boolean)
+      : [];
+    trustedBoardRootsCache = new Set(normalizedRoots);
+  } catch (error) {
+    if (error && error.code !== 'ENOENT') {
+      console.error('Failed to read trusted board roots.', error);
+    }
+    trustedBoardRootsCache = new Set();
+  }
+
+  return new Set(trustedBoardRootsCache);
+}
+
+function writeTrustedBoardRoots(roots) {
+  const normalizedRoots = [...new Set(
+    Array.from(roots || [])
+      .map((boardRoot) => normalizeBoardRootPath(boardRoot))
+      .filter(Boolean)
+  )].sort((left, right) => left.localeCompare(right));
+
+  trustedBoardRootsCache = new Set(normalizedRoots);
+
+  try {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    fs.writeFileSync(
+      getTrustedBoardRootsPath(),
+      JSON.stringify(normalizedRoots, null, 2),
+      'utf8'
+    );
+  } catch (error) {
+    console.error('Failed to write trusted board roots.', error);
+  }
+}
+
+function addTrustedBoardRoot(boardRoot) {
+  const normalizedRoot = normalizeBoardRootPath(boardRoot);
+  if (!normalizedRoot) {
+    return '';
+  }
+
+  const trustedRoots = readTrustedBoardRoots();
+  trustedRoots.add(normalizedRoot);
+  writeTrustedBoardRoots(trustedRoots);
+  return normalizedRoot;
+}
+
+function replaceTrustedBoardRoot(previousRoot, nextRoot) {
+  const normalizedPreviousRoot = normalizeBoardRootPath(previousRoot);
+  const normalizedNextRoot = normalizeBoardRootPath(nextRoot);
+  if (!normalizedPreviousRoot || !normalizedNextRoot) {
+    return;
+  }
+
+  const trustedRoots = readTrustedBoardRoots();
+  trustedRoots.delete(normalizedPreviousRoot);
+  trustedRoots.add(normalizedNextRoot);
+  writeTrustedBoardRoots(trustedRoots);
+}
+
+function createBoardWatchState() {
+  return {
+    activeRoot: '',
+    rootWatcher: null,
+    listWatchers: new Map(),
+    rescanTimeout: null,
+    changeToken: 0,
+    usingRecursiveRootWatch: false,
+  };
+}
+
+function registerSenderCleanup(sender) {
+  const senderId = sender && Number.isInteger(sender.id) ? sender.id : null;
+  if (senderId == null || senderCleanupRegistered.has(senderId) || typeof sender.once !== 'function') {
+    return;
+  }
+
+  senderCleanupRegistered.add(senderId);
+  sender.once('destroyed', () => {
+    senderCleanupRegistered.delete(senderId);
+    cleanupSenderBoardState(senderId);
+  });
+}
+
+function getSenderBoardAccessState(sender) {
+  registerSenderCleanup(sender);
+  const senderId = sender.id;
+  let state = boardAccessStateBySender.get(senderId);
+  if (!state) {
+    state = {
+      activeBoardRoot: '',
+      watchState: createBoardWatchState(),
+    };
+    boardAccessStateBySender.set(senderId, state);
+  }
+
+  return state;
+}
+
+function getSenderPendingSelections(sender) {
+  registerSenderCleanup(sender);
+  const senderId = sender.id;
+  let selections = pendingDirectorySelectionsBySender.get(senderId);
+  if (!selections) {
+    selections = new Map();
+    pendingDirectorySelectionsBySender.set(senderId, selections);
+  }
+
+  return selections;
+}
+
+function closeWatcher(watcher) {
+  if (!watcher || typeof watcher.close !== 'function') {
+    return;
+  }
+
+  try {
+    watcher.close();
+  } catch {
+    // Ignore close failures from stale/unavailable watch handles.
+  }
+}
+
+function clearBoardRescanTimer(watchState) {
+  if (watchState && watchState.rescanTimeout) {
+    clearTimeout(watchState.rescanTimeout);
+    watchState.rescanTimeout = null;
+  }
+}
+
+function clearListWatchers(watchState) {
+  if (!watchState) {
+    return;
+  }
+
+  for (const watcher of watchState.listWatchers.values()) {
+    closeWatcher(watcher);
+  }
+  watchState.listWatchers.clear();
+}
+
+function bumpBoardWatchToken(watchState) {
+  if (watchState) {
+    watchState.changeToken += 1;
+  }
+}
+
+function attachDirectoryWatcher(directoryPath, onChange, options = {}) {
+  const watchOptions = {
+    persistent: false,
+  };
+
+  if (options.recursive === true) {
+    watchOptions.recursive = true;
+  }
+
+  try {
+    const watcher = fs.watch(directoryPath, watchOptions, () => {
+      onChange();
+    });
+
+    watcher.on('error', () => {
+      if (typeof options.onError === 'function') {
+        options.onError();
+      }
+    });
+
+    return watcher;
+  } catch {
+    return null;
+  }
+}
+
+async function refreshBoardListWatchers(watchState) {
+  if (!watchState || !watchState.activeRoot || watchState.usingRecursiveRootWatch) {
+    return;
+  }
+
+  let entries = [];
+  try {
+    entries = await fsPromises.readdir(watchState.activeRoot, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  const expectedListPaths = new Set(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => normalizeAbsolutePath(path.join(watchState.activeRoot, entry.name))),
+  );
+
+  for (const [listPath, watcher] of watchState.listWatchers.entries()) {
+    if (!expectedListPaths.has(listPath)) {
+      closeWatcher(watcher);
+      watchState.listWatchers.delete(listPath);
+    }
+  }
+
+  for (const listPath of expectedListPaths) {
+    if (watchState.listWatchers.has(listPath)) {
+      continue;
+    }
+
+    const watcher = attachDirectoryWatcher(listPath, () => {
+      bumpBoardWatchToken(watchState);
+    });
+
+    if (watcher) {
+      watchState.listWatchers.set(listPath, watcher);
+    }
+  }
+}
+
+function scheduleBoardWatchRescan(watchState) {
+  if (!watchState || watchState.usingRecursiveRootWatch) {
+    return;
+  }
+
+  clearBoardRescanTimer(watchState);
+  watchState.rescanTimeout = setTimeout(() => {
+    watchState.rescanTimeout = null;
+    refreshBoardListWatchers(watchState).catch(() => {
+      // Ignore failed rescans; a later fs event will retry.
+    });
+  }, BOARD_WATCH_RESCAN_DELAY_MS);
+}
+
+async function stopBoardWatchForState(watchState) {
+  if (!watchState) {
+    return { ok: true };
+  }
+
+  clearBoardRescanTimer(watchState);
+  clearListWatchers(watchState);
+  closeWatcher(watchState.rootWatcher);
+  watchState.rootWatcher = null;
+  watchState.activeRoot = '';
+  watchState.changeToken = 0;
+  watchState.usingRecursiveRootWatch = false;
+  return { ok: true };
+}
+
+async function stopBoardWatchForSender(sender) {
+  const state = getSenderBoardAccessState(sender);
+  return stopBoardWatchForState(state.watchState);
+}
+
+async function startBoardWatchForSender(sender, boardRoot) {
+  const normalizedRoot = normalizeBoardRootPath(boardRoot);
+  const state = getSenderBoardAccessState(sender);
+  const watchState = state.watchState;
+
+  if (!normalizedRoot || state.activeBoardRoot !== normalizedRoot) {
+    return { ok: false, error: 'UNAUTHORIZED_BOARD_ROOT' };
+  }
+
+  if (watchState.activeRoot === normalizedRoot && watchState.rootWatcher) {
+    return { ok: true, boardRoot: normalizedRoot };
+  }
+
+  await stopBoardWatchForState(watchState);
+
+  watchState.activeRoot = normalizedRoot;
+  const onRootWatchChange = () => {
+    bumpBoardWatchToken(watchState);
+    scheduleBoardWatchRescan(watchState);
+  };
+
+  let rootWatcher = null;
+  watchState.usingRecursiveRootWatch = false;
+
+  if (SUPPORTS_RECURSIVE_WATCH) {
+    rootWatcher = attachDirectoryWatcher(normalizedRoot, onRootWatchChange, {
+      recursive: true,
+      onError: onRootWatchChange,
+    });
+
+    if (rootWatcher) {
+      watchState.usingRecursiveRootWatch = true;
+    }
+  }
+
+  if (!rootWatcher) {
+    rootWatcher = attachDirectoryWatcher(normalizedRoot, onRootWatchChange, {
+      onError: onRootWatchChange,
+    });
+  }
+
+  if (!rootWatcher) {
+    watchState.activeRoot = '';
+    watchState.usingRecursiveRootWatch = false;
+    return { ok: false, error: 'WATCH_START_FAILED' };
+  }
+
+  watchState.rootWatcher = rootWatcher;
+
+  if (watchState.usingRecursiveRootWatch) {
+    clearListWatchers(watchState);
+  } else {
+    await refreshBoardListWatchers(watchState);
+  }
+
+  bumpBoardWatchToken(watchState);
+
+  return { ok: true, boardRoot: normalizedRoot };
+}
+
+function cleanupSenderBoardState(senderId) {
+  const state = boardAccessStateBySender.get(senderId);
+  if (state) {
+    stopBoardWatchForState(state.watchState).catch(() => {
+      // Ignore cleanup failures while tearing down a renderer.
+    });
+  }
+
+  boardAccessStateBySender.delete(senderId);
+  pendingDirectorySelectionsBySender.delete(senderId);
+}
+
+function storePendingDirectorySelection(sender, directoryPath) {
+  const normalizedDirectory = normalizeAbsolutePath(directoryPath);
+  if (!normalizedDirectory) {
+    return '';
+  }
+
+  const token = randomUUID();
+  const selections = getSenderPendingSelections(sender);
+  const now = Date.now();
+
+  for (const [existingToken, selection] of selections.entries()) {
+    if (!selection || selection.expiresAt <= now) {
+      selections.delete(existingToken);
+    }
+  }
+
+  selections.set(token, {
+    path: normalizedDirectory,
+    expiresAt: now + DIRECTORY_SELECTION_MAX_AGE_MS,
+  });
+
+  return token;
+}
+
+function consumePendingDirectorySelection(sender, token) {
+  const selectionToken = typeof token === 'string' ? token.trim() : '';
+  if (!selectionToken) {
+    return '';
+  }
+
+  const selections = getSenderPendingSelections(sender);
+  const selection = selections.get(selectionToken);
+  selections.delete(selectionToken);
+
+  if (!selection || selection.expiresAt <= Date.now()) {
+    return '';
+  }
+
+  return normalizeAbsolutePath(selection.path);
+}
+
+function resolveReadableBoardRoot(sender, boardRoot) {
+  const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
+  if (!normalizedBoardRoot) {
+    return '';
+  }
+
+  const senderState = getSenderBoardAccessState(sender);
+  if (senderState.activeBoardRoot && senderState.activeBoardRoot === normalizedBoardRoot) {
+    return normalizedBoardRoot;
+  }
+
+  const trustedRoots = readTrustedBoardRoots();
+  return trustedRoots.has(normalizedBoardRoot) ? normalizedBoardRoot : '';
+}
+
+function requireReadableBoardRoot(sender, boardRoot) {
+  const normalizedBoardRoot = resolveReadableBoardRoot(sender, boardRoot);
+  if (!normalizedBoardRoot) {
+    throw new Error('UNAUTHORIZED_BOARD_ROOT');
+  }
+
+  return normalizedBoardRoot;
+}
+
+function requireWritableBoardRoot(sender, boardRoot, options = {}) {
+  const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
+  const senderState = getSenderBoardAccessState(sender);
+  if (normalizedBoardRoot && senderState.activeBoardRoot === normalizedBoardRoot) {
+    return normalizedBoardRoot;
+  }
+
+  if (options.allowTrusted === true) {
+    const trustedRoots = readTrustedBoardRoots();
+    if (normalizedBoardRoot && trustedRoots.has(normalizedBoardRoot)) {
+      return normalizedBoardRoot;
+    }
+  }
+
+  throw new Error('UNAUTHORIZED_BOARD_ROOT');
+}
+
+function requireReadablePath(sender, candidatePath) {
+  const normalizedPath = normalizeAbsolutePath(candidatePath);
+  if (!normalizedPath) {
+    throw new Error('INVALID_PATH');
+  }
+
+  const senderState = getSenderBoardAccessState(sender);
+  if (senderState.activeBoardRoot && isPathInsideRoot(senderState.activeBoardRoot, normalizedPath)) {
+    return normalizedPath;
+  }
+
+  const trustedRoots = readTrustedBoardRoots();
+  for (const trustedRoot of trustedRoots) {
+    if (isPathInsideRoot(trustedRoot, normalizedPath)) {
+      return normalizedPath;
+    }
+  }
+
+  throw new Error('UNAUTHORIZED_PATH');
+}
+
+function requireWritablePath(sender, candidatePath) {
+  const normalizedPath = normalizeAbsolutePath(candidatePath);
+  if (!normalizedPath) {
+    throw new Error('INVALID_PATH');
+  }
+
+  const senderState = getSenderBoardAccessState(sender);
+  if (senderState.activeBoardRoot && isPathInsideRoot(senderState.activeBoardRoot, normalizedPath)) {
+    return normalizedPath;
+  }
+
+  throw new Error('UNAUTHORIZED_PATH');
+}
+
+function authorizeTrustedBoardRootForSender(sender, boardRoot) {
+  const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
+  const trustedRoots = readTrustedBoardRoots();
+  if (!normalizedBoardRoot || !trustedRoots.has(normalizedBoardRoot)) {
+    return { ok: false, error: 'UNTRUSTED_BOARD_ROOT' };
+  }
+
+  const state = getSenderBoardAccessState(sender);
+  state.activeBoardRoot = normalizedBoardRoot;
+  return { ok: true, boardRoot: normalizedBoardRoot };
+}
+
+function authorizeBoardSelectionForSender(sender, selectionToken) {
+  const selectedPath = consumePendingDirectorySelection(sender, selectionToken);
+  const normalizedBoardRoot = normalizeBoardRootPath(selectedPath);
+  if (!normalizedBoardRoot) {
+    return { ok: false, error: 'INVALID_SELECTION_TOKEN' };
+  }
+
+  addTrustedBoardRoot(normalizedBoardRoot);
+  const state = getSenderBoardAccessState(sender);
+  state.activeBoardRoot = normalizedBoardRoot;
+
+  return { ok: true, boardRoot: normalizedBoardRoot };
+}
+
+async function adoptLegacyBoardRootsForSender(sender, boardRoots) {
+  const trustedRoots = readTrustedBoardRoots();
+  if (trustedRoots.size > 0) {
+    return {
+      ok: true,
+      adoptedRoots: Array.from(trustedRoots),
+      migrated: false,
+    };
+  }
+
+  const candidateRoots = Array.isArray(boardRoots) ? boardRoots : [];
+  const adoptedRoots = [];
+
+  for (const candidateRoot of candidateRoots) {
+    const normalizedRoot = normalizeBoardRootPath(candidateRoot);
+    if (!normalizedRoot) {
+      continue;
+    }
+
+    try {
+      const stats = await fsPromises.stat(normalizedRoot);
+      if (!stats.isDirectory()) {
+        continue;
+      }
+    } catch {
+      continue;
+    }
+
+    trustedRoots.add(normalizedRoot);
+    adoptedRoots.push(normalizedRoot);
+  }
+
+  if (trustedRoots.size > 0) {
+    writeTrustedBoardRoots(trustedRoots);
+  }
+
+  return {
+    ok: true,
+    adoptedRoots,
+    migrated: adoptedRoots.length > 0,
+  };
+}
+
+async function listBoardDirectories(boardRoot, options = {}) {
+  const includeArchive = options.includeArchive === true;
+  const entries = await fsPromises.readdir(boardRoot, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .filter((entryName) => includeArchive || entryName !== 'XXX-Archive');
+}
+
+function sanitizeImportedName(value) {
+  return String(value || '').replace(/[<>:"/\\|?*\x00-\x1F]/g, '').trim() || 'untitled';
+}
+
+async function sanitizeImportedCardFileName(rawName) {
+  const source = String(rawName || '');
+  const lastDot = source.lastIndexOf('.');
+  const ext = lastDot !== -1 ? source.slice(lastDot) : '';
+  const base = lastDot !== -1 ? source.slice(0, lastDot) : source;
+
+  const cleanedBase = base
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/[^\p{L}\p{N}_\-.\s]/gu, '')
+    .trim();
+
+  const maxTotal = 100;
+  const maxBase = Math.max(0, maxTotal - [...ext].length);
+  const truncatedBase = [...cleanedBase].slice(0, maxBase).join('');
+  const finalBase = truncatedBase.replace(/[ .]+$/g, '');
+  const finalName = finalBase.slice(0, 25) + ext;
+
+  return finalName || '999-untitled.md';
+}
+
+function importedRandomSuffix() {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return [...Array(5)]
+    .map(() => alphabet.charAt(Math.floor(Math.random() * alphabet.length)))
+    .join('');
+}
+
+function escapeMarkdownTitle(text) {
+  return String(text || '').replace(/([#*_`\[\]])/g, '\\$1');
+}
 
 app.on('ready', () => {
   app.setName('SignBoard');
@@ -211,6 +824,9 @@ function createWindow() {
     if (mainWindow.isMinimized()) {
       mainWindow.restore();
     }
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+    }
     mainWindow.focus();
     return mainWindow;
   }
@@ -265,7 +881,7 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      sandbox: false,
+      sandbox: true,
       enableRemoteModule: false,
       nodeIntegration: false,
       backgroundThrottling: false
@@ -282,18 +898,33 @@ function createWindow() {
     }
   };
 
+  const isTrustedAppNavigation = (url) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === APP_ENTRY_URL.protocol
+        && parsed.pathname === APP_ENTRY_URL.pathname;
+    } catch {
+      return false;
+    }
+  };
+
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (shouldOpenExternally(url)) {
       shell.openExternal(url);
       return { action: 'deny' };
     }
 
-    return { action: 'allow' };
+    return { action: 'deny' };
   });
 
   win.webContents.on('will-navigate', (event, url) => {
+    if (isTrustedAppNavigation(url)) {
+      return;
+    }
+
+    event.preventDefault();
+
     if (shouldOpenExternally(url)) {
-      event.preventDefault();
       shell.openExternal(url);
     }
   });
@@ -396,6 +1027,54 @@ function getMainWindow() {
   }
 
   return BrowserWindow.getAllWindows()[0] || null;
+}
+
+function showDockIcon() {
+  if (process.platform === 'darwin' && app.dock && typeof app.dock.show === 'function') {
+    app.dock.show();
+  }
+}
+
+function ensureMainWindowVisible() {
+  showDockIcon();
+
+  const win = createWindow();
+  if (!win || win.isDestroyed()) {
+    return null;
+  }
+
+  if (!Menu.getApplicationMenu()) {
+    buildApplicationMenu();
+  }
+
+  if (win.isMinimized()) {
+    win.restore();
+  }
+
+  if (!win.isVisible()) {
+    win.show();
+  }
+
+  win.focus();
+  return win;
+}
+
+function sendToMainWindow(channel) {
+  const win = ensureMainWindowVisible();
+  if (!win || win.isDestroyed()) {
+    return;
+  }
+
+  if (win.webContents.isLoadingMainFrame()) {
+    win.webContents.once('did-finish-load', () => {
+      if (!win.isDestroyed()) {
+        win.webContents.send(channel);
+      }
+    });
+    return;
+  }
+
+  win.webContents.send(channel);
 }
 
 function buildMcpConfigTemplate() {
@@ -980,6 +1659,19 @@ function buildApplicationMenu() {
       await installCliFromApp();
     },
   });
+  const createKeyboardShortcutsMenuItem = () => ({
+    label: 'Keyboard Shortcuts',
+    accelerator: 'CmdOrCtrl+/',
+    click: () => {
+      sendToMainWindow('open-keyboard-shortcuts');
+    },
+  });
+  const createAboutSignboardMenuItem = () => ({
+    label: 'About Signboard',
+    click: () => {
+      sendToMainWindow('open-about-signboard');
+    },
+  });
 
   const template = [];
 
@@ -987,7 +1679,7 @@ function buildApplicationMenu() {
     template.push({
       label: app.name,
       submenu: [
-        { role: 'about' },
+        createAboutSignboardMenuItem(),
         { type: 'separator' },
         createCheckForUpdatesMenuItem(),
         { type: 'separator' },
@@ -1033,9 +1725,11 @@ function buildApplicationMenu() {
   template.push({
     role: 'help',
     submenu: [
+      !isMac ? createAboutSignboardMenuItem() : null,
       !isMac ? createCheckForUpdatesMenuItem() : null,
       createInstallCliMenuItem(),
       createCopyMcpConfigMenuItem(),
+      createKeyboardShortcutsMenuItem(),
       isPreviewMode
         ? {
             label: 'Preview Update Available...',
@@ -1063,6 +1757,264 @@ function buildApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+ipcMain.handle('board-call', async (event, payload = {}) => {
+  const operation = typeof payload.op === 'string' ? payload.op : '';
+  const args = Array.isArray(payload.args) ? payload.args : [];
+
+  switch (operation) {
+    case 'authorizeBoardSelection':
+      return authorizeBoardSelectionForSender(event.sender, args[0]);
+
+    case 'adoptLegacyBoardRoots':
+      return adoptLegacyBoardRootsForSender(event.sender, args[0]);
+
+    case 'setActiveBoardRoot':
+      return authorizeTrustedBoardRootForSender(event.sender, args[0]);
+
+    case 'clearActiveBoardRoot': {
+      await stopBoardWatchForSender(event.sender);
+      const state = getSenderBoardAccessState(event.sender);
+      state.activeBoardRoot = '';
+      return { ok: true };
+    }
+
+    case 'listLists': {
+      const boardRoot = requireReadableBoardRoot(event.sender, args[0]);
+      return listBoardDirectories(boardRoot);
+    }
+
+    case 'listCards': {
+      const listPath = requireReadablePath(event.sender, args[0]);
+      const entries = await fsPromises.readdir(listPath, { withFileTypes: true });
+      return entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+        .map((entry) => entry.name)
+        .sort((left, right) => left.localeCompare(right, undefined, {
+          numeric: true,
+          sensitivity: 'base',
+          ignorePunctuation: true,
+        }));
+    }
+
+    case 'countCards': {
+      const listPath = requireReadablePath(event.sender, args[0]);
+      const entries = await fsPromises.readdir(listPath, { withFileTypes: true });
+      return entries.filter((entry) => entry.isFile() && entry.name.endsWith('.md')).length;
+    }
+
+    case 'getBoardName': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      return path.basename(filePath);
+    }
+
+    case 'getCardID': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      const cardFileName = path.basename(filePath);
+      return cardFileName.slice(cardFileName.length - 8, cardFileName.length - 3);
+    }
+
+    case 'getCardTitle': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      const card = await cardFrontmatter.readCard(filePath);
+      return card.frontmatter.title;
+    }
+
+    case 'formatDueDate': {
+      const dateString = String(args[0] || '');
+      const [year, month, day] = dateString.split('-').map(Number);
+      const dateToDisplay = new Date(year, month - 1, day);
+      return dueDateFormatter.format(dateToDisplay);
+    }
+
+    case 'getCardFileName': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      return path.basename(filePath);
+    }
+
+    case 'getListDirectoryName': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      return path.basename(filePath);
+    }
+
+    case 'listDirectories': {
+      const boardRoot = requireReadableBoardRoot(event.sender, args[0]);
+      return listBoardDirectories(boardRoot, { includeArchive: true });
+    }
+
+    case 'startBoardWatch':
+      return startBoardWatchForSender(event.sender, args[0]);
+
+    case 'stopBoardWatch':
+      return stopBoardWatchForSender(event.sender);
+
+    case 'getBoardWatchToken':
+      return getSenderBoardAccessState(event.sender).watchState.changeToken;
+
+    case 'openCard': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      shell.showItemInFolder(filePath);
+      return { ok: true };
+    }
+
+    case 'readCard': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      return cardFrontmatter.readCard(filePath);
+    }
+
+    case 'writeCard': {
+      const filePath = requireWritablePath(event.sender, args[0]);
+      const card = args[1] && typeof args[1] === 'object' ? args[1] : {};
+      await cardFrontmatter.writeCard(filePath, card);
+      return { ok: true };
+    }
+
+    case 'updateFrontmatter': {
+      const filePath = requireWritablePath(event.sender, args[0]);
+      return cardFrontmatter.updateFrontmatter(filePath, args[1]);
+    }
+
+    case 'normalizeFrontmatter':
+      return cardFrontmatter.normalizeFrontmatter(args[0]);
+
+    case 'readBoardSettings': {
+      const boardRoot = requireReadableBoardRoot(event.sender, args[0]);
+      return boardLabels.readBoardSettings(boardRoot);
+    }
+
+    case 'updateBoardLabels': {
+      const boardRoot = requireWritableBoardRoot(event.sender, args[0], { allowTrusted: true });
+      return boardLabels.updateBoardLabels(boardRoot, args[1]);
+    }
+
+    case 'updateBoardThemeOverrides': {
+      const boardRoot = requireWritableBoardRoot(event.sender, args[0], { allowTrusted: true });
+      return boardLabels.updateBoardThemeOverrides(boardRoot, args[1]);
+    }
+
+    case 'updateBoardSettings': {
+      const boardRoot = requireWritableBoardRoot(event.sender, args[0], { allowTrusted: true });
+      return boardLabels.updateBoardSettings(boardRoot, args[1]);
+    }
+
+    case 'createCard': {
+      const filePath = requireWritablePath(event.sender, args[0]);
+      const content = String(args[1] || '');
+      const lines = content.split(/\r?\n/);
+      const title = (lines.shift() || '').trim();
+      const body = lines.join('\n').replace(/^\n+/, '');
+
+      await cardFrontmatter.writeCard(filePath, {
+        frontmatter: { title: title || 'Untitled' },
+        body,
+      });
+
+      return { ok: true };
+    }
+
+    case 'moveCard':
+    case 'moveList': {
+      const sourcePath = requireWritablePath(event.sender, args[0]);
+      const destinationPath = normalizeAbsolutePath(args[1]);
+      if (!destinationPath) {
+        throw new Error('INVALID_PATH');
+      }
+
+      const senderState = getSenderBoardAccessState(event.sender);
+      const activeBoardRoot = senderState.activeBoardRoot;
+      const movingBoardRoot = sourcePath === activeBoardRoot;
+
+      if (!movingBoardRoot && !isPathInsideRoot(activeBoardRoot, destinationPath)) {
+        throw new Error('UNAUTHORIZED_PATH');
+      }
+
+      await fsPromises.rename(sourcePath, destinationPath);
+
+      if (movingBoardRoot) {
+        replaceTrustedBoardRoot(sourcePath, destinationPath);
+        senderState.activeBoardRoot = destinationPath;
+        await stopBoardWatchForSender(event.sender);
+      }
+
+      return { ok: true };
+    }
+
+    case 'createList': {
+      const listPath = requireWritablePath(event.sender, args[0]);
+      await fsPromises.mkdir(listPath);
+      return { ok: true };
+    }
+
+    case 'deleteList': {
+      const listPath = requireWritablePath(event.sender, args[0]);
+      await fsPromises.rmdir(listPath);
+      return { ok: true };
+    }
+
+    case 'importFromTrello': {
+      const boardRoot = requireWritableBoardRoot(event.sender, args[0]);
+      const entries = await fsPromises.readdir(boardRoot, { withFileTypes: true });
+      if (entries.some((entry) => entry.isDirectory())) {
+        return { ok: true, imported: false };
+      }
+
+      const jsonPath = path.join(boardRoot, 'trello.json');
+      try {
+        await fsPromises.access(jsonPath, fs.constants.F_OK);
+      } catch {
+        return { ok: true, imported: false };
+      }
+
+      const raw = await fsPromises.readFile(jsonPath, 'utf8');
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data.cards) || !Array.isArray(data.lists)) {
+        throw new Error('INVALID_TRELLO_EXPORT');
+      }
+
+      const listMap = {};
+      const cardsByList = {};
+
+      for (const list of data.lists) {
+        listMap[list.id] = list.name;
+      }
+
+      for (const card of data.cards) {
+        const listName = listMap[card.idList] || 'UnknownList';
+        if (!cardsByList[listName]) {
+          cardsByList[listName] = [];
+        }
+        cardsByList[listName].push(card);
+      }
+
+      let listCount = 0;
+      for (const [listName, cards] of Object.entries(cardsByList)) {
+        const listNumber = listCount.toString().padStart(3, '0');
+        const folder = path.join(boardRoot, `${listNumber}-${sanitizeImportedName(listName)}-trelo`);
+        await fsPromises.mkdir(folder, { recursive: true });
+        listCount += 1;
+
+        cards.sort((left, right) => (left.pos ?? 0) - (right.pos ?? 0));
+
+        for (const [index, card] of cards.entries()) {
+          const number = String(index + 1).padStart(3, '0');
+          const fileName = `${number}-${await sanitizeImportedCardFileName(card.name)}-${importedRandomSuffix()}.md`;
+          const filePath = path.join(folder, fileName);
+
+          await cardFrontmatter.writeCard(filePath, {
+            frontmatter: { title: escapeMarkdownTitle(card.name) },
+            body: card.desc || '',
+          });
+        }
+      }
+
+      await fsPromises.mkdir(path.join(boardRoot, 'XXX-Archive'), { recursive: true });
+      return { ok: true, imported: true };
+    }
+
+    default:
+      throw new Error(`UNKNOWN_BOARD_OPERATION:${operation}`);
+  }
+});
+
 ipcMain.handle('choose-directory', async (event, { defaultPath } = {}) => {
   const result = await dialog.showOpenDialog({
     title: 'Select a folder',
@@ -1075,13 +2027,23 @@ ipcMain.handle('choose-directory', async (event, { defaultPath } = {}) => {
     ],
   });
   if (result.canceled) return null;
-  // returns an array, but single selection when openDirectory is used
-  return result.filePaths[0] || null;
+
+  const selectedPath = normalizeAbsolutePath(result.filePaths[0] || '');
+  if (!selectedPath) {
+    return null;
+  }
+
+  return {
+    path: selectedPath,
+    token: storePendingDirectorySelection(event.sender, selectedPath),
+  };
 });
 
 ipcMain.handle('share-file', async (event, filePath) => {
-  const normalizedPath = typeof filePath === 'string' ? path.normalize(filePath) : '';
-  if (!normalizedPath) {
+  let normalizedPath = '';
+  try {
+    normalizedPath = requireReadablePath(event.sender, filePath);
+  } catch {
     return { ok: false, error: 'INVALID_PATH' };
   }
 
@@ -1108,6 +2070,41 @@ ipcMain.handle('share-file', async (event, filePath) => {
     return { ok: false, error: error?.message || 'SHARE_FAILED' };
   }
 });
+
+ipcMain.handle('open-external-url', async (_event, rawUrl) => {
+  const candidate = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+  if (!candidate) {
+    return { ok: false, error: 'INVALID_URL' };
+  }
+
+  let parsedUrl = null;
+  try {
+    parsedUrl = new URL(candidate);
+  } catch {
+    return { ok: false, error: 'INVALID_URL' };
+  }
+
+  if (!['http:', 'https:', 'mailto:'].includes(parsedUrl.protocol)) {
+    return { ok: false, error: 'UNSUPPORTED_PROTOCOL' };
+  }
+
+  try {
+    await shell.openExternal(parsedUrl.href);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error?.message || 'OPEN_EXTERNAL_FAILED' };
+  }
+});
+
+ipcMain.handle('get-app-info', async () => ({
+  appName: app.getName(),
+  appVersion: app.getVersion(),
+  authorName: APP_AUTHOR_NAME,
+  authorUrl: APP_AUTHOR_URL,
+  copyright: APP_COPYRIGHT,
+  license: APP_LICENSE,
+  websiteUrl: APP_WEBSITE_URL,
+}));
 
 ipcMain.handle('notify-due-cards', async (_event, payload = {}) => {
   if (typeof Notification.isSupported === 'function' && !Notification.isSupported()) {
@@ -1200,37 +2197,14 @@ app.whenReady().then(async () => {
 });
 
 app.on('activate', () => {
-  if (isMcpServerMode || isCliMode) {
+  if (isCliMode) {
     return;
   }
 
-  const win = getMainWindow();
-  if (win && !win.isDestroyed()) {
-    if (win.isMinimized()) {
-      win.restore();
-    }
-    if (!win.isVisible()) {
-      win.show();
-    }
-    win.focus();
+  const win = ensureMainWindowVisible();
+  if (win) {
     return;
   }
-
-  if (BrowserWindow.getAllWindows().length > 0) {
-    const fallbackWindow = BrowserWindow.getAllWindows()[0];
-    if (fallbackWindow && !fallbackWindow.isDestroyed()) {
-      if (fallbackWindow.isMinimized()) {
-        fallbackWindow.restore();
-      }
-      if (!fallbackWindow.isVisible()) {
-        fallbackWindow.show();
-      }
-      fallbackWindow.focus();
-      return;
-    }
-  }
-
-  createWindow();
 });
 
 app.on('before-quit', () => {

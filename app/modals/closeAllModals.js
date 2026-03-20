@@ -67,6 +67,10 @@ function createCloseAllModalsRequest() {
     };
 }
 
+function isVisibleModal(modal) {
+    return Boolean(modal && !modal.classList.contains('hidden'));
+}
+
 async function closeAllModals(e, options = {}){
     const eventTarget = e && e.target ? e.target : null;
     const isEscape = e && e.key === 'Escape';
@@ -84,6 +88,7 @@ async function closeAllModals(e, options = {}){
     const modalAddCardToList = document.getElementById('modalAddCardToList');
     const modalAddList = document.getElementById('modalAddList');
     const modalBoardSettings = document.getElementById('modalBoardSettings');
+    const modalAboutSignboard = document.getElementById('modalAboutSignboard');
     const modalCommercialLicense = document.getElementById('modalCommercialLicense');
     const editModalWasOpen = modalEditCard.style.display === 'block';
     const boardSettingsWasOpen = modalBoardSettings && modalBoardSettings.style.display === 'block';
@@ -96,7 +101,8 @@ async function closeAllModals(e, options = {}){
     }
 
     if ( closeAllRequest ) {
-        if ( modalAddCard.style.display === 'block' ) {
+        if ( isVisibleModal(modalAddCard) ) {
+            modalAddCard.classList.add('hidden');
             modalAddCard.style.display = 'none';
         }
         if ( modalEditCard.style.display === 'block' ) {
@@ -108,11 +114,13 @@ async function closeAllModals(e, options = {}){
             setBoardInteractive(true);
             editModalClosed = true;
         }
-        if ( modalAddCardToList.style.display === 'block' ) {
+        if ( isVisibleModal(modalAddCardToList) ) {
+            modalAddCardToList.classList.add('hidden');
             modalAddCardToList.style.display = 'none';
             setBoardInteractive(true);
         }
-        if ( modalAddList.style.display === 'block' ) {
+        if ( isVisibleModal(modalAddList) ) {
+            modalAddList.classList.add('hidden');
             modalAddList.style.display = 'none';
             setBoardInteractive(true);
         }
@@ -124,6 +132,12 @@ async function closeAllModals(e, options = {}){
             setBoardInteractive(true);
             boardSettingsClosed = true;
         }
+        if ( modalAboutSignboard && modalAboutSignboard.style.display === 'block' ) {
+            modalAboutSignboard.style.display = 'none';
+            modalAboutSignboard.classList.add('hidden');
+            modalAboutSignboard.setAttribute('aria-hidden', 'true');
+            setBoardInteractive(true);
+        }
         if ( modalCommercialLicense && modalCommercialLicense.style.display === 'block' ) {
             modalCommercialLicense.style.display = 'none';
             modalCommercialLicense.classList.add('hidden');
@@ -131,7 +145,8 @@ async function closeAllModals(e, options = {}){
             setBoardInteractive(true);
         }
     } else {
-        if ( modalAddCard.style.display === 'block' && eventTarget && !modalAddCard.contains(eventTarget) ) {
+        if ( isVisibleModal(modalAddCard) && eventTarget && !modalAddCard.contains(eventTarget) ) {
+            modalAddCard.classList.add('hidden');
             modalAddCard.style.display = 'none';
         }
 
@@ -146,12 +161,14 @@ async function closeAllModals(e, options = {}){
             editModalClosed = true;
         }
 
-        if ( modalAddCardToList.style.display === 'block' && eventTarget && !modalAddCardToList.contains(eventTarget) ) {
+        if ( isVisibleModal(modalAddCardToList) && eventTarget && !modalAddCardToList.contains(eventTarget) ) {
+            modalAddCardToList.classList.add('hidden');
             modalAddCardToList.style.display = 'none';
             setBoardInteractive(true);
         }
 
-        if ( modalAddList.style.display === 'block' && eventTarget && !modalAddList.contains(eventTarget) ) {
+        if ( isVisibleModal(modalAddList) && eventTarget && !modalAddList.contains(eventTarget) ) {
+            modalAddList.classList.add('hidden');
             modalAddList.style.display = 'none';
             setBoardInteractive(true);
         }
@@ -163,6 +180,13 @@ async function closeAllModals(e, options = {}){
             modalBoardSettings.style.display = 'none';
             setBoardInteractive(true);
             boardSettingsClosed = true;
+        }
+
+        if ( modalAboutSignboard && modalAboutSignboard.style.display === 'block' && eventTarget && !modalAboutSignboard.contains(eventTarget) ) {
+            modalAboutSignboard.style.display = 'none';
+            modalAboutSignboard.classList.add('hidden');
+            modalAboutSignboard.setAttribute('aria-hidden', 'true');
+            setBoardInteractive(true);
         }
 
         if ( modalCommercialLicense && modalCommercialLicense.style.display === 'block' && eventTarget && !modalCommercialLicense.contains(eventTarget) ) {

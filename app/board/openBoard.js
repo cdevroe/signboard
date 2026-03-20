@@ -1,20 +1,78 @@
+function getPaddedOrderedEntryName(entryName) {
+    const match = String(entryName || '').match(/^(\d{1,2})(-.+)$/);
+    if (!match) {
+        return '';
+    }
+
+    return `${match[1].padStart(3, '0')}${match[2]}`;
+}
+
+async function renameEntriesWithPaddedPrefixes(parentPath, entryNames, moveEntry) {
+    const normalizedParentPath = normalizeBoardPath(parentPath);
+    if (!normalizedParentPath || typeof moveEntry !== 'function') {
+        return;
+    }
+
+    for (const entryName of Array.isArray(entryNames) ? entryNames : []) {
+        const nextEntryName = getPaddedOrderedEntryName(entryName);
+        if (!nextEntryName || nextEntryName === entryName) {
+            continue;
+        }
+
+        try {
+            await moveEntry(`${normalizedParentPath}${entryName}`, `${normalizedParentPath}${nextEntryName}`);
+        } catch (error) {
+            console.warn(`Unable to normalize board entry name from ${entryName} to ${nextEntryName}.`, error);
+        }
+    }
+}
+
+async function normalizeBoardPrefixes(boardPath) {
+    const normalizedBoardPath = normalizeBoardPath(boardPath);
+    if (!normalizedBoardPath) {
+        return;
+    }
+
+    const listDirectoryNames = await window.board.listDirectories(normalizedBoardPath);
+    await renameEntriesWithPaddedPrefixes(
+        normalizedBoardPath,
+        listDirectoryNames.filter((directoryName) => directoryName !== 'XXX-Archive'),
+        window.board.moveList,
+    );
+
+    const normalizedListNames = await window.board.listLists(normalizedBoardPath);
+    for (const listName of normalizedListNames) {
+        await renameEntriesWithPaddedPrefixes(
+            `${normalizedBoardPath}${listName}/`,
+            await window.board.listCards(`${normalizedBoardPath}${listName}/`),
+            window.board.moveCard,
+        );
+    }
+}
+
 async function pickAndOpenBoard() {
-    const dir = await window.chooser.pickDirectory({ /* defaultPath: '/some/path' */ });
-    if (!dir) {
+    const selection = await window.chooser.pickDirectory({ /* defaultPath: '/some/path' */ });
+    if (!selection) {
         return false;
     }
 
+    const selectedPath = getDirectorySelectionPath(selection);
     const boardPathInput = document.getElementById('boardPath');
-    if (boardPathInput) {
-        boardPathInput.value = dir;
+    if (boardPathInput && selectedPath) {
+        boardPathInput.value = selectedPath;
     }
 
-    await window.board.importFromTrello(dir);
-    return openBoard(dir);
+    const authorizedBoardPath = await authorizeBoardAccess(selection);
+    if (!authorizedBoardPath) {
+        return false;
+    }
+
+    await window.board.importFromTrello(authorizedBoardPath);
+    return openBoard(authorizedBoardPath);
 }
 
 async function openBoard( dir ) {
-    const boardPath = normalizeBoardPath(dir);
+    const boardPath = await authorizeBoardAccess(dir);
     if (!boardPath) {
         return false;
     }
@@ -35,6 +93,8 @@ async function openBoard( dir ) {
         renderBoardTabs();
         return false;
     }
+
+    await normalizeBoardPrefixes(boardPath);
 
     const directories = await window.board.listDirectories( boardPath );
 
@@ -80,7 +140,7 @@ Here are a few example tasks so you can see how checklists and task due dates wo
 
 On macOS use Cmd. On Windows and Linux use Ctrl.
 
-- Hold Cmd or Ctrl for two seconds to peek at the shortcuts helper
+- Cmd/Ctrl + / opens the keyboard shortcuts helper
 - Cmd/Ctrl + N creates a new card
 - Cmd/Ctrl + Shift + N creates a new list
 - Cmd/Ctrl + 1 opens Kanban view

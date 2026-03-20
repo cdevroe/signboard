@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>Signboard</title>
   <link rel="stylesheet" href="static/vendor/fdatepicker-3.0.24.min.css">
   <link rel="stylesheet" href="static/styles.css">
@@ -74,13 +75,14 @@
 
   <div id="modalAddCardToList" class="modal hidden">
      <p><select id="userInputListPath"></select></p>
-    <p><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"> <button id="btnAddCardToList" title="Add card to selected list">Add</button></p>
+    <p class="modalAddCardToListInputRow"><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"></p>
+    <button id="btnAddCardToList" title="Add card to selected list">Add</button>
   </div>
 
   <div id="modalKeyboardShortcuts" class="modal keyboard-shortcuts-modal hidden" aria-hidden="true">
     <div class="keyboard-shortcuts-header">
       <h2>Keyboard Shortcuts</h2>
-      <p>Hold <span class="shortcut-modifier-label">Command</span> for two seconds to open this list.</p>
+      <p>Press <span class="shortcut-modifier-label">Command</span> + / to open this list.</p>
     </div>
     <div class="keyboard-shortcuts-grid">
       <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-create">
@@ -117,9 +119,53 @@
         <h3 id="keyboard-shortcuts-section-modals">Modals</h3>
         <ul class="keyboard-shortcuts-list">
           <li>
+            <span>Keyboard shortcuts</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + /</kbd>
+          </li>
+          <li>
             <span>Close open modals</span>
             <kbd>Esc</kbd>
           </li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <div id="modalAboutSignboard" class="modal about-signboard-modal hidden" role="dialog" aria-modal="true" aria-labelledby="aboutSignboardTitle" aria-hidden="true">
+    <div class="about-signboard-header">
+      <div>
+        <p class="about-signboard-eyebrow">Local-first Kanban</p>
+        <h2 id="aboutSignboardTitle">About Signboard</h2>
+      </div>
+      <button id="aboutSignboardClose" class="commercial-license-close" type="button" title="Close About Signboard" aria-label="Close About Signboard"><i data-feather="x"></i></button>
+    </div>
+    <div class="about-signboard-copy">
+      <section class="about-signboard-section about-signboard-intro">
+        <div class="about-signboard-badges">
+          <span class="about-signboard-badge" data-about-app-version>Version</span>
+          <span class="about-signboard-badge"><span data-about-license>MIT</span> License</span>
+        </div>
+        <p>Signboard is a kanban app that writes Markdown files.</p>
+        <p class="about-signboard-meta">Created by <a href="https://cdevroe.com/" rel="noopener noreferrer">Colin Devroe</a>.</p>
+        <div class="about-signboard-actions">
+          <a class="about-signboard-link-button" href="https://cdevroe.com/signboard/" rel="noopener noreferrer">Visit Website</a>
+          <button id="aboutSignboardSupportButton" class="about-signboard-support-button" type="button">Support Signboard</button>
+        </div>
+      </section>
+
+      <section class="about-signboard-section">
+        <h3>Inspiration</h3>
+        <p>Thanks to <a href="https://daringfireball.net/" rel="noopener noreferrer">John Gruber</a> for creating <a href="https://daringfireball.net/projects/markdown/" rel="noopener noreferrer">Markdown</a>. And to <a href="https://stephango.com/" rel="noopener noreferrer">Steph Ango</a> for the <a href="https://stephango.com/file-over-app" rel="noopener noreferrer">file over app</a> philosophy.</p>
+      </section>
+
+      <section class="about-signboard-section">
+        <h3>Bundled Libraries</h3>
+        <ul class="about-signboard-library-list">
+          <li><a href="https://github.com/mixmark-io/turndown" rel="noopener noreferrer">Turndown</a><span>MIT License</span></li>
+          <li><a href="https://github.com/panphora/overtype" rel="noopener noreferrer">OverType</a><span>MIT License</span></li>
+          <li><a href="https://github.com/SortableJS/Sortable" rel="noopener noreferrer">SortableJS</a><span>MIT License</span></li>
+          <li><a href="https://github.com/feathericons/feather" rel="noopener noreferrer">Feather Icons</a><span>MIT License</span></li>
+          <li><a href="https://github.com/liedekef/fdatepicker" rel="noopener noreferrer">fDatepicker</a><span>MIT License</span></li>
         </ul>
       </section>
     </div>
@@ -186,6 +232,16 @@
               <button id="btnMoveBoard" type="button" title="Move board">Move Board</button>
             </div>
             <p class="boardSettingsHint">Move this board folder to another location on your computer.</p>
+          </div>
+          <div class="board-settings-toggle-row">
+            <div>
+              <p class="boardSettingsHint boardSettingsHintTight">Tooltips</p>
+              <p class="boardSettingsHint">Show button and control hints throughout this board.</p>
+            </div>
+            <label class="board-settings-switch" for="boardSettingsTooltipsToggle" title="Enable tooltips">
+              <input id="boardSettingsTooltipsToggle" type="checkbox" role="switch" aria-label="Enable tooltips">
+              <span class="board-settings-switch-track" aria-hidden="true"></span>
+            </label>
           </div>
         </section>
 

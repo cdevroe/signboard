@@ -1,17 +1,21 @@
 async function toggleAddListModal( x,y ) {
     const modalAddList = document.getElementById('modalAddList');
+    const isOpen = !modalAddList.classList.contains('hidden');
 
     if ( x ) {
+        modalAddList.classList.remove('hidden');
         modalAddList.style.position = 'absolute';
         modalAddList.style.top = y + 'px';
         modalAddList.style.left = x + 'px';
-        modalAddList.style.display = 'block';
+        modalAddList.style.display = 'flex';
         return;
     }
 
-    if ( modalAddList.style.display && modalAddList.style.display == 'block' ) {
+    if ( isOpen ) {
+        modalAddList.classList.add('hidden');
         modalAddList.style.display = 'none';
     } else {
-        modalAddList.style.display = 'block';        
+        modalAddList.classList.remove('hidden');
+        modalAddList.style.display = 'flex';
     }
 }
