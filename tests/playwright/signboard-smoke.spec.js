@@ -186,3 +186,37 @@ test('persists the board tooltip toggle and suppresses tooltips when disabled', 
     });
   }).toBe(false);
 });
+
+test('shows import controls and renders an import summary from the Board Settings import panel', async ({ page }) => {
+  await page.evaluate(() => {
+    window.__signboardImportOverrides = {
+      pickImportSources: async () => ([
+        { token: 'trello-token', path: '/tmp/example.json', kind: 'file' },
+      ]),
+      importTrello: async () => ({
+        ok: true,
+        importer: 'trello',
+        sources: ['/tmp/example.json'],
+        listsCreated: 2,
+        cardsCreated: 3,
+        labelsCreated: 1,
+        archivedCards: 1,
+        warnings: ['Imported comments may be incomplete.'],
+      }),
+    };
+  });
+
+  await page.locator('#openBoardSettings').click();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await page.locator('#boardSettingsNavImport').click();
+
+  await expect(page.locator('#boardSettingsPanelImport')).toBeVisible();
+  await expect(page.locator('#btnImportBoardFromTrello')).toBeVisible();
+  await expect(page.locator('#btnImportBoardFromObsidian')).toBeVisible();
+
+  await page.locator('#btnImportBoardFromTrello').click();
+
+  await expect(page.locator('#boardSettingsImportStatus')).toContainText('Imported 1 source.');
+  await expect(page.locator('#boardSettingsImportStatus')).toContainText('2 lists created.');
+  await expect(page.locator('#boardSettingsImportWarnings')).toContainText('Imported comments may be incomplete.');
+});

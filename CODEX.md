@@ -28,5 +28,8 @@ Start here before opening source files.
 - Skill UI metadata lives at `skills/signboard-mcp/agents/openai.yaml`.
 - Board tabs/session state live in renderer localStorage: `boardTabs` (open tab order) and `boardPath` (active board root fallback).
 - Board label definitions are managed in `board-settings.md` files inside each board folder (runtime data, not repo source).
+- Board Settings now includes an `Import` panel that launches explicit Trello/Obsidian imports into the current board; the renderer wiring lives in `app/board/boardLabels.js`, while the actual import filesystem work lives in `lib/importers/*` through `main.js` IPC.
+- External import pickers are tokenized in `main.js` and surfaced through `window.chooser.pickImportSources(...)`; renderer code never reads arbitrary external files directly.
+- Trello and Obsidian importer coverage lives in `scripts/test-import-trello.js` and `scripts/test-import-obsidian.js`.
 - Skip heavy/generated content unless explicitly needed: `node_modules/`, `dist/`, `static/vendor/`, and usually `package-lock.json`.
 - Always update Codex markdown docs when behavior/architecture/tooling changes (`CODEX.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`).

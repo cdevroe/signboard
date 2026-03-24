@@ -66,6 +66,7 @@ const DEFAULT_BOARD_NOTIFICATION_SETTINGS = Object.freeze({
   time: '09:00',
 });
 const DEFAULT_BOARD_TOOLTIPS_ENABLED = true;
+const BOARD_IMPORT_TEST_OVERRIDE_KEY = '__signboardImportOverrides';
 
 function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -430,6 +431,9 @@ function getBoardLabelState() {
       notificationSettings: { ...DEFAULT_BOARD_NOTIFICATION_SETTINGS },
       tooltipsEnabled: DEFAULT_BOARD_TOOLTIPS_ENABLED,
       activeSettingsPanel: 'general',
+      importInProgress: '',
+      importSummary: null,
+      importSummaryBoardRoot: '',
       settingsSaveTimer: null,
       settingsSaveInFlight: Promise.resolve(),
     };
@@ -1467,7 +1471,7 @@ function renderBoardSettingsPanelState() {
 }
 
 function setActiveBoardSettingsPanel(panelId) {
-  const normalizedPanelId = ['general', 'labels', 'colors', 'notifications'].includes(panelId)
+  const normalizedPanelId = ['general', 'labels', 'colors', 'notifications', 'import'].includes(panelId)
     ? panelId
     : 'general';
   const state = getBoardLabelState();
@@ -1505,6 +1509,167 @@ function renderNotificationSettingsControls() {
 
   if (notificationsTimeInput) {
     notificationsTimeInput.value = notifications.time;
+  }
+}
+
+function formatImportSummaryText(summary) {
+  if (!summary || typeof summary !== 'object') {
+    return '';
+  }
+
+  const sources = Array.isArray(summary.sources) ? summary.sources.length : 0;
+  const parts = [
+    `Imported ${sources === 1 ? '1 source' : `${sources} sources`}.`,
+    `${summary.listsCreated || 0} list${summary.listsCreated === 1 ? '' : 's'} created.`,
+    `${summary.cardsCreated || 0} card${summary.cardsCreated === 1 ? '' : 's'} created.`,
+  ];
+
+  if ((summary.labelsCreated || 0) > 0) {
+    parts.push(`${summary.labelsCreated} label${summary.labelsCreated === 1 ? '' : 's'} created.`);
+  }
+
+  if ((summary.archivedCards || 0) > 0) {
+    parts.push(`${summary.archivedCards} archived.`);
+  }
+
+  return parts.join(' ');
+}
+
+function getBoardImportOverrides() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const overrides = window[BOARD_IMPORT_TEST_OVERRIDE_KEY];
+  return overrides && typeof overrides === 'object' ? overrides : null;
+}
+
+function getBoardImportPicker() {
+  const overrides = getBoardImportOverrides();
+  if (overrides && typeof overrides.pickImportSources === 'function') {
+    return overrides.pickImportSources;
+  }
+
+  return window.chooser && typeof window.chooser.pickImportSources === 'function'
+    ? window.chooser.pickImportSources
+    : null;
+}
+
+function getBoardImportRunner(importer) {
+  const overrides = getBoardImportOverrides();
+  const overrideKey = importer === 'trello' ? 'importTrello' : 'importObsidian';
+  if (overrides && typeof overrides[overrideKey] === 'function') {
+    return overrides[overrideKey];
+  }
+
+  if (!window.board) {
+    return null;
+  }
+
+  const defaultRunner = importer === 'trello' ? window.board.importTrello : window.board.importObsidian;
+  return typeof defaultRunner === 'function' ? defaultRunner : null;
+}
+
+function renderBoardImportControls() {
+  const state = getBoardLabelState();
+  const trelloButton = document.getElementById('btnImportBoardFromTrello');
+  const obsidianButton = document.getElementById('btnImportBoardFromObsidian');
+  const status = document.getElementById('boardSettingsImportStatus');
+  const warnings = document.getElementById('boardSettingsImportWarnings');
+  const isBusy = Boolean(state.importInProgress);
+  const canImport = Boolean(window.boardRoot) && !isBusy;
+  const currentBoardRoot = normalizeBoardPath(window.boardRoot);
+  const summaryBoardRoot = normalizeBoardPath(state.importSummaryBoardRoot);
+  const hasVisibleSummary = Boolean(state.importSummary) && summaryBoardRoot === currentBoardRoot;
+
+  if (trelloButton) {
+    trelloButton.disabled = !canImport;
+    trelloButton.textContent = state.importInProgress === 'trello' ? 'Importing Trello' : 'Import from Trello';
+  }
+
+  if (obsidianButton) {
+    obsidianButton.disabled = !canImport;
+    obsidianButton.textContent = state.importInProgress === 'obsidian' ? 'Importing Obsidian' : 'Import from Obsidian';
+  }
+
+  if (status) {
+    status.classList.toggle('hidden', !hasVisibleSummary);
+    status.textContent = hasVisibleSummary ? formatImportSummaryText(state.importSummary) : '';
+  }
+
+  if (warnings) {
+    warnings.innerHTML = '';
+    const warningMessages = hasVisibleSummary && Array.isArray(state.importSummary.warnings)
+      ? state.importSummary.warnings
+      : [];
+
+    warnings.classList.toggle('hidden', warningMessages.length === 0);
+    for (const warningMessage of warningMessages) {
+      const message = document.createElement('p');
+      message.textContent = warningMessage;
+      warnings.appendChild(message);
+    }
+  }
+}
+
+async function runBoardImport(importer) {
+  const state = getBoardLabelState();
+  if (!window.boardRoot || state.importInProgress) {
+    return;
+  }
+
+  const pickImportSources = getBoardImportPicker();
+  const runImporter = getBoardImportRunner(importer);
+  if (!pickImportSources || !runImporter) {
+    return;
+  }
+
+  const boardInfo = getBoardRootInfo();
+  const defaultPath = boardInfo ? boardInfo.parentRoot.replace(/\/+$/, '') : undefined;
+
+  await flushBoardSettingsSave();
+  state.importInProgress = importer;
+  renderBoardImportControls();
+
+  let shouldRefreshBoard = false;
+
+  try {
+    const selections = await pickImportSources({ importer, defaultPath });
+    if (!Array.isArray(selections) || selections.length === 0) {
+      return;
+    }
+
+    let summary = null;
+    if (importer === 'trello') {
+      summary = await runImporter(window.boardRoot, selections[0].token);
+    } else {
+      summary = await runImporter(window.boardRoot, selections.map((selection) => selection.token));
+    }
+
+    state.importSummary = summary;
+    state.importSummaryBoardRoot = normalizeBoardPath(window.boardRoot);
+    shouldRefreshBoard = true;
+  } catch (error) {
+    console.error(`Unable to import from ${importer}.`, error);
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+      window.alert(`Unable to import from ${importer}.\n\n${String(error?.message || error || 'Unknown error')}`);
+    }
+  } finally {
+    state.importInProgress = '';
+    renderBoardImportControls();
+  }
+
+  if (shouldRefreshBoard) {
+    Promise.allSettled([
+      ensureBoardLabelsLoaded(),
+      renderBoard(),
+    ]).then((results) => {
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          console.error(`Unable to refresh the board after importing from ${importer}.`, result.reason);
+        }
+      }
+    });
   }
 }
 
@@ -1572,6 +1737,7 @@ function openBoardSettingsModal() {
   renderBoardThemeSettingsControls();
   renderBoardGeneralSettingsControls();
   renderNotificationSettingsControls();
+  renderBoardImportControls();
   setActiveBoardSettingsPanel('general');
   modal.style.display = 'block';
 
@@ -1607,6 +1773,8 @@ function resetBoardLabelFilter() {
 
 async function ensureBoardLabelsLoaded() {
   if (!window.boardRoot) {
+    const state = getBoardLabelState();
+    state.importSummaryBoardRoot = '';
     setBoardLabels([]);
     applyDerivedBoardThemes({ light: {}, dark: {} }, { renderControls: false });
     setBoardNotificationSettings(DEFAULT_BOARD_NOTIFICATION_SETTINGS);
@@ -1616,6 +1784,7 @@ async function ensureBoardLabelsLoaded() {
     renderBoardThemeSettingsControls();
     renderBoardGeneralSettingsControls();
     renderNotificationSettingsControls();
+    renderBoardImportControls();
     return;
   }
 
@@ -1629,6 +1798,7 @@ async function ensureBoardLabelsLoaded() {
   renderBoardThemeSettingsControls();
   renderBoardGeneralSettingsControls();
   renderNotificationSettingsControls();
+  renderBoardImportControls();
 }
 
 function closeAllLabelPopovers() {
@@ -1659,6 +1829,8 @@ function initializeBoardLabelControls() {
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
   const applyNotificationsToOpenBoardsButton = document.getElementById('btnApplyNotificationsToOpenBoards');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
+  const importFromTrelloButton = document.getElementById('btnImportBoardFromTrello');
+  const importFromObsidianButton = document.getElementById('btnImportBoardFromObsidian');
 
   if (filterButton) {
     filterButton.addEventListener('click', (event) => {
@@ -1889,5 +2061,22 @@ function initializeBoardLabelControls() {
     });
   }
 
+  if (importFromTrelloButton) {
+    importFromTrelloButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await runBoardImport('trello');
+    });
+  }
+
+  if (importFromObsidianButton) {
+    importFromObsidianButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await runBoardImport('obsidian');
+    });
+  }
+
   renderBoardSettingsPanelState();
+  renderBoardImportControls();
 }

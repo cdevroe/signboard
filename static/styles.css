@@ -1862,6 +1862,41 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   letter-spacing: .04em;
 }
 
+.board-import-option {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 96%, var(--border));
+}
+
+.board-import-option h4 {
+  margin: 0 0 4px 0;
+}
+
+.board-import-status,
+.board-import-warnings {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+}
+
+.board-import-status {
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--accent) 8%);
+}
+
+.board-import-warnings {
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--border));
+  background: color-mix(in oklab, var(--bg-card) 90%, var(--accent) 10%);
+}
+
+.board-import-warnings p,
+.board-import-status p {
+  margin: 0;
+}
+
 .board-settings-inline-actions {
   display: flex;
   gap: 8px;

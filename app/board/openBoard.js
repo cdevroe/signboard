@@ -67,7 +67,6 @@ async function pickAndOpenBoard() {
         return false;
     }
 
-    await window.board.importFromTrello(authorizedBoardPath);
     return openBoard(authorizedBoardPath);
 }
 

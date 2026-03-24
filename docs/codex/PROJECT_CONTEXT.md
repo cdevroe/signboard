@@ -19,6 +19,7 @@ File: `main.js`
 - Supports a headless MCP server mode when launched with `--mcp-server` (no window created).
 - Supports `--mcp-config` mode to print MCP client config JSON and exit.
 - Registers IPC handler `choose-directory` to open native folder picker.
+- Registers IPC handler `pick-import-sources` to open native file/directory pickers for Trello JSON and Obsidian markdown/vault sources.
 - Registers IPC handler `check-for-updates` for renderer-triggered manual update checks.
 - Builds a native app menu with a `Check for Updates...` action.
 - Help menu includes `Copy MCP Config` to copy a ready-to-paste Signboard MCP JSON snippet.
@@ -29,6 +30,7 @@ File: `main.js`
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` as a thin renderer bridge into main-process IPC.
 - Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
+- Owns explicit board import operations for Trello and Obsidian; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
 - In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
 - Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card management.
@@ -46,6 +48,7 @@ File: `preload.js`
 - `window.electronAPI` includes external-link opening and manual update checks.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
+- `window.chooser.pickImportSources(...)` returns tokenized external file/directory selections for import flows, and `window.board.importTrello(...)` / `window.board.importObsidian(...)` invoke the main-process importers.
 - Still exposes board watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`), but the watcher implementation now lives in `main.js`.
 
 ### Renderer
@@ -54,6 +57,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - UI is vanilla HTML/CSS/JS.
 - `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
 - `app/signboard.js` is concatenated from source modules by `buildjs.sh`.
+- Board Settings includes an `Import` section for Trello and Obsidian imports, with summary/warning rendering in the existing settings modal.
 
 ## Data Model and Naming Conventions
 
@@ -62,6 +66,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - Open board tabs are persisted in `localStorage.boardTabs` (`[{ root, name }]`).
 - Active board root is mirrored in `localStorage.boardPath` for backward compatibility.
 - `board-settings.md` is auto-created with default label definitions when missing.
+- Imports are additive only: they create new lists/cards in the current board and never modify external source files.
 
 ### List directories
 - Pattern: `NNN-<list-name>-<suffix>`
@@ -104,6 +109,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Manages board tabs (add/open/close/reorder + active tab persistence).
   - Sets `window.boardRoot` and renders only the active board.
   - Uses `Open Board` for the folder picker label.
+  - No longer performs any implicit Trello import during board open; imports are settings-driven only.
 
 ### Rendering board/lists/cards
 - `app/board/renderBoard.js`:
@@ -133,7 +139,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/board/boardLabels.js`:
   - Owns board label state in the renderer.
   - Renders board label filter dropdown (multi-select, OR matching).
-  - Handles card label popovers and board settings label editor.
+  - Handles card label popovers, board settings editors, and the Board Settings import UI/actions.
   - Persists board labels through preload APIs.
 - `app/board/boardSearch.js`:
   - Stores the current search query/tokens.
@@ -207,6 +213,16 @@ File: `lib/boardLabels.js`
 - Migrates legacy `labels.md` reads into `board-settings.md`.
 - Exposes OR-based label filtering helper logic.
 
+## Importers
+Files: `lib/importers/*`
+
+- `lib/importers/trello.js` imports Trello board JSON into Signboard lists/cards, preserving labels, checklists, comments, attachments, due dates, and archive routing for closed Trello content.
+- `lib/importers/obsidian.js` imports:
+  - markdown-backed `obsidian-kanban` boards
+  - generic task-based Obsidian markdown scopes
+  - CardBoard vault snapshots when `.obsidian/plugins/card-board/data.json` is available
+- `lib/importers/shared.js` owns list/card creation helpers, label reconciliation, import summaries, markdown metadata sections, and recursive markdown file discovery.
+
 ## Tooling, Build, and Test
 
 ### Run locally
@@ -242,6 +258,11 @@ File: `lib/boardLabels.js`
 ### Board label tests
 - `npm run test:board-labels`
 - Script: `scripts/test-board-labels.js`
+
+### Importer tests
+- `npm run test:import-trello`
+- `npm run test:import-obsidian`
+- Scripts: `scripts/test-import-trello.js`, `scripts/test-import-obsidian.js`
 
 ### MCP smoke test
 - `npm run test:mcp`

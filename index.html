@@ -213,6 +213,7 @@
         <button id="boardSettingsNavLabels" type="button" class="board-settings-nav-button" data-settings-panel="labels">Labels</button>
         <button id="boardSettingsNavColors" type="button" class="board-settings-nav-button" data-settings-panel="colors">Colors</button>
         <button id="boardSettingsNavNotifications" type="button" class="board-settings-nav-button" data-settings-panel="notifications">Notifications</button>
+        <button id="boardSettingsNavImport" type="button" class="board-settings-nav-button" data-settings-panel="import">Import</button>
       </nav>
       <div class="board-settings-panels">
         <section id="boardSettingsPanelGeneral" class="boardSettingsSection board-settings-panel is-active" data-settings-panel="general">
@@ -296,6 +297,30 @@
           <div class="board-theme-settings-actions">
             <button id="btnApplyNotificationsToOpenBoards" type="button" title="Apply notification settings to all open boards">Apply to all Open Boards</button>
           </div>
+        </section>
+
+        <section id="boardSettingsPanelImport" class="boardSettingsSection board-settings-panel" data-settings-panel="import">
+          <h3>Import</h3>
+          <p class="boardSettingsHint"><strong>Note: This feature is in rapid improvement.</strong> Import data from other apps into this board. Signboard copies data in and leaves your source files where they are.</p>
+
+          <div class="board-import-option">
+            <h4>Trello</h4>
+            <p class="boardSettingsHint">Export from Trello by opening the board menu, choosing Print > Export > Share, and then exporting the board as a JSON file.</p>
+            <div class="board-settings-inline-actions board-settings-inline-actions-right">
+              <button id="btnImportBoardFromTrello" type="button" title="Import from Trello">Import from Trello</button>
+            </div>
+          </div>
+
+          <div class="board-import-option">
+            <h4>Obsidian</h4>
+            <p class="boardSettingsHint">Choose one markdown file, several markdown files, or an entire Obsidian folder. Signboard will try to preserve lists, cards, order, dates, labels, and extra metadata.</p>
+            <div class="board-settings-inline-actions board-settings-inline-actions-right">
+              <button id="btnImportBoardFromObsidian" type="button" title="Import from Obsidian">Import from Obsidian</button>
+            </div>
+          </div>
+
+          <div id="boardSettingsImportStatus" class="board-import-status hidden" aria-live="polite"></div>
+          <div id="boardSettingsImportWarnings" class="board-import-warnings hidden"></div>
         </section>
       </div>
     </div>

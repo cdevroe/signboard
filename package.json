@@ -33,6 +33,8 @@
     "test:board-views": "node scripts/test-board-views.js",
     "test:due-notifications": "node scripts/test-due-notifications.js",
     "test:task-list": "node scripts/test-task-list-parser.js",
+    "test:import-trello": "node scripts/test-import-trello.js",
+    "test:import-obsidian": "node scripts/test-import-obsidian.js",
     "test:timestamp": "node scripts/test-timestamp-format.js",
     "test:playwright": "npm run build:js && playwright test",
     "migrate:legacy-cards": "node scripts/migrate-legacy-cards.js",
