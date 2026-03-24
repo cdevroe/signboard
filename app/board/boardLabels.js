@@ -608,20 +608,15 @@ function getBoardLabelColor(label) {
 function createReadableLabelColors(baseColor, fallbackColor = '#3b82f6') {
   const normalizedBaseColor = normalizeHexColor(baseColor, normalizeHexColor(fallbackColor, '#3b82f6'));
   const palettes = getBoardThemePalettes();
-  const lightSurface = normalizeHexColor(
-    palettes && palettes.light ? palettes.light.surface : '',
-    DEFAULT_BOARD_THEME_PALETTES.light.surface,
-  );
   const darkSurface = normalizeHexColor(
     palettes && palettes.dark ? palettes.dark.surface : '',
     DEFAULT_BOARD_THEME_PALETTES.dark.surface,
   );
 
-  const lightAdjusted = ensureMinContrast(normalizedBaseColor, lightSurface, 4.5).color;
-  const darkAdjusted = ensureMinContrast(lightAdjusted, darkSurface, 4.5).color;
+  const darkAdjusted = ensureMinContrast(normalizedBaseColor, darkSurface, 4.5).color;
 
   return {
-    colorLight: lightAdjusted,
+    colorLight: normalizedBaseColor,
     colorDark: darkAdjusted,
   };
 }
@@ -1004,9 +999,11 @@ function createBoardSettingsLabelRow(label, index) {
   lightInput.value = label.colorLight;
   lightInput.className = 'board-settings-label-color';
   lightInput.title = 'Label color';
-  lightInput.addEventListener('input', (event) => {
+  const handleColorChange = (event) => {
     updateBoardLabel(index, 'colorLight', event.target.value);
-  });
+  };
+  lightInput.addEventListener('input', handleColorChange);
+  lightInput.addEventListener('change', handleColorChange);
 
   const deleteButton = document.createElement('button');
   deleteButton.type = 'button';

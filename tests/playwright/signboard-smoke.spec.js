@@ -257,6 +257,40 @@ test('persists the board tooltip toggle and suppresses tooltips when disabled', 
   }).toBe(false);
 });
 
+test('persists a label color change committed from the board settings picker', async ({ page }) => {
+  await page.locator('#openBoardSettings').click();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await page.locator('#boardSettingsNavLabels').click();
+
+  const labelColorInput = page.locator('#boardSettingsLabels input[type="color"]').first();
+  await expect(labelColorInput).toHaveValue('#fb923c');
+  const expectedDarkColor = await page.evaluate(() => {
+    return createReadableLabelColors('#0ea5e9', '#fb923c').colorDark;
+  });
+
+  await labelColorInput.evaluate((element) => {
+    element.value = '#0ea5e9';
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  await page.locator('#boardSettingsClose').click();
+  await expect(page.locator('#modalBoardSettings')).toBeHidden();
+
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      const settings = await window.board.readBoardSettings(window.boardRoot);
+      return settings.labels[0].colorLight;
+    });
+  }).toBe('#0ea5e9');
+
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      const settings = await window.board.readBoardSettings(window.boardRoot);
+      return settings.labels[0].colorDark;
+    });
+  }).toBe(expectedDarkColor);
+});
+
 test('shows import controls and renders an import summary from the Board Settings import panel', async ({ page }) => {
   await page.evaluate(() => {
     window.__signboardImportOverrides = {
