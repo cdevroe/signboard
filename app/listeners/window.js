@@ -102,6 +102,20 @@ function isKeyboardShortcutsShortcut(event) {
     return event.code === 'Slash' || key === '/';
 }
 
+function focusBoardSearchInput() {
+    const searchInput = document.getElementById('boardSearchInput');
+    if (!searchInput) {
+        return false;
+    }
+
+    searchInput.focus();
+    if (typeof searchInput.select === 'function') {
+        searchInput.select();
+    }
+
+    return true;
+}
+
 syncShortcutHelpModifierLabels();
 
 if (window.electronAPI && typeof window.electronAPI.onOpenKeyboardShortcuts === 'function') {
@@ -132,6 +146,14 @@ window.addEventListener('keydown', async (e) => {
 
         if (handleBoardViewShortcut(e)) {
             hideShortcutHelpModal();
+            return;
+        }
+
+        if (String(e.key || '').toLowerCase() === 'f' && !e.shiftKey && !e.altKey) {
+            if (focusBoardSearchInput()) {
+                e.preventDefault();
+                hideShortcutHelpModal();
+            }
             return;
         }
         
