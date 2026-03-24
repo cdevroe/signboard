@@ -82,6 +82,10 @@ signboard cards create --list "To do" --title "Ship release notes" --due 2026-03
 signboard cards edit --card ab123 --due none --move-to Doing
 signboard cards read --list Doing --card ab123
 
+# Imports
+signboard import trello --file ~/Downloads/trello-export.json
+signboard import obsidian --source ~/Vault/Kanban.md --source ~/Vault/Boards/
+
 # Or run through the packaged app executable
 /Applications/Signboard.app/Contents/MacOS/Signboard use /Path/to/Board
 /Applications/Signboard.app/Contents/MacOS/Signboard cards --due next:7
@@ -100,6 +104,11 @@ Interesting card listing filters:
 - `--search <query>`
 - `--sort list|due|title|updated`
 - `--json` for scripting output
+
+Import options:
+
+- `signboard import trello --file <export.json> [--board <path>] [--json]`
+- `signboard import obsidian --source <path> [--source <path> ...] [--board <path>] [--json]`
 
 ## ✅ Task List Items
 

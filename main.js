@@ -68,6 +68,16 @@ function getUserArgsFromProcessArgv(argv = process.argv) {
     return argv.slice(2);
   }
 
+  if (secondArg) {
+    try {
+      if (fs.statSync(secondArg).isDirectory()) {
+        return argv.slice(2);
+      }
+    } catch {
+      // Ignore values that are not filesystem paths.
+    }
+  }
+
   return argv.slice(1);
 }
 

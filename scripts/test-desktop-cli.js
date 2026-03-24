@@ -26,13 +26,50 @@ async function createFixtureBoard() {
   await cardFrontmatter.writeCard(path.join(todoList, '001-launch-plan-ab123.md'), {
     frontmatter: {
       title: 'Launch plan',
-      due: '2026-03-15',
+      due: daysFromTodayIso(3),
       labels: ['urgent'],
     },
-    body: 'Prepare launch notes\n- [ ] (due: 2026-03-12) Draft email',
+    body: `Prepare launch notes\n- [ ] (due: ${daysFromTodayIso(2)}) Draft email`,
   });
 
-  return { boardRoot };
+  return { root, boardRoot };
+}
+
+function daysFromTodayIso(daysAhead) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + Number(daysAhead || 0));
+  return date.toISOString().slice(0, 10);
+}
+
+async function createImportFixtures(root) {
+  const importsRoot = path.join(root, 'imports');
+  await fs.mkdir(importsRoot, { recursive: true });
+
+  const trelloPath = path.join(importsRoot, 'desktop-cli-trello.json');
+  await fs.writeFile(trelloPath, JSON.stringify({
+    name: 'Desktop CLI Import',
+    lists: [
+      { id: 'desktop-list-1', name: 'Desktop Imported', closed: false, pos: 1 },
+    ],
+    labels: [],
+    members: [],
+    checklists: [],
+    actions: [],
+    cards: [
+      {
+        id: 'desktop-card-1',
+        idList: 'desktop-list-1',
+        name: 'Desktop imported card',
+        desc: 'Imported through Electron CLI.',
+        closed: false,
+        pos: 1,
+        idLabels: [],
+      },
+    ],
+  }, null, 2), 'utf8');
+
+  return { trelloPath };
 }
 
 function runDesktopCli(args, env = {}) {
@@ -73,6 +110,7 @@ function runDesktopCliExpectFail(args, env = {}) {
 
 async function main() {
   const fixture = await createFixtureBoard();
+  const importFixtures = await createImportFixtures(fixture.root);
   const configDir = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-desktop-cli-config-'));
   const env = {
     SIGNBOARD_CLI_CONFIG_DIR: configDir,
@@ -106,6 +144,17 @@ async function main() {
   ], env);
   const settings = JSON.parse(settingsResult.stdout);
   assert.strictEqual(settings.tooltipsEnabled, false);
+
+  const importResult = runDesktopCli([
+    'import',
+    'trello',
+    '--file',
+    importFixtures.trelloPath,
+    '--json',
+  ], env);
+  const importSummary = JSON.parse(importResult.stdout);
+  assert.strictEqual(importSummary.importer, 'trello');
+  assert.strictEqual(importSummary.cardsCreated, 1);
 
   console.log('Desktop CLI tests passed.');
 }

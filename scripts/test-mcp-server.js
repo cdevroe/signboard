@@ -116,6 +116,56 @@ async function createFixtureBoard() {
     'utf8',
   );
 
+  const trelloImportPath = path.join(root, 'mcp-trello-import.json');
+  await fs.writeFile(
+    trelloImportPath,
+    JSON.stringify({
+      name: 'MCP Trello Import',
+      lists: [
+        { id: 'mcp-trello-list-1', name: 'Trello MCP', closed: false, pos: 1 },
+      ],
+      labels: [],
+      members: [],
+      checklists: [],
+      actions: [],
+      cards: [
+        {
+          id: 'mcp-trello-card-1',
+          idList: 'mcp-trello-list-1',
+          name: 'Imported via MCP',
+          desc: 'Created through signboard.import_trello.',
+          due: '2026-03-30',
+          closed: false,
+          pos: 1,
+          idLabels: [],
+        },
+      ],
+    }, null, 2),
+    'utf8',
+  );
+
+  const obsidianImportPath = path.join(root, 'mcp-obsidian-import.md');
+  await fs.writeFile(
+    obsidianImportPath,
+    [
+      '---',
+      'kanban-plugin: board',
+      '---',
+      '',
+      '## Inbox',
+      '- [ ] MCP draft @{2026-03-29} #MCP',
+      '',
+      '## Review',
+      '- [ ] MCP review',
+      '',
+      '%% kanban:settings',
+      '{"kanban-plugin":"board"}',
+      '%%',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+
   return {
     cleanupRoot: root,
     allowedRoot: root,
@@ -126,6 +176,8 @@ async function createFixtureBoard() {
     archiveList,
     templateCardFile,
     workingCardFile,
+    trelloImportPath,
+    obsidianImportPath,
   };
 }
 
@@ -261,6 +313,8 @@ async function runForTransport(transportMode, fixture) {
     'signboard.move_board',
     'signboard.read_board_settings',
     'signboard.update_board_settings',
+    'signboard.import_trello',
+    'signboard.import_obsidian',
   ];
 
   for (const toolName of requiredToolNames) {
@@ -471,6 +525,90 @@ async function runForTransport(transportMode, fixture) {
   }
   if (!thisWeekView || !/task due-date markers/i.test(String(thisWeekView.description || ''))) {
     throw new Error(`this-week view description missing task due markers (${transportMode}): ${JSON.stringify(thisWeekView)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 71,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.import_trello',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        sourcePath: fixture.trelloImportPath,
+      },
+    },
+  });
+
+  const trelloImportResponse = await waitForResponse(71);
+  if (trelloImportResponse.error) {
+    throw new Error(`import_trello failed (${transportMode}): ${JSON.stringify(trelloImportResponse.error)}`);
+  }
+
+  const trelloImportOutput = trelloImportResponse.result?.structuredContent || {};
+  if (trelloImportOutput.importer !== 'trello' || trelloImportOutput.listsCreated !== 1 || trelloImportOutput.cardsCreated !== 1) {
+    throw new Error(`import_trello summary mismatch (${transportMode}): ${JSON.stringify(trelloImportOutput)}`);
+  }
+
+  const boardEntriesAfterTrello = await fs.readdir(fixture.boardRoot, { withFileTypes: true });
+  const trelloImportedList = boardEntriesAfterTrello.find((entry) => entry.isDirectory() && /-Trello MCP-/.test(entry.name));
+  if (!trelloImportedList) {
+    throw new Error(`import_trello did not create the expected list (${transportMode}).`);
+  }
+
+  const trelloImportedCards = await fs.readdir(path.join(fixture.boardRoot, trelloImportedList.name));
+  if (trelloImportedCards.length !== 1) {
+    throw new Error(`import_trello created an unexpected card count (${transportMode}): ${JSON.stringify(trelloImportedCards)}`);
+  }
+
+  const trelloImportedCardBody = await fs.readFile(
+    path.join(fixture.boardRoot, trelloImportedList.name, trelloImportedCards[0]),
+    'utf8',
+  );
+  if (!trelloImportedCardBody.includes('title: Imported via MCP') || !trelloImportedCardBody.includes('due: 2026-03-30')) {
+    throw new Error(`import_trello card content mismatch (${transportMode}): ${trelloImportedCardBody}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 72,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.import_obsidian',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        sourcePaths: [fixture.obsidianImportPath],
+      },
+    },
+  });
+
+  const obsidianImportResponse = await waitForResponse(72);
+  if (obsidianImportResponse.error) {
+    throw new Error(`import_obsidian failed (${transportMode}): ${JSON.stringify(obsidianImportResponse.error)}`);
+  }
+
+  const obsidianImportOutput = obsidianImportResponse.result?.structuredContent || {};
+  if (obsidianImportOutput.importer !== 'obsidian' || obsidianImportOutput.listsCreated !== 2 || obsidianImportOutput.cardsCreated !== 2) {
+    throw new Error(`import_obsidian summary mismatch (${transportMode}): ${JSON.stringify(obsidianImportOutput)}`);
+  }
+
+  const boardEntriesAfterObsidian = await fs.readdir(fixture.boardRoot, { withFileTypes: true });
+  const obsidianImportedList = boardEntriesAfterObsidian.find((entry) => entry.isDirectory() && /-Inbox-/.test(entry.name));
+  if (!obsidianImportedList) {
+    throw new Error(`import_obsidian did not create the expected Inbox list (${transportMode}).`);
+  }
+
+  const obsidianImportedCards = await fs.readdir(path.join(fixture.boardRoot, obsidianImportedList.name));
+  if (obsidianImportedCards.length !== 1) {
+    throw new Error(`import_obsidian created an unexpected Inbox card count (${transportMode}): ${JSON.stringify(obsidianImportedCards)}`);
+  }
+
+  const obsidianImportedCardBody = await fs.readFile(
+    path.join(fixture.boardRoot, obsidianImportedList.name, obsidianImportedCards[0]),
+    'utf8',
+  );
+  if (!obsidianImportedCardBody.includes('title: MCP draft') || !obsidianImportedCardBody.includes('due: 2026-03-29')) {
+    throw new Error(`import_obsidian card content mismatch (${transportMode}): ${obsidianImportedCardBody}`);
   }
 
   send({

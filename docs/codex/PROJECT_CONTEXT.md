@@ -232,7 +232,10 @@ Files: `lib/importers/*`
 - `npm run cli -- <command>`
 - `node bin/signboard.js <command>`
 - `electron . <command>` routes through the desktop executable path used by packaged builds.
-- CLI board selection is stateful: `signboard use /path/to/board`, then `signboard lists`, `signboard cards`, or `signboard cards "List Name"`.
+- CLI board selection is stateful: `signboard use /path/to/board`, then `signboard lists`, `signboard cards`, `signboard settings`, or `signboard import ...`.
+- Import commands:
+  - `signboard import trello --file /absolute/or/relative/export.json [--board <path>] [--json]`
+  - `signboard import obsidian --source /path/to/file-or-dir [--source /another/path] [--board <path>] [--json]`
 
 ### Run MCP server locally
 - `npm run mcp:server`
@@ -247,7 +250,7 @@ Files: `lib/importers/*`
 ### CLI internals
 - `lib/cliBoard.js` owns CLI board/list/card filesystem operations.
 - `lib/taskList.js` exposes shared task parsing and due-date helpers for CLI filtering.
-- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable.
+- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including path-based Trello/Obsidian imports.
 - `lib/cliInstall.js` owns user-level CLI shim + shell profile installation.
 - `lib/cliState.js` persists the currently selected board for subsequent CLI commands.
 
@@ -267,17 +270,17 @@ Files: `lib/importers/*`
 ### MCP smoke test
 - `npm run test:mcp`
 - Script: `scripts/test-mcp-server.js`
-- Asserts card tool outputs include `taskSummary` + `taskDueDates`.
+- Asserts card tool outputs include `taskSummary` + `taskDueDates`, and verifies Trello/Obsidian import tools.
 
 ### CLI smoke test
 - `npm run test:cli`
 - Script: `scripts/test-cli.js`
-- Covers list creation/rename plus card create/edit/read/filter flows.
+- Covers list creation/rename, card create/edit/read/filter flows, and Trello/Obsidian imports.
 
 ### Desktop CLI smoke test
 - `npm run test:desktop-cli`
 - Script: `scripts/test-desktop-cli.js`
-- Verifies Electron executable CLI dispatch without opening the UI.
+- Verifies Electron executable CLI dispatch without opening the UI, including import command routing.
 
 ### CLI installer test
 - `npm run test:cli-install`

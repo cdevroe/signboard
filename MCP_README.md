@@ -23,6 +23,7 @@ By default, the server starts in read-only mode.
   - optional allowlist of board root parent directories
   - uses your OS path delimiter (`:` on macOS/Linux, `;` on Windows)
   - when set, `boardRoot` arguments must resolve inside one of these paths
+  - import tool `sourcePath` / `sourcePaths` arguments must also resolve inside one of these paths
 
 Example (macOS/Linux):
 
@@ -106,9 +107,12 @@ The server currently exposes these tools:
 - `signboard.move_board` (write mode only)
 - `signboard.read_board_settings`
 - `signboard.update_board_settings` (write mode only)
+- `signboard.import_trello` (write mode only)
+- `signboard.import_obsidian` (write mode only)
 
 Board-scoped tools take absolute `boardRoot` paths, `signboard.create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
 Board settings tools include labels, theme overrides, and notification preferences.
+Import tools also take absolute external source paths and honor `SIGNBOARD_MCP_ALLOWED_ROOTS` when it is configured.
 
 ## Task Metadata in Card Tool Responses
 
@@ -194,4 +198,5 @@ If `SIGNBOARD_MCP_ALLOWED_ROOTS` is not set, the resolver tool returns an error.
 - Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`).
 - `signboard.create_card` and `signboard.update_card` normalize literal `\n` / `\N` escape sequences in body input into real line breaks.
 - Board settings use Signboard's existing settings logic (`lib/boardLabels.js`).
+- Trello/Obsidian import tools reuse the same importer modules as the desktop app (`lib/importers/*`).
 - When the desktop app is open, external board edits (including MCP edits) are watched and auto-refreshed.
