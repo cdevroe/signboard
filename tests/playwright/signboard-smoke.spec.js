@@ -18,6 +18,18 @@ function getShortcut(shortcut) {
   return `${modifier}+${shortcut}`;
 }
 
+async function pathExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function seedBoardState(page, boardRoot) {
   const normalizedBoardRoot = normalizeBoardRoot(boardRoot);
 
@@ -98,14 +110,72 @@ test('keeps add modals hidden on startup', async ({ page }) => {
   await expect(page.locator('#modalAddList')).toBeHidden();
 });
 
-test('opens the list add-card modal from the inline plus button with visible spacing', async ({ page }) => {
-  await page.locator('.btnOpenAddCardModal').first().click();
+test('opens the list actions popover and routes Add new card through the existing modal', async ({ page }) => {
+  await page.locator('.list-actions-button').first().click();
 
+  await expect(page.locator('#listActionsPopover')).toBeVisible();
+  await expect(page.locator('#listActionsPopover')).toContainText('Add new card');
+  await expect(page.locator('#listActionsPopover')).toContainText('Archive cards in this list');
+  await expect(page.locator('#listActionsPopover')).toContainText('Archive this list');
+
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Add new card' }).click();
+
+  await expect(page.locator('#listActionsPopover')).toBeHidden();
   await expect(page.locator('#modalAddCard')).toBeVisible();
   await expect(page.locator('#hiddenListPath')).toHaveValue(/000-To-do-stock\/$/);
 
   const gap = await getVerticalGap(page.locator('#userInput'), page.locator('#btnAddCard'));
   expect(gap).toBeGreaterThanOrEqual(6);
+});
+
+test('archives all cards in a list from the list actions popover', async ({ page, boardRoot }) => {
+  await page.evaluate(() => {
+    window.__lastArchiveConfirmMessage = '';
+    window.confirm = (message) => {
+      window.__lastArchiveConfirmMessage = String(message || '');
+      return true;
+    };
+  });
+
+  await page.locator('.list-actions-button').first().click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Archive cards in this list' }).click();
+
+  await expect.poll(async () => {
+    return await page.evaluate(() => window.__lastArchiveConfirmMessage);
+  }).toContain('Archive all cards in "To-do"?');
+
+  await expect(page.locator('#listActionsPopover')).toBeHidden();
+  await expect(page.locator('.list').first().locator('.card')).toHaveCount(0);
+
+  await expect.poll(async () => {
+    const entries = await fs.readdir(path.join(boardRoot, '000-To-do-stock'));
+    return entries.filter((entry) => entry.endsWith('.md')).length;
+  }).toBe(0);
+
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, 'XXX-Archive', '000-plan-release-stock.md'));
+  }).toBe(true);
+});
+
+test('archives a whole list from the list actions popover', async ({ page, boardRoot }) => {
+  await page.locator('.list-actions-button').nth(1).click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Archive this list' }).click();
+
+  await expect(page.locator('#listActionsPopover')).toBeHidden();
+  await expect(page.locator('.list')).toHaveCount(2);
+  await expect(page.locator('.list').filter({ hasText: 'Doing' })).toHaveCount(0);
+
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, '001-Doing-stock'));
+  }).toBe(false);
+
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, 'XXX-Archive', '001-Doing-stock'));
+  }).toBe(true);
+
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, 'XXX-Archive', '001-Doing-stock', '000-polish-copy-stock.md'));
+  }).toBe(true);
 });
 
 test('opens the add-card-to-list modal from the keyboard shortcut with a styled dropdown', async ({ page }) => {

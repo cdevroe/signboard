@@ -983,21 +983,29 @@ body.board-empty main#board {
   color: var(--text);
 }
 
-/* Add-card button shown in list headers */
-.btnOpenAddCardModal {
+/* List actions button shown in list headers */
+.list-actions-button {
   background: var(--bg-card);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 6px 10px;
-  font-weight: 700;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   box-shadow: 0 1px 0 rgba(0,0,0,.02);
 }
-.btnOpenAddCardModal:hover {
+.list-actions-button svg {
+  width: 16px;
+  height: 16px;
+}
+.list-actions-button:hover {
   background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
 }
-.btnOpenAddCardModal:focus-visible {
+.list-actions-button:focus-visible {
   outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
 }
 
@@ -2205,6 +2213,15 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   z-index: 11000;
 }
 
+.list-actions-popover {
+  position: fixed;
+  z-index: 11010;
+  min-width: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .label-popover-row {
   display: flex;
   align-items: center;
@@ -2281,6 +2298,37 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .label-popover-clear {
   margin-top: 8px;
   width: 100%;
+}
+
+.list-actions-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.list-actions-option:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--bg-card) 86%, var(--border));
+}
+
+.list-actions-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.list-actions-option-destructive {
+  color: color-mix(in oklab, #dc2626 72%, var(--text));
+}
+
+.list-actions-option-destructive:hover:not(:disabled) {
+  background: color-mix(in oklab, #dc2626 12%, transparent);
 }
 
 #modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }

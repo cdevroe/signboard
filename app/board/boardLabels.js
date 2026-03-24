@@ -961,6 +961,9 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
 
   closeBoardLabelFilterPopover();
   closeCardLabelPopover();
+  if (typeof closeListActionsPopover === 'function') {
+    closeListActionsPopover();
+  }
 
   const menu = document.createElement('div');
   menu.className = 'label-popover card-label-popover';
@@ -1807,6 +1810,9 @@ function closeAllLabelPopovers() {
   if (typeof closeBoardViewPopover === 'function') {
     closeBoardViewPopover();
   }
+  if (typeof closeListActionsPopover === 'function') {
+    closeListActionsPopover();
+  }
 }
 
 function initializeBoardLabelControls() {
@@ -1842,6 +1848,9 @@ function initializeBoardLabelControls() {
       closeCardLabelPopover();
       if (typeof closeBoardViewPopover === 'function') {
         closeBoardViewPopover();
+      }
+      if (typeof closeListActionsPopover === 'function') {
+        closeListActionsPopover();
       }
       renderBoardLabelFilterPopover();
       const isHidden = filterPopover.classList.contains('hidden');

@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld('board', {
   updateBoardSettings: async (boardRoot, partialSettings) =>
     invokeBoard('updateBoardSettings', boardRoot, partialSettings),
   createCard: async (filePath, content) => invokeBoard('createCard', filePath, content),
+  archiveCard: async (filePath) => invokeBoard('archiveCard', filePath),
+  archiveList: async (listPath) => invokeBoard('archiveList', listPath),
   moveCard: async (src, dst) => invokeBoard('moveCard', src, dst),
   moveList: async (src, dst) => invokeBoard('moveList', src, dst),
   createList: async (listPath) => invokeBoard('createList', listPath),

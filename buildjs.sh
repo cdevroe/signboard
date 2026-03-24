@@ -14,6 +14,7 @@ cat \
   app/board/boardViews.js \
   app/cards/createCardElement.js \
   app/cards/processAddNewCard.js \
+  app/lists/listActionsPopover.js \
   app/lists/createListElement.js \
   app/cards/processAddNewList.js \
   app/listeners/window.js \

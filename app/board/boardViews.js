@@ -643,6 +643,9 @@ function toggleBoardViewPopover() {
   if (typeof closeCardLabelPopover === 'function') {
     closeCardLabelPopover();
   }
+  if (typeof closeListActionsPopover === 'function') {
+    closeListActionsPopover();
+  }
 
   renderBoardViewPopover();
   const isHidden = popover.classList.contains('hidden');

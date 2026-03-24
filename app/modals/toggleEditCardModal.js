@@ -888,9 +888,9 @@ async function toggleEditCardModal(cardPath, options = {}) {
     cardEditorArchiveLink.onclick = async (e) => {
         const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
-        await window.board.moveCard( cardEditorCardPath.value, window.boardRoot + 'XXX-Archive/' + window.board.getCardFileName(cardEditorCardPath.value));
         e.preventDefault();
         e.stopPropagation();
+        await window.board.archiveCard(cardEditorCardPath.value);
         await closeAllModals(createCloseAllModalsRequest());
 
         return;

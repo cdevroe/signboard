@@ -12,6 +12,7 @@ const fsPromises = fs.promises;
 const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
+const { archiveCard, archiveList } = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
 const { importTrello, importObsidian } = require('./lib/importers');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
@@ -1924,6 +1925,18 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       });
 
       return { ok: true };
+    }
+
+    case 'archiveCard': {
+      const filePath = requireWritablePath(event.sender, args[0]);
+      const senderState = getSenderBoardAccessState(event.sender);
+      return archiveCard(senderState.activeBoardRoot, filePath);
+    }
+
+    case 'archiveList': {
+      const listPath = requireWritablePath(event.sender, args[0]);
+      const senderState = getSenderBoardAccessState(event.sender);
+      return archiveList(senderState.activeBoardRoot, listPath);
     }
 
     case 'moveCard':
