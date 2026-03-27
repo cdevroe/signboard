@@ -1,6 +1,6 @@
 /*!
  * Signboard - A local-first Kanban app that writes Markdown
- * Copyright (c) 2025 Colin Devroe - cdevroe.com
+ * Copyright (c) 2025-2026 Colin Devroe - cdevroe.com
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
