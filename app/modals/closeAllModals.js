@@ -99,6 +99,9 @@ async function closeAllModals(e, options = {}){
     if (closeAllRequest && typeof closeAllLabelPopovers === 'function') {
         closeAllLabelPopovers();
     }
+    if (closeAllRequest && typeof closeListActionsPopover === 'function') {
+        closeListActionsPopover();
+    }
 
     if ( closeAllRequest ) {
         if ( isVisibleModal(modalAddCard) ) {

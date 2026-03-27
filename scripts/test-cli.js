@@ -46,6 +46,13 @@ function runCliExpectFail(args, env, options = {}) {
   return result;
 }
 
+function daysFromTodayIso(daysAhead) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + Number(daysAhead || 0));
+  return date.toISOString().slice(0, 10);
+}
+
 async function createFixtureBoard() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-cli-'));
   const boardRoot = path.join(root, 'Client Work');
@@ -68,10 +75,10 @@ async function createFixtureBoard() {
   await cardFrontmatter.writeCard(path.join(todoList, '001-launch-plan-ab123.md'), {
     frontmatter: {
       title: 'Launch plan',
-      due: '2026-03-15',
+      due: daysFromTodayIso(3),
       labels: ['urgent'],
     },
-    body: 'Prepare launch notes\n- [ ] (due: 2026-03-12) Draft email',
+    body: `Prepare launch notes\n- [ ] (due: ${daysFromTodayIso(2)}) Draft email`,
   });
 
   await cardFrontmatter.writeCard(path.join(todoList, '002-client-follow-up-cd456.md'), {
@@ -79,7 +86,7 @@ async function createFixtureBoard() {
       title: 'Client follow up',
       labels: ['client'],
     },
-    body: 'Follow up with client\n- [ ] (due: 2026-03-18) Schedule check-in',
+    body: `Follow up with client\n- [ ] (due: ${daysFromTodayIso(5)}) Schedule check-in`,
   });
 
   await cardFrontmatter.writeCard(path.join(doingList, '001-internal-review-ef789.md'), {
@@ -92,8 +99,85 @@ async function createFixtureBoard() {
   return { root, boardRoot };
 }
 
+async function createImportFixtures(root) {
+  const importsRoot = path.join(root, 'imports');
+  await fs.mkdir(importsRoot, { recursive: true });
+
+  const trelloPath = path.join(importsRoot, 'trello-export.json');
+  await fs.writeFile(trelloPath, JSON.stringify({
+    name: 'Sales Pipeline',
+    lists: [
+      { id: 'trello-list-1', name: 'Trello Leads', closed: false, pos: 1 },
+    ],
+    labels: [
+      { id: 'trello-label-1', name: 'Pipeline', color: 'green' },
+    ],
+    members: [],
+    checklists: [
+      {
+        id: 'check-1',
+        idCard: 'trello-card-1',
+        name: 'Prep',
+        pos: 1,
+        checkItems: [
+          { id: 'check-item-1', name: 'Share outline', pos: 1, state: 'incomplete' },
+        ],
+      },
+    ],
+    actions: [
+      {
+        id: 'action-1',
+        type: 'commentCard',
+        date: '2026-03-20T12:00:00.000Z',
+        data: { idCard: 'trello-card-1' },
+        memberCreator: { fullName: 'Alex Example', username: 'alex' },
+        text: 'Remember the deck.',
+      },
+    ],
+    cards: [
+      {
+        id: 'trello-card-1',
+        idList: 'trello-list-1',
+        name: 'Imported pitch',
+        desc: 'Imported from Trello.',
+        due: '2026-03-22',
+        closed: false,
+        pos: 1,
+        idLabels: ['trello-label-1'],
+        attachments: [
+          { id: 'attachment-1', name: 'Brief', url: 'https://example.com/brief' },
+        ],
+      },
+    ],
+  }, null, 2), 'utf8');
+
+  const obsidianPath = path.join(importsRoot, 'editorial-kanban.md');
+  await fs.writeFile(obsidianPath, [
+    '---',
+    'kanban-plugin: board',
+    '---',
+    '',
+    '## Inbox',
+    '- [ ] Draft intro @{2026-03-24} #Writing',
+    '',
+    '## Done',
+    '- [x] Sent final #Done',
+    '',
+    '%% kanban:settings',
+    '{"kanban-plugin":"board"}',
+    '%%',
+    '',
+  ].join('\n'), 'utf8');
+
+  return {
+    trelloPath,
+    obsidianPath,
+  };
+}
+
 async function main() {
   const fixture = await createFixtureBoard();
+  const importFixtures = await createImportFixtures(fixture.root);
   const configDir = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-cli-config-'));
   const env = {
     SIGNBOARD_CLI_CONFIG_DIR: configDir,
@@ -231,6 +315,55 @@ async function main() {
     ], env).stdout
   );
   assert.strictEqual(doingCards[0].title, 'Needs approval');
+
+  const trelloImport = JSON.parse(
+    runCli([
+      'import',
+      'trello',
+      '--file',
+      importFixtures.trelloPath,
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(trelloImport.importer, 'trello');
+  assert.strictEqual(trelloImport.listsCreated, 1);
+  assert.strictEqual(trelloImport.cardsCreated, 1);
+
+  const trelloCards = JSON.parse(
+    runCli([
+      'cards',
+      '--search',
+      'Imported pitch',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(trelloCards.length, 1);
+  assert.strictEqual(trelloCards[0].due, '2026-03-22');
+
+  const obsidianImport = JSON.parse(
+    runCli([
+      'import',
+      'obsidian',
+      '--source',
+      importFixtures.obsidianPath,
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(obsidianImport.importer, 'obsidian');
+  assert.strictEqual(obsidianImport.listsCreated, 2);
+  assert.strictEqual(obsidianImport.cardsCreated, 2);
+
+  const obsidianCards = JSON.parse(
+    runCli([
+      'cards',
+      '--search',
+      'Draft intro',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(obsidianCards.length, 1);
+  assert.strictEqual(obsidianCards[0].due, '2026-03-24');
+  assert.ok(obsidianCards[0].labelNames.includes('Writing'));
 
   console.log('CLI tests passed.');
 }

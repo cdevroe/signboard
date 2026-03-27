@@ -24,7 +24,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/santizeFileName.js` - Filename sanitization + random suffix helper.
 - `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and task due markers.
-- `app/board/boardLabels.js` - Board-label state, toolbar filter UI, card label popovers, and board settings label editor.
+- `app/board/boardLabels.js` - Board-label state, toolbar filter UI, card label popovers, board settings editor, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
 - `app/board/boardViews.js` - Board view state, `Views` menu wiring, Calendar + This Week rendering/navigation/drag-to-reschedule logic, temporal card placement by card due/task due markers, and source-list labels on temporal cards.
 - `app/cards/createCardElement.js` - Card DOM rendering, task progress badge display, and click behavior.
@@ -47,7 +47,12 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support.
 - `lib/boardLabels.js` - Board-level label settings read/write/defaults/filter helpers (`board-settings.md`).
-- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings operations, safe board creation, and task-summary metadata on card tools.
+- `lib/importers/index.js` - Export surface for board importers.
+- `lib/importers/shared.js` - Shared importer helpers for list/card creation, label reuse/creation, metadata section building, and markdown source discovery.
+- `lib/importers/trello.js` - Trello JSON importer.
+- `lib/importers/obsidian.js` - Obsidian importer covering `obsidian-kanban`, generic task scopes, and CardBoard snapshot imports.
+- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings operations, safe board creation, Trello/Obsidian imports, and task-summary metadata on card tools.
+- `lib/cliApp.js` - CLI command parsing/output for `use`, `lists`, `cards`, `settings`, and path-based `import` commands.
 
 ## Scripts (`scripts/`)
 
@@ -55,11 +60,15 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-board-labels.js` - Node assertions for board label settings defaults/migration/filter logic.
 - `scripts/test-board-card-metadata.js` - Board card metadata rendering assertions (due/labels/task badge behavior).
 - `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
+- `scripts/test-import-trello.js` - Trello importer assertions for order, label reuse, archive routing, and metadata preservation.
+- `scripts/test-import-obsidian.js` - Obsidian importer assertions for kanban/task/CardBoard cases, due conversion, and source-prefix naming.
 - `scripts/test-task-list-parser.js` - Task checklist parser assertions (`completed/total` and task due-date extraction).
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
 - `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux.
-- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including card task metadata assertions.
+- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including card task metadata assertions and import-tool coverage.
+- `scripts/test-cli.js` - Node CLI smoke test covering list/card flows plus Trello/Obsidian imports.
+- `scripts/test-desktop-cli.js` - Electron executable CLI dispatch smoke test, including import command routing.
 
 ## Static assets (`static/`)
 

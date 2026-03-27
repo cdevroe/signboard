@@ -1,6 +1,6 @@
 /*!
  * Signboard - A local-first Kanban app that writes Markdown
- * Copyright (c) 2025 Colin Devroe - cdevroe.com
+ * Copyright (c) 2025-2026 Colin Devroe - cdevroe.com
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
@@ -12,7 +12,9 @@ const fsPromises = fs.promises;
 const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
+const { archiveCard, archiveList } = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
+const { importTrello, importObsidian } = require('./lib/importers');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
 const { installCliForCurrentUser } = require('./lib/cliInstall');
@@ -64,6 +66,16 @@ function getUserArgsFromProcessArgv(argv = process.argv) {
   const secondArgBaseName = path.basename(secondArg).toLowerCase();
   if (secondArgBaseName === 'main.js') {
     return argv.slice(2);
+  }
+
+  if (secondArg) {
+    try {
+      if (fs.statSync(secondArg).isDirectory()) {
+        return argv.slice(2);
+      }
+    } catch {
+      // Ignore values that are not filesystem paths.
+    }
   }
 
   return argv.slice(1);
@@ -450,9 +462,9 @@ function cleanupSenderBoardState(senderId) {
   pendingDirectorySelectionsBySender.delete(senderId);
 }
 
-function storePendingDirectorySelection(sender, directoryPath) {
-  const normalizedDirectory = normalizeAbsolutePath(directoryPath);
-  if (!normalizedDirectory) {
+function storePendingSelection(sender, targetPath, kind = 'path') {
+  const normalizedTargetPath = normalizeAbsolutePath(targetPath);
+  if (!normalizedTargetPath) {
     return '';
   }
 
@@ -467,14 +479,15 @@ function storePendingDirectorySelection(sender, directoryPath) {
   }
 
   selections.set(token, {
-    path: normalizedDirectory,
+    path: normalizedTargetPath,
+    kind,
     expiresAt: now + DIRECTORY_SELECTION_MAX_AGE_MS,
   });
 
   return token;
 }
 
-function consumePendingDirectorySelection(sender, token) {
+function consumePendingSelection(sender, token, expectedKinds = []) {
   const selectionToken = typeof token === 'string' ? token.trim() : '';
   if (!selectionToken) {
     return '';
@@ -488,7 +501,20 @@ function consumePendingDirectorySelection(sender, token) {
     return '';
   }
 
+  const allowedKinds = Array.isArray(expectedKinds) ? expectedKinds : [];
+  if (allowedKinds.length > 0 && !allowedKinds.includes(selection.kind)) {
+    return '';
+  }
+
   return normalizeAbsolutePath(selection.path);
+}
+
+function storePendingDirectorySelection(sender, directoryPath) {
+  return storePendingSelection(sender, directoryPath, 'directory');
+}
+
+function consumePendingDirectorySelection(sender, token) {
+  return consumePendingSelection(sender, token, ['directory']);
 }
 
 function resolveReadableBoardRoot(sender, boardRoot) {
@@ -1723,7 +1749,7 @@ function buildApplicationMenu() {
   });
 
   template.push({
-    role: 'help',
+    label: 'Help',
     submenu: [
       !isMac ? createAboutSignboardMenuItem() : null,
       !isMac ? createCheckForUpdatesMenuItem() : null,
@@ -1911,6 +1937,18 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       return { ok: true };
     }
 
+    case 'archiveCard': {
+      const filePath = requireWritablePath(event.sender, args[0]);
+      const senderState = getSenderBoardAccessState(event.sender);
+      return archiveCard(senderState.activeBoardRoot, filePath);
+    }
+
+    case 'archiveList': {
+      const listPath = requireWritablePath(event.sender, args[0]);
+      const senderState = getSenderBoardAccessState(event.sender);
+      return archiveList(senderState.activeBoardRoot, listPath);
+    }
+
     case 'moveCard':
     case 'moveList': {
       const sourcePath = requireWritablePath(event.sender, args[0]);
@@ -1950,64 +1988,34 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       return { ok: true };
     }
 
-    case 'importFromTrello': {
+    case 'importTrello': {
       const boardRoot = requireWritableBoardRoot(event.sender, args[0]);
-      const entries = await fsPromises.readdir(boardRoot, { withFileTypes: true });
-      if (entries.some((entry) => entry.isDirectory())) {
-        return { ok: true, imported: false };
+      const sourcePath = consumePendingSelection(event.sender, args[1], ['file']);
+      if (!sourcePath) {
+        throw new Error('INVALID_SELECTION_TOKEN');
       }
 
-      const jsonPath = path.join(boardRoot, 'trello.json');
-      try {
-        await fsPromises.access(jsonPath, fs.constants.F_OK);
-      } catch {
-        return { ok: true, imported: false };
+      return importTrello({
+        boardRoot,
+        sourcePath,
+      });
+    }
+
+    case 'importObsidian': {
+      const boardRoot = requireWritableBoardRoot(event.sender, args[0]);
+      const selectionTokens = Array.isArray(args[1]) ? args[1] : [];
+      const sourcePaths = selectionTokens
+        .map((token) => consumePendingSelection(event.sender, token, ['file', 'directory']))
+        .filter(Boolean);
+
+      if (sourcePaths.length === 0) {
+        throw new Error('INVALID_SELECTION_TOKEN');
       }
 
-      const raw = await fsPromises.readFile(jsonPath, 'utf8');
-      const data = JSON.parse(raw);
-      if (!Array.isArray(data.cards) || !Array.isArray(data.lists)) {
-        throw new Error('INVALID_TRELLO_EXPORT');
-      }
-
-      const listMap = {};
-      const cardsByList = {};
-
-      for (const list of data.lists) {
-        listMap[list.id] = list.name;
-      }
-
-      for (const card of data.cards) {
-        const listName = listMap[card.idList] || 'UnknownList';
-        if (!cardsByList[listName]) {
-          cardsByList[listName] = [];
-        }
-        cardsByList[listName].push(card);
-      }
-
-      let listCount = 0;
-      for (const [listName, cards] of Object.entries(cardsByList)) {
-        const listNumber = listCount.toString().padStart(3, '0');
-        const folder = path.join(boardRoot, `${listNumber}-${sanitizeImportedName(listName)}-trelo`);
-        await fsPromises.mkdir(folder, { recursive: true });
-        listCount += 1;
-
-        cards.sort((left, right) => (left.pos ?? 0) - (right.pos ?? 0));
-
-        for (const [index, card] of cards.entries()) {
-          const number = String(index + 1).padStart(3, '0');
-          const fileName = `${number}-${await sanitizeImportedCardFileName(card.name)}-${importedRandomSuffix()}.md`;
-          const filePath = path.join(folder, fileName);
-
-          await cardFrontmatter.writeCard(filePath, {
-            frontmatter: { title: escapeMarkdownTitle(card.name) },
-            body: card.desc || '',
-          });
-        }
-      }
-
-      await fsPromises.mkdir(path.join(boardRoot, 'XXX-Archive'), { recursive: true });
-      return { ok: true, imported: true };
+      return importObsidian({
+        boardRoot,
+        sourcePaths,
+      });
     }
 
     default:
@@ -2037,6 +2045,49 @@ ipcMain.handle('choose-directory', async (event, { defaultPath } = {}) => {
     path: selectedPath,
     token: storePendingDirectorySelection(event.sender, selectedPath),
   };
+});
+
+ipcMain.handle('pick-import-sources', async (event, { importer, defaultPath } = {}) => {
+  const normalizedImporter = importer === 'trello' ? 'trello' : 'obsidian';
+  const result = await dialog.showOpenDialog({
+    title: normalizedImporter === 'trello' ? 'Select Trello JSON export' : 'Select Obsidian files or folder',
+    buttonLabel: normalizedImporter === 'trello' ? 'Choose JSON' : 'Choose Sources',
+    defaultPath,
+    filters: normalizedImporter === 'trello'
+      ? [{ name: 'JSON', extensions: ['json'] }]
+      : [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+    properties: normalizedImporter === 'trello'
+      ? ['openFile']
+      : ['openFile', 'openDirectory', 'multiSelections'],
+  });
+
+  if (result.canceled) {
+    return null;
+  }
+
+  const selections = [];
+  for (const rawPath of result.filePaths || []) {
+    const selectedPath = normalizeAbsolutePath(rawPath);
+    if (!selectedPath) {
+      continue;
+    }
+
+    let stats = null;
+    try {
+      stats = await fsPromises.stat(selectedPath);
+    } catch {
+      continue;
+    }
+
+    const kind = stats.isDirectory() ? 'directory' : 'file';
+    selections.push({
+      path: selectedPath,
+      kind,
+      token: storePendingSelection(event.sender, selectedPath, kind),
+    });
+  }
+
+  return selections;
 });
 
 ipcMain.handle('share-file', async (event, filePath) => {

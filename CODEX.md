@@ -8,7 +8,7 @@ Start here before opening source files.
 - Tooltip UI is implemented in `app/ui/tooltips.js` and reads existing control labels (`title` / `aria-label` / `alt`) to keep tooltip copy centralized in markup.
 - App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`.
 - `main.js` also supports headless MCP mode via `--mcp-server` for local agent integration over stdio; implementation lives in `lib/mcpServer.js`.
-- Signboard MCP includes board-name resolution (`signboard.resolve_board_by_name`) and supports both header-framed + newline-delimited stdio JSON-RPC.
+- Signboard MCP includes board-name resolution (`signboard.resolve_board_by_name`), Trello/Obsidian import tools, and supports both header-framed + newline-delimited stdio JSON-RPC.
 - Main window stability guards are in `main.js` (`unresponsive` dialog + renderer crash recovery window recreate).
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
@@ -28,5 +28,9 @@ Start here before opening source files.
 - Skill UI metadata lives at `skills/signboard-mcp/agents/openai.yaml`.
 - Board tabs/session state live in renderer localStorage: `boardTabs` (open tab order) and `boardPath` (active board root fallback).
 - Board label definitions are managed in `board-settings.md` files inside each board folder (runtime data, not repo source).
+- Board Settings now includes an `Import` panel that launches explicit Trello/Obsidian imports into the current board; the renderer wiring lives in `app/board/boardLabels.js`, while the actual import filesystem work lives in `lib/importers/*` through `main.js` IPC.
+- External import pickers are tokenized in `main.js` and surfaced through `window.chooser.pickImportSources(...)`; renderer code never reads arbitrary external files directly.
+- Trello and Obsidian importer coverage lives in `scripts/test-import-trello.js` and `scripts/test-import-obsidian.js`.
+- The terminal CLI now exposes `signboard import trello --file ...` and `signboard import obsidian --source ...`; MCP mirrors that with `signboard.import_trello` and `signboard.import_obsidian`.
 - Skip heavy/generated content unless explicitly needed: `node_modules/`, `dist/`, `static/vendor/`, and usually `package-lock.json`.
 - Always update Codex markdown docs when behavior/architecture/tooling changes (`CODEX.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`).

@@ -30,34 +30,23 @@ async function createListElement(name, listPath, cardNames, options = {}) {
 
   listName.addEventListener('focusout', async (e) => { await renameList(e) });
 
-  const addBtn = document.createElement('button');
-  addBtn.textContent = '+';
-  addBtn.title = 'Add new card';
-  addBtn.setAttribute('data-listpath', listPath + '/');
-  addBtn.setAttribute('class','btnOpenAddCardModal');
-  addBtn.addEventListener('click', async function (e) {
+  const actionsBtn = document.createElement('button');
+  actionsBtn.type = 'button';
+  actionsBtn.className = 'list-actions-button';
+  actionsBtn.title = 'List actions';
+  actionsBtn.setAttribute('aria-label', 'List actions');
+  actionsBtn.innerHTML = '<i data-feather="more-horizontal"></i>';
+  actionsBtn.addEventListener('click', async function (e) {
     e.stopPropagation();
-    
-    toggleAddCardModal( e.x-90, e.y+15 );
-    const userInput = document.getElementById('userInput');
-    userInput.focus();
-
-    const hiddenListPath = document.getElementById('hiddenListPath');
-    hiddenListPath.value = this.dataset.listpath;
-    
-    const btnAddCard = document.getElementById('btnAddCard');
-    btnAddCard.onclick = async function (e) {
-      e.stopPropagation();
-        const userInput = document.getElementById('userInput');
-        const hiddenListPath = document.getElementById('hiddenListPath');
-
-        await processAddNewCard( userInput.value, hiddenListPath.value );
-        userInput.value = '';
-        hiddenListPath.value = '';
-    };
+    toggleListActionsPopover({
+      anchorElement: actionsBtn,
+      listPath,
+      listDisplayName: listName.textContent,
+      cardCount: cardNames.length,
+    });
   });
   header.appendChild(listName);
-  header.appendChild(addBtn);
+  header.appendChild(actionsBtn);
   listEl.appendChild(header);
 
   const cardsEl = document.createElement('div');

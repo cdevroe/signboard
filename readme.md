@@ -1,8 +1,8 @@
 # Signboard
 
-A local-first kanban desktop app built with HTML, CSS, and JavaScript. Signboard stores your lists as directories and cards as Markdown files on disk, so you own your data.
+A local-first kanban desktop app built with HTML, CSS, and JavaScript. Signboard stores your lists as directories and cards as Markdown files on disk.
 
-Signboard is free for personal use. If you are using Signboard for your work it would be appreciated if you purchase a commercial license to support future development. See the app's "support" area.
+Signboard is free for personal use. If you are using Signboard for your work it would be appreciated if you purchase a commercial license to support future development. See the app's "support" button.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](../../issues)
@@ -12,16 +12,18 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 ---
 
 ## ✨ Highlights
-- 📂 Cards saved as Markdown files (portable & future-proof)
-- 🖌️ Custom color scheme per board
-- 🏷 Per-card labels with light/dark colors
-- 📅 Due dates
+- ⬇️ Import from Trello and Obsidian
+- 📂 Cards saved as Markdown files
+- 🖌️ Color scheme per board (several to choose from!)
+- 🌙 Light and dark mode variants for all color schemes
+- 🏷 Custom labels per Board
+- 🗓 Card due dates and Task list item due dates
 - 📅 Calendar and "This Week" views
-- ✅ Task progress counters on cards (`completed/total`)
-- 🗓 Per-task due dates that feed Calendar and This Week views
-- 🔎 Live search across
-- 🖥 Runs as a desktop app
-- 🪶 Minimal dependencies 😅, just plain JavaScript + Electron
+- ✅ Progress counters on cards
+- 🔎 Live search
+- ⌨️ Keyboard shortcuts
+- 🤖 MCP Server
+- 💻 CLI
 
 ---
 
@@ -36,6 +38,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - `Cmd/Ctrl + N`: add card
 - `Cmd/Ctrl + Shift + N`: add list
 - `Cmd/Ctrl + 1`, `2`, `3`: switch board views
+- `Cmd/Ctrl + F`: focus search field
 - `Esc`: close open modals
 - In app: `Help` -> `Keyboard Shortcuts`
 
@@ -44,12 +47,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 Signboard includes a built-in MCP server so agents can interact with local boards.
 
 - Dedicated instructions: [MCP_README.md](./MCP_README.md)
-- Run from source: `npm run mcp:server`
-- Print ready-to-paste config JSON: `npm run mcp:config`
-- Run from packaged app: launch Signboard executable with `--mcp-server`
-- In app: `Help` -> `Copy MCP Config`
-- Board creation tool: `signboard.create_board`
-- Board-name lookup tool: `signboard.resolve_board_by_name`
+- To copy config: `Help` -> `Copy MCP Config`
 - Optional agent skill: `skills/signboard-mcp/SKILL.md`
 
 ## 💻 CLI
@@ -82,6 +80,10 @@ signboard cards create --list "To do" --title "Ship release notes" --due 2026-03
 signboard cards edit --card ab123 --due none --move-to Doing
 signboard cards read --list Doing --card ab123
 
+# Imports
+signboard import trello --file ~/Downloads/trello-export.json
+signboard import obsidian --source ~/Vault/Kanban.md --source ~/Vault/Boards/
+
 # Or run through the packaged app executable
 /Applications/Signboard.app/Contents/MacOS/Signboard use /Path/to/Board
 /Applications/Signboard.app/Contents/MacOS/Signboard cards --due next:7
@@ -100,6 +102,11 @@ Interesting card listing filters:
 - `--search <query>`
 - `--sort list|due|title|updated`
 - `--json` for scripting output
+
+Import options:
+
+- `signboard import trello --file <export.json> [--board <path>] [--json]`
+- `signboard import obsidian --source <path> [--source <path> ...] [--board <path>] [--json]`
 
 ## ✅ Task List Items
 
@@ -232,10 +239,8 @@ Contributions in all forms are welcome!
 
 Signboard now includes an in-app support modal with two options:
 
-- Personal use: free, with an optional tip in any amount.
+- Personal use: free, with an optional tip in any amount
 - Commercial use: requested one-time payment
-
-If you are using Signboard in a paid or commercial context, the app asks you to support development through that one-time payment. If you are using it for personal projects, you can keep using it for free and optionally leave a tip.
 
 ---
 

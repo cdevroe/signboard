@@ -315,6 +315,11 @@ async function renderBoard() {
   renderState.requestId = requestId;
   const boardRoot = window.boardRoot; // set in the drop-zone handler
 
+  closeCardLabelPopover();
+  if (typeof closeListActionsPopover === 'function') {
+    closeListActionsPopover();
+  }
+
   if (!boardRoot) {
     setBoardChromeState(false);
     renderBoardTabs();
@@ -322,7 +327,6 @@ async function renderBoard() {
     return;
   }
 
-  closeCardLabelPopover();
   setBoardChromeState(true);
 
   const boardEl = document.getElementById('board');

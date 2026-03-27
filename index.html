@@ -62,6 +62,8 @@
     </button>
   </main>
 
+  <div id="listActionsPopover" class="label-popover list-actions-popover hidden" aria-hidden="true"></div>
+
   <div id="modalAddList" class="modal hidden">
     <input id="userInputListName" type="text" placeholder="Backlog">
     <button id="btnAddList" title="Add list">Add List</button>
@@ -112,6 +114,15 @@
           <li>
             <span>This Week view</span>
             <kbd><span class="shortcut-key-modifier">⌘</span> + 3</kbd>
+          </li>
+        </ul>
+      </section>
+      <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-search">
+        <h3 id="keyboard-shortcuts-section-search">Search</h3>
+        <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Focus search</span>
+            <kbd><span class="shortcut-key-modifier">⌘</span> + F</kbd>
           </li>
         </ul>
       </section>
@@ -174,32 +185,33 @@
   <div id="modalCommercialLicense" class="modal commercial-license-modal hidden" role="dialog" aria-modal="true" aria-labelledby="commercialLicenseTitle" aria-hidden="true">
     <div class="commercial-license-header">
       <div>
-        <p class="commercial-license-eyebrow">Free for personal use</p>
+        <!-- <p class="commercial-license-eyebrow">Free for personal use</p> -->
         <h2 id="commercialLicenseTitle">Support Signboard when it supports your work</h2>
       </div>
       <button id="commercialLicenseClose" class="commercial-license-close" type="button" title="Close commercial use modal" aria-label="Close commercial use modal"><i data-feather="x"></i></button>
     </div>
     <div class="commercial-license-copy">
-      <p>Hi, I’m Colin. I want Signboard to stay open source and free for personal use.</p>
+      <p>Hi, I’m Colin. 👋</p>
+      <p>I want Signboard to stay open source and free for personal use.</p>
       <p>If you start using Signboard to manage work that earns you money, I’d really appreciate your support with a one-time commercial-use payment.</p>
     </div>
     <div class="commercial-license-card">
       <div class="commercial-license-card-copy">
         <p class="commercial-license-card-label">Commercial-use support</p>
         <p class="commercial-license-card-price"><span data-commercial-license-price>$49</span> one-time</p>
-        <p class="commercial-license-card-note">No subscription. Pay once and keep using Signboard for commercial work.</p>
+        <p class="commercial-license-card-note">No subscription. Pay once and keep using the <applet></applet> for commercial work.</p>
       </div>
       <button id="commercialLicensePayButton" class="commercial-license-pay-button" type="button">Pay $49</button>
     </div>
     <div class="commercial-license-tip">
       <div class="commercial-license-tip-copy">
-        <p class="commercial-license-tip-title">Using Signboard personally?</p>
-        <p class="commercial-license-tip-note">If it helps with your own projects and you want to support development, you can leave a tip in any amount.</p>
+        <p class="commercial-license-tip-title">Tips are appreciated</p>
+        <p class="commercial-license-tip-note">If you want to support development or just want to say thanks, you can leave a tip of any amount.</p>
       </div>
       <button id="commercialLicenseTipButton" class="commercial-license-tip-button" type="button">Leave a Tip</button>
     </div>
-    <p id="commercialLicensePaymentHelper" class="commercial-license-helper">Personal use stays free.</p>
-    <p class="commercial-license-signoff">Thanks for your support.<br>Colin</p>
+    <!-- <p id="commercialLicensePaymentHelper" class="commercial-license-helper">Personal use stays free.</p> -->
+    <!-- <p class="commercial-license-signoff">Thanks for your support.<br>Colin</p> -->
   </div>
 
   <div id="modalBoardSettings" class="modal hidden">
@@ -213,6 +225,7 @@
         <button id="boardSettingsNavLabels" type="button" class="board-settings-nav-button" data-settings-panel="labels">Labels</button>
         <button id="boardSettingsNavColors" type="button" class="board-settings-nav-button" data-settings-panel="colors">Colors</button>
         <button id="boardSettingsNavNotifications" type="button" class="board-settings-nav-button" data-settings-panel="notifications">Notifications</button>
+        <button id="boardSettingsNavImport" type="button" class="board-settings-nav-button" data-settings-panel="import">Import</button>
       </nav>
       <div class="board-settings-panels">
         <section id="boardSettingsPanelGeneral" class="boardSettingsSection board-settings-panel is-active" data-settings-panel="general">
@@ -253,26 +266,23 @@
         </section>
 
         <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" data-settings-panel="colors">
-          <h3>Colors</h3>
-          <p class="boardSettingsHint">Choose the board background color and the rest of the palette is chosen automatically for readability.</p>
+          <h3>Color Scheme</h3>
+          <p class="boardSettingsHint">Choose a color scheme for this board. Each scheme has a light and dark variant.</p>
+          <div class="board-color-scheme-selector">
+            <select id="boardColorSchemeSelect" aria-label="Color scheme"></select>
+          </div>
           <div class="board-theme-settings-grid">
             <div class="board-theme-settings-mode">
-              <h4>Light theme</h4>
-              <input id="boardThemeLightBackground" type="color" value="#f7f8fa">
-              <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
-              <button id="btnResetLightTheme" type="button" title="Reset light theme colors">Reset Light Theme</button>
+              <h4>Light</h4>
+              <div id="boardThemeLightPreview" class="board-theme-preview"></div>
             </div>
             <div class="board-theme-settings-mode">
-              <h4>Dark theme</h4>
-              <input id="boardThemeDarkBackground" type="color" value="#091102">
-              <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
-              <button id="btnResetDarkTheme" type="button" title="Reset dark theme colors">Reset Dark Theme</button>
+              <h4>Dark</h4>
+              <div id="boardThemeDarkPreview" class="board-theme-preview"></div>
             </div>
           </div>
-          <p id="boardThemeColorsWarning" class="boardSettingsHint board-theme-warning hidden"></p>
           <div class="board-theme-settings-actions">
-            <button id="btnResetAllThemeColors" type="button" title="Reset all theme colors">Reset All Theme Colors</button>
-            <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply theme colors to all open boards">Apply to all Open Boards</button>
+            <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply color scheme to all open boards">Apply to all Open Boards</button>
           </div>
         </section>
 
@@ -296,6 +306,30 @@
           <div class="board-theme-settings-actions">
             <button id="btnApplyNotificationsToOpenBoards" type="button" title="Apply notification settings to all open boards">Apply to all Open Boards</button>
           </div>
+        </section>
+
+        <section id="boardSettingsPanelImport" class="boardSettingsSection board-settings-panel" data-settings-panel="import">
+          <h3>Import</h3>
+          <p class="boardSettingsHint"><strong>Note: This feature is in rapid improvement.</strong> Import data from other apps into this board. Signboard copies data in and leaves your source files where they are.</p>
+
+          <div class="board-import-option">
+            <h4>Trello</h4>
+            <p class="boardSettingsHint">Export from Trello by opening the board menu, choosing Print > Export > Share, and then exporting the board as a JSON file.</p>
+            <div class="board-settings-inline-actions board-settings-inline-actions-right">
+              <button id="btnImportBoardFromTrello" type="button" title="Import from Trello">Import from Trello</button>
+            </div>
+          </div>
+
+          <div class="board-import-option">
+            <h4>Obsidian</h4>
+            <p class="boardSettingsHint">Choose one markdown file, several markdown files, or an entire Obsidian folder. Signboard will try to preserve lists, cards, order, dates, labels, and extra metadata.</p>
+            <div class="board-settings-inline-actions board-settings-inline-actions-right">
+              <button id="btnImportBoardFromObsidian" type="button" title="Import from Obsidian">Import from Obsidian</button>
+            </div>
+          </div>
+
+          <div id="boardSettingsImportStatus" class="board-import-status hidden" aria-live="polite"></div>
+          <div id="boardSettingsImportWarnings" class="board-import-warnings hidden"></div>
         </section>
       </div>
     </div>

@@ -61,11 +61,207 @@ const BOARD_THEME_STYLE_VAR_MAP = Object.freeze({
     shadowCard: '--sb-dark-shadow-card',
   }),
 });
+/* ──────────────────────────────────────────────────────────────────────────────
+ * COLOR SCHEMES
+ *
+ * Each scheme provides a full light AND dark palette so the light/dark toggle
+ * continues to work.  To tweak a scheme, edit the hex values below — every
+ * palette key maps directly to a CSS custom property via BOARD_THEME_STYLE_VAR_MAP.
+ *
+ * Palette keys:
+ *   boardBackground  – page / board background
+ *   surface          – card / elevated surface
+ *   text             – primary text
+ *   muted            – secondary / hint text
+ *   border           – borders & dividers
+ *   accent           – buttons, links, focus rings
+ *   accentText       – text rendered ON the accent color
+ *   shadow           – subtle drop shadow
+ *   shadowCard       – slightly stronger card shadow
+ * ────────────────────────────────────────────────────────────────────────── */
+const COLOR_SCHEMES = [
+  {
+    id: 'default',
+    name: 'Default',
+    light: {
+      boardBackground: '#f7f8fa',
+      surface:         '#ffffff',
+      text:            '#0f172a',
+      muted:           '#6b7280',
+      border:          '#e6e8ec',
+      accent:          '#0b5fff',
+      accentText:      '#ffffff',
+      shadow:          'rgba(15, 23, 42, .04)',
+      shadowCard:      'rgba(15, 23, 42, .06)',
+    },
+    dark: {
+      boardBackground: '#091102',
+      surface:         '#12200a',
+      text:            '#e8f0e5',
+      muted:           '#a0b3a3',
+      border:          '#1f2e17',
+      accent:          '#6fcf97',
+      accentText:      '#07130c',
+      shadow:          'rgba(0, 0, 0, 0.45)',
+      shadowCard:      'rgba(0, 0, 0, 0.55)',
+    },
+  },
+
+  /* ── Meadow  ─  palette #EAF7CF · #EBEFBF · #CEB5A7 · #92828D · #ADAABF ─ */
+  {
+    id: 'lavender',
+    name: 'Lavender',
+    light: {
+      boardBackground: '#f2f5ec',
+      surface:         '#fafbf7',
+      text:            '#2b2833',
+      muted:           '#706878',
+      border:          '#dddbd3',
+      accent:          '#7b6e8a',
+      accentText:      '#ffffff',
+      shadow:          'rgba(43, 40, 51, 0.05)',
+      shadowCard:      'rgba(43, 40, 51, 0.08)',
+    },
+    dark: {
+      boardBackground: '#1e1b24',
+      surface:         '#292631',
+      text:            '#e6eed5',
+      muted:           '#a29dae',
+      border:          '#3a3644',
+      accent:          '#c4bdd2',
+      accentText:      '#1e1b24',
+      shadow:          'rgba(0, 0, 0, 0.40)',
+      shadowCard:      'rgba(0, 0, 0, 0.50)',
+    },
+  },
+
+  /* ── Harvest  ─  palette #F9A03F · #F7D488 · #EAEFB1 · #E9F7CA · #CEB5A7 ─ */
+  {
+    id: 'harvest',
+    name: 'Harvest',
+    light: {
+      boardBackground: '#f6f2e8',
+      surface:         '#fcfaf4',
+      text:            '#33280f',
+      muted:           '#8a7b62',
+      border:          '#e5dece',
+      accent:          '#c4850a',
+      accentText:      '#ffffff',
+      shadow:          'rgba(51, 40, 15, 0.05)',
+      shadowCard:      'rgba(51, 40, 15, 0.08)',
+    },
+    dark: {
+      boardBackground: '#1c1709',
+      surface:         '#282012',
+      text:            '#f0eacd',
+      muted:           '#b5a67f',
+      border:          '#3b3220',
+      accent:          '#f9a03f',
+      accentText:      '#1c1709',
+      shadow:          'rgba(0, 0, 0, 0.40)',
+      shadowCard:      'rgba(0, 0, 0, 0.50)',
+    },
+  },
+
+  /* ── Olive  ─  palette #606C38 · #283618 · #FEFAE0 · #DDA15E · #BC6C25 ── */
+  {
+    id: 'olive',
+    name: 'Olive',
+    light: {
+      boardBackground: '#faf6dc',
+      surface:         '#fefcee',
+      text:            '#283618',
+      muted:           '#6b6543',
+      border:          '#e4ddb8',
+      accent:          '#5d6832',
+      accentText:      '#fefae0',
+      shadow:          'rgba(40, 54, 24, 0.06)',
+      shadowCard:      'rgba(40, 54, 24, 0.09)',
+    },
+    dark: {
+      boardBackground: '#161e0c',
+      surface:         '#212a14',
+      text:            '#f3efd2',
+      muted:           '#a39e72',
+      border:          '#303a1f',
+      accent:          '#dda15e',
+      accentText:      '#161e0c',
+      shadow:          'rgba(0, 0, 0, 0.45)',
+      shadowCard:      'rgba(0, 0, 0, 0.55)',
+    },
+  },
+
+  /* ── Evergreen  ─  palette #DAD7CD · #A3B18A · #588157 · #3A5A40 · #344E41 */
+  {
+    id: 'evergreen',
+    name: 'Evergreen',
+    light: {
+      boardBackground: '#e8e5dc',
+      surface:         '#f2f0ea',
+      text:            '#1e2f22',
+      muted:           '#5c6e5e',
+      border:          '#cbc7ba',
+      accent:          '#4e7550',
+      accentText:      '#ffffff',
+      shadow:          'rgba(30, 47, 34, 0.06)',
+      shadowCard:      'rgba(30, 47, 34, 0.09)',
+    },
+    dark: {
+      boardBackground: '#1a2620',
+      surface:         '#243029',
+      text:            '#dad7cd',
+      muted:           '#8da18a',
+      border:          '#2f3e34',
+      accent:          '#a3b18a',
+      accentText:      '#1a2620',
+      shadow:          'rgba(0, 0, 0, 0.45)',
+      shadowCard:      'rgba(0, 0, 0, 0.55)',
+    },
+  },
+
+  /* ── Rosewood  ─  palette #EDAFB8 · #F7E1D7 · #DEDBD2 · #B0C4B1 · #4A5759 */
+  {
+    id: 'rosewood',
+    name: 'Rosewood',
+    light: {
+      boardBackground: '#f3ece6',
+      surface:         '#faf7f4',
+      text:            '#2e3435',
+      muted:           '#6d7879',
+      border:          '#ddd7cf',
+      accent:          '#b5707c',
+      accentText:      '#ffffff',
+      shadow:          'rgba(46, 52, 53, 0.05)',
+      shadowCard:      'rgba(46, 52, 53, 0.08)',
+    },
+    dark: {
+      boardBackground: '#1e2526',
+      surface:         '#292f30',
+      text:            '#f0e4da',
+      muted:           '#97a69a',
+      border:          '#383f40',
+      accent:          '#edafb8',
+      accentText:      '#1e2526',
+      shadow:          'rgba(0, 0, 0, 0.40)',
+      shadowCard:      'rgba(0, 0, 0, 0.50)',
+    },
+  },
+];
+
+function getColorSchemeById(id) {
+  return COLOR_SCHEMES.find((scheme) => scheme.id === id) || null;
+}
+
+function getDefaultColorScheme() {
+  return COLOR_SCHEMES[0];
+}
+
 const DEFAULT_BOARD_NOTIFICATION_SETTINGS = Object.freeze({
   enabled: false,
   time: '09:00',
 });
 const DEFAULT_BOARD_TOOLTIPS_ENABLED = true;
+const BOARD_IMPORT_TEST_OVERRIDE_KEY = '__signboardImportOverrides';
 
 function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -422,6 +618,7 @@ function getBoardLabelState() {
       filterIds: [],
       hasDueDateFilter: false,
       activeCardLabelPopover: null,
+      colorScheme: '',
       themeOverrides: { light: {}, dark: {} },
       themePalettes: {
         light: { ...DEFAULT_BOARD_THEME_PALETTES.light },
@@ -430,6 +627,9 @@ function getBoardLabelState() {
       notificationSettings: { ...DEFAULT_BOARD_NOTIFICATION_SETTINGS },
       tooltipsEnabled: DEFAULT_BOARD_TOOLTIPS_ENABLED,
       activeSettingsPanel: 'general',
+      importInProgress: '',
+      importSummary: null,
+      importSummaryBoardRoot: '',
       settingsSaveTimer: null,
       settingsSaveInFlight: Promise.resolve(),
     };
@@ -461,6 +661,15 @@ function getBoardLabelById(labelId) {
 
 function getBoardThemeMode() {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+
+function getBoardColorScheme() {
+  return getBoardLabelState().colorScheme || '';
+}
+
+function setBoardColorScheme(schemeId) {
+  const state = getBoardLabelState();
+  state.colorScheme = typeof schemeId === 'string' ? schemeId : '';
 }
 
 function getBoardThemeOverrides() {
@@ -504,32 +713,7 @@ function getBoardThemePalettes() {
   };
 }
 
-function getBoardThemeOverrideBackground(themeMode) {
-  const overrides = getBoardThemeOverrides();
-  const modeOverrides = overrides[themeMode] || {};
-  return normalizeHexColor(modeOverrides.boardBackground, '');
-}
 
-function getEffectiveBoardThemeBackground(themeMode) {
-  const override = getBoardThemeOverrideBackground(themeMode);
-  return override || DEFAULT_BOARD_THEME_BACKGROUNDS[themeMode];
-}
-
-function createThemeWarningMessage(themeMode, palette) {
-  if (!palette) {
-    return '';
-  }
-
-  if (palette.textContrastRatio < 4.5) {
-    return `${themeMode === 'dark' ? 'Dark' : 'Light'} theme was adjusted to keep text readable.`;
-  }
-
-  if (palette.adjustedForReadability) {
-    return `${themeMode === 'dark' ? 'Dark' : 'Light'} theme colors were auto-adjusted for readability.`;
-  }
-
-  return '';
-}
 
 function applyThemePaletteVariables(themeMode, palette) {
   const modeMap = BOARD_THEME_STYLE_VAR_MAP[themeMode];
@@ -547,6 +731,30 @@ function applyThemePaletteVariables(themeMode, palette) {
   rootStyle.setProperty(modeMap.accentText, palette.accentText || '#ffffff');
   rootStyle.setProperty(modeMap.shadow, palette.shadow);
   rootStyle.setProperty(modeMap.shadowCard, palette.shadowCard);
+}
+
+function applyColorSchemeById(schemeId, options = {}) {
+  const state = getBoardLabelState();
+  const scheme = getColorSchemeById(schemeId) || getDefaultColorScheme();
+  setBoardColorScheme(scheme.id);
+
+  // Clear legacy overrides when using a curated scheme
+  setBoardThemeOverrides({ light: {}, dark: {} });
+
+  const lightPalette = { ...scheme.light };
+  const darkPalette = { ...scheme.dark };
+  state.themePalettes = { light: lightPalette, dark: darkPalette };
+
+  applyThemePaletteVariables('light', lightPalette);
+  applyThemePaletteVariables('dark', darkPalette);
+
+  if (typeof setCustomOverTypeThemesFromBoardPalettes === 'function') {
+    setCustomOverTypeThemesFromBoardPalettes(state.themePalettes);
+  }
+
+  if (options.renderControls !== false) {
+    renderBoardThemeSettingsControls();
+  }
 }
 
 function applyDerivedBoardThemes(themeOverrides, options = {}) {
@@ -604,20 +812,15 @@ function getBoardLabelColor(label) {
 function createReadableLabelColors(baseColor, fallbackColor = '#3b82f6') {
   const normalizedBaseColor = normalizeHexColor(baseColor, normalizeHexColor(fallbackColor, '#3b82f6'));
   const palettes = getBoardThemePalettes();
-  const lightSurface = normalizeHexColor(
-    palettes && palettes.light ? palettes.light.surface : '',
-    DEFAULT_BOARD_THEME_PALETTES.light.surface,
-  );
   const darkSurface = normalizeHexColor(
     palettes && palettes.dark ? palettes.dark.surface : '',
     DEFAULT_BOARD_THEME_PALETTES.dark.surface,
   );
 
-  const lightAdjusted = ensureMinContrast(normalizedBaseColor, lightSurface, 4.5).color;
-  const darkAdjusted = ensureMinContrast(lightAdjusted, darkSurface, 4.5).color;
+  const darkAdjusted = ensureMinContrast(normalizedBaseColor, darkSurface, 4.5).color;
 
   return {
-    colorLight: lightAdjusted,
+    colorLight: normalizedBaseColor,
     colorDark: darkAdjusted,
   };
 }
@@ -957,6 +1160,9 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
 
   closeBoardLabelFilterPopover();
   closeCardLabelPopover();
+  if (typeof closeListActionsPopover === 'function') {
+    closeListActionsPopover();
+  }
 
   const menu = document.createElement('div');
   menu.className = 'label-popover card-label-popover';
@@ -997,9 +1203,11 @@ function createBoardSettingsLabelRow(label, index) {
   lightInput.value = label.colorLight;
   lightInput.className = 'board-settings-label-color';
   lightInput.title = 'Label color';
-  lightInput.addEventListener('input', (event) => {
+  const handleColorChange = (event) => {
     updateBoardLabel(index, 'colorLight', event.target.value);
-  });
+  };
+  lightInput.addEventListener('input', handleColorChange);
+  lightInput.addEventListener('change', handleColorChange);
 
   const deleteButton = document.createElement('button');
   deleteButton.type = 'button';
@@ -1078,76 +1286,25 @@ function renderThemeModePreview(themeMode, palette) {
 }
 
 function renderBoardThemeSettingsControls() {
-  const lightInput = document.getElementById('boardThemeLightBackground');
-  const darkInput = document.getElementById('boardThemeDarkBackground');
-  const warning = document.getElementById('boardThemeColorsWarning');
+  const select = document.getElementById('boardColorSchemeSelect');
   const palettes = getBoardThemePalettes();
-  const overrides = getBoardThemeOverrides();
+  const activeSchemeId = getBoardColorScheme() || 'light';
 
-  if (lightInput) {
-    lightInput.value = getEffectiveBoardThemeBackground('light');
-  }
-
-  if (darkInput) {
-    darkInput.value = getEffectiveBoardThemeBackground('dark');
+  if (select) {
+    const hadOptions = select.options.length > 0;
+    if (!hadOptions) {
+      for (const scheme of COLOR_SCHEMES) {
+        const option = document.createElement('option');
+        option.value = scheme.id;
+        option.textContent = scheme.name;
+        select.appendChild(option);
+      }
+    }
+    select.value = activeSchemeId;
   }
 
   renderThemeModePreview('light', palettes.light);
   renderThemeModePreview('dark', palettes.dark);
-
-  if (warning) {
-    const messages = [
-      createThemeWarningMessage('light', palettes.light),
-      createThemeWarningMessage('dark', palettes.dark),
-    ].filter(Boolean);
-
-    if (messages.length === 0) {
-      warning.classList.add('hidden');
-      warning.textContent = '';
-    } else {
-      warning.classList.remove('hidden');
-      warning.textContent = messages.join(' ');
-    }
-  }
-
-  const resetAllButton = document.getElementById('btnResetAllThemeColors');
-  if (resetAllButton) {
-    resetAllButton.disabled = !hasThemeModeOverride(overrides.light) && !hasThemeModeOverride(overrides.dark);
-  }
-}
-
-function updateBoardThemeOverride(themeMode, boardBackground) {
-  const normalizedBackground = normalizeHexColor(boardBackground, '');
-  const current = getBoardThemeOverrides();
-  const next = {
-    light: { ...current.light },
-    dark: { ...current.dark },
-  };
-
-  if (!normalizedBackground || normalizedBackground === DEFAULT_BOARD_THEME_BACKGROUNDS[themeMode]) {
-    delete next[themeMode].boardBackground;
-  } else {
-    next[themeMode].boardBackground = normalizedBackground;
-  }
-
-  applyDerivedBoardThemes(next);
-  scheduleBoardSettingsSave();
-}
-
-function resetBoardThemeMode(themeMode) {
-  const current = getBoardThemeOverrides();
-  const next = {
-    light: { ...current.light },
-    dark: { ...current.dark },
-  };
-  delete next[themeMode].boardBackground;
-  applyDerivedBoardThemes(next);
-  scheduleBoardSettingsSave();
-}
-
-function resetAllBoardThemeOverrides() {
-  applyDerivedBoardThemes({ light: {}, dark: {} });
-  scheduleBoardSettingsSave();
 }
 
 async function applyThemeOverridesToOpenBoards() {
@@ -1166,6 +1323,7 @@ async function applyThemeOverridesToOpenBoards() {
     }
 
     await window.board.updateBoardSettings(boardPath, {
+      colorScheme: getBoardColorScheme(),
       themeOverrides: sourceOverrides,
     });
   }
@@ -1375,12 +1533,18 @@ function persistBoardSettings() {
 
       const result = await window.board.updateBoardSettings(window.boardRoot, {
         labels: getBoardLabels(),
+        colorScheme: getBoardColorScheme(),
         themeOverrides: getBoardThemeOverrides(),
         notifications: getBoardNotificationSettings(),
         tooltipsEnabled: getBoardTooltipsEnabled(),
       });
       setBoardLabels(result.labels || []);
-      applyDerivedBoardThemes(result.themeOverrides || {}, { renderControls: false });
+      const savedSchemeId = result.colorScheme || '';
+      if (savedSchemeId && getColorSchemeById(savedSchemeId)) {
+        applyColorSchemeById(savedSchemeId, { renderControls: false });
+      } else {
+        applyDerivedBoardThemes(result.themeOverrides || {}, { renderControls: false });
+      }
       setBoardNotificationSettings(result.notifications || DEFAULT_BOARD_NOTIFICATION_SETTINGS);
       setBoardTooltipsEnabled(result.tooltipsEnabled);
       if (!isBoardSettingsModalOpen()) {
@@ -1467,7 +1631,7 @@ function renderBoardSettingsPanelState() {
 }
 
 function setActiveBoardSettingsPanel(panelId) {
-  const normalizedPanelId = ['general', 'labels', 'colors', 'notifications'].includes(panelId)
+  const normalizedPanelId = ['general', 'labels', 'colors', 'notifications', 'import'].includes(panelId)
     ? panelId
     : 'general';
   const state = getBoardLabelState();
@@ -1505,6 +1669,167 @@ function renderNotificationSettingsControls() {
 
   if (notificationsTimeInput) {
     notificationsTimeInput.value = notifications.time;
+  }
+}
+
+function formatImportSummaryText(summary) {
+  if (!summary || typeof summary !== 'object') {
+    return '';
+  }
+
+  const sources = Array.isArray(summary.sources) ? summary.sources.length : 0;
+  const parts = [
+    `Imported ${sources === 1 ? '1 source' : `${sources} sources`}.`,
+    `${summary.listsCreated || 0} list${summary.listsCreated === 1 ? '' : 's'} created.`,
+    `${summary.cardsCreated || 0} card${summary.cardsCreated === 1 ? '' : 's'} created.`,
+  ];
+
+  if ((summary.labelsCreated || 0) > 0) {
+    parts.push(`${summary.labelsCreated} label${summary.labelsCreated === 1 ? '' : 's'} created.`);
+  }
+
+  if ((summary.archivedCards || 0) > 0) {
+    parts.push(`${summary.archivedCards} archived.`);
+  }
+
+  return parts.join(' ');
+}
+
+function getBoardImportOverrides() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const overrides = window[BOARD_IMPORT_TEST_OVERRIDE_KEY];
+  return overrides && typeof overrides === 'object' ? overrides : null;
+}
+
+function getBoardImportPicker() {
+  const overrides = getBoardImportOverrides();
+  if (overrides && typeof overrides.pickImportSources === 'function') {
+    return overrides.pickImportSources;
+  }
+
+  return window.chooser && typeof window.chooser.pickImportSources === 'function'
+    ? window.chooser.pickImportSources
+    : null;
+}
+
+function getBoardImportRunner(importer) {
+  const overrides = getBoardImportOverrides();
+  const overrideKey = importer === 'trello' ? 'importTrello' : 'importObsidian';
+  if (overrides && typeof overrides[overrideKey] === 'function') {
+    return overrides[overrideKey];
+  }
+
+  if (!window.board) {
+    return null;
+  }
+
+  const defaultRunner = importer === 'trello' ? window.board.importTrello : window.board.importObsidian;
+  return typeof defaultRunner === 'function' ? defaultRunner : null;
+}
+
+function renderBoardImportControls() {
+  const state = getBoardLabelState();
+  const trelloButton = document.getElementById('btnImportBoardFromTrello');
+  const obsidianButton = document.getElementById('btnImportBoardFromObsidian');
+  const status = document.getElementById('boardSettingsImportStatus');
+  const warnings = document.getElementById('boardSettingsImportWarnings');
+  const isBusy = Boolean(state.importInProgress);
+  const canImport = Boolean(window.boardRoot) && !isBusy;
+  const currentBoardRoot = normalizeBoardPath(window.boardRoot);
+  const summaryBoardRoot = normalizeBoardPath(state.importSummaryBoardRoot);
+  const hasVisibleSummary = Boolean(state.importSummary) && summaryBoardRoot === currentBoardRoot;
+
+  if (trelloButton) {
+    trelloButton.disabled = !canImport;
+    trelloButton.textContent = state.importInProgress === 'trello' ? 'Importing Trello' : 'Import from Trello';
+  }
+
+  if (obsidianButton) {
+    obsidianButton.disabled = !canImport;
+    obsidianButton.textContent = state.importInProgress === 'obsidian' ? 'Importing Obsidian' : 'Import from Obsidian';
+  }
+
+  if (status) {
+    status.classList.toggle('hidden', !hasVisibleSummary);
+    status.textContent = hasVisibleSummary ? formatImportSummaryText(state.importSummary) : '';
+  }
+
+  if (warnings) {
+    warnings.innerHTML = '';
+    const warningMessages = hasVisibleSummary && Array.isArray(state.importSummary.warnings)
+      ? state.importSummary.warnings
+      : [];
+
+    warnings.classList.toggle('hidden', warningMessages.length === 0);
+    for (const warningMessage of warningMessages) {
+      const message = document.createElement('p');
+      message.textContent = warningMessage;
+      warnings.appendChild(message);
+    }
+  }
+}
+
+async function runBoardImport(importer) {
+  const state = getBoardLabelState();
+  if (!window.boardRoot || state.importInProgress) {
+    return;
+  }
+
+  const pickImportSources = getBoardImportPicker();
+  const runImporter = getBoardImportRunner(importer);
+  if (!pickImportSources || !runImporter) {
+    return;
+  }
+
+  const boardInfo = getBoardRootInfo();
+  const defaultPath = boardInfo ? boardInfo.parentRoot.replace(/\/+$/, '') : undefined;
+
+  await flushBoardSettingsSave();
+  state.importInProgress = importer;
+  renderBoardImportControls();
+
+  let shouldRefreshBoard = false;
+
+  try {
+    const selections = await pickImportSources({ importer, defaultPath });
+    if (!Array.isArray(selections) || selections.length === 0) {
+      return;
+    }
+
+    let summary = null;
+    if (importer === 'trello') {
+      summary = await runImporter(window.boardRoot, selections[0].token);
+    } else {
+      summary = await runImporter(window.boardRoot, selections.map((selection) => selection.token));
+    }
+
+    state.importSummary = summary;
+    state.importSummaryBoardRoot = normalizeBoardPath(window.boardRoot);
+    shouldRefreshBoard = true;
+  } catch (error) {
+    console.error(`Unable to import from ${importer}.`, error);
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+      window.alert(`Unable to import from ${importer}.\n\n${String(error?.message || error || 'Unknown error')}`);
+    }
+  } finally {
+    state.importInProgress = '';
+    renderBoardImportControls();
+  }
+
+  if (shouldRefreshBoard) {
+    Promise.allSettled([
+      ensureBoardLabelsLoaded(),
+      renderBoard(),
+    ]).then((results) => {
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          console.error(`Unable to refresh the board after importing from ${importer}.`, result.reason);
+        }
+      }
+    });
   }
 }
 
@@ -1572,6 +1897,7 @@ function openBoardSettingsModal() {
   renderBoardThemeSettingsControls();
   renderBoardGeneralSettingsControls();
   renderNotificationSettingsControls();
+  renderBoardImportControls();
   setActiveBoardSettingsPanel('general');
   modal.style.display = 'block';
 
@@ -1607,8 +1933,10 @@ function resetBoardLabelFilter() {
 
 async function ensureBoardLabelsLoaded() {
   if (!window.boardRoot) {
+    const state = getBoardLabelState();
+    state.importSummaryBoardRoot = '';
     setBoardLabels([]);
-    applyDerivedBoardThemes({ light: {}, dark: {} }, { renderControls: false });
+    applyColorSchemeById('light', { renderControls: false });
     setBoardNotificationSettings(DEFAULT_BOARD_NOTIFICATION_SETTINGS);
     setBoardTooltipsEnabled(DEFAULT_BOARD_TOOLTIPS_ENABLED);
     renderBoardLabelFilterButton();
@@ -1616,12 +1944,18 @@ async function ensureBoardLabelsLoaded() {
     renderBoardThemeSettingsControls();
     renderBoardGeneralSettingsControls();
     renderNotificationSettingsControls();
+    renderBoardImportControls();
     return;
   }
 
   const settings = await window.board.readBoardSettings(window.boardRoot);
   setBoardLabels(settings.labels || []);
-  applyDerivedBoardThemes(settings.themeOverrides || {}, { renderControls: false });
+  const loadedSchemeId = settings.colorScheme || '';
+  if (loadedSchemeId && getColorSchemeById(loadedSchemeId)) {
+    applyColorSchemeById(loadedSchemeId, { renderControls: false });
+  } else {
+    applyDerivedBoardThemes(settings.themeOverrides || {}, { renderControls: false });
+  }
   setBoardNotificationSettings(settings.notifications || DEFAULT_BOARD_NOTIFICATION_SETTINGS);
   setBoardTooltipsEnabled(settings.tooltipsEnabled);
   renderBoardLabelFilterButton();
@@ -1629,6 +1963,7 @@ async function ensureBoardLabelsLoaded() {
   renderBoardThemeSettingsControls();
   renderBoardGeneralSettingsControls();
   renderNotificationSettingsControls();
+  renderBoardImportControls();
 }
 
 function closeAllLabelPopovers() {
@@ -1636,6 +1971,9 @@ function closeAllLabelPopovers() {
   closeCardLabelPopover();
   if (typeof closeBoardViewPopover === 'function') {
     closeBoardViewPopover();
+  }
+  if (typeof closeListActionsPopover === 'function') {
+    closeListActionsPopover();
   }
 }
 
@@ -1649,16 +1987,14 @@ function initializeBoardLabelControls() {
   const renameBoardInput = document.getElementById('boardSettingsBoardNameInput');
   const renameBoardButton = document.getElementById('btnRenameBoard');
   const moveBoardButton = document.getElementById('btnMoveBoard');
-  const lightThemeBackgroundInput = document.getElementById('boardThemeLightBackground');
-  const darkThemeBackgroundInput = document.getElementById('boardThemeDarkBackground');
-  const resetLightThemeButton = document.getElementById('btnResetLightTheme');
-  const resetDarkThemeButton = document.getElementById('btnResetDarkTheme');
-  const resetAllThemeButton = document.getElementById('btnResetAllThemeColors');
+  const colorSchemeSelect = document.getElementById('boardColorSchemeSelect');
   const applyThemeToOpenBoardsButton = document.getElementById('btnApplyThemeColorsToOpenBoards');
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
   const applyNotificationsToOpenBoardsButton = document.getElementById('btnApplyNotificationsToOpenBoards');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
+  const importFromTrelloButton = document.getElementById('btnImportBoardFromTrello');
+  const importFromObsidianButton = document.getElementById('btnImportBoardFromObsidian');
 
   if (filterButton) {
     filterButton.addEventListener('click', (event) => {
@@ -1670,6 +2006,9 @@ function initializeBoardLabelControls() {
       closeCardLabelPopover();
       if (typeof closeBoardViewPopover === 'function') {
         closeBoardViewPopover();
+      }
+      if (typeof closeListActionsPopover === 'function') {
+        closeListActionsPopover();
       }
       renderBoardLabelFilterPopover();
       const isHidden = filterPopover.classList.contains('hidden');
@@ -1805,39 +2144,11 @@ function initializeBoardLabelControls() {
     });
   }
 
-  if (lightThemeBackgroundInput) {
-    lightThemeBackgroundInput.addEventListener('input', (event) => {
-      updateBoardThemeOverride('light', event.target.value);
-    });
-  }
-
-  if (darkThemeBackgroundInput) {
-    darkThemeBackgroundInput.addEventListener('input', (event) => {
-      updateBoardThemeOverride('dark', event.target.value);
-    });
-  }
-
-  if (resetLightThemeButton) {
-    resetLightThemeButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      resetBoardThemeMode('light');
-    });
-  }
-
-  if (resetDarkThemeButton) {
-    resetDarkThemeButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      resetBoardThemeMode('dark');
-    });
-  }
-
-  if (resetAllThemeButton) {
-    resetAllThemeButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      resetAllBoardThemeOverrides();
+  if (colorSchemeSelect) {
+    colorSchemeSelect.addEventListener('change', (event) => {
+      const schemeId = event.target.value;
+      applyColorSchemeById(schemeId);
+      scheduleBoardSettingsSave();
     });
   }
 
@@ -1889,5 +2200,22 @@ function initializeBoardLabelControls() {
     });
   }
 
+  if (importFromTrelloButton) {
+    importFromTrelloButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await runBoardImport('trello');
+    });
+  }
+
+  if (importFromObsidianButton) {
+    importFromObsidianButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await runBoardImport('obsidian');
+    });
+  }
+
   renderBoardSettingsPanelState();
+  renderBoardImportControls();
 }

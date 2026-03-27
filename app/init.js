@@ -694,11 +694,17 @@ async function init() {
         if (typeof closeBoardViewPopoverIfClickOutside === 'function') {
             closeBoardViewPopoverIfClickOutside(e.target);
         }
+        if (typeof closeListActionsPopoverIfClickOutside === 'function') {
+            closeListActionsPopoverIfClickOutside(e.target);
+        }
 
         await closeAllModals(e);
     });
     document.getElementById('btnAddNewList').addEventListener('click', async (e) => {
         e.stopPropagation();
+        if (typeof closeListActionsPopover === 'function') {
+            closeListActionsPopover();
+        }
         const listName = document.getElementById('userInputListName');
         toggleAddListModal( (window.innerWidth / 2)-200, (window.innerHeight / 2)-100 );
         listName.focus();

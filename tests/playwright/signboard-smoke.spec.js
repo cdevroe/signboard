@@ -18,6 +18,18 @@ function getShortcut(shortcut) {
   return `${modifier}+${shortcut}`;
 }
 
+async function pathExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function seedBoardState(page, boardRoot) {
   const normalizedBoardRoot = normalizeBoardRoot(boardRoot);
 
@@ -98,14 +110,72 @@ test('keeps add modals hidden on startup', async ({ page }) => {
   await expect(page.locator('#modalAddList')).toBeHidden();
 });
 
-test('opens the list add-card modal from the inline plus button with visible spacing', async ({ page }) => {
-  await page.locator('.btnOpenAddCardModal').first().click();
+test('opens the list actions popover and routes Add new card through the existing modal', async ({ page }) => {
+  await page.locator('.list-actions-button').first().click();
 
+  await expect(page.locator('#listActionsPopover')).toBeVisible();
+  await expect(page.locator('#listActionsPopover')).toContainText('Add new card');
+  await expect(page.locator('#listActionsPopover')).toContainText('Archive cards in this list');
+  await expect(page.locator('#listActionsPopover')).toContainText('Archive this list');
+
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Add new card' }).click();
+
+  await expect(page.locator('#listActionsPopover')).toBeHidden();
   await expect(page.locator('#modalAddCard')).toBeVisible();
   await expect(page.locator('#hiddenListPath')).toHaveValue(/000-To-do-stock\/$/);
 
   const gap = await getVerticalGap(page.locator('#userInput'), page.locator('#btnAddCard'));
   expect(gap).toBeGreaterThanOrEqual(6);
+});
+
+test('archives all cards in a list from the list actions popover', async ({ page, boardRoot }) => {
+  await page.evaluate(() => {
+    window.__lastArchiveConfirmMessage = '';
+    window.confirm = (message) => {
+      window.__lastArchiveConfirmMessage = String(message || '');
+      return true;
+    };
+  });
+
+  await page.locator('.list-actions-button').first().click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Archive cards in this list' }).click();
+
+  await expect.poll(async () => {
+    return await page.evaluate(() => window.__lastArchiveConfirmMessage);
+  }).toContain('Archive all cards in "To-do"?');
+
+  await expect(page.locator('#listActionsPopover')).toBeHidden();
+  await expect(page.locator('.list').first().locator('.card')).toHaveCount(0);
+
+  await expect.poll(async () => {
+    const entries = await fs.readdir(path.join(boardRoot, '000-To-do-stock'));
+    return entries.filter((entry) => entry.endsWith('.md')).length;
+  }).toBe(0);
+
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, 'XXX-Archive', '000-plan-release-stock.md'));
+  }).toBe(true);
+});
+
+test('archives a whole list from the list actions popover', async ({ page, boardRoot }) => {
+  await page.locator('.list-actions-button').nth(1).click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Archive this list' }).click();
+
+  await expect(page.locator('#listActionsPopover')).toBeHidden();
+  await expect(page.locator('.list')).toHaveCount(2);
+  await expect(page.locator('.list').filter({ hasText: 'Doing' })).toHaveCount(0);
+
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, '001-Doing-stock'));
+  }).toBe(false);
+
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, 'XXX-Archive', '001-Doing-stock'));
+  }).toBe(true);
+
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, 'XXX-Archive', '001-Doing-stock', '000-polish-copy-stock.md'));
+  }).toBe(true);
 });
 
 test('opens the add-card-to-list modal from the keyboard shortcut with a styled dropdown', async ({ page }) => {
@@ -185,4 +255,72 @@ test('persists the board tooltip toggle and suppresses tooltips when disabled', 
       return settings.tooltipsEnabled;
     });
   }).toBe(false);
+});
+
+test('persists a label color change committed from the board settings picker', async ({ page }) => {
+  await page.locator('#openBoardSettings').click();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await page.locator('#boardSettingsNavLabels').click();
+
+  const labelColorInput = page.locator('#boardSettingsLabels input[type="color"]').first();
+  await expect(labelColorInput).toHaveValue('#fb923c');
+  const expectedDarkColor = await page.evaluate(() => {
+    return createReadableLabelColors('#0ea5e9', '#fb923c').colorDark;
+  });
+
+  await labelColorInput.evaluate((element) => {
+    element.value = '#0ea5e9';
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  await page.locator('#boardSettingsClose').click();
+  await expect(page.locator('#modalBoardSettings')).toBeHidden();
+
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      const settings = await window.board.readBoardSettings(window.boardRoot);
+      return settings.labels[0].colorLight;
+    });
+  }).toBe('#0ea5e9');
+
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      const settings = await window.board.readBoardSettings(window.boardRoot);
+      return settings.labels[0].colorDark;
+    });
+  }).toBe(expectedDarkColor);
+});
+
+test('shows import controls and renders an import summary from the Board Settings import panel', async ({ page }) => {
+  await page.evaluate(() => {
+    window.__signboardImportOverrides = {
+      pickImportSources: async () => ([
+        { token: 'trello-token', path: '/tmp/example.json', kind: 'file' },
+      ]),
+      importTrello: async () => ({
+        ok: true,
+        importer: 'trello',
+        sources: ['/tmp/example.json'],
+        listsCreated: 2,
+        cardsCreated: 3,
+        labelsCreated: 1,
+        archivedCards: 1,
+        warnings: ['Imported comments may be incomplete.'],
+      }),
+    };
+  });
+
+  await page.locator('#openBoardSettings').click();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await page.locator('#boardSettingsNavImport').click();
+
+  await expect(page.locator('#boardSettingsPanelImport')).toBeVisible();
+  await expect(page.locator('#btnImportBoardFromTrello')).toBeVisible();
+  await expect(page.locator('#btnImportBoardFromObsidian')).toBeVisible();
+
+  await page.locator('#btnImportBoardFromTrello').click();
+
+  await expect(page.locator('#boardSettingsImportStatus')).toContainText('Imported 1 source.');
+  await expect(page.locator('#boardSettingsImportStatus')).toContainText('2 lists created.');
+  await expect(page.locator('#boardSettingsImportWarnings')).toContainText('Imported comments may be incomplete.');
 });
