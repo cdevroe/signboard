@@ -2033,6 +2033,22 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   height: 15px;
 }
 
+.board-color-scheme-selector {
+  margin-bottom: 12px;
+}
+
+.board-color-scheme-selector select {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: var(--font-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  cursor: pointer;
+  appearance: auto;
+}
+
 .board-theme-settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2051,28 +2067,6 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .board-theme-settings-mode h4 {
   margin: 0;
   font-size: var(--font-sm);
-}
-
-.board-theme-settings-mode label {
-  color: var(--muted);
-  font-size: var(--font-xs);
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-
-.board-theme-settings-mode input[type="color"] {
-  width: 100%;
-  height: 38px;
-  padding: 3px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.board-theme-picker-hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--font-xs);
 }
 
 .board-theme-preview {
@@ -2104,15 +2098,6 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   font-size: var(--font-xs);
   padding: 4px 8px;
   box-shadow: none;
-}
-
-.board-theme-warning {
-  margin-top: 10px;
-  color: #b45309;
-}
-
-:root[data-theme="dark"] .board-theme-warning {
-  color: #fbbf24;
 }
 
 .board-theme-settings-actions {

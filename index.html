@@ -185,32 +185,33 @@
   <div id="modalCommercialLicense" class="modal commercial-license-modal hidden" role="dialog" aria-modal="true" aria-labelledby="commercialLicenseTitle" aria-hidden="true">
     <div class="commercial-license-header">
       <div>
-        <p class="commercial-license-eyebrow">Free for personal use</p>
+        <!-- <p class="commercial-license-eyebrow">Free for personal use</p> -->
         <h2 id="commercialLicenseTitle">Support Signboard when it supports your work</h2>
       </div>
       <button id="commercialLicenseClose" class="commercial-license-close" type="button" title="Close commercial use modal" aria-label="Close commercial use modal"><i data-feather="x"></i></button>
     </div>
     <div class="commercial-license-copy">
-      <p>Hi, I’m Colin. I want Signboard to stay open source and free for personal use.</p>
+      <p>Hi, I’m Colin. 👋</p>
+      <p>I want Signboard to stay open source and free for personal use.</p>
       <p>If you start using Signboard to manage work that earns you money, I’d really appreciate your support with a one-time commercial-use payment.</p>
     </div>
     <div class="commercial-license-card">
       <div class="commercial-license-card-copy">
         <p class="commercial-license-card-label">Commercial-use support</p>
         <p class="commercial-license-card-price"><span data-commercial-license-price>$49</span> one-time</p>
-        <p class="commercial-license-card-note">No subscription. Pay once and keep using Signboard for commercial work.</p>
+        <p class="commercial-license-card-note">No subscription. Pay once and keep using the <applet></applet> for commercial work.</p>
       </div>
       <button id="commercialLicensePayButton" class="commercial-license-pay-button" type="button">Pay $49</button>
     </div>
     <div class="commercial-license-tip">
       <div class="commercial-license-tip-copy">
-        <p class="commercial-license-tip-title">Using Signboard personally?</p>
-        <p class="commercial-license-tip-note">If it helps with your own projects and you want to support development, you can leave a tip in any amount.</p>
+        <p class="commercial-license-tip-title">Tips are appreciated</p>
+        <p class="commercial-license-tip-note">If you want to support development or just want to say thanks, you can leave a tip of any amount.</p>
       </div>
       <button id="commercialLicenseTipButton" class="commercial-license-tip-button" type="button">Leave a Tip</button>
     </div>
-    <p id="commercialLicensePaymentHelper" class="commercial-license-helper">Personal use stays free.</p>
-    <p class="commercial-license-signoff">Thanks for your support.<br>Colin</p>
+    <!-- <p id="commercialLicensePaymentHelper" class="commercial-license-helper">Personal use stays free.</p> -->
+    <!-- <p class="commercial-license-signoff">Thanks for your support.<br>Colin</p> -->
   </div>
 
   <div id="modalBoardSettings" class="modal hidden">
@@ -265,26 +266,23 @@
         </section>
 
         <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" data-settings-panel="colors">
-          <h3>Colors</h3>
-          <p class="boardSettingsHint">Choose the board background color and the rest of the palette is chosen automatically for readability.</p>
+          <h3>Color Scheme</h3>
+          <p class="boardSettingsHint">Choose a color scheme for this board. Each scheme has a light and dark variant.</p>
+          <div class="board-color-scheme-selector">
+            <select id="boardColorSchemeSelect" aria-label="Color scheme"></select>
+          </div>
           <div class="board-theme-settings-grid">
             <div class="board-theme-settings-mode">
-              <h4>Light theme</h4>
-              <input id="boardThemeLightBackground" type="color" value="#f7f8fa">
-              <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
-              <button id="btnResetLightTheme" type="button" title="Reset light theme colors">Reset Light Theme</button>
+              <h4>Light</h4>
+              <div id="boardThemeLightPreview" class="board-theme-preview"></div>
             </div>
             <div class="board-theme-settings-mode">
-              <h4>Dark theme</h4>
-              <input id="boardThemeDarkBackground" type="color" value="#091102">
-              <p class="board-theme-picker-hint">Click swatch to pick a color.</p>
-              <button id="btnResetDarkTheme" type="button" title="Reset dark theme colors">Reset Dark Theme</button>
+              <h4>Dark</h4>
+              <div id="boardThemeDarkPreview" class="board-theme-preview"></div>
             </div>
           </div>
-          <p id="boardThemeColorsWarning" class="boardSettingsHint board-theme-warning hidden"></p>
           <div class="board-theme-settings-actions">
-            <button id="btnResetAllThemeColors" type="button" title="Reset all theme colors">Reset All Theme Colors</button>
-            <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply theme colors to all open boards">Apply to all Open Boards</button>
+            <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply color scheme to all open boards">Apply to all Open Boards</button>
           </div>
         </section>
 

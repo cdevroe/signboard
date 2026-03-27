@@ -1749,7 +1749,7 @@ function buildApplicationMenu() {
   });
 
   template.push({
-    role: 'help',
+    label: 'Help',
     submenu: [
       !isMac ? createAboutSignboardMenuItem() : null,
       !isMac ? createCheckForUpdatesMenuItem() : null,
