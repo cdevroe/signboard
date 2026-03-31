@@ -1717,7 +1717,11 @@ function getBoardImportPicker() {
 
 function getBoardImportRunner(importer) {
   const overrides = getBoardImportOverrides();
-  const overrideKey = importer === 'trello' ? 'importTrello' : 'importObsidian';
+  const overrideKey = importer === 'trello'
+    ? 'importTrello'
+    : importer === 'tasksmd'
+      ? 'importTasksMd'
+      : 'importObsidian';
   if (overrides && typeof overrides[overrideKey] === 'function') {
     return overrides[overrideKey];
   }
@@ -1726,7 +1730,11 @@ function getBoardImportRunner(importer) {
     return null;
   }
 
-  const defaultRunner = importer === 'trello' ? window.board.importTrello : window.board.importObsidian;
+  const defaultRunner = importer === 'trello'
+    ? window.board.importTrello
+    : importer === 'tasksmd'
+      ? window.board.importTasksMd
+      : window.board.importObsidian;
   return typeof defaultRunner === 'function' ? defaultRunner : null;
 }
 
@@ -1734,6 +1742,7 @@ function renderBoardImportControls() {
   const state = getBoardLabelState();
   const trelloButton = document.getElementById('btnImportBoardFromTrello');
   const obsidianButton = document.getElementById('btnImportBoardFromObsidian');
+  const tasksMdButton = document.getElementById('btnImportBoardFromTasksMd');
   const status = document.getElementById('boardSettingsImportStatus');
   const warnings = document.getElementById('boardSettingsImportWarnings');
   const isBusy = Boolean(state.importInProgress);
@@ -1750,6 +1759,11 @@ function renderBoardImportControls() {
   if (obsidianButton) {
     obsidianButton.disabled = !canImport;
     obsidianButton.textContent = state.importInProgress === 'obsidian' ? 'Importing Obsidian' : 'Import from Obsidian';
+  }
+
+  if (tasksMdButton) {
+    tasksMdButton.disabled = !canImport;
+    tasksMdButton.textContent = state.importInProgress === 'tasksmd' ? 'Importing Tasks.md' : 'Import from Tasks.md';
   }
 
   if (status) {
@@ -1802,6 +1816,8 @@ async function runBoardImport(importer) {
     let summary = null;
     if (importer === 'trello') {
       summary = await runImporter(window.boardRoot, selections[0].token);
+    } else if (importer === 'tasksmd') {
+      summary = await runImporter(window.boardRoot, selections.map((selection) => selection.token));
     } else {
       summary = await runImporter(window.boardRoot, selections.map((selection) => selection.token));
     }
@@ -1995,6 +2011,7 @@ function initializeBoardLabelControls() {
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
   const importFromTrelloButton = document.getElementById('btnImportBoardFromTrello');
   const importFromObsidianButton = document.getElementById('btnImportBoardFromObsidian');
+  const importFromTasksMdButton = document.getElementById('btnImportBoardFromTasksMd');
 
   if (filterButton) {
     filterButton.addEventListener('click', (event) => {
@@ -2213,6 +2230,14 @@ function initializeBoardLabelControls() {
       event.preventDefault();
       event.stopPropagation();
       await runBoardImport('obsidian');
+    });
+  }
+
+  if (importFromTasksMdButton) {
+    importFromTasksMdButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await runBoardImport('tasksmd');
     });
   }
 

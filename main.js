@@ -14,7 +14,7 @@ const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
 const { archiveCard, archiveList } = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
-const { importTrello, importObsidian } = require('./lib/importers');
+const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
 const { installCliForCurrentUser } = require('./lib/cliInstall');
@@ -2018,6 +2018,23 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       });
     }
 
+    case 'importTasksMd': {
+      const boardRoot = requireWritableBoardRoot(event.sender, args[0]);
+      const selectionTokens = Array.isArray(args[1]) ? args[1] : [];
+      const sourcePaths = selectionTokens
+        .map((token) => consumePendingSelection(event.sender, token, ['file', 'directory']))
+        .filter(Boolean);
+
+      if (sourcePaths.length === 0) {
+        throw new Error('INVALID_SELECTION_TOKEN');
+      }
+
+      return importTasksMd({
+        boardRoot,
+        sourcePaths,
+      });
+    }
+
     default:
       throw new Error(`UNKNOWN_BOARD_OPERATION:${operation}`);
   }
@@ -2048,17 +2065,34 @@ ipcMain.handle('choose-directory', async (event, { defaultPath } = {}) => {
 });
 
 ipcMain.handle('pick-import-sources', async (event, { importer, defaultPath } = {}) => {
-  const normalizedImporter = importer === 'trello' ? 'trello' : 'obsidian';
+  const normalizedImporter = importer === 'trello'
+    ? 'trello'
+    : importer === 'tasksmd'
+      ? 'tasksmd'
+      : 'obsidian';
+  const dialogOptions = normalizedImporter === 'trello'
+    ? {
+        title: 'Select Trello JSON export',
+        buttonLabel: 'Choose JSON',
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+        properties: ['openFile'],
+      }
+    : normalizedImporter === 'tasksmd'
+      ? {
+          title: 'Select Tasks.md project folder and optional config files',
+          buttonLabel: 'Choose Sources',
+          filters: [{ name: 'JSON', extensions: ['json'] }],
+          properties: ['openDirectory', 'openFile', 'multiSelections'],
+        }
+      : {
+          title: 'Select Obsidian files or folder',
+          buttonLabel: 'Choose Sources',
+          filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+          properties: ['openFile', 'openDirectory', 'multiSelections'],
+        };
   const result = await dialog.showOpenDialog({
-    title: normalizedImporter === 'trello' ? 'Select Trello JSON export' : 'Select Obsidian files or folder',
-    buttonLabel: normalizedImporter === 'trello' ? 'Choose JSON' : 'Choose Sources',
     defaultPath,
-    filters: normalizedImporter === 'trello'
-      ? [{ name: 'JSON', extensions: ['json'] }]
-      : [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
-    properties: normalizedImporter === 'trello'
-      ? ['openFile']
-      : ['openFile', 'openDirectory', 'multiSelections'],
+    ...dialogOptions,
   });
 
   if (result.canceled) {

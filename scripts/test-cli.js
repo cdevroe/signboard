@@ -169,9 +169,30 @@ async function createImportFixtures(root) {
     '',
   ].join('\n'), 'utf8');
 
+  const tasksRoot = path.join(importsRoot, 'tasks-workspace', 'tasks');
+  const configRoot = path.join(importsRoot, 'tasks-workspace', 'config');
+  const tasksProjectPath = path.join(tasksRoot, 'CLI Project');
+  await fs.mkdir(path.join(tasksProjectPath, 'Todo'), { recursive: true });
+  await fs.mkdir(configRoot, { recursive: true });
+
+  await fs.writeFile(path.join(tasksProjectPath, 'Todo', 'Tasks md card.md'), [
+    '[due:2026-03-26]',
+    '',
+    '[tag:CLI]',
+    '',
+    'Imported from Tasks.md.',
+  ].join('\n'), 'utf8');
+
+  await fs.writeFile(path.join(configRoot, 'tags.json'), JSON.stringify({
+    '/CLI Project': {
+      CLI: 'var(--color-alt-6)',
+    },
+  }, null, 2), 'utf8');
+
   return {
     trelloPath,
     obsidianPath,
+    tasksProjectPath,
   };
 }
 
@@ -364,6 +385,31 @@ async function main() {
   assert.strictEqual(obsidianCards.length, 1);
   assert.strictEqual(obsidianCards[0].due, '2026-03-24');
   assert.ok(obsidianCards[0].labelNames.includes('Writing'));
+
+  const tasksMdImport = JSON.parse(
+    runCli([
+      'import',
+      'tasksmd',
+      '--source',
+      importFixtures.tasksProjectPath,
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(tasksMdImport.importer, 'tasksmd');
+  assert.strictEqual(tasksMdImport.listsCreated, 1);
+  assert.strictEqual(tasksMdImport.cardsCreated, 1);
+
+  const tasksMdCards = JSON.parse(
+    runCli([
+      'cards',
+      '--search',
+      'Tasks md card',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(tasksMdCards.length, 1);
+  assert.strictEqual(tasksMdCards[0].due, '2026-03-26');
+  assert.ok(tasksMdCards[0].labelNames.includes('CLI'));
 
   console.log('CLI tests passed.');
 }

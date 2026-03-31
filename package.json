@@ -36,6 +36,7 @@
     "test:archive": "node scripts/test-archive.js",
     "test:import-trello": "node scripts/test-import-trello.js",
     "test:import-obsidian": "node scripts/test-import-obsidian.js",
+    "test:import-tasksmd": "node scripts/test-import-tasksmd.js",
     "test:timestamp": "node scripts/test-timestamp-format.js",
     "test:playwright": "npm run build:js && playwright test",
     "migrate:legacy-cards": "node scripts/migrate-legacy-cards.js",

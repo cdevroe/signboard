@@ -166,6 +166,36 @@ async function createFixtureBoard() {
     'utf8',
   );
 
+  const tasksWorkspaceRoot = path.join(root, 'mcp-tasksmd-workspace');
+  const tasksRoot = path.join(tasksWorkspaceRoot, 'tasks');
+  const configRoot = path.join(tasksWorkspaceRoot, 'config');
+  const tasksProjectPath = path.join(tasksRoot, 'MCP Tasks');
+  await fs.mkdir(path.join(tasksProjectPath, 'Tasks Inbox'), { recursive: true });
+  await fs.mkdir(configRoot, { recursive: true });
+
+  await fs.writeFile(
+    path.join(tasksProjectPath, 'Tasks Inbox', 'MCP Tasks Card.md'),
+    [
+      '[due:2026-03-28]',
+      '',
+      '[tag:MCP Tasks]',
+      '',
+      'Imported through signboard.import_tasksmd.',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+
+  await fs.writeFile(
+    path.join(configRoot, 'tags.json'),
+    JSON.stringify({
+      '/MCP Tasks': {
+        'MCP Tasks': 'var(--color-alt-2)',
+      },
+    }, null, 2),
+    'utf8',
+  );
+
   return {
     cleanupRoot: root,
     allowedRoot: root,
@@ -178,6 +208,7 @@ async function createFixtureBoard() {
     workingCardFile,
     trelloImportPath,
     obsidianImportPath,
+    tasksProjectPath,
   };
 }
 
@@ -315,6 +346,7 @@ async function runForTransport(transportMode, fixture) {
     'signboard.update_board_settings',
     'signboard.import_trello',
     'signboard.import_obsidian',
+    'signboard.import_tasksmd',
   ];
 
   for (const toolName of requiredToolNames) {
@@ -609,6 +641,44 @@ async function runForTransport(transportMode, fixture) {
   );
   if (!obsidianImportedCardBody.includes('title: MCP draft') || !obsidianImportedCardBody.includes('due: 2026-03-29')) {
     throw new Error(`import_obsidian card content mismatch (${transportMode}): ${obsidianImportedCardBody}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 73,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.import_tasksmd',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        sourcePath: fixture.tasksProjectPath,
+      },
+    },
+  });
+
+  const tasksMdImportResponse = await waitForResponse(73);
+  if (tasksMdImportResponse.error) {
+    throw new Error(`import_tasksmd failed (${transportMode}): ${JSON.stringify(tasksMdImportResponse.error)}`);
+  }
+
+  const tasksMdImportOutput = tasksMdImportResponse.result?.structuredContent || {};
+  if (tasksMdImportOutput.importer !== 'tasksmd' || tasksMdImportOutput.listsCreated !== 1 || tasksMdImportOutput.cardsCreated !== 1) {
+    throw new Error(`import_tasksmd summary mismatch (${transportMode}): ${JSON.stringify(tasksMdImportOutput)}`);
+  }
+
+  const boardEntriesAfterTasksMd = await fs.readdir(fixture.boardRoot, { withFileTypes: true });
+  const tasksMdImportedList = boardEntriesAfterTasksMd.find((entry) => entry.isDirectory() && /-Tasks Inbox-/.test(entry.name));
+  if (!tasksMdImportedList) {
+    throw new Error(`import_tasksmd did not create the expected Tasks Inbox list (${transportMode}).`);
+  }
+
+  const tasksMdImportedCards = await fs.readdir(path.join(fixture.boardRoot, tasksMdImportedList.name));
+  const tasksMdImportedCardBody = await fs.readFile(
+    path.join(fixture.boardRoot, tasksMdImportedList.name, tasksMdImportedCards[0]),
+    'utf8',
+  );
+  if (!tasksMdImportedCardBody.includes('title: MCP Tasks Card') || !tasksMdImportedCardBody.includes('due: 2026-03-28')) {
+    throw new Error(`import_tasksmd card content mismatch (${transportMode}): ${tasksMdImportedCardBody}`);
   }
 
   send({

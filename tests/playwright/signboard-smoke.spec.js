@@ -317,6 +317,7 @@ test('shows import controls and renders an import summary from the Board Setting
   await expect(page.locator('#boardSettingsPanelImport')).toBeVisible();
   await expect(page.locator('#btnImportBoardFromTrello')).toBeVisible();
   await expect(page.locator('#btnImportBoardFromObsidian')).toBeVisible();
+  await expect(page.locator('#btnImportBoardFromTasksMd')).toBeVisible();
 
   await page.locator('#btnImportBoardFromTrello').click();
 

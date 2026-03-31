@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('board', {
   deleteList: async (listPath) => invokeBoard('deleteList', listPath),
   importTrello: async (boardRoot, selectionToken) => invokeBoard('importTrello', boardRoot, selectionToken),
   importObsidian: async (boardRoot, selectionTokens) => invokeBoard('importObsidian', boardRoot, selectionTokens),
+  importTasksMd: async (boardRoot, selectionTokens) => invokeBoard('importTasksMd', boardRoot, selectionTokens),
   copyExternal: async () => {
     throw new Error('UNSUPPORTED_OPERATION');
   },

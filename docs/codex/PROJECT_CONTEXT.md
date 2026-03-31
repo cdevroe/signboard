@@ -30,7 +30,7 @@ File: `main.js`
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` as a thin renderer bridge into main-process IPC.
 - Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
-- Owns explicit board import operations for Trello and Obsidian; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
+- Owns explicit board import operations for Trello, Obsidian, and Tasks.md; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
 - In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
 - Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card management.
@@ -48,7 +48,7 @@ File: `preload.js`
 - `window.electronAPI` includes external-link opening and manual update checks.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
-- `window.chooser.pickImportSources(...)` returns tokenized external file/directory selections for import flows, and `window.board.importTrello(...)` / `window.board.importObsidian(...)` invoke the main-process importers.
+- `window.chooser.pickImportSources(...)` returns tokenized external file/directory selections for import flows, and `window.board.importTrello(...)` / `window.board.importObsidian(...)` / `window.board.importTasksMd(...)` invoke the main-process importers.
 - Still exposes board watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`), but the watcher implementation now lives in `main.js`.
 
 ### Renderer
@@ -57,7 +57,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - UI is vanilla HTML/CSS/JS.
 - `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
 - `app/signboard.js` is concatenated from source modules by `buildjs.sh`.
-- Board Settings includes an `Import` section for Trello and Obsidian imports, with summary/warning rendering in the existing settings modal.
+- Board Settings includes an `Import` section for Trello, Obsidian, and Tasks.md imports, with summary/warning rendering in the existing settings modal.
 
 ## Data Model and Naming Conventions
 
@@ -236,6 +236,7 @@ Files: `lib/importers/*`
 - Import commands:
   - `signboard import trello --file /absolute/or/relative/export.json [--board <path>] [--json]`
   - `signboard import obsidian --source /path/to/file-or-dir [--source /another/path] [--board <path>] [--json]`
+  - `signboard import tasksmd --source /path/to/tasks-project [--board <path>] [--json]`
 
 ### Run MCP server locally
 - `npm run mcp:server`
@@ -250,7 +251,7 @@ Files: `lib/importers/*`
 ### CLI internals
 - `lib/cliBoard.js` owns CLI board/list/card filesystem operations.
 - `lib/taskList.js` exposes shared task parsing and due-date helpers for CLI filtering.
-- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including path-based Trello/Obsidian imports.
+- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including path-based Trello/Obsidian/Tasks.md imports.
 - `lib/cliInstall.js` owns user-level CLI shim + shell profile installation.
 - `lib/cliState.js` persists the currently selected board for subsequent CLI commands.
 
@@ -270,12 +271,12 @@ Files: `lib/importers/*`
 ### MCP smoke test
 - `npm run test:mcp`
 - Script: `scripts/test-mcp-server.js`
-- Asserts card tool outputs include `taskSummary` + `taskDueDates`, and verifies Trello/Obsidian import tools.
+- Asserts card tool outputs include `taskSummary` + `taskDueDates`, and verifies Trello/Obsidian/Tasks.md import tools.
 
 ### CLI smoke test
 - `npm run test:cli`
 - Script: `scripts/test-cli.js`
-- Covers list creation/rename, card create/edit/read/filter flows, and Trello/Obsidian imports.
+- Covers list creation/rename, card create/edit/read/filter flows, and Trello/Obsidian/Tasks.md imports.
 
 ### Desktop CLI smoke test
 - `npm run test:desktop-cli`

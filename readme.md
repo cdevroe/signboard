@@ -12,7 +12,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 ---
 
 ## ✨ Highlights
-- ⬇️ Import from Trello and Obsidian
+- ⬇️ Import from Trello, Obsidian, and Tasks.md
 - 📂 Cards saved as Markdown files
 - 🖌️ Color scheme per board (several to choose from!)
 - 🌙 Light and dark mode variants for all color schemes
@@ -83,6 +83,7 @@ signboard cards read --list Doing --card ab123
 # Imports
 signboard import trello --file ~/Downloads/trello-export.json
 signboard import obsidian --source ~/Vault/Kanban.md --source ~/Vault/Boards/
+signboard import tasksmd --source ~/TasksWorkspace/tasks/Project-A
 
 # Or run through the packaged app executable
 /Applications/Signboard.app/Contents/MacOS/Signboard use /Path/to/Board
@@ -107,6 +108,7 @@ Import options:
 
 - `signboard import trello --file <export.json> [--board <path>] [--json]`
 - `signboard import obsidian --source <path> [--source <path> ...] [--board <path>] [--json]`
+- `signboard import tasksmd --source <path> [--board <path>] [--json]`
 
 ## ✅ Task List Items
 
