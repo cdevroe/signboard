@@ -196,6 +196,11 @@ header {
   backdrop-filter: saturate(1.2) blur(6px);
 }
 
+body:not(.board-empty) header {
+  gap: 6px;
+  padding-top: 8px;
+}
+
 .headerTopRow {
   display: flex;
   align-items: center;
@@ -215,11 +220,19 @@ header h1 {
   min-width: 0;
 }
 
+body:not(.board-empty) #boardName {
+  display: none;
+}
+
 .headerControls {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
+}
+
+body:not(.board-empty) .headerControls {
+  width: 100%;
 }
 
 /* Switch board group */
@@ -339,9 +352,9 @@ body.board-empty #boardViewButton {
   border-radius: 10px 10px 0 0;
   background: color-mix(in oklab, var(--bg-card) 80%, var(--border));
   color: var(--muted);
-  opacity: .85;
+  opacity: .92;
   padding: 0 8px 0 12px;
-  transform: translateY(2px);
+  transform: translateY(1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, .03);
   transition: transform .12s ease, opacity .12s ease, background .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease;
 }
@@ -356,7 +369,7 @@ body.board-empty #boardViewButton {
   color: inherit;
   font: inherit;
   white-space: nowrap;
-  padding: 7px 0 9px;
+  padding: 6px 0 8px;
   cursor: pointer;
 }
 
@@ -390,15 +403,36 @@ body.board-empty #boardViewButton {
 }
 
 .board-tab.is-active {
-  background: var(--bg);
-  border-color: var(--border);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--bg-card) 92%, var(--accent) 8%) 0%,
+    var(--bg) 100%
+  );
+  border-color: color-mix(in oklab, var(--accent) 24%, var(--border));
   border-bottom-color: var(--bg);
   color: var(--text);
   opacity: 1;
   transform: translateY(0);
-  box-shadow: 0 4px 10px var(--shadow);
+  box-shadow:
+    0 8px 18px var(--shadow),
+    inset 0 1px 0 color-mix(in oklab, var(--bg-card) 78%, #ffffff);
   position: relative;
   z-index: 2;
+}
+
+.board-tab.is-active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 44%, var(--bg-card));
+}
+
+.board-tab.is-active .board-tab-label {
+  font-weight: 600;
 }
 
 .board-tab.is-active .board-tab-close {
