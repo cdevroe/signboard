@@ -2342,10 +2342,48 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #labelFilterButton {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  position: relative;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  transition: background .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+
+#labelFilterButton:hover {
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
+}
+
+#labelFilterButton.is-active {
+  background: color-mix(in oklab, var(--accent) 14%, var(--bg-card));
+  border-color: color-mix(in oklab, var(--accent) 36%, var(--border));
+  color: color-mix(in oklab, var(--accent) 58%, var(--text));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+#labelFilterButton.is-active:hover {
+  background: color-mix(in oklab, var(--accent) 18%, var(--bg-card));
+}
+
+#labelFilterButton.is-active::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-card);
 }
 
 .label-toolbar-icon {
+  height: 16px;
+  width: 16px;
+}
+
+#labelFilterButton svg {
   height: 16px;
   width: 16px;
 }
@@ -2370,6 +2408,23 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   gap: 8px;
   font-size: var(--font-sm);
   padding: 4px 2px;
+}
+
+.label-popover-separator {
+  height: 1px;
+  margin: 8px 2px;
+  background: var(--border);
+}
+
+.label-popover-labels {
+  display: flex;
+  flex-direction: column;
+}
+
+.label-popover-labels-scroll {
+  max-height: min(320px, calc(100vh - 220px));
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .board-view-option {

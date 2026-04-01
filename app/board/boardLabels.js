@@ -694,13 +694,18 @@ function hasThemeModeOverride(themeModeOverrides) {
   return Boolean(themeModeOverrides && typeof themeModeOverrides.boardBackground === 'string' && themeModeOverrides.boardBackground.length > 0);
 }
 
+const BOARD_DATE_FILTER_NONE = '';
+const BOARD_DATE_FILTER_TODAY = 'today';
+const BOARD_DATE_FILTER_OVERDUE = 'overdue';
+const BOARD_LABEL_SCROLL_THRESHOLD = 11;
+
 function getBoardLabelState() {
   if (!window.__boardLabelState) {
     window.__boardLabelState = {
       labels: [],
       labelsById: new Map(),
       filterIds: [],
-      hasDueDateFilter: false,
+      activeDateFilter: BOARD_DATE_FILTER_NONE,
       activeCardLabelPopover: null,
       colorScheme: '',
       themeOverrides: { light: {}, dark: {} },
@@ -930,20 +935,113 @@ function getActiveBoardLabelFilterIds() {
   return getBoardLabelState().filterIds.slice();
 }
 
+function normalizeBoardDateFilter(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === BOARD_DATE_FILTER_TODAY) {
+    return BOARD_DATE_FILTER_TODAY;
+  }
+
+  if (normalized === BOARD_DATE_FILTER_OVERDUE) {
+    return BOARD_DATE_FILTER_OVERDUE;
+  }
+
+  return BOARD_DATE_FILTER_NONE;
+}
+
+function getActiveBoardDateFilter() {
+  return normalizeBoardDateFilter(getBoardLabelState().activeDateFilter);
+}
+
 function isBoardDueDateFilterActive() {
-  return getBoardLabelState().hasDueDateFilter === true;
+  return getActiveBoardDateFilter() !== BOARD_DATE_FILTER_NONE;
+}
+
+function getBoardDateFilterLabel(filterValue) {
+  if (filterValue === BOARD_DATE_FILTER_TODAY) {
+    return 'Today';
+  }
+
+  if (filterValue === BOARD_DATE_FILTER_OVERDUE) {
+    return 'Overdue';
+  }
+
+  return '';
+}
+
+function getTodayIsoDateForBoardFilters() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeBoardFilterDueDate(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  return parseIsoDateStringToLocalDate(normalized) ? normalized : '';
+}
+
+function doesBoardDateFilterMatchDueDate(dueDateValue, activeFilter = getActiveBoardDateFilter()) {
+  const normalizedDueDate = normalizeBoardFilterDueDate(dueDateValue);
+  if (!normalizedDueDate) {
+    return false;
+  }
+
+  if (!activeFilter) {
+    return true;
+  }
+
+  const todayIsoDate = getTodayIsoDateForBoardFilters();
+  if (activeFilter === BOARD_DATE_FILTER_TODAY) {
+    return normalizedDueDate === todayIsoDate;
+  }
+
+  if (activeFilter === BOARD_DATE_FILTER_OVERDUE) {
+    return normalizedDueDate < todayIsoDate;
+  }
+
+  return true;
+}
+
+function getCardFilterDueDates(cardDueDateValue, taskDueDateValues = []) {
+  const dueSet = new Set();
+
+  const addDueDate = (value) => {
+    const normalized = normalizeBoardFilterDueDate(value);
+    if (normalized) {
+      dueSet.add(normalized);
+    }
+  };
+
+  if (Array.isArray(cardDueDateValue)) {
+    for (const value of cardDueDateValue) {
+      addDueDate(value);
+    }
+  } else {
+    addDueDate(cardDueDateValue);
+  }
+
+  for (const value of Array.isArray(taskDueDateValues) ? taskDueDateValues : []) {
+    addDueDate(value);
+  }
+
+  return [...dueSet].sort();
 }
 
 function isBoardLabelFilterActive() {
   return getActiveBoardLabelFilterIds().length > 0 || isBoardDueDateFilterActive();
 }
 
-function cardMatchesBoardLabelFilter(cardLabelIds, hasDueDate = false) {
+function cardMatchesBoardLabelFilter(cardLabelIds, cardDueDates = []) {
   const selectedFilterIds = getActiveBoardLabelFilterIds();
-  const requireDueDate = isBoardDueDateFilterActive();
+  const activeDateFilter = getActiveBoardDateFilter();
   const hasLabelFilters = selectedFilterIds.length > 0;
 
-  if (!hasLabelFilters && !requireDueDate) {
+  if (!hasLabelFilters && !activeDateFilter) {
     return true;
   }
 
@@ -954,7 +1052,10 @@ function cardMatchesBoardLabelFilter(cardLabelIds, hasDueDate = false) {
   const matchesLabelFilter = hasLabelFilters
     ? normalizedCardLabelIds.some((labelId) => selectedFilterIds.includes(labelId))
     : true;
-  const matchesDueDateFilter = requireDueDate ? Boolean(hasDueDate) : true;
+  const normalizedCardDueDates = getCardFilterDueDates(cardDueDates);
+  const matchesDueDateFilter = activeDateFilter
+    ? normalizedCardDueDates.some((dateValue) => doesBoardDateFilterMatchDueDate(dateValue, activeDateFilter))
+    : true;
 
   return matchesLabelFilter && matchesDueDateFilter;
 }
@@ -965,32 +1066,38 @@ function renderBoardLabelFilterButton() {
     return;
   }
 
-  const labelSpan = document.getElementById('labelFilterButtonText');
   const selectedFilterIds = getActiveBoardLabelFilterIds();
-  const hasDueDateFilter = isBoardDueDateFilterActive();
-  const activeFilterCount = selectedFilterIds.length + (hasDueDateFilter ? 1 : 0);
+  const activeDateFilter = getActiveBoardDateFilter();
+  const activeFilterCount = selectedFilterIds.length + (activeDateFilter ? 1 : 0);
+  let summaryText = 'Filter cards';
 
-  if (!labelSpan) {
-    return;
-  }
+  button.classList.toggle('is-active', activeFilterCount > 0);
+  button.setAttribute('data-active-filters', String(activeFilterCount));
 
   if (activeFilterCount === 0) {
-    labelSpan.textContent = 'Sort';
+    button.setAttribute('aria-label', summaryText);
+    button.setAttribute('data-sb-tooltip', summaryText);
     return;
   }
 
   if (activeFilterCount === 1) {
-    if (hasDueDateFilter) {
-      labelSpan.textContent = 'Sort: Due Date';
+    if (activeDateFilter) {
+      summaryText = `Filter cards: ${getBoardDateFilterLabel(activeDateFilter)}`;
+      button.setAttribute('aria-label', summaryText);
+      button.setAttribute('data-sb-tooltip', summaryText);
       return;
     }
 
     const selectedLabel = getBoardLabelById(selectedFilterIds[0]);
-    labelSpan.textContent = selectedLabel ? `Sort: ${selectedLabel.name}` : 'Sort: 1';
+    summaryText = selectedLabel ? `Filter cards: ${selectedLabel.name}` : 'Filter cards: 1 active';
+    button.setAttribute('aria-label', summaryText);
+    button.setAttribute('data-sb-tooltip', summaryText);
     return;
   }
 
-  labelSpan.textContent = `Sort: ${activeFilterCount}`;
+  summaryText = `Filter cards: ${activeFilterCount} active`;
+  button.setAttribute('aria-label', summaryText);
+  button.setAttribute('data-sb-tooltip', summaryText);
 }
 
 async function handleBoardLabelFilterChange(labelId, enabled) {
@@ -1010,9 +1117,9 @@ async function handleBoardLabelFilterChange(labelId, enabled) {
   await renderBoard();
 }
 
-async function handleBoardDueDateFilterChange(enabled) {
+async function handleBoardDateFilterChange(filterValue, enabled) {
   const state = getBoardLabelState();
-  state.hasDueDateFilter = Boolean(enabled);
+  state.activeDateFilter = enabled ? normalizeBoardDateFilter(filterValue) : BOARD_DATE_FILTER_NONE;
   renderBoardLabelFilterButton();
   renderBoardLabelFilterPopover();
 
@@ -1027,36 +1134,54 @@ function renderBoardLabelFilterPopover() {
 
   const labels = getBoardLabels();
   const selectedFilterIds = new Set(getActiveBoardLabelFilterIds());
-  const hasDueDateFilter = isBoardDueDateFilterActive();
+  const activeDateFilter = getActiveBoardDateFilter();
   popover.innerHTML = '';
 
-  const dueDateRow = document.createElement('label');
-  dueDateRow.className = 'label-popover-row';
+  const createDateFilterRow = (filterValue, labelText, iconName) => {
+    const row = document.createElement('label');
+    row.className = 'label-popover-row';
 
-  const dueDateCheckbox = document.createElement('input');
-  dueDateCheckbox.type = 'checkbox';
-  dueDateCheckbox.checked = hasDueDateFilter;
-  dueDateCheckbox.addEventListener('change', async (event) => {
-    await handleBoardDueDateFilterChange(event.target.checked);
-  });
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = activeDateFilter === filterValue;
+    checkbox.addEventListener('change', async (event) => {
+      await handleBoardDateFilterChange(filterValue, event.target.checked);
+    });
 
-  const dueDateIcon = document.createElement('i');
-  dueDateIcon.className = 'label-filter-feature-icon';
-  dueDateIcon.setAttribute('data-feather', 'clock');
+    const icon = document.createElement('i');
+    icon.className = 'label-filter-feature-icon';
+    icon.setAttribute('data-feather', iconName);
 
-  const dueDateText = document.createElement('span');
-  dueDateText.textContent = 'Due Date';
+    const text = document.createElement('span');
+    text.textContent = labelText;
 
-  dueDateRow.appendChild(dueDateCheckbox);
-  dueDateRow.appendChild(dueDateIcon);
-  dueDateRow.appendChild(dueDateText);
-  popover.appendChild(dueDateRow);
+    row.appendChild(checkbox);
+    row.appendChild(icon);
+    row.appendChild(text);
+
+    return row;
+  };
+
+  popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_TODAY, 'Today', 'sun'));
+  popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_OVERDUE, 'Overdue', 'alert-circle'));
+
+  const separator = document.createElement('div');
+  separator.className = 'label-popover-separator';
+  separator.setAttribute('aria-hidden', 'true');
+  popover.appendChild(separator);
+
+  const labelList = document.createElement('div');
+  labelList.className = 'label-popover-labels';
+
+  if (labels.length >= BOARD_LABEL_SCROLL_THRESHOLD) {
+    labelList.classList.add('label-popover-labels-scroll');
+  }
 
   if (labels.length === 0) {
     const emptyState = document.createElement('p');
     emptyState.className = 'label-popover-empty';
     emptyState.textContent = 'No labels yet. Add labels in Settings.';
-    popover.appendChild(emptyState);
+    labelList.appendChild(emptyState);
   }
 
   for (const label of labels) {
@@ -1080,15 +1205,17 @@ function renderBoardLabelFilterPopover() {
     row.appendChild(checkbox);
     row.appendChild(swatch);
     row.appendChild(text);
-    popover.appendChild(row);
+    labelList.appendChild(row);
   }
+
+  popover.appendChild(labelList);
 
   const clearButton = document.createElement('button');
   clearButton.type = 'button';
   clearButton.className = 'label-popover-clear';
-  clearButton.textContent = 'Clear filter';
-  clearButton.title = 'Clear label and due date filters';
-  clearButton.disabled = selectedFilterIds.size === 0 && !hasDueDateFilter;
+  clearButton.textContent = 'Clear filters';
+  clearButton.title = 'Clear active date and label filters';
+  clearButton.disabled = selectedFilterIds.size === 0 && !activeDateFilter;
   clearButton.addEventListener('click', async () => {
     resetBoardLabelFilter();
     renderBoardLabelFilterButton();
@@ -2045,13 +2172,14 @@ function isBoardSettingsModalOpen() {
 function resetBoardLabelFilter() {
   const state = getBoardLabelState();
   state.filterIds = [];
-  state.hasDueDateFilter = false;
+  state.activeDateFilter = BOARD_DATE_FILTER_NONE;
 }
 
 async function ensureBoardLabelsLoaded() {
   if (!window.boardRoot) {
     const state = getBoardLabelState();
     state.importSummaryBoardRoot = '';
+    resetBoardLabelFilter();
     setBoardLabels([]);
     applyColorSchemeById('light', { renderControls: false });
     setBoardNotificationSettings(DEFAULT_BOARD_NOTIFICATION_SETTINGS);

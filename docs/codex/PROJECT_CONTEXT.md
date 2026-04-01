@@ -116,13 +116,14 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Reads list metadata and routes rendering to the active board view (Kanban, Calendar, or This Week).
   - Builds Kanban columns and enables list drag-and-drop reorder when Kanban is active.
   - Fetches each list's card names concurrently for faster initial render.
-  - Loads board label definitions and filter state before rendering cards.
+  - Loads board label definitions and temporary filter state before rendering cards.
 - `app/board/boardViews.js`:
   - Owns active board view state and the `Views` dropdown behavior.
   - Renders Calendar month layout (Monday-first week), today highlighting, and month navigation.
   - Renders This Week layout, week navigation, and current-day highlighting.
   - Renders due-date cards in temporal views and updates card due dates by drag/drop across days.
   - Includes cards by both card due date and task due markers, deduped per day per card.
+  - Applies the active header filter state in temporal views before placing cards into the visible month/week buckets.
   - Shows task progress badges and a subdued source-list label on temporal cards.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior.
@@ -138,7 +139,10 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Opens edit modal on click.
 - `app/board/boardLabels.js`:
   - Owns board label state in the renderer.
-  - Renders board label filter dropdown (multi-select, OR matching).
+  - Renders the header filter dropdown with mutually exclusive `Today` / `Overdue` date filters plus multi-select OR label filters.
+  - Combines date filters, label filters, and board search with AND logic when determining visibility.
+  - Keeps filter state temporary only; opening or switching boards resets the active date + label filters.
+  - Keeps the filter toolbar button icon-only and applies an accent-tinted active state when any filter is set; active summary text lives in tooltip/ARIA copy.
   - Handles card label popovers, board settings editors, and the Board Settings import UI/actions.
   - Persists board labels through preload APIs.
 - `app/board/boardSearch.js`:

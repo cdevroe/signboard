@@ -207,6 +207,18 @@ function createContext(cardFactory, callbacks, options = {}) {
   const createTaskProgressBadge = typeof options.createTaskProgressBadge === 'function'
     ? options.createTaskProgressBadge
     : () => null;
+  const getCardFilterDueDates = typeof options.getCardFilterDueDates === 'function'
+    ? options.getCardFilterDueDates
+    : (cardDueDateValue, taskDueDates = []) => {
+      const dueDates = new Set();
+      if (cardDueDateValue) {
+        dueDates.add(String(cardDueDateValue));
+      }
+      for (const taskDueDate of Array.isArray(taskDueDates) ? taskDueDates : []) {
+        dueDates.add(String(taskDueDate));
+      }
+      return [...dueDates];
+    };
 
   const context = {
     window: {
@@ -243,6 +255,7 @@ function createContext(cardFactory, callbacks, options = {}) {
     setDueDateVisualClass: () => '',
     getTaskListSummary,
     getTaskListDueDates,
+    getCardFilterDueDates,
     createTaskProgressBadge,
     renderBoard: async () => {},
     toggleCardLabelSelector: callbacks.toggleCardLabelSelector,

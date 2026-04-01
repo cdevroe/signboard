@@ -148,8 +148,8 @@ async function createCardElement(cardPath) {
     await renderDueDateDisplay();
     setMetadataActionVisibility();
 
-    const hasAnyDueDate = dueDateValue.length > 0 || taskDueDates.length > 0;
-    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, hasAnyDueDate)) {
+    const cardDueDates = getCardFilterDueDates(dueDateValue, taskDueDates);
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates)) {
       await renderBoard();
     }
   }
@@ -163,8 +163,8 @@ async function createCardElement(cardPath) {
     await window.board.updateFrontmatter(cardPath, { labels: selectedLabelIds });
     renderCardLabels();
 
-    const hasAnyDueDate = dueDateValue.length > 0 || taskDueDates.length > 0;
-    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, hasAnyDueDate)) {
+    const cardDueDates = getCardFilterDueDates(dueDateValue, taskDueDates);
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates)) {
       await renderBoard();
     }
   }
@@ -218,7 +218,7 @@ async function createCardElement(cardPath) {
 
   const matchesLabelFilter = cardMatchesBoardLabelFilter(
     selectedLabelIds,
-    dueDateValue.length > 0 || taskDueDates.length > 0,
+    getCardFilterDueDates(dueDateValue, taskDueDates),
   );
   const matchesSearchFilter = cardMatchesBoardSearch(card.frontmatter.title, card.body);
 

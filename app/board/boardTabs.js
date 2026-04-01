@@ -254,6 +254,12 @@ async function closeBoardTab(boardPath) {
 
     window.boardRoot = authorizedBoardPath;
     setStoredActiveBoard(authorizedBoardPath);
+    if (typeof resetBoardLabelFilter === 'function') {
+        resetBoardLabelFilter();
+    }
+    if (typeof resetBoardSearch === 'function') {
+        resetBoardSearch();
+    }
     await renderBoard();
 }
 
@@ -395,6 +401,12 @@ function renderBoardTabs() {
 
             window.boardRoot = authorizedBoardPath;
             setStoredActiveBoard(authorizedBoardPath);
+            if (typeof resetBoardLabelFilter === 'function') {
+                resetBoardLabelFilter();
+            }
+            if (typeof resetBoardSearch === 'function') {
+                resetBoardSearch();
+            }
             await renderBoard();
         });
 

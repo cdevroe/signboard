@@ -413,29 +413,16 @@ function buildCalendarCardBuckets(cardEntries, monthCursor) {
   const buckets = new Map();
 
   for (const entry of entries) {
-    const dueDates = new Set();
-    const cardDueDate = normalizeTaskDueDateValue(entry.due);
-    if (cardDueDate) {
-      dueDates.add(cardDueDate);
-    }
-
-    const taskDueDates = Array.isArray(entry.taskDueDates) ? entry.taskDueDates : [];
-    for (const taskDueDate of taskDueDates) {
-      const normalizedTaskDueDate = normalizeTaskDueDateValue(taskDueDate);
-      if (normalizedTaskDueDate) {
-        dueDates.add(normalizedTaskDueDate);
-      }
-    }
-
-    const hasDueDate = dueDates.size > 0;
-    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, hasDueDate);
+    const dueDates = getCardFilterDueDates(entry.due, entry.taskDueDates);
+    const visibleDueDates = dueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates);
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
 
-    if (!hasDueDate || !matchesLabelFilter || !matchesSearchFilter) {
+    if (visibleDueDates.length === 0 || !matchesLabelFilter || !matchesSearchFilter) {
       continue;
     }
 
-    for (const dueDateValue of dueDates) {
+    for (const dueDateValue of visibleDueDates) {
       const dueDate = parseIsoDateStringToLocalDate(dueDateValue);
       if (!dueDate) {
         continue;
@@ -474,28 +461,15 @@ function buildWeekCardBuckets(cardEntries, weekStartDate) {
   const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
 
   for (const entry of entries) {
-    const dueDates = new Set();
-    const cardDueDate = normalizeTaskDueDateValue(entry.due);
-    if (cardDueDate) {
-      dueDates.add(cardDueDate);
-    }
-
-    const taskDueDates = Array.isArray(entry.taskDueDates) ? entry.taskDueDates : [];
-    for (const taskDueDate of taskDueDates) {
-      const normalizedTaskDueDate = normalizeTaskDueDateValue(taskDueDate);
-      if (normalizedTaskDueDate) {
-        dueDates.add(normalizedTaskDueDate);
-      }
-    }
-
-    const hasDueDate = dueDates.size > 0;
-    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, hasDueDate);
+    const dueDates = getCardFilterDueDates(entry.due, entry.taskDueDates);
+    const visibleDueDates = dueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates);
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
-    if (!hasDueDate || !matchesLabelFilter || !matchesSearchFilter) {
+    if (visibleDueDates.length === 0 || !matchesLabelFilter || !matchesSearchFilter) {
       continue;
     }
 
-    for (const dueDateValue of dueDates) {
+    for (const dueDateValue of visibleDueDates) {
       const dueDate = parseIsoDateStringToLocalDate(dueDateValue);
       if (!dueDate) {
         continue;
