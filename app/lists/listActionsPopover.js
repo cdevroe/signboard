@@ -216,6 +216,15 @@ function renderListActionsPopover() {
     },
   });
 
+  const addListButton = createListActionsOption('Add new list', {
+    onClick: async () => {
+      openAddListModal({
+        anchorElement: state.anchorElement,
+        afterListPath: state.listPath,
+      });
+    },
+  });
+
   const archiveCardsButton = createListActionsOption('Archive cards in this list', {
     destructive: true,
     disabled: state.cardCount === 0,
@@ -233,6 +242,7 @@ function renderListActionsPopover() {
   });
 
   popover.appendChild(addCardButton);
+  popover.appendChild(addListButton);
   popover.appendChild(archiveCardsButton);
   popover.appendChild(archiveListButton);
   popover.setAttribute('aria-hidden', 'false');

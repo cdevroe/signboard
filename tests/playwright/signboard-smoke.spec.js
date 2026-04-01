@@ -57,6 +57,16 @@ async function getVerticalGap(upperLocator, lowerLocator) {
   return lowerBox.y - (upperBox.y + upperBox.height);
 }
 
+async function openBoardMenu(page) {
+  const popover = page.locator('#boardMenuPopover');
+  if (await popover.isVisible()) {
+    return;
+  }
+
+  await page.locator('#boardMenuButton').click();
+  await expect(page.locator('#boardMenuPopover')).toBeVisible();
+}
+
 const test = base.extend({
   boardRoot: async ({}, use) => {
     const fixture = await createFixtureBoard();
@@ -108,6 +118,7 @@ test('keeps add modals hidden on startup', async ({ page }) => {
   await expect(page.locator('#modalAddCard')).toBeHidden();
   await expect(page.locator('#modalAddCardToList')).toBeHidden();
   await expect(page.locator('#modalAddList')).toBeHidden();
+  await expect(page.locator('#boardMenuPopover')).toBeHidden();
 });
 
 test('opens the list actions popover and routes Add new card through the existing modal', async ({ page }) => {
@@ -115,6 +126,7 @@ test('opens the list actions popover and routes Add new card through the existin
 
   await expect(page.locator('#listActionsPopover')).toBeVisible();
   await expect(page.locator('#listActionsPopover')).toContainText('Add new card');
+  await expect(page.locator('#listActionsPopover')).toContainText('Add new list');
   await expect(page.locator('#listActionsPopover')).toContainText('Archive cards in this list');
   await expect(page.locator('#listActionsPopover')).toContainText('Archive this list');
 
@@ -126,6 +138,38 @@ test('opens the list actions popover and routes Add new card through the existin
 
   const gap = await getVerticalGap(page.locator('#userInput'), page.locator('#btnAddCard'));
   expect(gap).toBeGreaterThanOrEqual(6);
+});
+
+test('adds a new list to the right of the invoking list from the list actions popover', async ({ page, boardRoot }) => {
+  await page.locator('.list-actions-button').first().click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Add new list' }).click();
+
+  await expect(page.locator('#modalAddList')).toBeVisible();
+  await page.locator('#userInputListName').fill('Review');
+  await page.locator('#btnAddList').click();
+
+  await expect(page.locator('.list')).toHaveCount(4);
+  await expect(page.locator('.list .list-header span[contenteditable="true"]').nth(1)).toHaveText('Review');
+
+  await expect.poll(async () => {
+    const entries = await fs.readdir(boardRoot);
+    return entries
+      .filter((entry) => !entry.startsWith('XXX-Archive'))
+      .sort((left, right) => left.localeCompare(right, undefined, {
+        numeric: true,
+        sensitivity: 'base',
+        ignorePunctuation: true,
+      }));
+  }).toEqual(expect.arrayContaining([
+    '000-To-do-stock',
+    '002-Doing-stock',
+    '003-Done-stock',
+  ]));
+
+  await expect.poll(async () => {
+    const entries = await fs.readdir(boardRoot);
+    return entries.find((entry) => /^001-Review-[A-Za-z0-9]{5}$/.test(entry)) || '';
+  }).toMatch(/^001-Review-[A-Za-z0-9]{5}$/);
 });
 
 test('archives all cards in a list from the list actions popover', async ({ page, boardRoot }) => {
@@ -222,10 +266,12 @@ test('persists the board tooltip toggle and suppresses tooltips when disabled', 
   const supportButton = page.locator('#openCommercialLicenseModal');
   const tooltip = page.locator('#sbTooltip');
 
+  await openBoardMenu(page);
   await supportButton.hover();
   await expect(tooltip).toBeVisible();
   await expect(tooltip).toHaveText(/Support Signboard/i);
 
+  await openBoardMenu(page);
   await page.locator('#openBoardSettings').click();
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
 
@@ -243,6 +289,7 @@ test('persists the board tooltip toggle and suppresses tooltips when disabled', 
     });
   }).toBe(false);
 
+  await openBoardMenu(page);
   await supportButton.hover();
   await expect(tooltip).toHaveAttribute('aria-hidden', 'true');
   await expect(tooltip).not.toHaveClass(/is-visible/);
@@ -258,6 +305,7 @@ test('persists the board tooltip toggle and suppresses tooltips when disabled', 
 });
 
 test('persists a label color change committed from the board settings picker', async ({ page }) => {
+  await openBoardMenu(page);
   await page.locator('#openBoardSettings').click();
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
   await page.locator('#boardSettingsNavLabels').click();
@@ -310,6 +358,7 @@ test('shows import controls and renders an import summary from the Board Setting
     };
   });
 
+  await openBoardMenu(page);
   await page.locator('#openBoardSettings').click();
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
   await page.locator('#boardSettingsNavImport').click();

@@ -102,6 +102,9 @@ function setActiveBoardView(viewId, options = {}) {
 
   syncBoardViewControlState();
   closeBoardViewPopover();
+  if (typeof closeBoardMenuPopover === 'function') {
+    closeBoardMenuPopover();
+  }
 
   if (options.render === false) {
     return;
@@ -535,17 +538,34 @@ function syncBoardViewSelectWithState() {
   viewButton.setAttribute('aria-label', `Current view: ${activeOption.label}. Change view.`);
   viewButton.setAttribute('title', `Current view: ${activeOption.label}. Change view.`);
 
-  if (
+  const iconMarkup = (
     window.feather &&
     window.feather.icons &&
     typeof window.feather.icons[iconName]?.toSvg === 'function'
+  )
+    ? window.feather.icons[iconName].toSvg({
+      width: 16,
+      height: 16,
+      stroke: 'currentColor',
+    })
+    : `<i data-feather="${iconName}"></i>`;
+
+  viewButton.innerHTML = `
+    <span class="board-menu-action-icon" aria-hidden="true">${iconMarkup}</span>
+    <span class="board-menu-action-label">View: ${activeOption.label}</span>
+  `;
+
+  if (
+    !(
+      window.feather &&
+      window.feather.icons &&
+      typeof window.feather.icons[iconName]?.toSvg === 'function'
+    ) &&
+    typeof feather !== 'undefined' &&
+    feather &&
+    typeof feather.replace === 'function'
   ) {
-    viewButton.innerHTML = window.feather.icons[iconName].toSvg();
-  } else {
-    viewButton.innerHTML = `<i data-feather="${iconName}"></i>`;
-    if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
-      feather.replace();
-    }
+    feather.replace();
   }
 
   const svgIcon = viewButton.querySelector('svg');

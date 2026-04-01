@@ -2086,6 +2086,9 @@ async function ensureBoardLabelsLoaded() {
 function closeAllLabelPopovers() {
   closeBoardLabelFilterPopover();
   closeCardLabelPopover();
+  if (typeof closeBoardMenuPopover === 'function') {
+    closeBoardMenuPopover();
+  }
   if (typeof closeBoardViewPopover === 'function') {
     closeBoardViewPopover();
   }
@@ -2152,6 +2155,9 @@ function initializeBoardLabelControls() {
       event.stopPropagation();
       if (!window.boardRoot) {
         return;
+      }
+      if (typeof closeBoardMenuPopover === 'function') {
+        closeBoardMenuPopover();
       }
       if (typeof closeAllModals === 'function') {
         await closeAllModals({ key: 'Escape' });

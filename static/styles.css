@@ -192,12 +192,16 @@ header {
   background: color-mix(in oklab, var(--bg) 88%, var(--border));
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 35;
   backdrop-filter: saturate(1.2) blur(6px);
 }
 
 body:not(.board-empty) header {
-  gap: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "tabs controls";
+  align-items: end;
+  gap: 8px 12px;
   padding-top: 8px;
 }
 
@@ -232,7 +236,15 @@ body:not(.board-empty) #boardName {
 }
 
 body:not(.board-empty) .headerControls {
-  width: 100%;
+  width: auto;
+}
+
+body:not(.board-empty) .headerTopRow {
+  grid-area: controls;
+  width: auto;
+  justify-self: end;
+  justify-content: flex-end;
+  padding-bottom: 3px;
 }
 
 /* Switch board group */
@@ -241,6 +253,10 @@ body:not(.board-empty) .headerControls {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+body:not(.board-empty) #boardPathWrapper {
+  display: none;
 }
 #labelBoardPath {
   font-size: var(--font-sm);
@@ -283,9 +299,12 @@ body:not(.board-empty) .headerControls {
   flex-wrap: wrap;
 }
 
+body:not(.board-empty) #boardControls {
+  flex-wrap: nowrap;
+}
+
 body.board-empty #boardControls,
-body.board-empty #openBoardSettings,
-body.board-empty #boardViewButton {
+body.board-empty #boardMenuButton {
   display: none;
 }
 
@@ -305,33 +324,18 @@ body.board-empty #boardViewButton {
   outline-offset: 1px;
 }
 
-/* Theme toggle button (uses your existing button element) */
-#themeToggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-card);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 6px 10px;
-  cursor: pointer;
-  box-shadow: 0 1px 0 rgba(0,0,0,.02);
-  transition: background .12s ease, transform .1s ease, border-color .12s ease;
-}
-#themeToggle:hover { background: color-mix(in oklab, var(--bg-card) 94%, var(--border)); }
-#themeToggle:active { transform: translateY(1px); }
-#themeToggle:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card)); }
-#themeToggle svg {
-  width: 16px;
-  height: 16px;
-}
-
 #boardTabsWrapper {
   width: 100%;
   margin-bottom: 0;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+body:not(.board-empty) #boardTabsWrapper {
+  grid-area: tabs;
+  width: auto;
+  min-width: 0;
+  justify-self: start;
 }
 
 #boardTabs {
@@ -340,6 +344,10 @@ body.board-empty #boardViewButton {
   gap: 4px;
   min-width: max-content;
   padding: 0 2px;
+}
+
+body:not(.board-empty) #boardTabs {
+  padding: 0;
 }
 
 .board-tab {
@@ -470,23 +478,105 @@ body.board-empty #boardViewButton {
   opacity: .6;
 }
 
-#openBoardSettings,
-#boardViewButton {
+#boardMenuButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
   padding: 7px 10px;
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02);
+  transition: background .12s ease, transform .1s ease, border-color .12s ease;
 }
 
-#openBoardSettings svg,
-#boardViewButton svg {
+#boardMenuButton:hover {
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
+}
+
+#boardMenuButton:active {
+  transform: translateY(1px);
+}
+
+#boardMenuButton:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+}
+
+#boardMenuButton svg {
   height: 16px;
   width: 16px;
 }
 
+#boardMenuPopover {
+  position: fixed;
+  right: auto;
+  top: auto;
+  min-width: 220px;
+  max-width: min(280px, calc(100vw - 16px));
+}
+
+#boardMenuPopover:not(.hidden) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.board-menu-group {
+  width: 100%;
+}
+
+.board-menu-action {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.board-menu-action:hover {
+  background: color-mix(in oklab, var(--bg-card) 86%, var(--border));
+}
+
+.board-menu-action:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 55%, var(--bg-card));
+  outline-offset: 2px;
+}
+
+.board-menu-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  flex: 0 0 16px;
+}
+
+.board-menu-action-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.board-menu-action-label {
+  min-width: 0;
+}
+
 #boardViewPopover {
-  right: 0;
-  top: calc(100% + 6px);
+  right: calc(100% + 8px);
+  top: -8px;
   min-width: 170px;
 }
 
@@ -1808,7 +1898,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 #modalEditCard {
   position: fixed;
-  z-index: 30;
+  z-index: 50;
   top: max(64px, calc(env(safe-area-inset-top) + 14px));
   left: 50%;
   transform: translateX(-50%);
@@ -1834,7 +1924,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   min-height: min(760px, calc(100vh - 26px));
   max-height: calc(100vh - 26px);
   overflow-y: auto;
-  z-index: 20;
+  z-index: 50;
   padding: 16px 16px 26px;
 }
 
@@ -2723,6 +2813,35 @@ select:disabled {
 #cardEditorOverType .overtype-wrapper .overtype-preview h2 .syntax-marker,
 #cardEditorOverType .overtype-wrapper .overtype-preview h3 .syntax-marker {
   opacity: 0.8;
+}
+
+@media (max-width: 1180px) {
+  body:not(.board-empty) header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  body:not(.board-empty) .headerTopRow {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  body:not(.board-empty) .headerControls {
+    width: 100%;
+  }
+
+  body:not(.board-empty) #boardControls {
+    flex-wrap: wrap;
+  }
+
+  body:not(.board-empty) #boardTabsWrapper {
+    width: 100%;
+  }
+
+  body:not(.board-empty) #boardTabs {
+    padding: 0 2px;
+  }
 }
 
 /* 10) Small screens */

@@ -69,11 +69,55 @@ function applyEditorThemeFromActiveMode() {
   OverType.setTheme(customOverTypeThemes.light);
 }
 
+function renderThemeToggleButtonState() {
+  const themeToggle = document.getElementById('themeToggle');
+  if (!themeToggle) {
+    return;
+  }
+
+  const isDarkMode = document.documentElement.dataset.theme === 'dark';
+  const iconName = isDarkMode ? 'sun' : 'moon';
+  const label = isDarkMode ? 'Light Mode' : 'Dark Mode';
+  const iconMarkup = (
+    window.feather &&
+    window.feather.icons &&
+    typeof window.feather.icons[iconName]?.toSvg === 'function'
+  )
+    ? window.feather.icons[iconName].toSvg({
+      width: 16,
+      height: 16,
+      stroke: 'currentColor',
+    })
+    : `<i data-feather="${iconName}"></i>`;
+
+  themeToggle.innerHTML = `
+    <span class="board-menu-action-icon" aria-hidden="true">${iconMarkup}</span>
+    <span class="board-menu-action-label">${label}</span>
+  `;
+  themeToggle.setAttribute('title', `Switch to ${isDarkMode ? 'light' : 'dark'} mode`);
+  themeToggle.setAttribute('aria-label', `Switch to ${isDarkMode ? 'light' : 'dark'} mode`);
+
+  if (
+    !(
+      window.feather &&
+      window.feather.icons &&
+      typeof window.feather.icons[iconName]?.toSvg === 'function'
+    ) &&
+    typeof feather !== 'undefined' &&
+    feather &&
+    typeof feather.replace === 'function'
+  ) {
+    feather.replace();
+  }
+}
+
 const themeToggle = document.getElementById('themeToggle');
 const savedThemeMode = localStorage.getItem('theme');
 if (savedThemeMode) {
   document.documentElement.dataset.theme = savedThemeMode;
 }
+
+renderThemeToggleButtonState();
 
 if (themeToggle) {
   themeToggle.addEventListener('click', () => {
@@ -81,6 +125,7 @@ if (themeToggle) {
     const newTheme = current === 'dark' ? '' : 'dark';
     document.documentElement.dataset.theme = newTheme;
     localStorage.setItem('theme', newTheme);
+    renderThemeToggleButtonState();
 
     if (typeof applyBoardThemeForCurrentBoard === 'function') {
       applyBoardThemeForCurrentBoard();
@@ -92,6 +137,10 @@ if (themeToggle) {
       renderBoard().catch((error) => {
         console.error('Unable to render board after theme change.', error);
       });
+    }
+
+    if (typeof closeBoardMenuPopover === 'function') {
+      closeBoardMenuPopover();
     }
   });
 
