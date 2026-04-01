@@ -27,31 +27,9 @@
               <i data-feather="tag" class="label-toolbar-icon"></i>
               <span id="labelFilterButtonText">Sort</span>
             </button>
-            <div id="labelFilterPopover" class="label-popover hidden"></div>
           </div>
           <div class="board-toolbar-group" id="boardMenuGroup">
             <button id="boardMenuButton" title="Board menu" aria-label="Board menu"><i data-feather="menu"></i></button>
-            <div id="boardMenuPopover" class="label-popover hidden" aria-hidden="true">
-              <button id="openBoardSettings" class="board-menu-action" type="button" title="Open board settings" aria-label="Open board settings">
-                <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="sliders"></i></span>
-                <span class="board-menu-action-label">Board Settings</span>
-              </button>
-              <div class="board-toolbar-group board-menu-group">
-                <button id="boardViewButton" class="board-menu-action" type="button" title="Switch board view" aria-label="Switch board view">
-                  <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="columns"></i></span>
-                  <span class="board-menu-action-label">View</span>
-                </button>
-                <div id="boardViewPopover" class="label-popover board-view-popover hidden"></div>
-              </div>
-              <button id="themeToggle" class="board-menu-action" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">
-                <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="moon"></i></span>
-                <span class="board-menu-action-label">Dark Mode</span>
-              </button>
-              <button id="openCommercialLicenseModal" class="board-menu-action" type="button" title="Support Signboard for commercial use" aria-label="Support Signboard for commercial use">
-                <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="heart"></i></span>
-                <span class="board-menu-action-label">Support</span>
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -74,6 +52,30 @@
       <span class="empty-board-cta-text">Select an empty directory. Signboard will use the directory name as the board name.</span>
     </button>
   </main>
+
+  <div id="labelFilterPopover" class="label-popover hidden"></div>
+
+  <div id="boardMenuPopover" class="label-popover hidden" aria-hidden="true">
+    <button id="openBoardSettings" class="board-menu-action" type="button" title="Open board settings" aria-label="Open board settings">
+      <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="sliders"></i></span>
+      <span class="board-menu-action-label">Board Settings</span>
+    </button>
+    <div class="board-toolbar-group board-menu-group">
+      <button id="boardViewButton" class="board-menu-action" type="button" title="Switch board view" aria-label="Switch board view">
+        <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="columns"></i></span>
+        <span class="board-menu-action-label">View</span>
+      </button>
+      <div id="boardViewPopover" class="label-popover board-view-popover hidden"></div>
+    </div>
+    <button id="themeToggle" class="board-menu-action" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">
+      <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="moon"></i></span>
+      <span class="board-menu-action-label">Dark Mode</span>
+    </button>
+    <button id="openCommercialLicenseModal" class="board-menu-action" type="button" title="Support Signboard for commercial use" aria-label="Support Signboard for commercial use">
+      <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="heart"></i></span>
+      <span class="board-menu-action-label">Support</span>
+    </button>
+  </div>
 
   <div id="listActionsPopover" class="label-popover list-actions-popover hidden" aria-hidden="true"></div>
 
