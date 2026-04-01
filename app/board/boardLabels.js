@@ -246,6 +246,90 @@ const COLOR_SCHEMES = [
       shadowCard:      'rgba(0, 0, 0, 0.50)',
     },
   },
+
+  /* ── Mid-winter  ─  palette #2F6690 · #3A7CA5 · #D9DCD6 · #16425B · #81C3D7 */
+  {
+    id: 'mid-winter',
+    name: 'Mid-winter',
+    light: {
+      boardBackground: '#d9dcd6',
+      surface:         '#eef3f5',
+      text:            '#16425b',
+      muted:           '#2f6690',
+      border:          '#81c3d7',
+      accent:          '#3a7ca5',
+      accentText:      '#ffffff',
+      shadow:          'rgba(22, 66, 91, 0.07)',
+      shadowCard:      'rgba(22, 66, 91, 0.11)',
+    },
+    dark: {
+      boardBackground: '#16425b',
+      surface:         '#235775',
+      text:            '#d9dcd6',
+      muted:           '#81c3d7',
+      border:          '#3a7ca5',
+      accent:          '#81c3d7',
+      accentText:      '#16425b',
+      shadow:          'rgba(0, 0, 0, 0.42)',
+      shadowCard:      'rgba(0, 0, 0, 0.54)',
+    },
+  },
+
+  /* ── Cozy Blush  ─  palette #D8E2DC · #FFE5D9 · #FFCAD4 · #F4ACB7 · #9D8189 */
+  {
+    id: 'cozy-blush',
+    name: 'Cozy Blush',
+    light: {
+      boardBackground: '#ffe5d9',
+      surface:         '#d8e2dc',
+      text:            '#5e4b52',
+      muted:           '#9d8189',
+      border:          '#f4acb7',
+      accent:          '#f4acb7',
+      accentText:      '#4f3c43',
+      shadow:          'rgba(94, 75, 82, 0.06)',
+      shadowCard:      'rgba(94, 75, 82, 0.10)',
+    },
+    dark: {
+      boardBackground: '#5e4b52',
+      surface:         '#7d666e',
+      text:            '#ffe5d9',
+      muted:           '#d8e2dc',
+      border:          '#f4acb7',
+      accent:          '#ffcad4',
+      accentText:      '#5e4b52',
+      shadow:          'rgba(0, 0, 0, 0.42)',
+      shadowCard:      'rgba(0, 0, 0, 0.54)',
+    },
+  },
+
+  /* ── Coffee  ─  inspired by Claude for Mac's warm neutral app chrome */
+  {
+    id: 'coffee',
+    name: 'Coffee',
+    light: {
+      boardBackground: '#f4f1eb',
+      surface:         '#ebe5db',
+      text:            '#2f2a24',
+      muted:           '#7b7165',
+      border:          '#d7d0c4',
+      accent:          '#b08a64',
+      accentText:      '#fffaf4',
+      shadow:          'rgba(47, 42, 36, 0.05)',
+      shadowCard:      'rgba(47, 42, 36, 0.09)',
+    },
+    dark: {
+      boardBackground: '#211b17',
+      surface:         '#302823',
+      text:            '#f1e9dc',
+      muted:           '#b8aa96',
+      border:          '#4b4037',
+      accent:          '#d0ab82',
+      accentText:      '#211b17',
+      shadow:          'rgba(0, 0, 0, 0.42)',
+      shadowCard:      'rgba(0, 0, 0, 0.56)',
+    },
+  },
 ];
 
 function getColorSchemeById(id) {
@@ -733,6 +817,21 @@ function applyThemePaletteVariables(themeMode, palette) {
   rootStyle.setProperty(modeMap.shadowCard, palette.shadowCard);
 }
 
+function syncBoardThemeMetadata() {
+  const root = document.documentElement;
+  if (!root || !root.dataset) {
+    return;
+  }
+
+  const schemeId = getBoardColorScheme();
+  if (schemeId) {
+    root.dataset.boardColorScheme = schemeId;
+    return;
+  }
+
+  delete root.dataset.boardColorScheme;
+}
+
 function applyColorSchemeById(schemeId, options = {}) {
   const state = getBoardLabelState();
   const scheme = getColorSchemeById(schemeId) || getDefaultColorScheme();
@@ -747,6 +846,7 @@ function applyColorSchemeById(schemeId, options = {}) {
 
   applyThemePaletteVariables('light', lightPalette);
   applyThemePaletteVariables('dark', darkPalette);
+  syncBoardThemeMetadata();
 
   if (typeof setCustomOverTypeThemesFromBoardPalettes === 'function') {
     setCustomOverTypeThemesFromBoardPalettes(state.themePalettes);
@@ -778,6 +878,7 @@ function applyDerivedBoardThemes(themeOverrides, options = {}) {
 
   applyThemePaletteVariables('light', lightPalette);
   applyThemePaletteVariables('dark', darkPalette);
+  syncBoardThemeMetadata();
 
   if (typeof setCustomOverTypeThemesFromBoardPalettes === 'function') {
     setCustomOverTypeThemesFromBoardPalettes(state.themePalettes);

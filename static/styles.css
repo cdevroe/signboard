@@ -139,6 +139,39 @@ html, body { margin: 0; height: 100%; }
   --task-progress-complete-color: color-mix(in oklab, #4ade80 84%, var(--text));
 }
 
+:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .list {
+  background: color-mix(in oklab, #d8e2dc 92%, #ffffff);
+  border-color: color-mix(in oklab, #f4acb7 58%, #d8e2dc);
+  box-shadow: 0 8px 20px rgba(157, 129, 137, 0.12);
+}
+
+:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .list-header {
+  border-bottom-color: color-mix(in oklab, #f4acb7 44%, #ffe5d9);
+}
+
+:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .list-actions-button {
+  background: color-mix(in oklab, #fff7f2 82%, #d8e2dc);
+  border-color: color-mix(in oklab, #f4acb7 55%, #d8e2dc);
+}
+
+:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .list-actions-button:hover {
+  background: color-mix(in oklab, #ffe5d9 78%, #ffffff);
+}
+
+:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .card > .card-drag-frame,
+:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .board-temporal-card-frame {
+  background: color-mix(in oklab, #ffe5d9 74%, #ffffff);
+  border-color: color-mix(in oklab, #f4acb7 68%, #ffe5d9);
+  box-shadow: 0 6px 16px rgba(157, 129, 137, 0.10);
+}
+
+:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .card:hover > .card-drag-frame,
+:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .board-calendar-card:hover .board-temporal-card-frame,
+:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .board-this-week-card:hover .board-temporal-card-frame {
+  border-color: color-mix(in oklab, #9d8189 45%, #f4acb7);
+  box-shadow: 0 10px 22px rgba(157, 129, 137, 0.14);
+}
+
 body {
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
   line-height: 1.45;
