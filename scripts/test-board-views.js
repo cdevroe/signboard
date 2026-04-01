@@ -230,13 +230,20 @@ function createContext() {
     getElementById: (id) => elements.get(id) || null,
     documentElement,
     body: new MockElement('body'),
+    querySelectorAll: () => [],
   };
 
   const context = {
     console,
+    navigator: {
+      platform: 'Win32',
+    },
     window: {
       innerWidth: 1280,
       innerHeight: 900,
+      board: {
+        listCards: async () => [],
+      },
     },
     document,
     Element: MockElement,
@@ -244,6 +251,8 @@ function createContext() {
     feather: null,
     renderBoard: async () => {},
     cardMatchesBoardSearch: () => true,
+    openAddListModal: () => {},
+    toggleAddCardModal: () => {},
   };
 
   context.window.document = document;
@@ -253,18 +262,27 @@ function createContext() {
   loadSource(context, 'app/utilities/taskList.js');
   loadSource(context, 'app/board/boardLabels.js');
   loadSource(context, 'app/board/boardViews.js');
+  loadSource(context, 'app/lists/listActionsPopover.js');
 
   const filterButton = new MockElement('button');
   const filterLabel = new MockElement('span');
   const filterPopover = new MockElement('div');
+  const viewButton = new MockElement('button');
+  const viewPopover = new MockElement('div');
+  const listActionsPopover = new MockElement('div');
   elements.set('labelFilterButton', filterButton);
   elements.set('labelFilterButtonText', filterLabel);
   elements.set('labelFilterPopover', filterPopover);
+  elements.set('boardViewButton', viewButton);
+  elements.set('boardViewPopover', viewPopover);
+  elements.set('listActionsPopover', listActionsPopover);
 
   return {
     context,
     filterButton,
     filterPopover,
+    viewPopover,
+    listActionsPopover,
   };
 }
 
@@ -273,6 +291,8 @@ function run() {
     context,
     filterButton,
     filterPopover,
+    viewPopover,
+    listActionsPopover,
   } = createContext();
 
   assert.strictEqual(
@@ -382,6 +402,38 @@ function run() {
   assert.strictEqual(context.cardMatchesBoardLabelFilter([], ['2026-03-10']), false);
   assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-09'), true);
   assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-10'), false);
+  assert.strictEqual(
+    context.cardMatchesBoardLabelFilter([], ['2026-03-09'], []),
+    false,
+    'expected overdue filter to ignore completed overdue task dates when there is no overdue card due date',
+  );
+  assert.deepStrictEqual(
+    toPlain(context.getActiveBoardFilterDueDates('', ['2026-03-09'], [])),
+    [],
+    'expected overdue active-filter due dates to ignore completed overdue task dates',
+  );
+  assert.deepStrictEqual(
+    toPlain(context.getActiveBoardFilterDueDates('2026-03-08', ['2026-03-09'], [])),
+    ['2026-03-08'],
+    'expected overdue active-filter due dates to keep overdue card due dates',
+  );
+  assert.strictEqual(context.getShortcutHintText('boardSettings'), 'Ctrl+,');
+  assert.strictEqual(context.getShortcutHintText('toggleTheme'), 'Ctrl+Shift+D');
+  assert.strictEqual(context.getShortcutKeycapText('kanbanView'), 'Ctrl + 1');
+
+  context.renderBoardViewPopover();
+  assert(viewPopover.textContent.includes('Ctrl+1'), 'expected Kanban shortcut hint in view popover');
+  assert(viewPopover.textContent.includes('Ctrl+2'), 'expected Calendar shortcut hint in view popover');
+  assert(viewPopover.textContent.includes('Ctrl+3'), 'expected This Week shortcut hint in view popover');
+
+  const listActionsState = context.getListActionsPopoverState();
+  listActionsState.anchorElement = new MockElement('button');
+  listActionsState.listPath = '/tmp/board/001-Backlog-abc12';
+  listActionsState.listDisplayName = 'Backlog';
+  listActionsState.cardCount = 3;
+  context.renderListActionsPopover();
+  assert(listActionsPopover.textContent.includes('Ctrl+N'), 'expected add-card shortcut hint in list actions popover');
+  assert(listActionsPopover.textContent.includes('Ctrl+Shift+N'), 'expected add-list shortcut hint in list actions popover');
 
   context.setBoardLabels(Array.from({ length: 11 }, (_, index) => createLabel(index + 1)));
   filterState.filterIds = ['label-1'];
@@ -423,6 +475,7 @@ function run() {
       taskSummary: { total: 0, completed: 0, remaining: 0 },
       taskItems: [],
       taskDueDates: [],
+      incompleteTaskDueDates: [],
     },
     {
       cardPath: '/tmp/mixed-dates.md',
@@ -435,6 +488,20 @@ function run() {
       taskSummary: { total: 1, completed: 0, remaining: 1 },
       taskItems: context.parseTaskListItems('- [ ] (due: 2026-03-09) Missed prep'),
       taskDueDates: ['2026-03-09'],
+      incompleteTaskDueDates: ['2026-03-09'],
+    },
+    {
+      cardPath: '/tmp/completed-overdue-task.md',
+      listName: '002-Doing-abc12',
+      listDisplayName: 'Doing',
+      title: 'Completed overdue task',
+      due: '',
+      labels: ['label-1'],
+      body: '- [x] (due: 2026-03-09) Finished prep',
+      taskSummary: { total: 1, completed: 1, remaining: 0 },
+      taskItems: context.parseTaskListItems('- [x] (due: 2026-03-09) Finished prep'),
+      taskDueDates: ['2026-03-09'],
+      incompleteTaskDueDates: [],
     },
   ];
 
@@ -456,13 +523,13 @@ function run() {
   filterState.activeDateFilter = 'overdue';
   const overdueCalendarBuckets = context.buildCalendarCardBuckets(entries, new context.Date(2026, 2, 1));
   const overdueCalendarEntries = overdueCalendarBuckets.get('2026-03-09') || [];
-  assert.strictEqual(overdueCalendarEntries.length, 2, 'expected only overdue placements in calendar view');
+  assert.strictEqual(overdueCalendarEntries.length, 2, 'expected overdue view to ignore completed overdue task placements in calendar view');
   assert.strictEqual(overdueCalendarEntries[0].temporalReason, 'card');
   assert.strictEqual(overdueCalendarBuckets.has('2026-03-10'), false);
 
   const overdueWeekBuckets = context.buildWeekCardBuckets(entries, new context.Date(2026, 2, 9));
   const overdueWeekEntries = overdueWeekBuckets.get('2026-03-09') || [];
-  assert.strictEqual(overdueWeekEntries.length, 2, 'expected only overdue placements in week view');
+  assert.strictEqual(overdueWeekEntries.length, 2, 'expected overdue view to ignore completed overdue task placements in week view');
   assert.strictEqual(overdueWeekEntries[0].temporalReason, 'card');
   assert.strictEqual(overdueWeekBuckets.has('2026-03-10'), false);
 }

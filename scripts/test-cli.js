@@ -96,6 +96,28 @@ async function createFixtureBoard() {
     body: 'Review notes',
   });
 
+  await cardFrontmatter.writeCard(path.join(doingList, '002-open-overdue-task-gh012.md'), {
+    frontmatter: {
+      title: 'Open overdue task',
+    },
+    body: `Still waiting\n- [ ] (due: ${daysFromTodayIso(-2)}) Chase reply`,
+  });
+
+  await cardFrontmatter.writeCard(path.join(doingList, '003-completed-overdue-task-ij345.md'), {
+    frontmatter: {
+      title: 'Completed overdue task',
+    },
+    body: `Wrapped up\n- [x] (due: ${daysFromTodayIso(-2)}) Sent reply`,
+  });
+
+  await cardFrontmatter.writeCard(path.join(doingList, '004-overdue-card-kl678.md'), {
+    frontmatter: {
+      title: 'Overdue card',
+      due: daysFromTodayIso(-1),
+    },
+    body: `Card-level due date only\n- [x] (due: ${daysFromTodayIso(-3)}) Finished prep`,
+  });
+
   return { root, boardRoot };
 }
 
@@ -250,6 +272,60 @@ async function main() {
   assert.strictEqual(dueCards.length, 2);
   assert.ok(dueCards.some((card) => card.title === 'Launch plan'));
   assert.ok(dueCards.some((card) => card.title === 'Client follow up'));
+
+  const overdueCards = JSON.parse(
+    runCli([
+      'cards',
+      '--due',
+      'overdue',
+      '--json',
+    ], env).stdout
+  );
+  assert.deepStrictEqual(
+    overdueCards.map((card) => card.title).sort(),
+    ['Open overdue task', 'Overdue card'],
+  );
+
+  const overdueTaskCardsDefault = JSON.parse(
+    runCli([
+      'cards',
+      '--due',
+      'overdue',
+      '--due-source',
+      'task',
+      '--json',
+    ], env).stdout
+  );
+  assert.deepStrictEqual(
+    overdueTaskCardsDefault.map((card) => card.title).sort(),
+    ['Open overdue task'],
+  );
+
+  const overdueTaskCardsAny = JSON.parse(
+    runCli([
+      'cards',
+      '--due',
+      'overdue',
+      '--due-source',
+      'task',
+      '--task-status',
+      'any',
+      '--json',
+    ], env).stdout
+  );
+  assert.deepStrictEqual(
+    overdueTaskCardsAny.map((card) => card.title).sort(),
+    ['Completed overdue task', 'Open overdue task', 'Overdue card'],
+  );
+
+  const invalidTaskStatus = runCliExpectFail([
+    'cards',
+    '--due',
+    'overdue',
+    '--task-status',
+    'closed',
+  ], env);
+  assert.ok(invalidTaskStatus.stderr.includes('Unsupported task status filter: closed'));
 
   const waitingCards = JSON.parse(
     runCli([

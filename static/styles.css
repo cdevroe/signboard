@@ -572,6 +572,18 @@ body:not(.board-empty) #boardTabs {
 
 .board-menu-action-label {
   min-width: 0;
+  flex: 1 1 auto;
+}
+
+.menu-shortcut-hint {
+  margin-left: auto;
+  color: color-mix(in oklab, var(--muted) 88%, var(--bg-card));
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 #boardViewPopover {
@@ -2469,6 +2481,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 .board-view-option-label {
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .label-color-swatch {
@@ -2501,6 +2514,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   width: 100%;
   display: flex;
   align-items: center;
+  gap: 12px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -2509,6 +2523,11 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   font-weight: 500;
   padding: 8px 10px;
   text-align: left;
+}
+
+.list-actions-option-label {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .list-actions-option:hover:not(:disabled) {

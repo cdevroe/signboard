@@ -401,6 +401,7 @@ async function collectCardsForCalendar(boardRoot, lists) {
         taskSummary: getTaskListSummary(body),
         taskItems,
         taskDueDates: getTaskListDueDates(body),
+        incompleteTaskDueDates: getIncompleteTaskListDueDates(body),
       };
     }),
   );
@@ -414,8 +415,13 @@ function buildCalendarCardBuckets(cardEntries, monthCursor) {
 
   for (const entry of entries) {
     const dueDates = getCardFilterDueDates(entry.due, entry.taskDueDates);
-    const visibleDueDates = dueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
-    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates);
+    const activeFilterDueDates = getActiveBoardFilterDueDates(
+      entry.due,
+      entry.taskDueDates,
+      entry.incompleteTaskDueDates,
+    );
+    const visibleDueDates = activeFilterDueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, activeFilterDueDates);
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
 
     if (visibleDueDates.length === 0 || !matchesLabelFilter || !matchesSearchFilter) {
@@ -462,8 +468,13 @@ function buildWeekCardBuckets(cardEntries, weekStartDate) {
 
   for (const entry of entries) {
     const dueDates = getCardFilterDueDates(entry.due, entry.taskDueDates);
-    const visibleDueDates = dueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
-    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates);
+    const activeFilterDueDates = getActiveBoardFilterDueDates(
+      entry.due,
+      entry.taskDueDates,
+      entry.incompleteTaskDueDates,
+    );
+    const visibleDueDates = activeFilterDueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, activeFilterDueDates);
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
     if (visibleDueDates.length === 0 || !matchesLabelFilter || !matchesSearchFilter) {
       continue;
@@ -606,15 +617,20 @@ function renderBoardViewPopover() {
   popover.innerHTML = '';
 
   for (const option of BOARD_VIEW_OPTIONS) {
+    const shortcutActionId = option.id === BOARD_VIEW_IDS.KANBAN
+      ? 'kanbanView'
+      : (option.id === BOARD_VIEW_IDS.CALENDAR ? 'calendarView' : 'thisWeekView');
     const optionButton = document.createElement('button');
     optionButton.type = 'button';
     optionButton.className = 'board-view-option';
     optionButton.dataset.viewId = option.id;
     optionButton.setAttribute('aria-pressed', String(option.id === activeView));
+    optionButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(shortcutActionId));
     optionButton.innerHTML = `
       <span class="board-view-option-check">${option.id === activeView ? '✓' : ''}</span>
       <span class="board-view-option-icon" aria-hidden="true">${getBoardViewIconMarkup(option.id)}</span>
       <span class="board-view-option-label">${option.label}</span>
+      <span class="menu-shortcut-hint board-view-option-shortcut" aria-hidden="true">${getShortcutHintText(shortcutActionId)}</span>
     `;
     optionButton.addEventListener('click', (event) => {
       event.preventDefault();

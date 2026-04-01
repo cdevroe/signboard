@@ -32,6 +32,20 @@ async function createFixtureBoard() {
     body: `Prepare launch notes\n- [ ] (due: ${daysFromTodayIso(2)}) Draft email`,
   });
 
+  await cardFrontmatter.writeCard(path.join(todoList, '002-open-overdue-task-cd456.md'), {
+    frontmatter: {
+      title: 'Open overdue task',
+    },
+    body: `Still waiting\n- [ ] (due: ${daysFromTodayIso(-2)}) Chase reply`,
+  });
+
+  await cardFrontmatter.writeCard(path.join(todoList, '003-completed-overdue-task-ef789.md'), {
+    frontmatter: {
+      title: 'Completed overdue task',
+    },
+    body: `Wrapped up\n- [x] (due: ${daysFromTodayIso(-2)}) Sent reply`,
+  });
+
   return { root, boardRoot };
 }
 
@@ -134,6 +148,34 @@ async function main() {
   const cards = JSON.parse(listResult.stdout);
   assert.strictEqual(cards.length, 1);
   assert.strictEqual(cards[0].title, 'Launch plan');
+
+  const overdueTaskCardsDefault = JSON.parse(runDesktopCli([
+    'cards',
+    '--due',
+    'overdue',
+    '--due-source',
+    'task',
+    '--json',
+  ], env).stdout);
+  assert.deepStrictEqual(
+    overdueTaskCardsDefault.map((card) => card.title).sort(),
+    ['Open overdue task'],
+  );
+
+  const overdueTaskCardsAny = JSON.parse(runDesktopCli([
+    'cards',
+    '--due',
+    'overdue',
+    '--due-source',
+    'task',
+    '--task-status',
+    'any',
+    '--json',
+  ], env).stdout);
+  assert.deepStrictEqual(
+    overdueTaskCardsAny.map((card) => card.title).sort(),
+    ['Completed overdue task', 'Open overdue task'],
+  );
 
   const settingsResult = runDesktopCli([
     'settings',

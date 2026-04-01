@@ -122,6 +122,20 @@ function getTaskListDueDates(bodyValue) {
   return [...dueSet].sort();
 }
 
+function getIncompleteTaskListDueDates(bodyValue) {
+  const items = parseTaskListItems(bodyValue);
+  const dueSet = new Set();
+  for (const item of items) {
+    if (item.isCompleted || !item.due) {
+      continue;
+    }
+
+    dueSet.add(item.due);
+  }
+
+  return [...dueSet].sort();
+}
+
 function createTaskProgressBadge(taskSummary, className = '') {
   const summary = taskSummary && typeof taskSummary === 'object' ? taskSummary : {};
   const total = Number(summary.total) || 0;

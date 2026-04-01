@@ -101,4 +101,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('open-keyboard-shortcuts', listener);
     };
   },
+  onOpenBoardSettings: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = () => {
+      callback();
+    };
+
+    ipcRenderer.on('open-board-settings', listener);
+    return () => {
+      ipcRenderer.removeListener('open-board-settings', listener);
+    };
+  },
+  onToggleThemeMode: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = () => {
+      callback();
+    };
+
+    ipcRenderer.on('toggle-theme-mode', listener);
+    return () => {
+      ipcRenderer.removeListener('toggle-theme-mode', listener);
+    };
+  },
 });

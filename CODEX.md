@@ -16,8 +16,10 @@ Start here before opening source files.
 - Board view switching (Kanban/Calendar/This Week) is managed in `app/board/boardViews.js`; temporal views include cards by card due date and task-level due markers (`(due: YYYY-MM-DD)`).
 - Calendar and This Week cards also show a subdued source-list label so users can tell which Kanban list a due item currently belongs to without opening it.
 - The header filter popover is owned by `app/board/boardLabels.js`; it supports temporary `Today` / `Overdue` date filters plus multi-select label filters, and those filters apply across Kanban, Calendar, and This Week.
+- The `Overdue` filter intentionally ignores completed task-level due markers; overdue card-level due dates still count, and incomplete task due markers still drive overdue matches across Kanban, Calendar, and This Week.
 - The filter toolbar button is icon-only; when filters are active it gets an accent-tinted active state and exposes the active summary through tooltip/ARIA text rather than visible label text.
-- Keyboard shortcut handling is centralized in `app/listeners/window.js`; the hold-for-2-seconds shortcut helper modal is rendered in `index.html` as `#modalKeyboardShortcuts` and must be kept in sync whenever shortcuts change.
+- Keyboard shortcut handling is centralized in `app/listeners/window.js`; the helper modal is rendered in `index.html` as `#modalKeyboardShortcuts`, and native menu accelerators now cover Board Settings (`Cmd/Ctrl + ,`) plus theme toggling (`Cmd/Ctrl + Shift + D`).
+- Shortcut label formatting is shared from `app/board/boardLabels.js`, so the keyboard helper modal, board/view menus, and list-action popovers all stay OS-aware and in sync.
 - Task checklist parsing + counters + task due-date helpers live in `app/utilities/taskList.js` and feed Board/Calendar/This Week card badges.
 - Due notification aggregation/formatting (including task-due item snippets) lives in `app/utilities/dueNotifications.js` and is consumed by `app/init.js`.
 - Task-line due-date controls in the editor are positioned from measured textarea line-start coordinates (not raw line index math) to stay aligned with wrapped content.
@@ -34,5 +36,6 @@ Start here before opening source files.
 - External import pickers are tokenized in `main.js` and surfaced through `window.chooser.pickImportSources(...)`; renderer code never reads arbitrary external files directly.
 - Trello, Obsidian, and Tasks.md importer coverage lives in `scripts/test-import-trello.js`, `scripts/test-import-obsidian.js`, and `scripts/test-import-tasksmd.js`.
 - The terminal CLI now exposes `signboard import trello --file ...`, `signboard import obsidian --source ...`, and `signboard import tasksmd --source ...`; MCP mirrors that with `signboard.import_trello`, `signboard.import_obsidian`, and `signboard.import_tasksmd`.
+- CLI due filtering in `lib/cliBoard.js` now defaults `--due overdue` to open task items only, with `--task-status any` available when callers want completed task due markers included.
 - Skip heavy/generated content unless explicitly needed: `node_modules/`, `dist/`, `static/vendor/`, and usually `package-lock.json`.
 - Always update Codex markdown docs when behavior/architecture/tooling changes (`CODEX.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`).

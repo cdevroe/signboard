@@ -2,15 +2,6 @@ const SHORTCUT_HELP_MODAL_ID = 'modalKeyboardShortcuts';
 
 let shortcutHelpVisible = false;
 
-function isMacShortcutPlatform() {
-    const platformValue = String(
-        (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''
-    ).toLowerCase();
-    return platformValue.includes('mac');
-}
-
-const usesMetaShortcutModifier = isMacShortcutPlatform();
-
 function getShortcutHelpModal() {
     return document.getElementById(SHORTCUT_HELP_MODAL_ID);
 }
@@ -41,15 +32,9 @@ function hideShortcutHelpModal() {
 }
 
 function syncShortcutHelpModifierLabels() {
-    const modifierLabel = usesMetaShortcutModifier ? 'Command' : 'Control';
-    const modifierKey = usesMetaShortcutModifier ? '⌘' : 'Ctrl';
-
-    document.querySelectorAll('.shortcut-modifier-label').forEach((element) => {
-        element.textContent = modifierLabel;
-    });
-    document.querySelectorAll('.shortcut-key-modifier').forEach((element) => {
-        element.textContent = modifierKey;
-    });
+    if (typeof syncShortcutDisplayText === 'function') {
+        syncShortcutDisplayText();
+    }
 }
 
 function isEditableShortcutTarget(target) {
@@ -116,11 +101,65 @@ function focusBoardSearchInput() {
     return true;
 }
 
+async function openBoardSettingsFromShortcut() {
+    if (!window.boardRoot) {
+        return false;
+    }
+
+    const openSettingsButton = document.getElementById('openBoardSettings');
+    if (openSettingsButton && typeof openSettingsButton.click === 'function') {
+        openSettingsButton.click();
+        return true;
+    }
+
+    if (typeof closeBoardMenuPopover === 'function') {
+        closeBoardMenuPopover();
+    }
+    if (typeof closeAllModals === 'function') {
+        await closeAllModals({ key: 'Escape' });
+    }
+    if (typeof ensureBoardLabelsLoaded === 'function') {
+        await ensureBoardLabelsLoaded();
+    }
+    if (typeof openBoardSettingsModal === 'function') {
+        openBoardSettingsModal();
+        return true;
+    }
+
+    return false;
+}
+
+function toggleThemeModeFromShortcut() {
+    const themeToggleButton = document.getElementById('themeToggle');
+    if (!themeToggleButton || typeof themeToggleButton.click !== 'function') {
+        return false;
+    }
+
+    themeToggleButton.click();
+    return true;
+}
+
 syncShortcutHelpModifierLabels();
 
 if (window.electronAPI && typeof window.electronAPI.onOpenKeyboardShortcuts === 'function') {
     window.electronAPI.onOpenKeyboardShortcuts(() => {
         showShortcutHelpModal();
+    });
+}
+
+if (window.electronAPI && typeof window.electronAPI.onOpenBoardSettings === 'function') {
+    window.electronAPI.onOpenBoardSettings(() => {
+        hideShortcutHelpModal();
+        openBoardSettingsFromShortcut().catch((error) => {
+            console.error('Unable to open board settings from shortcut.', error);
+        });
+    });
+}
+
+if (window.electronAPI && typeof window.electronAPI.onToggleThemeMode === 'function') {
+    window.electronAPI.onToggleThemeMode(() => {
+        hideShortcutHelpModal();
+        toggleThemeModeFromShortcut();
     });
 }
 

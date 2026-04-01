@@ -180,13 +180,17 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Cmd/Ctrl + 1`: switch to Kanban view.
   - `Cmd/Ctrl + 2`: switch to Calendar view.
   - `Cmd/Ctrl + 3`: switch to This Week view.
+  - Native menu accelerators now also dispatch `Cmd/Ctrl + ,` for Board Settings and `Cmd/Ctrl + Shift + D` for theme toggling back into the renderer.
   - Any shortcut changes must update the helper list in `index.html` (`#modalKeyboardShortcuts`) in the same change.
+- View-switcher rows and list-action rows surface the same shortcut hints in subtle monospace text so the app teaches the keyboard path inline.
+- Board date filtering treats overdue task markers as actionable work only: completed task due markers do not keep a card visible in the `Overdue` filter, but overdue card-level due dates still do.
 
 ### Theme support
 - `app/ui/theme.js`:
   - Toggles `document.documentElement.dataset.theme`.
   - Persists theme to localStorage.
   - Updates OverType theme to match app theme.
+  - Renders the board-menu theme action label, shortcut hint, and accessible shortcut metadata.
 - `app/ui/tooltips.js`:
   - Provides custom app-styled tooltips for primary controls without third-party dependencies.
   - Sources tooltip text from existing control labels (`title`, `aria-label`, `alt`) and keeps styling aligned with board palette CSS variables.
@@ -253,11 +257,15 @@ Files: `lib/importers/*`
 - Concatenates module files into `app/signboard.js` in strict order.
 
 ### CLI internals
-- `lib/cliBoard.js` owns CLI board/list/card filesystem operations.
+- `lib/cliBoard.js` owns CLI board/list/card filesystem operations, including due filtering with `--due-source any|card|task` and `--task-status open|any`.
 - `lib/taskList.js` exposes shared task parsing and due-date helpers for CLI filtering.
 - `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including path-based Trello/Obsidian/Tasks.md imports.
 - `lib/cliInstall.js` owns user-level CLI shim + shell profile installation.
 - `lib/cliState.js` persists the currently selected board for subsequent CLI commands.
+
+CLI overdue behavior:
+- `signboard cards --due overdue` now defaults task-derived matches to open/incomplete tasks only, aligning with the desktop overdue filter.
+- Pass `--task-status any` to include completed task due markers again.
 
 ### Frontmatter tests
 - `npm run test:frontmatter`

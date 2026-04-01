@@ -7,6 +7,7 @@ async function createCardElement(cardPath) {
     : [];
   const taskSummary = getTaskListSummary(card.body);
   const taskDueDates = getTaskListDueDates(card.body);
+  const incompleteTaskDueDates = getIncompleteTaskListDueDates(card.body);
 
   const previewText = card.body
     .split(/\r?\n/)
@@ -149,7 +150,8 @@ async function createCardElement(cardPath) {
     setMetadataActionVisibility();
 
     const cardDueDates = getCardFilterDueDates(dueDateValue, taskDueDates);
-    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates)) {
+    const activeFilterDueDates = getActiveBoardFilterDueDates(dueDateValue, taskDueDates, incompleteTaskDueDates);
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates, activeFilterDueDates)) {
       await renderBoard();
     }
   }
@@ -164,7 +166,8 @@ async function createCardElement(cardPath) {
     renderCardLabels();
 
     const cardDueDates = getCardFilterDueDates(dueDateValue, taskDueDates);
-    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates)) {
+    const activeFilterDueDates = getActiveBoardFilterDueDates(dueDateValue, taskDueDates, incompleteTaskDueDates);
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates, activeFilterDueDates)) {
       await renderBoard();
     }
   }
@@ -219,6 +222,7 @@ async function createCardElement(cardPath) {
   const matchesLabelFilter = cardMatchesBoardLabelFilter(
     selectedLabelIds,
     getCardFilterDueDates(dueDateValue, taskDueDates),
+    getActiveBoardFilterDueDates(dueDateValue, taskDueDates, incompleteTaskDueDates),
   );
   const matchesSearchFilter = cardMatchesBoardSearch(card.frontmatter.title, card.body);
 

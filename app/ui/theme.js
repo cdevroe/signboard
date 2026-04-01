@@ -93,9 +93,11 @@ function renderThemeToggleButtonState() {
   themeToggle.innerHTML = `
     <span class="board-menu-action-icon" aria-hidden="true">${iconMarkup}</span>
     <span class="board-menu-action-label">${label}</span>
+    <span class="menu-shortcut-hint" aria-hidden="true">${getShortcutHintText('toggleTheme')}</span>
   `;
-  themeToggle.setAttribute('title', `Switch to ${isDarkMode ? 'light' : 'dark'} mode`);
+  themeToggle.setAttribute('title', `Switch to ${isDarkMode ? 'light' : 'dark'} mode (${getShortcutHintText('toggleTheme')})`);
   themeToggle.setAttribute('aria-label', `Switch to ${isDarkMode ? 'light' : 'dark'} mode`);
+  themeToggle.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts('toggleTheme'));
 
   if (
     !(

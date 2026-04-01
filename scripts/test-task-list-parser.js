@@ -18,7 +18,7 @@ function loadTaskListUtilities() {
 
 function run() {
   const context = loadTaskListUtilities();
-  const { getTaskListSummary, getTaskListDueDates } = context;
+  const { getTaskListSummary, getTaskListDueDates, getIncompleteTaskListDueDates } = context;
   const toPlain = (value) => JSON.parse(JSON.stringify(value));
 
   const baseline = [
@@ -56,6 +56,21 @@ function run() {
     toPlain(getTaskListDueDates(withTaskDueDates)),
     ['2026-03-20', '2026-03-22'],
     'Expected unique sorted task due dates',
+  );
+  assert.deepStrictEqual(
+    toPlain(getIncompleteTaskListDueDates(withTaskDueDates)),
+    ['2026-03-20', '2026-03-22'],
+    'Expected completed task due dates to be ignored when collecting incomplete task due dates',
+  );
+
+  const withOnlyCompletedDueTasks = [
+    '- [x ] (due: 2026-03-18) Closed task one',
+    '- [X ] (due: 2026-03-19) Closed task two',
+  ].join('\n');
+  assert.deepStrictEqual(
+    toPlain(getIncompleteTaskListDueDates(withOnlyCompletedDueTasks)),
+    [],
+    'Expected no incomplete task due dates when all due-marked tasks are completed',
   );
 
   const withHeadingsAndPlainLists = [

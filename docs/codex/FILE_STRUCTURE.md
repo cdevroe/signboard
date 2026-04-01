@@ -4,9 +4,9 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu + GitHub-release auto-update flow (`electron-updater`).
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board settings/theme shortcuts) + GitHub-release auto-update flow (`electron-updater`).
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
-- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC.
+- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and menu-triggered renderer events.
 - `index.html` - App shell, header board tab strip, modal markup (including `#modalKeyboardShortcuts`), and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `package.json` - Runtime/build scripts and dependencies.
@@ -24,9 +24,9 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/santizeFileName.js` - Filename sanitization + random suffix helper.
 - `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and task due markers.
-- `app/board/boardLabels.js` - Board-label state, header filter UI (`Today` / `Overdue` + label filters), card label popovers, board settings editor, and Trello/Obsidian import panel wiring + summary rendering.
+- `app/board/boardLabels.js` - Board-label state, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with `Overdue` ignoring completed task due markers), card label popovers, board settings editor, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
-- `app/board/boardViews.js` - Board view state, `Views` menu wiring, Calendar + This Week rendering/navigation/drag-to-reschedule logic, temporal card placement by card due/task due markers, and source-list labels on temporal cards.
+- `app/board/boardViews.js` - Board view state, `Views` menu wiring + shortcut hints, Calendar + This Week rendering/navigation/drag-to-reschedule logic, temporal card placement by card due/task due markers, and source-list labels on temporal cards.
 - `app/cards/createCardElement.js` - Card DOM rendering, task progress badge display, and click behavior.
 - `app/cards/processAddNewCard.js` - New card creation flow.
 - `app/cards/processAddNewList.js` - New list creation flow.
@@ -38,9 +38,9 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
 - `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic with debounced + serialized saves and task-line due-date controls aligned from measured line coordinates.
-- `app/listeners/window.js` - Keyboard shortcuts, including the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
+- `app/listeners/window.js` - Keyboard shortcuts, menu-command listeners, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, and external board-change auto-refresh sync loop.
-- `app/ui/theme.js` - Theme toggle + OverType theme integration.
+- `app/ui/theme.js` - Theme toggle + OverType theme integration, including the theme shortcut hint/state in the board menu.
 - `app/ui/tooltips.js` - Lightweight custom tooltip engine (event delegation + mutation observer) using existing element label attributes.
 
 ## Shared/library code
@@ -52,7 +52,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/importers/trello.js` - Trello JSON importer.
 - `lib/importers/obsidian.js` - Obsidian importer covering `obsidian-kanban`, generic task scopes, and CardBoard snapshot imports.
 - `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings operations, safe board creation, Trello/Obsidian imports, and task-summary metadata on card tools.
-- `lib/cliApp.js` - CLI command parsing/output for `use`, `lists`, `cards`, `settings`, and path-based `import` commands.
+- `lib/cliApp.js` - CLI command parsing/output for `use`, `lists`, `cards`, `settings`, and path-based `import` commands, including `--task-status open|any` for card due filtering.
+- `lib/cliBoard.js` - CLI board/list/card filesystem operations, record loading, and due/search/label filtering; overdue task filtering defaults to incomplete/open task markers unless callers pass `--task-status any`.
 
 ## Scripts (`scripts/`)
 

@@ -1692,6 +1692,20 @@ function buildApplicationMenu() {
       sendToMainWindow('open-keyboard-shortcuts');
     },
   });
+  const createBoardSettingsMenuItem = () => ({
+    label: 'Board Settings...',
+    accelerator: 'CmdOrCtrl+,',
+    click: () => {
+      sendToMainWindow('open-board-settings');
+    },
+  });
+  const createToggleThemeMenuItem = () => ({
+    label: 'Toggle Light/Dark Mode',
+    accelerator: 'CmdOrCtrl+Shift+D',
+    click: () => {
+      sendToMainWindow('toggle-theme-mode');
+    },
+  });
   const createAboutSignboardMenuItem = () => ({
     label: 'About Signboard',
     click: () => {
@@ -1706,6 +1720,7 @@ function buildApplicationMenu() {
       label: app.name,
       submenu: [
         createAboutSignboardMenuItem(),
+        createBoardSettingsMenuItem(),
         { type: 'separator' },
         createCheckForUpdatesMenuItem(),
         { type: 'separator' },
@@ -1722,7 +1737,9 @@ function buildApplicationMenu() {
 
   template.push({
     label: 'File',
-    submenu: [isMac ? { role: 'close' } : { role: 'quit' }],
+    submenu: isMac
+      ? [{ role: 'close' }]
+      : [createBoardSettingsMenuItem(), { type: 'separator' }, { role: 'quit' }],
   });
 
   template.push({
@@ -1740,7 +1757,19 @@ function buildApplicationMenu() {
 
   template.push({
     label: 'View',
-    submenu: [{ role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }],
+    submenu: [
+      createToggleThemeMenuItem(),
+      { type: 'separator' },
+      { role: 'reload' },
+      { role: 'forceReload' },
+      { role: 'toggleDevTools' },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' },
+    ],
   });
 
   template.push({

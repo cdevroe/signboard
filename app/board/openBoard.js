@@ -145,6 +145,8 @@ On macOS use Cmd. On Windows and Linux use Ctrl.
 - Cmd/Ctrl + 1 opens Kanban view
 - Cmd/Ctrl + 2 opens Calendar view
 - Cmd/Ctrl + 3 opens This Week view
+- Cmd/Ctrl + , opens Board Settings
+- Cmd/Ctrl + Shift + D toggles light and dark mode
 - Esc closes open modals
 
 ## One last thing

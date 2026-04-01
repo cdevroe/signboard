@@ -176,8 +176,22 @@ function createListActionsOption(label, options = {}) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'list-actions-option';
-  button.textContent = label;
   button.disabled = Boolean(options.disabled);
+
+  const labelElement = document.createElement('span');
+  labelElement.className = 'list-actions-option-label';
+  labelElement.textContent = label;
+  button.appendChild(labelElement);
+
+  if (typeof options.shortcutActionId === 'string' && options.shortcutActionId.trim()) {
+    const shortcutActionId = options.shortcutActionId.trim();
+    const shortcutElement = document.createElement('span');
+    shortcutElement.className = 'menu-shortcut-hint list-actions-option-shortcut';
+    shortcutElement.setAttribute('aria-hidden', 'true');
+    shortcutElement.textContent = getShortcutHintText(shortcutActionId);
+    button.appendChild(shortcutElement);
+    button.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(shortcutActionId));
+  }
 
   if (options.destructive) {
     button.classList.add('list-actions-option-destructive');
@@ -211,12 +225,14 @@ function renderListActionsPopover() {
   popover.innerHTML = '';
 
   const addCardButton = createListActionsOption('Add new card', {
+    shortcutActionId: 'addCard',
     onClick: async () => {
       openAddCardModalForList(state.listPath, state.anchorElement);
     },
   });
 
   const addListButton = createListActionsOption('Add new list', {
+    shortcutActionId: 'addList',
     onClick: async () => {
       openAddListModal({
         anchorElement: state.anchorElement,

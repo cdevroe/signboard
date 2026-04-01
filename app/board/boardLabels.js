@@ -61,6 +61,124 @@ const BOARD_THEME_STYLE_VAR_MAP = Object.freeze({
     shadowCard: '--sb-dark-shadow-card',
   }),
 });
+
+const SHORTCUT_ACTION_DEFINITIONS = Object.freeze({
+  keyboardShortcuts: Object.freeze({ key: '/', usesPrimaryModifier: true }),
+  addCard: Object.freeze({ key: 'N', usesPrimaryModifier: true }),
+  addList: Object.freeze({ key: 'N', usesPrimaryModifier: true, shiftKey: true }),
+  kanbanView: Object.freeze({ key: '1', usesPrimaryModifier: true }),
+  calendarView: Object.freeze({ key: '2', usesPrimaryModifier: true }),
+  thisWeekView: Object.freeze({ key: '3', usesPrimaryModifier: true }),
+  focusSearch: Object.freeze({ key: 'F', usesPrimaryModifier: true }),
+  boardSettings: Object.freeze({ key: ',', usesPrimaryModifier: true }),
+  toggleTheme: Object.freeze({ key: 'D', usesPrimaryModifier: true, shiftKey: true }),
+  closeModals: Object.freeze({ key: 'Escape', usesPrimaryModifier: false }),
+});
+
+const SPOKEN_SHORTCUT_KEY_LABELS = Object.freeze({
+  '/': 'slash',
+  ',': 'comma',
+  Escape: 'Escape',
+});
+
+function isPrimaryShortcutMacPlatform() {
+  const platformValue = String(
+    (
+      typeof navigator !== 'undefined' &&
+      navigator &&
+      ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform)
+    ) || ''
+  ).toLowerCase();
+
+  return platformValue.includes('mac');
+}
+
+function getShortcutDefinition(actionId) {
+  return SHORTCUT_ACTION_DEFINITIONS[actionId] || null;
+}
+
+function getShortcutTokens(actionId, { spoken = false } = {}) {
+  const definition = getShortcutDefinition(actionId);
+  if (!definition) {
+    return [];
+  }
+
+  const isMac = isPrimaryShortcutMacPlatform();
+  const tokens = [];
+
+  if (definition.usesPrimaryModifier) {
+    tokens.push(spoken ? (isMac ? 'Command' : 'Control') : (isMac ? '⌘' : 'Ctrl'));
+  }
+
+  if (definition.shiftKey) {
+    tokens.push(spoken ? 'Shift' : (isMac ? '⇧' : 'Shift'));
+  }
+
+  const keyLabel = spoken
+    ? (SPOKEN_SHORTCUT_KEY_LABELS[definition.key] || definition.key)
+    : definition.key;
+
+  tokens.push(keyLabel);
+  return tokens;
+}
+
+function getShortcutHintText(actionId) {
+  const tokens = getShortcutTokens(actionId);
+  if (tokens.length === 0) {
+    return '';
+  }
+
+  return isPrimaryShortcutMacPlatform() ? tokens.join('') : tokens.join('+');
+}
+
+function getShortcutKeycapText(actionId) {
+  const tokens = getShortcutTokens(actionId);
+  return tokens.join(' + ');
+}
+
+function getShortcutAriaKeyshortcuts(actionId) {
+  const definition = getShortcutDefinition(actionId);
+  if (!definition) {
+    return '';
+  }
+
+  const tokens = [];
+
+  if (definition.usesPrimaryModifier) {
+    tokens.push(isPrimaryShortcutMacPlatform() ? 'Meta' : 'Control');
+  }
+
+  if (definition.shiftKey) {
+    tokens.push('Shift');
+  }
+
+  tokens.push(definition.key);
+  return tokens.join('+');
+}
+
+function syncShortcutDisplayText(root = document) {
+  if (!root || typeof root.querySelectorAll !== 'function') {
+    return;
+  }
+
+  const modifierLabel = isPrimaryShortcutMacPlatform() ? 'Command' : 'Control';
+
+  root.querySelectorAll('.shortcut-modifier-label').forEach((element) => {
+    element.textContent = modifierLabel;
+  });
+
+  root.querySelectorAll('[data-shortcut-action]').forEach((element) => {
+    const actionId = String(element.getAttribute('data-shortcut-action') || '').trim();
+    if (!actionId) {
+      return;
+    }
+
+    const format = String(element.getAttribute('data-shortcut-format') || '').trim().toLowerCase();
+    element.textContent = format === 'menu'
+      ? getShortcutHintText(actionId)
+      : getShortcutKeycapText(actionId);
+  });
+}
 /* ──────────────────────────────────────────────────────────────────────────────
  * COLOR SCHEMES
  *
@@ -1032,11 +1150,27 @@ function getCardFilterDueDates(cardDueDateValue, taskDueDateValues = []) {
   return [...dueSet].sort();
 }
 
+function getActiveBoardFilterDueDates(
+  cardDueDateValue,
+  taskDueDateValues = [],
+  incompleteTaskDueDateValues = taskDueDateValues,
+  activeFilter = getActiveBoardDateFilter(),
+) {
+  if (activeFilter === BOARD_DATE_FILTER_OVERDUE) {
+    return getCardFilterDueDates(
+      cardDueDateValue,
+      Array.isArray(incompleteTaskDueDateValues) ? incompleteTaskDueDateValues : taskDueDateValues,
+    );
+  }
+
+  return getCardFilterDueDates(cardDueDateValue, taskDueDateValues);
+}
+
 function isBoardLabelFilterActive() {
   return getActiveBoardLabelFilterIds().length > 0 || isBoardDueDateFilterActive();
 }
 
-function cardMatchesBoardLabelFilter(cardLabelIds, cardDueDates = []) {
+function cardMatchesBoardLabelFilter(cardLabelIds, cardDueDates = [], activeFilterDueDates = cardDueDates) {
   const selectedFilterIds = getActiveBoardLabelFilterIds();
   const activeDateFilter = getActiveBoardDateFilter();
   const hasLabelFilters = selectedFilterIds.length > 0;
@@ -1052,7 +1186,7 @@ function cardMatchesBoardLabelFilter(cardLabelIds, cardDueDates = []) {
   const matchesLabelFilter = hasLabelFilters
     ? normalizedCardLabelIds.some((labelId) => selectedFilterIds.includes(labelId))
     : true;
-  const normalizedCardDueDates = getCardFilterDueDates(cardDueDates);
+  const normalizedCardDueDates = getCardFilterDueDates(activeFilterDueDates);
   const matchesDueDateFilter = activeDateFilter
     ? normalizedCardDueDates.some((dateValue) => doesBoardDateFilterMatchDueDate(dateValue, activeDateFilter))
     : true;
@@ -2169,6 +2303,18 @@ function isBoardSettingsModalOpen() {
   return Boolean(modal && modal.style.display === 'block');
 }
 
+function renderBoardSettingsActionState() {
+  const openSettingsButton = document.getElementById('openBoardSettings');
+  if (!openSettingsButton) {
+    return;
+  }
+
+  const shortcutHint = getShortcutHintText('boardSettings');
+  openSettingsButton.setAttribute('title', `Open board settings (${shortcutHint})`);
+  openSettingsButton.setAttribute('aria-label', 'Open board settings');
+  openSettingsButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts('boardSettings'));
+}
+
 function resetBoardLabelFilter() {
   const state = getBoardLabelState();
   state.filterIds = [];
@@ -2244,6 +2390,8 @@ function initializeBoardLabelControls() {
   const importFromTrelloButton = document.getElementById('btnImportBoardFromTrello');
   const importFromObsidianButton = document.getElementById('btnImportBoardFromObsidian');
   const importFromTasksMdButton = document.getElementById('btnImportBoardFromTasksMd');
+
+  renderBoardSettingsActionState();
 
   if (filterButton) {
     filterButton.addEventListener('click', (event) => {

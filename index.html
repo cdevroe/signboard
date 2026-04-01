@@ -58,6 +58,7 @@
     <button id="openBoardSettings" class="board-menu-action" type="button" title="Open board settings" aria-label="Open board settings">
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="sliders"></i></span>
       <span class="board-menu-action-label">Board Settings</span>
+      <span class="menu-shortcut-hint" data-shortcut-action="boardSettings" data-shortcut-format="menu" aria-hidden="true">⌘,</span>
     </button>
     <div class="board-toolbar-group board-menu-group">
       <button id="boardViewButton" class="board-menu-action" type="button" title="Switch board view" aria-label="Switch board view">
@@ -69,6 +70,7 @@
     <button id="themeToggle" class="board-menu-action" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="moon"></i></span>
       <span class="board-menu-action-label">Dark Mode</span>
+      <span class="menu-shortcut-hint" data-shortcut-action="toggleTheme" data-shortcut-format="menu" aria-hidden="true">⌘⇧D</span>
     </button>
     <button id="openCommercialLicenseModal" class="board-menu-action" type="button" title="Support Signboard for commercial use" aria-label="Support Signboard for commercial use">
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="heart"></i></span>
@@ -106,11 +108,11 @@
         <ul class="keyboard-shortcuts-list">
           <li>
             <span>Add card</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + N</kbd>
+            <kbd data-shortcut-action="addCard">⌘ + N</kbd>
           </li>
           <li>
             <span>Add list</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + Shift + N</kbd>
+            <kbd data-shortcut-action="addList">⌘ + ⇧ + N</kbd>
           </li>
         </ul>
       </section>
@@ -119,15 +121,28 @@
         <ul class="keyboard-shortcuts-list">
           <li>
             <span>Kanban view</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + 1</kbd>
+            <kbd data-shortcut-action="kanbanView">⌘ + 1</kbd>
           </li>
           <li>
             <span>Calendar view</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + 2</kbd>
+            <kbd data-shortcut-action="calendarView">⌘ + 2</kbd>
           </li>
           <li>
             <span>This Week view</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + 3</kbd>
+            <kbd data-shortcut-action="thisWeekView">⌘ + 3</kbd>
+          </li>
+        </ul>
+      </section>
+      <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-board">
+        <h3 id="keyboard-shortcuts-section-board">Board</h3>
+        <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Board settings</span>
+            <kbd data-shortcut-action="boardSettings">⌘ + ,</kbd>
+          </li>
+          <li>
+            <span>Toggle light/dark mode</span>
+            <kbd data-shortcut-action="toggleTheme">⌘ + ⇧ + D</kbd>
           </li>
         </ul>
       </section>
@@ -136,7 +151,7 @@
         <ul class="keyboard-shortcuts-list">
           <li>
             <span>Focus search</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + F</kbd>
+            <kbd data-shortcut-action="focusSearch">⌘ + F</kbd>
           </li>
         </ul>
       </section>
@@ -145,11 +160,11 @@
         <ul class="keyboard-shortcuts-list">
           <li>
             <span>Keyboard shortcuts</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + /</kbd>
+            <kbd data-shortcut-action="keyboardShortcuts">⌘ + /</kbd>
           </li>
           <li>
             <span>Close open modals</span>
-            <kbd>Esc</kbd>
+            <kbd data-shortcut-action="closeModals">Escape</kbd>
           </li>
         </ul>
       </section>
