@@ -380,7 +380,8 @@ CLI overdue behavior:
 
 - Prefer editing `app/**` source modules, not `app/signboard.js` directly.
 - Rebuild with `./buildjs.sh` whenever `app/**` module files change.
-- Always update Codex docs (`CODEX.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`) when behavior/architecture/tooling changes.
+- Always update agent docs (`CODEX.md`, `AGENTS.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`) when behavior/architecture/tooling changes.
+- Always update release-facing docs (`readme.md`, `docs/README.md`, `docs/using-signboard.md`, `docs/signboard-cli.md`, and `MCP_README.md` when relevant) when user behavior, CLI behavior, or setup flows change.
 - Keep list/card filename conventions intact; drag/drop logic depends on numeric prefixes.
 - Avoid refactoring path concatenation casually; many flows assume trailing `/`.
 - For content/parsing changes, update both `lib/cardFrontmatter.js` and `scripts/test-frontmatter.js`.

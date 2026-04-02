@@ -1706,6 +1706,10 @@ function buildApplicationMenu() {
       await installCliFromApp();
     },
   });
+  const createDocumentationMenuItem = () => ({
+    label: 'Documentation',
+    click: () => shell.openExternal(`https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}#documentation`),
+  });
   const createKeyboardShortcutsMenuItem = () => ({
     label: 'Keyboard Shortcuts',
     accelerator: 'CmdOrCtrl+/',
@@ -1803,6 +1807,7 @@ function buildApplicationMenu() {
     submenu: [
       !isMac ? createAboutSignboardMenuItem() : null,
       !isMac ? createCheckForUpdatesMenuItem() : null,
+      createDocumentationMenuItem(),
       createInstallCliMenuItem(),
       createCopyMcpConfigMenuItem(),
       createKeyboardShortcutsMenuItem(),

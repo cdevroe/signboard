@@ -31,15 +31,29 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 1. Go to the [Releases page](../../releases).
 2. On the latest release, download the correct file for your operating system.
 
-## ⌨️ Keyboard Shortcuts
+## Documentation
 
-- `Cmd/Ctrl + /`: open the keyboard shortcuts helper
-- `Cmd/Ctrl + N`: add card
-- `Cmd/Ctrl + Shift + N`: add list
-- `Cmd/Ctrl + 1`, `2`, `3`: switch board views
-- `Cmd/Ctrl + F`: focus search field
+- [Documentation hub](./docs/README.md)
+- [Using Signboard](./docs/using-signboard.md)
+- [Signboard CLI](./docs/signboard-cli.md)
+- [MCP Server](./MCP_README.md)
+
+### Keyboard Shortcuts
+
+On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
+
+- `Cmd/Ctrl + /`: open keyboard shortcuts
+- `Cmd/Ctrl + N`: create a card
+- `Cmd/Ctrl + Shift + N`: create a list
+- `Cmd/Ctrl + 1`: switch to Kanban view
+- `Cmd/Ctrl + 2`: switch to Calendar view
+- `Cmd/Ctrl + 3`: switch to This Week view
+- `Cmd/Ctrl + ,`: open Board Settings
+- `Cmd/Ctrl + Shift + D`: toggle light and dark mode
+- `Cmd/Ctrl + F`: focus search
 - `Esc`: close open modals
-- In app: `Help` -> `Keyboard Shortcuts`
+
+You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 
 ## 🤖 MCP Server
 
@@ -52,6 +66,8 @@ Signboard includes a built-in MCP server so agents can interact with local board
 ## 💻 CLI
 
 Signboard includes a terminal CLI for direct board management without going through MCP.
+
+- Full guide: [docs/signboard-cli.md](./docs/signboard-cli.md)
 
 - In the desktop app on macOS/Linux: `Help` -> `Install Signboard CLI`
 - Use `signboard use /Path/to/Board` once to remember the active board for later commands

@@ -5,6 +5,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 ## Top level
 
 - `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board settings/theme shortcuts) + archive browse/restore IPC + GitHub-release auto-update flow (`electron-updater`).
+- `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
+- `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
 - `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and menu-triggered renderer events, including archive browse/read/restore calls.
 - `index.html` - App shell, header board tab strip, board-menu/archive modal markup (including `#modalKeyboardShortcuts` and `#modalArchiveBrowser`), and deferred script/style includes.
@@ -100,7 +102,15 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Codex doc maintenance rule
 
-- When behavior, architecture, or tooling changes, update Codex docs in the same change set:
+- When behavior, architecture, or tooling changes, update agent docs in the same change set:
   - `CODEX.md`
+  - `AGENTS.md`
   - `docs/codex/PROJECT_CONTEXT.md`
   - `docs/codex/FILE_STRUCTURE.md`
+
+- When user-facing behavior, setup, or CLI flows change, update release-facing docs in the same change set:
+  - `readme.md`
+  - `docs/README.md`
+  - `docs/using-signboard.md`
+  - `docs/signboard-cli.md`
+  - `MCP_README.md` (when MCP setup or behavior changes)

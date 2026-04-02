@@ -30,6 +30,7 @@ Start here before opening source files.
 - Task parser coverage tests are in `scripts/test-task-list-parser.js` (`npm run test:task-list`).
 - Due notification coverage tests are in `scripts/test-due-notifications.js` (`npm run test:due-notifications`).
 - Dedicated user-facing MCP setup docs are in `MCP_README.md`.
+- Release-facing user and agent docs live in `docs/README.md`, `docs/using-signboard.md`, and `docs/signboard-cli.md`.
 - Reusable agent skill for MCP usage lives at `skills/signboard-mcp/SKILL.md`.
 - Skill UI metadata lives at `skills/signboard-mcp/agents/openai.yaml`.
 - Board tabs/session state live in renderer localStorage: `boardTabs` (open tab order) and `boardPath` (active board root fallback).
@@ -39,5 +40,7 @@ Start here before opening source files.
 - Trello, Obsidian, and Tasks.md importer coverage lives in `scripts/test-import-trello.js`, `scripts/test-import-obsidian.js`, and `scripts/test-import-tasksmd.js`.
 - The terminal CLI now exposes a dedicated `archive` namespace (`archive cards`, `archive lists`, `archive read`, `archive restore-card`, `archive restore-list`) alongside `signboard import trello --file ...`, `signboard import obsidian --source ...`, and `signboard import tasksmd --source ...`; MCP advertises the matching archive tools plus `signboard_import_trello`, `signboard_import_obsidian`, and `signboard_import_tasksmd`, while still accepting dotted `signboard.*` legacy aliases.
 - CLI due filtering in `lib/cliBoard.js` now defaults `--due overdue` to open task items only, with `--task-status any` available when callers want completed task due markers included.
+- `AGENTS.md` is the cross-tool compatibility entrypoint and should stay aligned with this file.
 - Skip heavy/generated content unless explicitly needed: `node_modules/`, `dist/`, `static/vendor/`, and usually `package-lock.json`.
-- Always update Codex markdown docs when behavior/architecture/tooling changes (`CODEX.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`).
+- Always update agent-facing docs when behavior/architecture/tooling changes (`CODEX.md`, `AGENTS.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`).
+- Always update release-facing docs when user behavior, CLI behavior, or setup flows change (`docs/README.md`, `docs/using-signboard.md`, `docs/signboard-cli.md`, `readme.md`, and `MCP_README.md` when relevant).
