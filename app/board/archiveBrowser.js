@@ -406,10 +406,6 @@ function renderArchiveBrowserResults() {
       : (entry.title || 'Untitled');
     titleWrap.appendChild(title);
 
-    if (entry.kind === 'card' && entry.cardId) {
-      titleWrap.appendChild(createArchiveBadge(`#${entry.cardId}`, 'archive-browser-badge-muted'));
-    }
-
     if (entry.kind === 'card' && entry.insideArchivedList) {
       titleWrap.appendChild(createArchiveBadge('In archived list', 'archive-browser-badge-emphasis'));
     }
@@ -425,13 +421,6 @@ function renderArchiveBrowserResults() {
     header.appendChild(titleWrap);
     header.appendChild(archivedAt);
     rowButton.appendChild(header);
-
-    const meta = document.createElement('div');
-    meta.className = 'archive-browser-row-meta';
-    meta.textContent = entry.kind === 'list'
-      ? `Original list: ${entry.originalListDisplayName || 'Unknown original list'}`
-      : `Original list: ${entry.originalListDisplayName || 'Unknown original list'}`;
-    rowButton.appendChild(meta);
 
     if (entry.kind === 'card') {
       const badges = document.createElement('div');
@@ -566,9 +555,6 @@ function renderArchiveBrowserDetail() {
   const badges = document.createElement('div');
   badges.className = 'archive-browser-detail-badges';
   if (detail.kind === 'card') {
-    if (detail.cardId) {
-      badges.appendChild(createArchiveBadge(`#${detail.cardId}`, 'archive-browser-badge-muted'));
-    }
     if (detail.due) {
       badges.appendChild(createArchiveBadge(`Due ${detail.due}`, 'archive-browser-badge-due'));
     }
