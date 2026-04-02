@@ -8,7 +8,7 @@ Start here before opening source files.
 - Tooltip UI is implemented in `app/ui/tooltips.js` and reads existing control labels (`title` / `aria-label` / `alt`) to keep tooltip copy centralized in markup.
 - App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`.
 - `main.js` also supports headless MCP mode via `--mcp-server` for local agent integration over stdio; implementation lives in `lib/mcpServer.js`.
-- Signboard MCP includes board-name resolution (`signboard.resolve_board_by_name`), Trello/Obsidian/Tasks.md import tools, and supports both header-framed + newline-delimited stdio JSON-RPC.
+- Signboard MCP includes board-name resolution (`signboard_resolve_board_by_name`), Trello/Obsidian/Tasks.md import tools, and supports both header-framed + newline-delimited stdio JSON-RPC; dotted `signboard.*` names remain accepted as legacy aliases.
 - Main window stability guards are in `main.js` (`unresponsive` dialog + renderer crash recovery window recreate).
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
@@ -37,7 +37,7 @@ Start here before opening source files.
 - Board Settings now includes an `Import` panel that launches explicit Trello/Obsidian/Tasks.md imports into the current board; the renderer wiring lives in `app/board/boardLabels.js`, while the actual import filesystem work lives in `lib/importers/*` through `main.js` IPC.
 - External import pickers are tokenized in `main.js` and surfaced through `window.chooser.pickImportSources(...)`; renderer code never reads arbitrary external files directly.
 - Trello, Obsidian, and Tasks.md importer coverage lives in `scripts/test-import-trello.js`, `scripts/test-import-obsidian.js`, and `scripts/test-import-tasksmd.js`.
-- The terminal CLI now exposes `signboard import trello --file ...`, `signboard import obsidian --source ...`, and `signboard import tasksmd --source ...`; MCP mirrors that with `signboard.import_trello`, `signboard.import_obsidian`, and `signboard.import_tasksmd`.
+- The terminal CLI now exposes `signboard import trello --file ...`, `signboard import obsidian --source ...`, and `signboard import tasksmd --source ...`; MCP advertises `signboard_import_trello`, `signboard_import_obsidian`, and `signboard_import_tasksmd`, while still accepting dotted `signboard.*` legacy aliases.
 - CLI due filtering in `lib/cliBoard.js` now defaults `--due overdue` to open task items only, with `--task-status any` available when callers want completed task due markers included.
 - Skip heavy/generated content unless explicitly needed: `node_modules/`, `dist/`, `static/vendor/`, and usually `package-lock.json`.
 - Always update Codex markdown docs when behavior/architecture/tooling changes (`CODEX.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`).

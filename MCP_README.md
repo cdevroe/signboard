@@ -84,40 +84,42 @@ This repo includes a reusable skill file for agent behavior:
 - `skills/signboard-mcp/SKILL.md`
 - `skills/signboard-mcp/agents/openai.yaml`
 
-Use it to standardize how agents call `signboard.*` tools (safety checks, read/write flow, and reporting style).
+Use it to standardize how agents call `signboard_*` tools (safety checks, read/write flow, and reporting style).
 
 ## MCP tools
 
 The server currently exposes these tools:
 
-- `signboard.get_config`
-- `signboard.list_board_views`
-- `signboard.resolve_board_by_name`
-- `signboard.create_board` (write mode only)
-- `signboard.list_lists`
-- `signboard.list_cards`
-- `signboard.read_card` (includes `taskSummary` + `taskDueDates`)
-- `signboard.create_card` (write mode only, includes `taskSummary` + `taskDueDates`)
-- `signboard.update_card` (write mode only, includes `taskSummary` + `taskDueDates`)
-- `signboard.duplicate_card` (write mode only, includes `taskSummary` + `taskDueDates`)
-- `signboard.archive_card` (write mode only)
-- `signboard.move_card` (write mode only)
-- `signboard.create_list` (write mode only)
-- `signboard.rename_board` (write mode only)
-- `signboard.move_board` (write mode only)
-- `signboard.read_board_settings`
-- `signboard.update_board_settings` (write mode only)
-- `signboard.import_trello` (write mode only)
-- `signboard.import_obsidian` (write mode only)
-- `signboard.import_tasksmd` (write mode only)
+- `signboard_get_config`
+- `signboard_list_board_views`
+- `signboard_resolve_board_by_name`
+- `signboard_create_board` (write mode only)
+- `signboard_list_lists`
+- `signboard_list_cards`
+- `signboard_read_card` (includes `taskSummary` + `taskDueDates`)
+- `signboard_create_card` (write mode only, includes `taskSummary` + `taskDueDates`)
+- `signboard_update_card` (write mode only, includes `taskSummary` + `taskDueDates`)
+- `signboard_duplicate_card` (write mode only, includes `taskSummary` + `taskDueDates`)
+- `signboard_archive_card` (write mode only)
+- `signboard_move_card` (write mode only)
+- `signboard_create_list` (write mode only)
+- `signboard_rename_board` (write mode only)
+- `signboard_move_board` (write mode only)
+- `signboard_read_board_settings`
+- `signboard_update_board_settings` (write mode only)
+- `signboard_import_trello` (write mode only)
+- `signboard_import_obsidian` (write mode only)
+- `signboard_import_tasksmd` (write mode only)
 
-Board-scoped tools take absolute `boardRoot` paths, `signboard.create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
+`tools/list` advertises underscore tool names. Dotted `signboard.*` names are still accepted as legacy aliases for backward compatibility.
+
+Board-scoped tools take absolute `boardRoot` paths, `signboard_create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
 Board settings tools include labels, theme overrides, and notification preferences.
 Import tools also take absolute external source paths and honor `SIGNBOARD_MCP_ALLOWED_ROOTS` when it is configured.
 
 ## Task Metadata in Card Tool Responses
 
-`signboard.read_card`, `signboard.create_card`, `signboard.update_card`, and `signboard.duplicate_card` return:
+`signboard_read_card`, `signboard_create_card`, `signboard_update_card`, and `signboard_duplicate_card` return:
 
 - `taskSummary`: `{ total, completed, remaining }`
 - `taskDueDates`: sorted unique ISO dates found in task lines (`YYYY-MM-DD`)
@@ -152,7 +154,7 @@ Returned metadata shape:
 
 If you do not want to manually type absolute board paths, use:
 
-- `signboard.resolve_board_by_name`
+- `signboard_resolve_board_by_name`
 
 This searches within `SIGNBOARD_MCP_ALLOWED_ROOTS` and returns absolute matches.
 If `SIGNBOARD_MCP_ALLOWED_ROOTS` is not set, the resolver tool returns an error.
@@ -195,9 +197,9 @@ If `SIGNBOARD_MCP_ALLOWED_ROOTS` is not set, the resolver tool returns an error.
 - In MCP mode, Signboard starts headless, but activating the app can still reveal the desktop window.
 - The process communicates over stdio (MCP JSON-RPC framing).
 - The stdio parser accepts both header-framed MCP and newline-delimited JSON-RPC payloads.
-- `signboard.list_board_views` describes that Calendar/This Week group cards by both card due dates and task due markers.
+- `signboard_list_board_views` describes that Calendar/This Week group cards by both card due dates and task due markers.
 - Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`).
-- `signboard.create_card` and `signboard.update_card` normalize literal `\n` / `\N` escape sequences in body input into real line breaks.
+- `signboard_create_card` and `signboard_update_card` normalize literal `\n` / `\N` escape sequences in body input into real line breaks.
 - Board settings use Signboard's existing settings logic (`lib/boardLabels.js`).
 - Trello/Obsidian/Tasks.md import tools reuse the same importer modules as the desktop app (`lib/importers/*`).
 - When the desktop app is open, external board edits (including MCP edits) are watched and auto-refreshed.

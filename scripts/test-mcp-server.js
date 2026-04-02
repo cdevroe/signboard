@@ -327,26 +327,26 @@ async function runForTransport(transportMode, fixture) {
   const toolNames = new Set(tools.map((tool) => tool && tool.name).filter(Boolean));
 
   const requiredToolNames = [
-    'signboard.get_config',
-    'signboard.list_board_views',
-    'signboard.resolve_board_by_name',
-    'signboard.create_board',
-    'signboard.list_lists',
-    'signboard.list_cards',
-    'signboard.read_card',
-    'signboard.create_card',
-    'signboard.update_card',
-    'signboard.duplicate_card',
-    'signboard.archive_card',
-    'signboard.move_card',
-    'signboard.create_list',
-    'signboard.rename_board',
-    'signboard.move_board',
-    'signboard.read_board_settings',
-    'signboard.update_board_settings',
-    'signboard.import_trello',
-    'signboard.import_obsidian',
-    'signboard.import_tasksmd',
+    'signboard_get_config',
+    'signboard_list_board_views',
+    'signboard_resolve_board_by_name',
+    'signboard_create_board',
+    'signboard_list_lists',
+    'signboard_list_cards',
+    'signboard_read_card',
+    'signboard_create_card',
+    'signboard_update_card',
+    'signboard_duplicate_card',
+    'signboard_archive_card',
+    'signboard_move_card',
+    'signboard_create_list',
+    'signboard_rename_board',
+    'signboard_move_board',
+    'signboard_read_board_settings',
+    'signboard_update_board_settings',
+    'signboard_import_trello',
+    'signboard_import_obsidian',
+    'signboard_import_tasksmd',
   ];
 
   for (const toolName of requiredToolNames) {
@@ -357,10 +357,29 @@ async function runForTransport(transportMode, fixture) {
 
   send({
     jsonrpc: '2.0',
+    id: 250,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.get_config',
+      arguments: {},
+    },
+  });
+
+  const legacyAliasResponse = await waitForResponse(250);
+  if (legacyAliasResponse.error) {
+    throw new Error(`Legacy tool alias failed (${transportMode}): ${JSON.stringify(legacyAliasResponse.error)}`);
+  }
+
+  if (legacyAliasResponse.result?.structuredContent?.ok !== true) {
+    throw new Error(`Legacy tool alias returned unexpected payload (${transportMode}): ${JSON.stringify(legacyAliasResponse.result)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
     id: 3,
     method: 'tools/call',
     params: {
-      name: 'signboard.resolve_board_by_name',
+      name: 'signboard_resolve_board_by_name',
       arguments: {
         boardName: fixture.boardName,
         exact: true,
@@ -386,7 +405,7 @@ async function runForTransport(transportMode, fixture) {
     id: 301,
     method: 'tools/call',
     params: {
-      name: 'signboard.create_board',
+      name: 'signboard_create_board',
       arguments: {
         parentRoot: fixture.allowedRoot,
         boardName: createdBoardName,
@@ -420,7 +439,7 @@ async function runForTransport(transportMode, fixture) {
     id: 302,
     method: 'tools/call',
     params: {
-      name: 'signboard.read_card',
+      name: 'signboard_read_card',
       arguments: {
         boardRoot: createdBoardRoot,
         listName: '000-To-do-stock',
@@ -444,7 +463,7 @@ async function runForTransport(transportMode, fixture) {
     id: 4,
     method: 'tools/call',
     params: {
-      name: 'signboard.duplicate_card',
+      name: 'signboard_duplicate_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
@@ -488,7 +507,7 @@ async function runForTransport(transportMode, fixture) {
     id: 5,
     method: 'tools/call',
     params: {
-      name: 'signboard.archive_card',
+      name: 'signboard_archive_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
@@ -512,7 +531,7 @@ async function runForTransport(transportMode, fixture) {
     id: 6,
     method: 'tools/call',
     params: {
-      name: 'signboard.list_cards',
+      name: 'signboard_list_cards',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.archiveList,
@@ -535,7 +554,7 @@ async function runForTransport(transportMode, fixture) {
     id: 7,
     method: 'tools/call',
     params: {
-      name: 'signboard.list_board_views',
+      name: 'signboard_list_board_views',
       arguments: {},
     },
   });
@@ -564,7 +583,7 @@ async function runForTransport(transportMode, fixture) {
     id: 71,
     method: 'tools/call',
     params: {
-      name: 'signboard.import_trello',
+      name: 'signboard_import_trello',
       arguments: {
         boardRoot: fixture.boardRoot,
         sourcePath: fixture.trelloImportPath,
@@ -606,7 +625,7 @@ async function runForTransport(transportMode, fixture) {
     id: 72,
     method: 'tools/call',
     params: {
-      name: 'signboard.import_obsidian',
+      name: 'signboard_import_obsidian',
       arguments: {
         boardRoot: fixture.boardRoot,
         sourcePaths: [fixture.obsidianImportPath],
@@ -648,7 +667,7 @@ async function runForTransport(transportMode, fixture) {
     id: 73,
     method: 'tools/call',
     params: {
-      name: 'signboard.import_tasksmd',
+      name: 'signboard_import_tasksmd',
       arguments: {
         boardRoot: fixture.boardRoot,
         sourcePath: fixture.tasksProjectPath,
@@ -686,7 +705,7 @@ async function runForTransport(transportMode, fixture) {
     id: 8,
     method: 'tools/call',
     params: {
-      name: 'signboard.update_board_settings',
+      name: 'signboard_update_board_settings',
       arguments: {
         boardRoot: fixture.boardRoot,
         notifications: {
@@ -720,7 +739,7 @@ async function runForTransport(transportMode, fixture) {
     id: 9,
     method: 'tools/call',
     params: {
-      name: 'signboard.rename_board',
+      name: 'signboard_rename_board',
       arguments: {
         boardRoot: boardToRename,
         newBoardName: `Renamed-${transportMode}`,
@@ -746,7 +765,7 @@ async function runForTransport(transportMode, fixture) {
     id: 10,
     method: 'tools/call',
     params: {
-      name: 'signboard.move_board',
+      name: 'signboard_move_board',
       arguments: {
         boardRoot: renamedBoardRoot,
         targetParentRoot: moveTargetParent,
@@ -770,7 +789,7 @@ async function runForTransport(transportMode, fixture) {
     id: 11,
     method: 'tools/call',
     params: {
-      name: 'signboard.list_lists',
+      name: 'signboard_list_lists',
       arguments: {
         boardRoot: movedBoardRoot,
       },
@@ -787,7 +806,7 @@ async function runForTransport(transportMode, fixture) {
     id: 12,
     method: 'tools/call',
     params: {
-      name: 'signboard.read_card',
+      name: 'signboard_read_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
@@ -814,7 +833,7 @@ async function runForTransport(transportMode, fixture) {
     id: 13,
     method: 'tools/call',
     params: {
-      name: 'signboard.update_card',
+      name: 'signboard_update_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
@@ -842,7 +861,7 @@ async function runForTransport(transportMode, fixture) {
     id: 14,
     method: 'tools/call',
     params: {
-      name: 'signboard.create_card',
+      name: 'signboard_create_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
@@ -875,7 +894,7 @@ async function runForTransport(transportMode, fixture) {
     id: 15,
     method: 'tools/call',
     params: {
-      name: 'signboard.move_card',
+      name: 'signboard_move_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         fromListName: fixture.leadsList,
@@ -900,7 +919,7 @@ async function runForTransport(transportMode, fixture) {
     id: 16,
     method: 'tools/call',
     params: {
-      name: 'signboard.list_cards',
+      name: 'signboard_list_cards',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.workingList,
