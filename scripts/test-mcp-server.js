@@ -338,6 +338,11 @@ async function runForTransport(transportMode, fixture) {
     'signboard_update_card',
     'signboard_duplicate_card',
     'signboard_archive_card',
+    'signboard_archive_list',
+    'signboard_list_archive_entries',
+    'signboard_read_archive_entry',
+    'signboard_restore_archived_card',
+    'signboard_restore_archived_list',
     'signboard_move_card',
     'signboard_create_list',
     'signboard_rename_board',
@@ -547,6 +552,148 @@ async function runForTransport(transportMode, fixture) {
   const archiveCards = archiveListResponse.result?.structuredContent?.cardFiles || [];
   if (!archiveCards.includes(archiveOutput.archivedCardFile)) {
     throw new Error(`Archived card missing from archive list (${transportMode}).`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 61,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_list_archive_entries',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+      },
+    },
+  });
+
+  const archiveEntriesResponse = await waitForResponse(61);
+  if (archiveEntriesResponse.error) {
+    throw new Error(`list_archive_entries failed (${transportMode}): ${JSON.stringify(archiveEntriesResponse.error)}`);
+  }
+
+  const archiveEntriesOutput = archiveEntriesResponse.result?.structuredContent || {};
+  const archivedCardEntry = Array.isArray(archiveEntriesOutput.cards)
+    ? archiveEntriesOutput.cards.find((entry) => entry && entry.archivedCardFile === archiveOutput.archivedCardFile)
+    : null;
+  if (!archivedCardEntry || !archivedCardEntry.entryPath) {
+    throw new Error(`list_archive_entries missing archived card (${transportMode}): ${JSON.stringify(archiveEntriesOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 62,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_read_archive_entry',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        entryPath: archivedCardEntry.entryPath,
+      },
+    },
+  });
+
+  const readArchiveCardResponse = await waitForResponse(62);
+  if (readArchiveCardResponse.error) {
+    throw new Error(`read_archive_entry card failed (${transportMode}): ${JSON.stringify(readArchiveCardResponse.error)}`);
+  }
+
+  const readArchiveCardOutput = readArchiveCardResponse.result?.structuredContent || {};
+  if (readArchiveCardOutput.kind !== 'card' || readArchiveCardOutput.entry?.archivedCardFile !== archiveOutput.archivedCardFile) {
+    throw new Error(`read_archive_entry card payload mismatch (${transportMode}): ${JSON.stringify(readArchiveCardOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 63,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_restore_archived_card',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        archivedCardPath: archivedCardEntry.entryPath,
+        targetListName: fixture.workingList,
+      },
+    },
+  });
+
+  const restoreArchiveCardResponse = await waitForResponse(63);
+  if (restoreArchiveCardResponse.error) {
+    throw new Error(`restore_archived_card failed (${transportMode}): ${JSON.stringify(restoreArchiveCardResponse.error)}`);
+  }
+
+  const restoreArchiveCardOutput = restoreArchiveCardResponse.result?.structuredContent || {};
+  if (!String(restoreArchiveCardOutput.restoredCardFile || '').startsWith('000-')) {
+    throw new Error(`restore_archived_card did not restore card to top (${transportMode}): ${JSON.stringify(restoreArchiveCardOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 64,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_archive_list',
+      arguments: {
+        boardRoot: createdBoardRoot,
+        listName: '002-Done-stock',
+      },
+    },
+  });
+
+  const archiveListToolResponse = await waitForResponse(64);
+  if (archiveListToolResponse.error) {
+    throw new Error(`archive_list failed (${transportMode}): ${JSON.stringify(archiveListToolResponse.error)}`);
+  }
+
+  const archiveListToolOutput = archiveListToolResponse.result?.structuredContent || {};
+  if (!archiveListToolOutput.archivedListPath) {
+    throw new Error(`archive_list missing archivedListPath (${transportMode}): ${JSON.stringify(archiveListToolOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 65,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_read_archive_entry',
+      arguments: {
+        boardRoot: createdBoardRoot,
+        entryPath: archiveListToolOutput.archivedListPath,
+      },
+    },
+  });
+
+  const readArchiveListResponse = await waitForResponse(65);
+  if (readArchiveListResponse.error) {
+    throw new Error(`read_archive_entry list failed (${transportMode}): ${JSON.stringify(readArchiveListResponse.error)}`);
+  }
+
+  const readArchiveListOutput = readArchiveListResponse.result?.structuredContent || {};
+  if (readArchiveListOutput.kind !== 'list' || readArchiveListOutput.entry?.listDirectoryName !== archiveListToolOutput.archivedDirectoryName) {
+    throw new Error(`read_archive_entry list payload mismatch (${transportMode}): ${JSON.stringify(readArchiveListOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 66,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_restore_archived_list',
+      arguments: {
+        boardRoot: createdBoardRoot,
+        archivedListPath: archiveListToolOutput.archivedListPath,
+        restoredDirectoryName: '002-Done Restored-stock',
+      },
+    },
+  });
+
+  const restoreArchiveListResponse = await waitForResponse(66);
+  if (restoreArchiveListResponse.error) {
+    throw new Error(`restore_archived_list failed (${transportMode}): ${JSON.stringify(restoreArchiveListResponse.error)}`);
+  }
+
+  const restoreArchiveListOutput = restoreArchiveListResponse.result?.structuredContent || {};
+  if (restoreArchiveListOutput.restoredDirectoryName !== '002-Done Restored-stock') {
+    throw new Error(`restore_archived_list returned unexpected directory (${transportMode}): ${JSON.stringify(restoreArchiveListOutput)}`);
   }
 
   send({

@@ -5,6 +5,10 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const cardFrontmatter = require('../lib/cardFrontmatter');
 const boardLabels = require('../lib/boardLabels');
+const {
+  archiveCard,
+  archiveList: archiveListOnDisk,
+} = require('../lib/archive');
 
 const CLI_PATH = path.resolve(__dirname, '..', 'bin', 'signboard.js');
 
@@ -58,11 +62,13 @@ async function createFixtureBoard() {
   const boardRoot = path.join(root, 'Client Work');
   const todoList = path.join(boardRoot, '000-To do-stock');
   const doingList = path.join(boardRoot, '001-Doing-stock');
-  const archiveList = path.join(boardRoot, 'XXX-Archive');
+  const backlogList = path.join(boardRoot, '002-Backlog-stock');
+  const archiveDirectory = path.join(boardRoot, 'XXX-Archive');
 
   await fs.mkdir(todoList, { recursive: true });
   await fs.mkdir(doingList, { recursive: true });
-  await fs.mkdir(archiveList, { recursive: true });
+  await fs.mkdir(backlogList, { recursive: true });
+  await fs.mkdir(archiveDirectory, { recursive: true });
 
   await boardLabels.writeBoardSettings(boardRoot, {
     labels: [
@@ -117,6 +123,25 @@ async function createFixtureBoard() {
     },
     body: `Card-level due date only\n- [x] (due: ${daysFromTodayIso(-3)}) Finished prep`,
   });
+
+  const standaloneArchivedSourcePath = path.join(todoList, '003-archived-standalone-mn901.md');
+  await cardFrontmatter.writeCard(standaloneArchivedSourcePath, {
+    frontmatter: {
+      title: 'Archived standalone note',
+      labels: ['urgent'],
+    },
+    body: 'Saved for later.',
+  });
+
+  await cardFrontmatter.writeCard(path.join(backlogList, '001-archived-list-card-op234.md'), {
+    frontmatter: {
+      title: 'Archived list card',
+    },
+    body: 'Backlog work item.',
+  });
+
+  await archiveCard(boardRoot, standaloneArchivedSourcePath);
+  await archiveListOnDisk(boardRoot, backlogList);
 
   return { root, boardRoot };
 }
@@ -412,6 +437,90 @@ async function main() {
     ], env).stdout
   );
   assert.strictEqual(doingCards[0].title, 'Needs approval');
+
+  const archivedCards = JSON.parse(
+    runCli([
+      'archive',
+      'cards',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(archivedCards.length, 2);
+  assert.ok(archivedCards.some((entry) => entry.title === 'Archived standalone note'));
+  assert.ok(archivedCards.some((entry) => entry.title === 'Archived list card'));
+
+  const archivedLists = JSON.parse(
+    runCli([
+      'archive',
+      'lists',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(archivedLists.length, 1);
+  assert.strictEqual(archivedLists[0].listDisplayName, 'Backlog');
+
+  const archivedCardDetail = JSON.parse(
+    runCli([
+      'archive',
+      'read',
+      '--kind',
+      'card',
+      '--entry',
+      'Archived standalone note',
+    ], env).stdout
+  );
+  assert.strictEqual(archivedCardDetail.kind, 'card');
+  assert.strictEqual(archivedCardDetail.entry.title, 'Archived standalone note');
+
+  const archivedListDetail = JSON.parse(
+    runCli([
+      'archive',
+      'read',
+      '--kind',
+      'list',
+      '--entry',
+      'Backlog',
+    ], env).stdout
+  );
+  assert.strictEqual(archivedListDetail.kind, 'list');
+  assert.strictEqual(archivedListDetail.entry.cardCount, 1);
+
+  const restoredArchivedCard = JSON.parse(
+    runCli([
+      'archive',
+      'restore-card',
+      '--card',
+      'Archived standalone note',
+      '--to-list',
+      'Waiting',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(restoredArchivedCard.title, 'Archived standalone note');
+  assert.strictEqual(restoredArchivedCard.targetListDisplayName, 'Waiting');
+
+  const waitingCardsAfterRestore = JSON.parse(
+    runCli([
+      'cards',
+      'Waiting',
+      '--json',
+    ], env).stdout
+  );
+  assert.ok(waitingCardsAfterRestore.some((card) => card.title === 'Archived standalone note'));
+
+  const restoredArchivedList = JSON.parse(
+    runCli([
+      'archive',
+      'restore-list',
+      '--list',
+      'Backlog',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(restoredArchivedList.listDisplayName, 'Backlog');
+
+  const listsAfterArchiveRestore = JSON.parse(runCli(['lists', '--json'], env).stdout);
+  assert.ok(listsAfterArchiveRestore.some((list) => list.displayName === 'Backlog'));
 
   const trelloImport = JSON.parse(
     runCli([

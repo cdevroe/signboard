@@ -34,8 +34,8 @@ File: `main.js`
 - Owns archive browse/read/restore operations through `lib/archive.js`; renderer code never scans or restores archive contents directly.
 - In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
-- Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card management.
-- The packaged Electron executable also routes `lists ...` and `cards ...` CLI invocations through `main.js` without opening the desktop window.
+- Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card/archive management.
+- The packaged Electron executable also routes `lists ...`, `cards ...`, `archive ...`, `settings ...`, and `import ...` CLI invocations through `main.js` without opening the desktop window.
 - Help menu includes `Install Signboard CLI` on macOS/Linux, which installs a per-user shim and PATH profile block for the packaged app executable.
 - Security-related window settings are:
   - `contextIsolation: true`
@@ -283,11 +283,17 @@ Files: `lib/importers/*`
 - `npm run cli -- <command>`
 - `node bin/signboard.js <command>`
 - `electron . <command>` routes through the desktop executable path used by packaged builds.
-- CLI board selection is stateful: `signboard use /path/to/board`, then `signboard lists`, `signboard cards`, `signboard settings`, or `signboard import ...`.
+- CLI board selection is stateful: `signboard use /path/to/board`, then `signboard lists`, `signboard cards`, `signboard archive ...`, `signboard settings`, or `signboard import ...`.
 - Import commands:
   - `signboard import trello --file /absolute/or/relative/export.json [--board <path>] [--json]`
   - `signboard import obsidian --source /path/to/file-or-dir [--source /another/path] [--board <path>] [--json]`
   - `signboard import tasksmd --source /path/to/tasks-project [--board <path>] [--json]`
+- Archive commands:
+  - `signboard archive cards [--search <query>] [--board <path>] [--json]`
+  - `signboard archive lists [--search <query>] [--board <path>] [--json]`
+  - `signboard archive read --kind card|list --entry <ref> [--board <path>] [--json]`
+  - `signboard archive restore-card --card <ref> --to-list <list-ref> [--board <path>] [--json]`
+  - `signboard archive restore-list --list <ref> [--as <directory-name>] [--board <path>] [--json]`
 
 ### Run MCP server locally
 - `npm run mcp:server`
@@ -302,7 +308,7 @@ Files: `lib/importers/*`
 ### CLI internals
 - `lib/cliBoard.js` owns CLI board/list/card filesystem operations, including due filtering with `--due-source any|card|task` and `--task-status open|any`.
 - `lib/taskList.js` exposes shared task parsing and due-date helpers for CLI filtering.
-- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including path-based Trello/Obsidian/Tasks.md imports.
+- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including archive listing/read/restore flows plus path-based Trello/Obsidian/Tasks.md imports.
 - `lib/cliInstall.js` owns user-level CLI shim + shell profile installation.
 - `lib/cliState.js` persists the currently selected board for subsequent CLI commands.
 
@@ -326,12 +332,12 @@ CLI overdue behavior:
 ### MCP smoke test
 - `npm run test:mcp`
 - Script: `scripts/test-mcp-server.js`
-- Asserts card tool outputs include `taskSummary` + `taskDueDates`, and verifies Trello/Obsidian/Tasks.md import tools.
+- Asserts card tool outputs include `taskSummary` + `taskDueDates`, verifies archive browse/read/restore tools, and covers Trello/Obsidian/Tasks.md import tools.
 
 ### CLI smoke test
 - `npm run test:cli`
 - Script: `scripts/test-cli.js`
-- Covers list creation/rename, card create/edit/read/filter flows, and Trello/Obsidian/Tasks.md imports.
+- Covers list creation/rename, card create/edit/read/filter flows, archive list/read/restore flows, and Trello/Obsidian/Tasks.md imports.
 
 ### Archive tests
 - `node scripts/test-archive.js`
