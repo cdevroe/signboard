@@ -12,17 +12,16 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 ---
 
 ## ✨ Highlights
-- ⬇️ Import from Trello, Obsidian, and Tasks.md
 - 📂 Cards saved as Markdown files
 - 🖌️ Color scheme per board (several to choose from!)
 - 🌙 Light and dark mode variants for all color schemes
-- 🏷 Custom labels per Board
-- 🗓 Card due dates and Task list item due dates
+- 🏷 Custom labels per board
+- 🗓 Card due dates and task list item due dates
 - 📅 Calendar and "This Week" views
 - ✅ Progress counters on cards
 - 🔎 Live search
 - ⌨️ Keyboard shortcuts
-- 🤖 MCP Server
+- 🤖 MCP server
 - 💻 CLI
 
 ---
@@ -110,15 +109,7 @@ Import options:
 - `signboard import obsidian --source <path> [--source <path> ...] [--board <path>] [--json]`
 - `signboard import tasksmd --source <path> [--board <path>] [--json]`
 
-## ✅ Task List Items
-
-- Card counters now use `completed/total` task checklist totals and stay visible while tasks exist.
-- Counter badges turn green when all tasks on a card are complete.
-- Task list lines can include a task-level due date marker at the start of the task content:
-  - `(due: YYYY-MM-DD)`
-- Cards appear in Calendar and This Week for both card due dates and task due markers.
-
-Example checklist syntax:
+Example task checklist syntax:
 
 ```md
 - [ ] Draft update
@@ -129,11 +120,7 @@ Example checklist syntax:
 
 ## 🔄 Automatic Updates
 
-- Packaged Signboard builds can check GitHub releases for updates automatically.
-- When a release is available, Signboard shows release notes and lets you:
-  - install immediately,
-  - remind later,
-  - or view the release changelog on GitHub.
+- The Signboard app can check for updates automatically.
 - You can manually check any time from `Check for Updates...`:
   - macOS: Signboard app menu
   - Windows/Linux: Help menu
