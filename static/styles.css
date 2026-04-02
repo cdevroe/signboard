@@ -1951,6 +1951,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   display: grid;
   gap: 0;
   min-width: 0;
+  padding-top: 10px;
   padding-bottom: 10px;
 }
 
@@ -2017,8 +2018,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .archive-browser-results,
 .archive-browser-detail {
   min-height: 0;
-  height: 100%;
-  max-height: 100%;
+  max-height: calc(100% - 120px);
   align-self: stretch;
   overflow-y: auto;
   border: 1px solid var(--border);
