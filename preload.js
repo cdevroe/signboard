@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld('board', {
   openCard: async (filePath) => invokeBoard('openCard', filePath),
   shareCard: async (filePath) => ipcRenderer.invoke('share-file', filePath),
   readCard: async (filePath) => invokeBoard('readCard', filePath),
+  listArchiveEntries: async () => invokeBoard('listArchiveEntries'),
+  readArchiveEntry: async (entryPath) => invokeBoard('readArchiveEntry', entryPath),
   writeCard: async (filePath, card) => invokeBoard('writeCard', filePath, card),
   updateFrontmatter: async (filePath, partialFrontmatter) =>
     invokeBoard('updateFrontmatter', filePath, partialFrontmatter),
@@ -51,6 +53,12 @@ contextBridge.exposeInMainWorld('board', {
   createCard: async (filePath, content) => invokeBoard('createCard', filePath, content),
   archiveCard: async (filePath) => invokeBoard('archiveCard', filePath),
   archiveList: async (listPath) => invokeBoard('archiveList', listPath),
+  restoreArchivedCard: async (archivedCardPath, targetListPath) =>
+    invokeBoard('restoreArchivedCard', archivedCardPath, targetListPath),
+  restoreArchivedList: async (archivedListPath, restoredDirectoryName) =>
+    invokeBoard('restoreArchivedList', archivedListPath, restoredDirectoryName),
+  recordCardListMove: async (cardPath, fromListPath, toListPath) =>
+    invokeBoard('recordCardListMove', cardPath, fromListPath, toListPath),
   moveCard: async (src, dst) => invokeBoard('moveCard', src, dst),
   moveList: async (src, dst) => invokeBoard('moveList', src, dst),
   createList: async (listPath) => invokeBoard('createList', listPath),

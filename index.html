@@ -67,6 +67,10 @@
       </button>
       <div id="boardViewPopover" class="label-popover board-view-popover hidden"></div>
     </div>
+    <button id="openArchiveBrowser" class="board-menu-action" type="button" title="Browse archived cards and lists" aria-label="Browse archived cards and lists">
+      <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="archive"></i></span>
+      <span class="board-menu-action-label">Archive…</span>
+    </button>
     <button id="themeToggle" class="board-menu-action" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="moon"></i></span>
       <span class="board-menu-action-label">Dark Mode</span>
@@ -79,6 +83,47 @@
   </div>
 
   <div id="listActionsPopover" class="label-popover list-actions-popover hidden" aria-hidden="true"></div>
+
+  <div id="modalArchiveBrowser" class="modal archive-browser-modal hidden" role="dialog" aria-modal="true" aria-labelledby="archiveBrowserTitle" aria-hidden="true">
+    <div class="archive-browser-header">
+      <div>
+        <p class="archive-browser-eyebrow">Recovery</p>
+        <h2 id="archiveBrowserTitle">Archive</h2>
+      </div>
+      <button id="archiveBrowserClose" class="commercial-license-close" type="button" title="Close archive browser" aria-label="Close archive browser"><i data-feather="x"></i></button>
+    </div>
+
+    <div class="archive-browser-controls">
+      <div class="archive-browser-toolbar">
+        <div class="archive-browser-tabs" role="tablist" aria-label="Archive types">
+          <button id="archiveBrowserTabCards" class="archive-browser-tab is-active" type="button" role="tab" aria-selected="true">Cards</button>
+          <button id="archiveBrowserTabLists" class="archive-browser-tab" type="button" role="tab" aria-selected="false">Lists</button>
+        </div>
+        <input id="archiveBrowserSearchInput" type="search" placeholder="Search archived cards" aria-label="Search archive">
+        <select id="archiveBrowserSortSelect" aria-label="Sort archive results"></select>
+        <span id="archiveBrowserResultCount" class="archive-browser-result-count" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <div class="archive-browser-body">
+      <div id="archiveBrowserResults" class="archive-browser-results" aria-label="Archived items"></div>
+      <aside id="archiveBrowserDetail" class="archive-browser-detail" aria-live="polite"></aside>
+    </div>
+
+    <div id="archiveRestoreDialog" class="archive-restore-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="archiveRestoreTitle" aria-hidden="true">
+      <div class="archive-restore-dialog-card">
+        <h3 id="archiveRestoreTitle">Restore card</h3>
+        <p id="archiveRestoreOriginalList" class="archive-restore-subtitle"></p>
+        <input id="archiveRestoreSearchInput" type="search" placeholder="Search lists" aria-label="Search destination lists">
+        <div id="archiveRestoreListOptions" class="archive-restore-options"></div>
+        <p id="archiveRestoreError" class="archive-restore-error" aria-live="polite"></p>
+        <div class="archive-restore-actions">
+          <button id="archiveRestoreCancel" type="button">Cancel</button>
+          <button id="archiveRestoreConfirm" type="button">Restore card</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="modalAddList" class="modal hidden">
     <input id="userInputListName" type="text" placeholder="Backlog">

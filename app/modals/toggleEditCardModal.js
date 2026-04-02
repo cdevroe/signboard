@@ -1129,6 +1129,7 @@ async function moveCardToListPath(cardPath, targetListPath) {
         return '';
     }
 
+    const currentListPath = getCardListPath(cardPath);
     const fileName = await window.board.getCardFileName(cardPath);
     const suffix = fileName.replace(/^\d{3}/, '');
     const nextNumber = await getNextCardNumber(targetListPath);
@@ -1136,6 +1137,15 @@ async function moveCardToListPath(cardPath, targetListPath) {
     const newPath = targetListPath + '/' + newFileName;
 
     await window.board.moveCard(cardPath, newPath);
+    if (
+        currentListPath &&
+        targetListPath &&
+        currentListPath !== targetListPath &&
+        window.board &&
+        typeof window.board.recordCardListMove === 'function'
+    ) {
+        await window.board.recordCardListMove(newPath, currentListPath, targetListPath);
+    }
     return newPath;
 }
 
@@ -1308,9 +1318,24 @@ async function handleClickDuplicateCard( e ) {
 
     let newCardPath = cardEditorCardPath.value.replace( currentCardName, newCardName );
 
-    const copiedFrontmatter = await window.board.normalizeFrontmatter({
+    const duplicatedFrontmatterSource = {
         ...card.frontmatter,
         title: `Copy of ${card.frontmatter.title || 'Untitled'}`,
+    };
+    delete duplicatedFrontmatterSource.archive;
+    delete duplicatedFrontmatterSource.activity;
+    delete duplicatedFrontmatterSource.createdAt;
+
+    const createdAt = new Date().toISOString();
+    const copiedFrontmatter = await window.board.normalizeFrontmatter({
+        ...duplicatedFrontmatterSource,
+        createdAt,
+        activity: [
+            {
+                type: 'created',
+                at: createdAt,
+            },
+        ],
     });
 
     await window.board.writeCard(newCardPath, {

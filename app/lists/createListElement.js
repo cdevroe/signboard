@@ -73,6 +73,9 @@ async function createListElement(name, listPath, cardNames, options = {}) {
       draggable: '.card',
       disabled: isBoardLabelFilterActive(),
       onEnd: async (evt) => {
+          const movedCardOriginalPath = evt && evt.item ? evt.item.getAttribute('data-path') : '';
+          const sourceListPath = evt && evt.from ? evt.from.dataset.path : '';
+          const targetListPath = evt && evt.to ? evt.to.dataset.path : '';
 
           const finalOrder = [...evt.to.querySelectorAll('.card')].map(card =>
               card.getAttribute('data-path')  // array of CURRENT filenames in final order
@@ -86,6 +89,7 @@ async function createListElement(name, listPath, cardNames, options = {}) {
           }
 
           let fileCounter = 0;
+          let movedCardNextPath = '';
           for (const filePath of finalOrder) {
 
               let fileNumber = (fileCounter).toLocaleString('en-US', {
@@ -104,9 +108,23 @@ async function createListElement(name, listPath, cardNames, options = {}) {
               let adjustedTo = evt.to.dataset.path + '/' + fileNumber + await window.board.getCardFileName(filePath).slice(3).replace('.tmp','.md');
 
               await window.board.moveCard(adjustedFrom, adjustedTo);
+              if (movedCardOriginalPath && filePath === movedCardOriginalPath) {
+                movedCardNextPath = adjustedTo;
+              }
 
               fileCounter++;
 
+          }
+
+          if (
+            movedCardNextPath &&
+            sourceListPath &&
+            targetListPath &&
+            sourceListPath !== targetListPath &&
+            window.board &&
+            typeof window.board.recordCardListMove === 'function'
+          ) {
+            await window.board.recordCardListMove(movedCardNextPath, sourceListPath, targetListPath);
           }
 
           await renderBoard();

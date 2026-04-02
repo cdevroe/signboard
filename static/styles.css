@@ -1908,6 +1908,416 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   white-space: nowrap;
 }
 
+.archive-browser-modal {
+  position: fixed;
+  z-index: 50;
+  top: max(54px, calc(env(safe-area-inset-top) + 12px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1120px, calc(100vw - 28px));
+  max-width: 1120px;
+  height: min(84vh, calc(100vh - 28px));
+  max-height: calc(100vh - 28px);
+  padding: 18px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 16px;
+  overflow: hidden;
+}
+
+.archive-browser-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+
+.archive-browser-header h2 {
+  margin: 0;
+}
+
+.archive-browser-eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.archive-browser-controls {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  padding-bottom: 10px;
+}
+
+.archive-browser-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-self: start;
+}
+
+.archive-browser-tab {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 90%, var(--text));
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
+  color: var(--muted);
+  box-shadow: none;
+  font-size: var(--font-sm);
+  font-weight: 620;
+}
+
+.archive-browser-tab:hover {
+  color: var(--text);
+}
+
+.archive-browser-tab.is-active {
+  color: color-mix(in oklab, var(--accent) 82%, var(--text));
+  border-color: color-mix(in oklab, var(--accent) 42%, var(--border));
+  background: color-mix(in oklab, var(--accent) 14%, var(--bg-card));
+}
+
+.archive-browser-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(220px, 280px) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.archive-browser-toolbar input,
+.archive-browser-toolbar select {
+  width: 100%;
+}
+
+.archive-browser-result-count {
+  justify-self: end;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.archive-browser-body {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.archive-browser-results,
+.archive-browser-detail {
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  align-self: stretch;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--bg-card) 96%, var(--border));
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+.archive-browser-results {
+  padding: 14px 14px 64px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  scroll-padding-block-end: 64px;
+}
+
+.archive-browser-detail {
+  padding: 20px 20px 64px;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  scroll-padding-block-end: 64px;
+}
+
+.archive-browser-row {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--border) 88%, var(--text));
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--bg));
+  color: var(--text);
+  box-shadow: none;
+  display: grid;
+  gap: 10px;
+  padding: 13px 14px;
+  text-align: left;
+}
+
+.archive-browser-row:hover {
+  border-color: color-mix(in oklab, var(--accent) 24%, var(--border));
+  background: color-mix(in oklab, var(--bg-card) 90%, var(--accent) 10%);
+}
+
+.archive-browser-row.is-active {
+  border-color: color-mix(in oklab, var(--accent) 42%, var(--border));
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 20%, transparent);
+}
+
+.archive-browser-row-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.archive-browser-row-title-wrap,
+.archive-browser-detail-title-wrap,
+.archive-browser-detail-badges,
+.archive-browser-row-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.archive-browser-row-title {
+  font-size: var(--font-md);
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.archive-browser-row-date,
+.archive-browser-row-meta,
+.archive-browser-detail-meta,
+.archive-browser-detail-more {
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.archive-browser-row-date {
+  white-space: nowrap;
+}
+
+.archive-browser-row-preview {
+  margin: 0;
+  color: color-mix(in oklab, var(--muted) 86%, var(--text));
+  font-size: var(--font-sm);
+  line-height: 1.45;
+}
+
+.archive-browser-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 84%, var(--text));
+  background: color-mix(in oklab, var(--bg) 84%, var(--border));
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.archive-browser-badge-muted {
+  color: var(--muted);
+}
+
+.archive-browser-badge-emphasis {
+  border-color: color-mix(in oklab, var(--accent) 34%, var(--border));
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
+  color: color-mix(in oklab, var(--accent) 82%, var(--text));
+}
+
+.archive-browser-badge-due {
+  border-color: color-mix(in oklab, var(--accent) 34%, var(--border));
+  background: color-mix(in oklab, #f59e0b 12%, var(--bg-card));
+  color: color-mix(in oklab, #f59e0b 72%, var(--text));
+}
+
+.archive-browser-label-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--border));
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.archive-browser-label-chip-unknown {
+  color: var(--muted);
+}
+
+.archive-browser-detail-empty,
+.archive-browser-empty-state {
+  min-height: 140px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  padding: 18px;
+}
+
+.archive-browser-empty-state-error {
+  color: color-mix(in oklab, #dc2626 72%, var(--text));
+}
+
+.archive-browser-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.archive-browser-detail-title {
+  margin: 0;
+}
+
+.archive-browser-restore-button {
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 620;
+  flex-shrink: 0;
+}
+
+.archive-browser-detail-preview {
+  margin: 0;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--border) 88%, var(--text));
+  background: color-mix(in oklab, var(--bg) 92%, var(--border));
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.archive-browser-detail-subtitle {
+  margin: 0;
+  font-size: var(--font-md);
+}
+
+.archive-browser-detail-list-preview {
+  display: grid;
+  gap: 10px;
+}
+
+.archive-browser-detail-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.archive-browser-detail-card-list-item {
+  border: 1px solid color-mix(in oklab, var(--border) 88%, var(--text));
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg) 92%, var(--border));
+  padding: 10px 12px;
+  font-size: var(--font-sm);
+}
+
+.archive-restore-dialog {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in oklab, var(--bg) 38%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+.archive-restore-dialog-card {
+  width: min(460px, calc(100vw - 44px));
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-card);
+  box-shadow: 0 18px 44px var(--shadow-card);
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.archive-restore-dialog-card h3 {
+  margin: 0;
+}
+
+.archive-restore-subtitle,
+.archive-restore-error {
+  margin: 0;
+  font-size: var(--font-sm);
+}
+
+.archive-restore-subtitle {
+  color: var(--muted);
+}
+
+.archive-restore-error {
+  color: color-mix(in oklab, #dc2626 72%, var(--text));
+  min-height: 1.3em;
+}
+
+.archive-restore-options {
+  max-height: 220px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.archive-restore-option {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid color-mix(in oklab, var(--border) 88%, var(--text));
+  background: color-mix(in oklab, var(--bg-card) 96%, var(--border));
+  box-shadow: none;
+  color: var(--text);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.archive-restore-option:hover {
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
+}
+
+.archive-restore-option.is-active {
+  border-color: color-mix(in oklab, var(--accent) 42%, var(--border));
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
+  color: color-mix(in oklab, var(--accent) 82%, var(--text));
+}
+
+.archive-restore-empty {
+  border: 1px dashed color-mix(in oklab, var(--border) 86%, var(--text));
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  padding: 16px 12px;
+  text-align: center;
+}
+
+.archive-restore-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 #modalEditCard {
   position: fixed;
   z-index: 50;
@@ -2916,6 +3326,11 @@ select:disabled {
   body:not(.board-empty) #boardTabs {
     padding: 0 2px;
   }
+
+  .archive-browser-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(220px, 1fr) minmax(240px, 1fr);
+  }
 }
 
 /* 10) Small screens */
@@ -2996,6 +3411,35 @@ select:disabled {
   }
   .keyboard-shortcuts-header h2 {
     font-size: 22px;
+  }
+  .archive-browser-modal {
+    top: max(8px, env(safe-area-inset-top));
+    width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+    max-height: calc(100vh - 16px);
+    padding: 14px;
+    gap: 12px;
+  }
+  .archive-browser-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .archive-browser-result-count {
+    justify-self: start;
+  }
+  .archive-browser-detail-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .archive-browser-restore-button {
+    width: 100%;
+    justify-content: center;
+  }
+  .archive-restore-dialog {
+    padding: 12px;
+  }
+  .archive-restore-dialog-card {
+    width: 100%;
   }
 }
 

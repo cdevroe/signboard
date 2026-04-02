@@ -182,6 +182,7 @@ function isModalOpen(modalId) {
 function isExternalBoardRefreshBlocked() {
     return isModalOpen('modalEditCard')
         || isModalOpen('modalBoardSettings')
+        || isModalOpen('modalArchiveBrowser')
         || isModalOpen('modalCommercialLicense')
         || isModalOpen('modalAboutSignboard');
 }
@@ -722,6 +723,7 @@ async function init() {
         initializeBoardLabelControls();
         initializeBoardSearchControls();
         initializeBoardViewControls();
+        initializeArchiveBrowserControls();
     };
 
     if (!restoredBoard) {

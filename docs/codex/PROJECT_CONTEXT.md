@@ -31,6 +31,7 @@ File: `main.js`
 - Uses `preload.js` as a thin renderer bridge into main-process IPC.
 - Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
 - Owns explicit board import operations for Trello, Obsidian, and Tasks.md; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
+- Owns archive browse/read/restore operations through `lib/archive.js`; renderer code never scans or restores archive contents directly.
 - In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
 - Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card management.
@@ -48,6 +49,7 @@ File: `preload.js`
 - `window.electronAPI` includes external-link opening and manual update checks.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
+- Archive browsing uses preload bridge methods (`listArchiveEntries`, `readArchiveEntry`, `restoreArchivedCard`, `restoreArchivedList`) backed by the same trusted-board gate as normal board operations.
 - `window.chooser.pickImportSources(...)` returns tokenized external file/directory selections for import flows, and `window.board.importTrello(...)` / `window.board.importObsidian(...)` / `window.board.importTasksMd(...)` invoke the main-process importers.
 - Still exposes board watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`), but the watcher implementation now lives in `main.js`.
 
@@ -58,6 +60,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
 - `app/signboard.js` is concatenated from source modules by `buildjs.sh`.
 - Board Settings includes an `Import` section for Trello, Obsidian, and Tasks.md imports, with summary/warning rendering in the existing settings modal.
+- The Board menu now opens a dedicated Archive browser modal; Archive remains hidden from normal board rendering and is not a fourth board view.
 
 ## Data Model and Naming Conventions
 
@@ -79,6 +82,22 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - YAML frontmatter (`title`, optional `due`, optional `labels`, unknown keys preserved)
   - Markdown body
 - Card `labels` frontmatter stores board label ids (e.g. `labels: ["label-1"]`).
+- New cards created through current app flows now also carry:
+  - `createdAt` (ISO timestamp)
+  - `activity` (compact lifecycle entries only: `created`, `moved-list`, `archived`, `restored`)
+- Archived cards temporarily carry an `archive` object in frontmatter while they remain archived:
+  - `archivedAt`
+  - `originalListDirectoryName`
+  - `originalListDisplayName`
+  - `archiveContainerType` (`standalone-card` or `archived-list`)
+
+### Archived list metadata
+- Archived list directories may contain a hidden sidecar file: `.signboard-archive.json`
+- The sidecar stores only lightweight recovery metadata:
+  - original list directory/display name
+  - archived timestamp
+  - compact list lifecycle activity
+- Restored lists keep that sidecar so future archive/restore cycles retain lightweight history without a full event log.
 
 ### Task checklist lines (in card body markdown)
 
@@ -117,6 +136,11 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Builds Kanban columns and enables list drag-and-drop reorder when Kanban is active.
   - Fetches each list's card names concurrently for faster initial render.
   - Loads board label definitions and temporary filter state before rendering cards.
+- `app/board/archiveBrowser.js`:
+  - Opens the dedicated Archive modal from the Board menu.
+  - Lists archived cards and archived lists with search-first filtering, incremental result rendering, and a detail pane.
+  - Reads archive entry detail lazily over preload IPC.
+  - Restores cards through an explicit destination-list picker and restores archived lists back into the board root with rename-on-collision handling.
 - `app/board/boardViews.js`:
   - Owns active board view state and the `Views` dropdown behavior.
   - Renders Calendar month layout (Monday-first week), today highlighting, and month navigation.
@@ -130,6 +154,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Enables card drag-and-drop reorder and cross-list move.
   - Sanitizes list names before filesystem rename.
   - Builds card DOM for a list concurrently to reduce list render time.
+  - Records `moved-list` lifecycle events only for real cross-list card moves, not same-list reindexing.
 - `app/cards/createCardElement.js`:
   - Reads card frontmatter/body preview.
   - Computes task summary + task due dates from card body checklist lines.
@@ -159,6 +184,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Renders task-line due-date controls at the start of each parsed checklist line in the editor.
   - Uses measured textarea line-start coordinates for control placement so wrapped lines do not drift button positions.
   - Handles due date picker, labels picker, duplicate, and archive actions.
+  - Card duplication now resets archive/lifecycle fields and seeds a fresh `created` event.
 - `app/utilities/taskList.js`:
   - Parses checklist items from card markdown body.
   - Computes task summary (`total`, `completed`, `remaining`) and task due-date sets.
@@ -213,6 +239,23 @@ File: `lib/cardFrontmatter.js`
   2) optional `due`
   3) optional `labels` (non-empty only)
   4) other keys sorted alphabetically
+
+File: `lib/cardLifecycle.js`
+
+- Shared lifecycle helper for:
+  - `createdAt` seeding on new cards
+  - compact `activity` entry creation
+  - temporary archive frontmatter state
+  - `moved-list` / `archived` / `restored` card metadata transitions
+
+File: `lib/archive.js`
+
+- Owns archive/archive-list filesystem operations plus archive browsing and restore.
+- Lists both standalone archived cards and cards nested inside archived lists.
+- Restores archived cards to the top of an explicit destination list.
+- Restores whole archived lists back into the board root and updates each card's archive lifecycle metadata.
+- Cleans up empty archived-list containers automatically when the last card is extracted.
+- Falls back gracefully for legacy archived cards/lists that predate archive metadata.
 
 File: `lib/boardLabels.js`
 
@@ -289,6 +332,10 @@ CLI overdue behavior:
 - `npm run test:cli`
 - Script: `scripts/test-cli.js`
 - Covers list creation/rename, card create/edit/read/filter flows, and Trello/Obsidian/Tasks.md imports.
+
+### Archive tests
+- `node scripts/test-archive.js`
+- Covers archive metadata, archive-browser listing data, restore flows, empty archived-list cleanup, and legacy archive fallbacks.
 
 ### Desktop CLI smoke test
 - `npm run test:desktop-cli`

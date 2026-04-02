@@ -80,6 +80,10 @@ async function openBoard( dir ) {
         await closeBoardSettingsModal();
     }
 
+    if (typeof closeArchiveBrowserModal === 'function') {
+        closeArchiveBrowserModal();
+    }
+
     if (typeof flushBoardLabelSettingsSave === 'function') {
         await flushBoardLabelSettingsSave();
     }

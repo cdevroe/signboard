@@ -12,7 +12,16 @@ const fsPromises = fs.promises;
 const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
-const { archiveCard, archiveList } = require('./lib/archive');
+const { prepareNewCardFrontmatter } = require('./lib/cardLifecycle');
+const {
+  archiveCard,
+  archiveList,
+  listArchiveEntries,
+  readArchiveEntry,
+  recordCardListMove,
+  restoreArchivedCard,
+  restoreArchivedList,
+} = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
 const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
@@ -591,6 +600,18 @@ function requireWritablePath(sender, candidatePath) {
   }
 
   throw new Error('UNAUTHORIZED_PATH');
+}
+
+function requireActiveBoardRootForSender(sender) {
+  const senderState = getSenderBoardAccessState(sender);
+  const activeBoardRoot = typeof senderState.activeBoardRoot === 'string'
+    ? senderState.activeBoardRoot
+    : '';
+  if (!activeBoardRoot) {
+    throw new Error('UNAUTHORIZED_BOARD_ROOT');
+  }
+
+  return activeBoardRoot;
 }
 
 function authorizeTrustedBoardRootForSender(sender, boardRoot) {
@@ -1916,6 +1937,17 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       return cardFrontmatter.readCard(filePath);
     }
 
+    case 'listArchiveEntries': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      return listArchiveEntries(boardRoot);
+    }
+
+    case 'readArchiveEntry': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const entryPath = requireReadablePath(event.sender, args[0]);
+      return readArchiveEntry(boardRoot, entryPath);
+    }
+
     case 'writeCard': {
       const filePath = requireWritablePath(event.sender, args[0]);
       const card = args[1] && typeof args[1] === 'object' ? args[1] : {};
@@ -1959,7 +1991,9 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       const body = lines.join('\n').replace(/^\n+/, '');
 
       await cardFrontmatter.writeCard(filePath, {
-        frontmatter: { title: title || 'Untitled' },
+        frontmatter: prepareNewCardFrontmatter({
+          title: title || 'Untitled',
+        }),
         body,
       });
 
@@ -1976,6 +2010,28 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       const listPath = requireWritablePath(event.sender, args[0]);
       const senderState = getSenderBoardAccessState(event.sender);
       return archiveList(senderState.activeBoardRoot, listPath);
+    }
+
+    case 'restoreArchivedCard': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const archivedCardPath = requireWritablePath(event.sender, args[0]);
+      const targetListPath = requireWritablePath(event.sender, args[1]);
+      return restoreArchivedCard(boardRoot, archivedCardPath, targetListPath);
+    }
+
+    case 'restoreArchivedList': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const archivedListPath = requireWritablePath(event.sender, args[0]);
+      const restoredDirectoryName = typeof args[1] === 'string' ? args[1] : '';
+      return restoreArchivedList(boardRoot, archivedListPath, restoredDirectoryName);
+    }
+
+    case 'recordCardListMove': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const cardPath = requireWritablePath(event.sender, args[0]);
+      const fromListPath = requireWritablePath(event.sender, args[1]);
+      const toListPath = requireWritablePath(event.sender, args[2]);
+      return recordCardListMove(boardRoot, cardPath, fromListPath, toListPath);
     }
 
     case 'moveCard':

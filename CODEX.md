@@ -13,6 +13,7 @@ Start here before opening source files.
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
 - `preload.js` is now a thin IPC bridge only; board filesystem access, trusted-board validation, and filesystem watch helpers live in `main.js`, while `app/init.js` still uses the same watch methods to auto-refresh after external board changes.
+- Archive browsing and restore now run through `lib/archive.js` via `main.js` / `preload.js`; the renderer opens a dedicated Archive modal (`app/board/archiveBrowser.js`) instead of treating Archive as a board view.
 - Board view switching (Kanban/Calendar/This Week) is managed in `app/board/boardViews.js`; temporal views include cards by card due date and task-level due markers (`(due: YYYY-MM-DD)`).
 - Calendar and This Week cards also show a subdued source-list label so users can tell which Kanban list a due item currently belongs to without opening it.
 - The header filter popover is owned by `app/board/boardLabels.js`; it supports temporary `Today` / `Overdue` date filters plus multi-select label filters, and those filters apply across Kanban, Calendar, and This Week.
@@ -20,6 +21,7 @@ Start here before opening source files.
 - The filter toolbar button is icon-only; when filters are active it gets an accent-tinted active state and exposes the active summary through tooltip/ARIA text rather than visible label text.
 - Keyboard shortcut handling is centralized in `app/listeners/window.js`; the helper modal is rendered in `index.html` as `#modalKeyboardShortcuts`, and native menu accelerators now cover Board Settings (`Cmd/Ctrl + ,`) plus theme toggling (`Cmd/Ctrl + Shift + D`).
 - Shortcut label formatting is shared from `app/board/boardLabels.js`, so the keyboard helper modal, board/view menus, and list-action popovers all stay OS-aware and in sync.
+- New cards created through the desktop app, CLI, MCP, and importers now receive `createdAt` plus a compact `activity` trail (`created`, `moved-list`, `archived`, `restored`); active archive state lives in card frontmatter under `archive`, and archived lists persist lightweight sidecar metadata in `.signboard-archive.json`.
 - Task checklist parsing + counters + task due-date helpers live in `app/utilities/taskList.js` and feed Board/Calendar/This Week card badges.
 - Due notification aggregation/formatting (including task-due item snippets) lives in `app/utilities/dueNotifications.js` and is consumed by `app/init.js`.
 - Task-line due-date controls in the editor are positioned from measured textarea line-start coordinates (not raw line index math) to stay aligned with wrapped content.

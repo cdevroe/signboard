@@ -210,6 +210,10 @@ async function closeBoardTab(boardPath) {
         await flushBoardLabelSettingsSave();
     }
 
+    if (typeof closeArchiveBrowserModal === 'function') {
+        closeArchiveBrowserModal();
+    }
+
     const normalizedPath = normalizeBoardPath(boardPath);
     const openBoards = getStoredOpenBoards();
     const removedIndex = openBoards.indexOf(normalizedPath);
@@ -392,6 +396,10 @@ function renderBoardTabs() {
                 await flushBoardSettingsSave();
             } else if (typeof flushBoardLabelSettingsSave === 'function') {
                 await flushBoardLabelSettingsSave();
+            }
+
+            if (typeof closeArchiveBrowserModal === 'function') {
+                closeArchiveBrowserModal();
             }
 
             const authorizedBoardPath = await authorizeBoardAccess(boardPath);

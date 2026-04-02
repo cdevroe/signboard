@@ -88,6 +88,7 @@ async function closeAllModals(e, options = {}){
     const modalAddCardToList = document.getElementById('modalAddCardToList');
     const modalAddList = document.getElementById('modalAddList');
     const modalBoardSettings = document.getElementById('modalBoardSettings');
+    const modalArchiveBrowser = document.getElementById('modalArchiveBrowser');
     const modalAboutSignboard = document.getElementById('modalAboutSignboard');
     const modalCommercialLicense = document.getElementById('modalCommercialLicense');
     const editModalWasOpen = modalEditCard.style.display === 'block';
@@ -134,6 +135,16 @@ async function closeAllModals(e, options = {}){
             modalBoardSettings.style.display = 'none';
             setBoardInteractive(true);
             boardSettingsClosed = true;
+        }
+        if ( modalArchiveBrowser && modalArchiveBrowser.style.display === 'block' ) {
+            if (typeof closeArchiveBrowserModal === 'function') {
+                closeArchiveBrowserModal();
+            } else {
+                modalArchiveBrowser.style.display = 'none';
+                modalArchiveBrowser.classList.add('hidden');
+                modalArchiveBrowser.setAttribute('aria-hidden', 'true');
+                setBoardInteractive(true);
+            }
         }
         if ( modalAboutSignboard && modalAboutSignboard.style.display === 'block' ) {
             modalAboutSignboard.style.display = 'none';
@@ -183,6 +194,17 @@ async function closeAllModals(e, options = {}){
             modalBoardSettings.style.display = 'none';
             setBoardInteractive(true);
             boardSettingsClosed = true;
+        }
+
+        if ( modalArchiveBrowser && modalArchiveBrowser.style.display === 'block' && eventTarget && !modalArchiveBrowser.contains(eventTarget) ) {
+            if (typeof closeArchiveBrowserModal === 'function') {
+                closeArchiveBrowserModal();
+            } else {
+                modalArchiveBrowser.style.display = 'none';
+                modalArchiveBrowser.classList.add('hidden');
+                modalArchiveBrowser.setAttribute('aria-hidden', 'true');
+                setBoardInteractive(true);
+            }
         }
 
         if ( modalAboutSignboard && modalAboutSignboard.style.display === 'block' && eventTarget && !modalAboutSignboard.contains(eventTarget) ) {
