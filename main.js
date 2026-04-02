@@ -1310,8 +1310,30 @@ function extractReleaseNotes(info) {
   return '';
 }
 
+function escapeRegExp(input) {
+  return String(input).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripReleaseNotesSection(notes, headingText) {
+  const source = typeof notes === 'string' ? notes.trim() : '';
+  const heading = String(headingText || '').trim();
+  if (!source || !heading) {
+    return source;
+  }
+
+  const sectionPattern = new RegExp(
+    `(?:^|\\n)##\\s+${escapeRegExp(heading)}\\s*\\n[\\s\\S]*?(?=\\n##\\s+|$)`,
+    'i'
+  );
+
+  return source
+    .replace(sectionPattern, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function formatReleaseNotesForDialog(info) {
-  const notes = extractReleaseNotes(info);
+  const notes = stripReleaseNotesSection(extractReleaseNotes(info), 'Downloads');
 
   if (!notes) {
     return 'No changelog details were provided in the release metadata.';

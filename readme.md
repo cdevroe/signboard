@@ -29,7 +29,16 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 ## Installation
 
 1. Go to the [Releases page](../../releases).
-2. On the latest release, download the correct file for your operating system.
+2. On the latest release, use the curated download links in the release body:
+   - `Download for macOS (Universal)`
+   - `Download for Windows`
+   - Linux packages grouped by package type with explicit `x64` and `ARM64` labels
+
+For standard releases, Signboard intentionally promotes a smaller public download set:
+
+- macOS: universal build
+- Windows: single installer
+- Linux: separate `x64` and `ARM64` packages
 
 ## Documentation
 
@@ -174,27 +183,30 @@ npm run test:playwright
 ### macOS
 
 ```bash
-# Current host architecture
-npm run dist
+# Default public macOS release build
+npm run dist:mac
 
-# Specific macOS architectures
+# Optional: specific macOS architectures for troubleshooting
+npm run dist:mac:universal
 npm run dist:mac:arm64
 npm run dist:mac:x64
-npm run dist:mac:universal
 
-# Build all macOS variants
+# Optional: build every macOS variant
 npm run dist:mac:all
 ```
 
 ### Windows (NSIS installer)
 
 ```bash
-# Specific Windows architecture
+# Default public Windows release build
+npm run dist:win
+
+# Alias for the default Windows release build
+npm run dist:win:all
+
+# Optional: specific Windows architectures for troubleshooting
 npm run dist:win:x64
 npm run dist:win:arm64
-
-# Build both Windows architectures
-npm run dist:win:all
 ```
 
 ### Linux (AppImage, deb)
@@ -216,11 +228,14 @@ npm run dist:linux:rpm:all
 ### Build everything
 
 ```bash
+# Public release matrix: macOS universal, Windows installer, Linux x64 + ARM64
 npm run dist:all
 ```
 
 Notes:
 - `--publish never` is used for local builds so these commands package artifacts without attempting to publish releases.
+- Standard public downloads are: macOS universal, one Windows installer, and Linux `AppImage`/`deb` builds for `x64` and `ARM64`.
+- The GitHub release body should be treated as the curated download surface. Link the public download set there instead of expecting users to interpret the raw asset list.
 - Copy `.env-sample` to `.env` and fill in your credentials before running signing/notarization builds.
 - macOS signing/notarization uses environment variables from `.env` (`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`).
 

@@ -371,6 +371,8 @@ CLI overdue behavior:
 - Electron Builder config in `package.json` and `electron-builder.json`.
 - macOS notarization hook: `scripts/notarize.js` (env vars from `.env`).
 - Release validation script: `scripts/verify-release-assets.js` (`npm run release:verify`) checks cross-platform updater assets and metadata naming.
+- Standard public releases should promote macOS universal, a single Windows installer, and Linux `x64`/`ARM64` `AppImage` + `deb` downloads; use `docs/release-template.md` for the curated GitHub release body.
+- The in-app update dialog reads GitHub release notes and strips a `## Downloads` section before rendering, so curated download links can live in release bodies without polluting the changelog shown in-app.
 - End-to-end release prep: `npm run release:prepare` (build all + verify release assets).
 - MCP instructions for packaged and source installs: `MCP_README.md`.
 - Optional reusable agent skill for MCP workflows: `skills/signboard-mcp/SKILL.md`.

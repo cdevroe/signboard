@@ -4,13 +4,14 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board settings/theme shortcuts) + archive browse/restore IPC + GitHub-release auto-update flow (`electron-updater`).
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board settings/theme shortcuts) + archive browse/restore IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
 - `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
 - `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and menu-triggered renderer events, including archive browse/read/restore calls.
 - `index.html` - App shell, header board tab strip, board-menu/archive modal markup (including `#modalKeyboardShortcuts` and `#modalArchiveBrowser`), and deferred script/style includes.
 - `readme.md` - Human-facing project README.
+- `docs/release-template.md` - Curated GitHub release-body template for public download links.
 - `package.json` - Runtime/build scripts and dependencies.
 - `package-lock.json` - NPM lockfile.
 - `.gitignore` - Ignores `node_modules`, `dist`, `.env`, etc.
@@ -72,7 +73,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-task-list-parser.js` - Task checklist parser assertions (`completed/total` and task due-date extraction).
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
-- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux.
+- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux plus curated public-download guidance.
 - `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including archive tool coverage, card task metadata assertions, and import-tool coverage.
 - `scripts/test-cli.js` - Node CLI smoke test covering list/card/archive flows plus Trello/Obsidian imports.
 - `scripts/test-desktop-cli.js` - Electron executable CLI dispatch smoke test, including import command routing.

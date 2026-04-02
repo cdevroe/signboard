@@ -27,6 +27,8 @@ Start here before opening source files.
 - Task-line due-date controls in the editor are positioned from measured textarea line-start coordinates (not raw line index math) to stay aligned with wrapped content.
 - In dev/unpackaged builds, `Help` includes updater preview dialogs so update UI can be tested without publishing a release.
 - Release assets for updater compatibility are validated by `scripts/verify-release-assets.js` (`npm run release:verify`).
+- Standard public releases now promote a curated download set: macOS universal, one Windows installer, and Linux `x64`/`ARM64` `AppImage` + `deb` packages. Use `docs/release-template.md` for the GitHub release body.
+- The in-app updater strips a `## Downloads` section from GitHub release notes before showing the "what's new" dialog, so curated download links can live in release bodies without cluttering update notes.
 - Task parser coverage tests are in `scripts/test-task-list-parser.js` (`npm run test:task-list`).
 - Due notification coverage tests are in `scripts/test-due-notifications.js` (`npm run test:due-notifications`).
 - Dedicated user-facing MCP setup docs are in `MCP_README.md`.
