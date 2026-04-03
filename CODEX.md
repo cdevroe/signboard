@@ -8,29 +8,41 @@ Start here before opening source files.
 - Tooltip UI is implemented in `app/ui/tooltips.js` and reads existing control labels (`title` / `aria-label` / `alt`) to keep tooltip copy centralized in markup.
 - App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`.
 - `main.js` also supports headless MCP mode via `--mcp-server` for local agent integration over stdio; implementation lives in `lib/mcpServer.js`.
-- Signboard MCP includes board-name resolution (`signboard.resolve_board_by_name`), Trello/Obsidian import tools, and supports both header-framed + newline-delimited stdio JSON-RPC.
+- Signboard MCP includes board-name resolution (`signboard_resolve_board_by_name`), archive browse/read/restore tools (`signboard_list_archive_entries`, `signboard_read_archive_entry`, `signboard_restore_archived_card`, `signboard_restore_archived_list`, `signboard_archive_list`), Trello/Obsidian/Tasks.md import tools, and supports both header-framed + newline-delimited stdio JSON-RPC; dotted `signboard.*` names remain accepted as legacy aliases.
 - Main window stability guards are in `main.js` (`unresponsive` dialog + renderer crash recovery window recreate).
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
 - `preload.js` is now a thin IPC bridge only; board filesystem access, trusted-board validation, and filesystem watch helpers live in `main.js`, while `app/init.js` still uses the same watch methods to auto-refresh after external board changes.
+- Archive browsing and restore now run through `lib/archive.js` via `main.js` / `preload.js`; the renderer opens a dedicated Archive modal (`app/board/archiveBrowser.js`) instead of treating Archive as a board view.
 - Board view switching (Kanban/Calendar/This Week) is managed in `app/board/boardViews.js`; temporal views include cards by card due date and task-level due markers (`(due: YYYY-MM-DD)`).
 - Calendar and This Week cards also show a subdued source-list label so users can tell which Kanban list a due item currently belongs to without opening it.
-- Keyboard shortcut handling is centralized in `app/listeners/window.js`; the hold-for-2-seconds shortcut helper modal is rendered in `index.html` as `#modalKeyboardShortcuts` and must be kept in sync whenever shortcuts change.
+- The header filter popover is owned by `app/board/boardLabels.js`; it supports temporary `Today` / `Overdue` date filters plus multi-select label filters, and those filters apply across Kanban, Calendar, and This Week.
+- The `Overdue` filter intentionally ignores completed task-level due markers; overdue card-level due dates still count, and incomplete task due markers still drive overdue matches across Kanban, Calendar, and This Week.
+- The filter toolbar button is icon-only; when filters are active it gets an accent-tinted active state and exposes the active summary through tooltip/ARIA text rather than visible label text.
+- Keyboard shortcut handling is centralized in `app/listeners/window.js`; the helper modal is rendered in `index.html` as `#modalKeyboardShortcuts`, and native menu accelerators now cover Board Settings (`Cmd/Ctrl + ,`) plus theme toggling (`Cmd/Ctrl + Shift + D`).
+- Shortcut label formatting is shared from `app/board/boardLabels.js`, so the keyboard helper modal, board/view menus, and list-action popovers all stay OS-aware and in sync.
+- New cards created through the desktop app, CLI, MCP, and importers now receive `createdAt` plus a compact `activity` trail (`created`, `moved-list`, `archived`, `restored`); active archive state lives in card frontmatter under `archive`, and archived lists persist lightweight sidecar metadata in `.signboard-archive.json`.
 - Task checklist parsing + counters + task due-date helpers live in `app/utilities/taskList.js` and feed Board/Calendar/This Week card badges.
 - Due notification aggregation/formatting (including task-due item snippets) lives in `app/utilities/dueNotifications.js` and is consumed by `app/init.js`.
 - Task-line due-date controls in the editor are positioned from measured textarea line-start coordinates (not raw line index math) to stay aligned with wrapped content.
 - In dev/unpackaged builds, `Help` includes updater preview dialogs so update UI can be tested without publishing a release.
 - Release assets for updater compatibility are validated by `scripts/verify-release-assets.js` (`npm run release:verify`).
+- Standard public releases now promote a curated download set: macOS universal, one Windows installer, and Linux `x64`/`ARM64` `AppImage` + `deb` packages. Use `docs/release-template.md` for the GitHub release body.
+- The in-app updater strips a `## Downloads` section from GitHub release notes before showing the "what's new" dialog, so curated download links can live in release bodies without cluttering update notes.
 - Task parser coverage tests are in `scripts/test-task-list-parser.js` (`npm run test:task-list`).
 - Due notification coverage tests are in `scripts/test-due-notifications.js` (`npm run test:due-notifications`).
 - Dedicated user-facing MCP setup docs are in `MCP_README.md`.
+- Release-facing user and agent docs live in `docs/README.md`, `docs/using-signboard.md`, and `docs/signboard-cli.md`.
 - Reusable agent skill for MCP usage lives at `skills/signboard-mcp/SKILL.md`.
 - Skill UI metadata lives at `skills/signboard-mcp/agents/openai.yaml`.
 - Board tabs/session state live in renderer localStorage: `boardTabs` (open tab order) and `boardPath` (active board root fallback).
 - Board label definitions are managed in `board-settings.md` files inside each board folder (runtime data, not repo source).
-- Board Settings now includes an `Import` panel that launches explicit Trello/Obsidian imports into the current board; the renderer wiring lives in `app/board/boardLabels.js`, while the actual import filesystem work lives in `lib/importers/*` through `main.js` IPC.
+- Board Settings now includes an `Import` panel that launches explicit Trello/Obsidian/Tasks.md imports into the current board; the renderer wiring lives in `app/board/boardLabels.js`, while the actual import filesystem work lives in `lib/importers/*` through `main.js` IPC.
 - External import pickers are tokenized in `main.js` and surfaced through `window.chooser.pickImportSources(...)`; renderer code never reads arbitrary external files directly.
-- Trello and Obsidian importer coverage lives in `scripts/test-import-trello.js` and `scripts/test-import-obsidian.js`.
-- The terminal CLI now exposes `signboard import trello --file ...` and `signboard import obsidian --source ...`; MCP mirrors that with `signboard.import_trello` and `signboard.import_obsidian`.
+- Trello, Obsidian, and Tasks.md importer coverage lives in `scripts/test-import-trello.js`, `scripts/test-import-obsidian.js`, and `scripts/test-import-tasksmd.js`.
+- The terminal CLI now exposes a dedicated `archive` namespace (`archive cards`, `archive lists`, `archive read`, `archive restore-card`, `archive restore-list`) alongside `signboard import trello --file ...`, `signboard import obsidian --source ...`, and `signboard import tasksmd --source ...`; MCP advertises the matching archive tools plus `signboard_import_trello`, `signboard_import_obsidian`, and `signboard_import_tasksmd`, while still accepting dotted `signboard.*` legacy aliases.
+- CLI due filtering in `lib/cliBoard.js` now defaults `--due overdue` to open task items only, with `--task-status any` available when callers want completed task due markers included.
+- `AGENTS.md` is the cross-tool compatibility entrypoint and should stay aligned with this file.
 - Skip heavy/generated content unless explicitly needed: `node_modules/`, `dist/`, `static/vendor/`, and usually `package-lock.json`.
-- Always update Codex markdown docs when behavior/architecture/tooling changes (`CODEX.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`).
+- Always update agent-facing docs when behavior/architecture/tooling changes (`CODEX.md`, `AGENTS.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`).
+- Always update release-facing docs when user behavior, CLI behavior, or setup flows change (`docs/README.md`, `docs/using-signboard.md`, `docs/signboard-cli.md`, `readme.md`, and `MCP_README.md` when relevant).

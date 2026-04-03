@@ -210,6 +210,10 @@ async function closeBoardTab(boardPath) {
         await flushBoardLabelSettingsSave();
     }
 
+    if (typeof closeArchiveBrowserModal === 'function') {
+        closeArchiveBrowserModal();
+    }
+
     const normalizedPath = normalizeBoardPath(boardPath);
     const openBoards = getStoredOpenBoards();
     const removedIndex = openBoards.indexOf(normalizedPath);
@@ -254,6 +258,12 @@ async function closeBoardTab(boardPath) {
 
     window.boardRoot = authorizedBoardPath;
     setStoredActiveBoard(authorizedBoardPath);
+    if (typeof resetBoardLabelFilter === 'function') {
+        resetBoardLabelFilter();
+    }
+    if (typeof resetBoardSearch === 'function') {
+        resetBoardSearch();
+    }
     await renderBoard();
 }
 
@@ -388,6 +398,10 @@ function renderBoardTabs() {
                 await flushBoardLabelSettingsSave();
             }
 
+            if (typeof closeArchiveBrowserModal === 'function') {
+                closeArchiveBrowserModal();
+            }
+
             const authorizedBoardPath = await authorizeBoardAccess(boardPath);
             if (!authorizedBoardPath) {
                 return;
@@ -395,6 +409,12 @@ function renderBoardTabs() {
 
             window.boardRoot = authorizedBoardPath;
             setStoredActiveBoard(authorizedBoardPath);
+            if (typeof resetBoardLabelFilter === 'function') {
+                resetBoardLabelFilter();
+            }
+            if (typeof resetBoardSearch === 'function') {
+                resetBoardSearch();
+            }
             await renderBoard();
         });
 

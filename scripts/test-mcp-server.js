@@ -166,6 +166,36 @@ async function createFixtureBoard() {
     'utf8',
   );
 
+  const tasksWorkspaceRoot = path.join(root, 'mcp-tasksmd-workspace');
+  const tasksRoot = path.join(tasksWorkspaceRoot, 'tasks');
+  const configRoot = path.join(tasksWorkspaceRoot, 'config');
+  const tasksProjectPath = path.join(tasksRoot, 'MCP Tasks');
+  await fs.mkdir(path.join(tasksProjectPath, 'Tasks Inbox'), { recursive: true });
+  await fs.mkdir(configRoot, { recursive: true });
+
+  await fs.writeFile(
+    path.join(tasksProjectPath, 'Tasks Inbox', 'MCP Tasks Card.md'),
+    [
+      '[due:2026-03-28]',
+      '',
+      '[tag:MCP Tasks]',
+      '',
+      'Imported through signboard.import_tasksmd.',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+
+  await fs.writeFile(
+    path.join(configRoot, 'tags.json'),
+    JSON.stringify({
+      '/MCP Tasks': {
+        'MCP Tasks': 'var(--color-alt-2)',
+      },
+    }, null, 2),
+    'utf8',
+  );
+
   return {
     cleanupRoot: root,
     allowedRoot: root,
@@ -178,6 +208,7 @@ async function createFixtureBoard() {
     workingCardFile,
     trelloImportPath,
     obsidianImportPath,
+    tasksProjectPath,
   };
 }
 
@@ -296,25 +327,31 @@ async function runForTransport(transportMode, fixture) {
   const toolNames = new Set(tools.map((tool) => tool && tool.name).filter(Boolean));
 
   const requiredToolNames = [
-    'signboard.get_config',
-    'signboard.list_board_views',
-    'signboard.resolve_board_by_name',
-    'signboard.create_board',
-    'signboard.list_lists',
-    'signboard.list_cards',
-    'signboard.read_card',
-    'signboard.create_card',
-    'signboard.update_card',
-    'signboard.duplicate_card',
-    'signboard.archive_card',
-    'signboard.move_card',
-    'signboard.create_list',
-    'signboard.rename_board',
-    'signboard.move_board',
-    'signboard.read_board_settings',
-    'signboard.update_board_settings',
-    'signboard.import_trello',
-    'signboard.import_obsidian',
+    'signboard_get_config',
+    'signboard_list_board_views',
+    'signboard_resolve_board_by_name',
+    'signboard_create_board',
+    'signboard_list_lists',
+    'signboard_list_cards',
+    'signboard_read_card',
+    'signboard_create_card',
+    'signboard_update_card',
+    'signboard_duplicate_card',
+    'signboard_archive_card',
+    'signboard_archive_list',
+    'signboard_list_archive_entries',
+    'signboard_read_archive_entry',
+    'signboard_restore_archived_card',
+    'signboard_restore_archived_list',
+    'signboard_move_card',
+    'signboard_create_list',
+    'signboard_rename_board',
+    'signboard_move_board',
+    'signboard_read_board_settings',
+    'signboard_update_board_settings',
+    'signboard_import_trello',
+    'signboard_import_obsidian',
+    'signboard_import_tasksmd',
   ];
 
   for (const toolName of requiredToolNames) {
@@ -325,10 +362,29 @@ async function runForTransport(transportMode, fixture) {
 
   send({
     jsonrpc: '2.0',
+    id: 250,
+    method: 'tools/call',
+    params: {
+      name: 'signboard.get_config',
+      arguments: {},
+    },
+  });
+
+  const legacyAliasResponse = await waitForResponse(250);
+  if (legacyAliasResponse.error) {
+    throw new Error(`Legacy tool alias failed (${transportMode}): ${JSON.stringify(legacyAliasResponse.error)}`);
+  }
+
+  if (legacyAliasResponse.result?.structuredContent?.ok !== true) {
+    throw new Error(`Legacy tool alias returned unexpected payload (${transportMode}): ${JSON.stringify(legacyAliasResponse.result)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
     id: 3,
     method: 'tools/call',
     params: {
-      name: 'signboard.resolve_board_by_name',
+      name: 'signboard_resolve_board_by_name',
       arguments: {
         boardName: fixture.boardName,
         exact: true,
@@ -354,7 +410,7 @@ async function runForTransport(transportMode, fixture) {
     id: 301,
     method: 'tools/call',
     params: {
-      name: 'signboard.create_board',
+      name: 'signboard_create_board',
       arguments: {
         parentRoot: fixture.allowedRoot,
         boardName: createdBoardName,
@@ -388,7 +444,7 @@ async function runForTransport(transportMode, fixture) {
     id: 302,
     method: 'tools/call',
     params: {
-      name: 'signboard.read_card',
+      name: 'signboard_read_card',
       arguments: {
         boardRoot: createdBoardRoot,
         listName: '000-To-do-stock',
@@ -412,7 +468,7 @@ async function runForTransport(transportMode, fixture) {
     id: 4,
     method: 'tools/call',
     params: {
-      name: 'signboard.duplicate_card',
+      name: 'signboard_duplicate_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
@@ -456,7 +512,7 @@ async function runForTransport(transportMode, fixture) {
     id: 5,
     method: 'tools/call',
     params: {
-      name: 'signboard.archive_card',
+      name: 'signboard_archive_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
@@ -480,7 +536,7 @@ async function runForTransport(transportMode, fixture) {
     id: 6,
     method: 'tools/call',
     params: {
-      name: 'signboard.list_cards',
+      name: 'signboard_list_cards',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.archiveList,
@@ -500,10 +556,152 @@ async function runForTransport(transportMode, fixture) {
 
   send({
     jsonrpc: '2.0',
+    id: 61,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_list_archive_entries',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+      },
+    },
+  });
+
+  const archiveEntriesResponse = await waitForResponse(61);
+  if (archiveEntriesResponse.error) {
+    throw new Error(`list_archive_entries failed (${transportMode}): ${JSON.stringify(archiveEntriesResponse.error)}`);
+  }
+
+  const archiveEntriesOutput = archiveEntriesResponse.result?.structuredContent || {};
+  const archivedCardEntry = Array.isArray(archiveEntriesOutput.cards)
+    ? archiveEntriesOutput.cards.find((entry) => entry && entry.archivedCardFile === archiveOutput.archivedCardFile)
+    : null;
+  if (!archivedCardEntry || !archivedCardEntry.entryPath) {
+    throw new Error(`list_archive_entries missing archived card (${transportMode}): ${JSON.stringify(archiveEntriesOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 62,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_read_archive_entry',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        entryPath: archivedCardEntry.entryPath,
+      },
+    },
+  });
+
+  const readArchiveCardResponse = await waitForResponse(62);
+  if (readArchiveCardResponse.error) {
+    throw new Error(`read_archive_entry card failed (${transportMode}): ${JSON.stringify(readArchiveCardResponse.error)}`);
+  }
+
+  const readArchiveCardOutput = readArchiveCardResponse.result?.structuredContent || {};
+  if (readArchiveCardOutput.kind !== 'card' || readArchiveCardOutput.entry?.archivedCardFile !== archiveOutput.archivedCardFile) {
+    throw new Error(`read_archive_entry card payload mismatch (${transportMode}): ${JSON.stringify(readArchiveCardOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 63,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_restore_archived_card',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        archivedCardPath: archivedCardEntry.entryPath,
+        targetListName: fixture.workingList,
+      },
+    },
+  });
+
+  const restoreArchiveCardResponse = await waitForResponse(63);
+  if (restoreArchiveCardResponse.error) {
+    throw new Error(`restore_archived_card failed (${transportMode}): ${JSON.stringify(restoreArchiveCardResponse.error)}`);
+  }
+
+  const restoreArchiveCardOutput = restoreArchiveCardResponse.result?.structuredContent || {};
+  if (!String(restoreArchiveCardOutput.restoredCardFile || '').startsWith('000-')) {
+    throw new Error(`restore_archived_card did not restore card to top (${transportMode}): ${JSON.stringify(restoreArchiveCardOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 64,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_archive_list',
+      arguments: {
+        boardRoot: createdBoardRoot,
+        listName: '002-Done-stock',
+      },
+    },
+  });
+
+  const archiveListToolResponse = await waitForResponse(64);
+  if (archiveListToolResponse.error) {
+    throw new Error(`archive_list failed (${transportMode}): ${JSON.stringify(archiveListToolResponse.error)}`);
+  }
+
+  const archiveListToolOutput = archiveListToolResponse.result?.structuredContent || {};
+  if (!archiveListToolOutput.archivedListPath) {
+    throw new Error(`archive_list missing archivedListPath (${transportMode}): ${JSON.stringify(archiveListToolOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 65,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_read_archive_entry',
+      arguments: {
+        boardRoot: createdBoardRoot,
+        entryPath: archiveListToolOutput.archivedListPath,
+      },
+    },
+  });
+
+  const readArchiveListResponse = await waitForResponse(65);
+  if (readArchiveListResponse.error) {
+    throw new Error(`read_archive_entry list failed (${transportMode}): ${JSON.stringify(readArchiveListResponse.error)}`);
+  }
+
+  const readArchiveListOutput = readArchiveListResponse.result?.structuredContent || {};
+  if (readArchiveListOutput.kind !== 'list' || readArchiveListOutput.entry?.listDirectoryName !== archiveListToolOutput.archivedDirectoryName) {
+    throw new Error(`read_archive_entry list payload mismatch (${transportMode}): ${JSON.stringify(readArchiveListOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 66,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_restore_archived_list',
+      arguments: {
+        boardRoot: createdBoardRoot,
+        archivedListPath: archiveListToolOutput.archivedListPath,
+        restoredDirectoryName: '002-Done Restored-stock',
+      },
+    },
+  });
+
+  const restoreArchiveListResponse = await waitForResponse(66);
+  if (restoreArchiveListResponse.error) {
+    throw new Error(`restore_archived_list failed (${transportMode}): ${JSON.stringify(restoreArchiveListResponse.error)}`);
+  }
+
+  const restoreArchiveListOutput = restoreArchiveListResponse.result?.structuredContent || {};
+  if (restoreArchiveListOutput.restoredDirectoryName !== '002-Done Restored-stock') {
+    throw new Error(`restore_archived_list returned unexpected directory (${transportMode}): ${JSON.stringify(restoreArchiveListOutput)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
     id: 7,
     method: 'tools/call',
     params: {
-      name: 'signboard.list_board_views',
+      name: 'signboard_list_board_views',
       arguments: {},
     },
   });
@@ -532,7 +730,7 @@ async function runForTransport(transportMode, fixture) {
     id: 71,
     method: 'tools/call',
     params: {
-      name: 'signboard.import_trello',
+      name: 'signboard_import_trello',
       arguments: {
         boardRoot: fixture.boardRoot,
         sourcePath: fixture.trelloImportPath,
@@ -574,7 +772,7 @@ async function runForTransport(transportMode, fixture) {
     id: 72,
     method: 'tools/call',
     params: {
-      name: 'signboard.import_obsidian',
+      name: 'signboard_import_obsidian',
       arguments: {
         boardRoot: fixture.boardRoot,
         sourcePaths: [fixture.obsidianImportPath],
@@ -613,10 +811,48 @@ async function runForTransport(transportMode, fixture) {
 
   send({
     jsonrpc: '2.0',
+    id: 73,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_import_tasksmd',
+      arguments: {
+        boardRoot: fixture.boardRoot,
+        sourcePath: fixture.tasksProjectPath,
+      },
+    },
+  });
+
+  const tasksMdImportResponse = await waitForResponse(73);
+  if (tasksMdImportResponse.error) {
+    throw new Error(`import_tasksmd failed (${transportMode}): ${JSON.stringify(tasksMdImportResponse.error)}`);
+  }
+
+  const tasksMdImportOutput = tasksMdImportResponse.result?.structuredContent || {};
+  if (tasksMdImportOutput.importer !== 'tasksmd' || tasksMdImportOutput.listsCreated !== 1 || tasksMdImportOutput.cardsCreated !== 1) {
+    throw new Error(`import_tasksmd summary mismatch (${transportMode}): ${JSON.stringify(tasksMdImportOutput)}`);
+  }
+
+  const boardEntriesAfterTasksMd = await fs.readdir(fixture.boardRoot, { withFileTypes: true });
+  const tasksMdImportedList = boardEntriesAfterTasksMd.find((entry) => entry.isDirectory() && /-Tasks Inbox-/.test(entry.name));
+  if (!tasksMdImportedList) {
+    throw new Error(`import_tasksmd did not create the expected Tasks Inbox list (${transportMode}).`);
+  }
+
+  const tasksMdImportedCards = await fs.readdir(path.join(fixture.boardRoot, tasksMdImportedList.name));
+  const tasksMdImportedCardBody = await fs.readFile(
+    path.join(fixture.boardRoot, tasksMdImportedList.name, tasksMdImportedCards[0]),
+    'utf8',
+  );
+  if (!tasksMdImportedCardBody.includes('title: MCP Tasks Card') || !tasksMdImportedCardBody.includes('due: 2026-03-28')) {
+    throw new Error(`import_tasksmd card content mismatch (${transportMode}): ${tasksMdImportedCardBody}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
     id: 8,
     method: 'tools/call',
     params: {
-      name: 'signboard.update_board_settings',
+      name: 'signboard_update_board_settings',
       arguments: {
         boardRoot: fixture.boardRoot,
         notifications: {
@@ -650,7 +886,7 @@ async function runForTransport(transportMode, fixture) {
     id: 9,
     method: 'tools/call',
     params: {
-      name: 'signboard.rename_board',
+      name: 'signboard_rename_board',
       arguments: {
         boardRoot: boardToRename,
         newBoardName: `Renamed-${transportMode}`,
@@ -676,7 +912,7 @@ async function runForTransport(transportMode, fixture) {
     id: 10,
     method: 'tools/call',
     params: {
-      name: 'signboard.move_board',
+      name: 'signboard_move_board',
       arguments: {
         boardRoot: renamedBoardRoot,
         targetParentRoot: moveTargetParent,
@@ -700,7 +936,7 @@ async function runForTransport(transportMode, fixture) {
     id: 11,
     method: 'tools/call',
     params: {
-      name: 'signboard.list_lists',
+      name: 'signboard_list_lists',
       arguments: {
         boardRoot: movedBoardRoot,
       },
@@ -717,7 +953,7 @@ async function runForTransport(transportMode, fixture) {
     id: 12,
     method: 'tools/call',
     params: {
-      name: 'signboard.read_card',
+      name: 'signboard_read_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
@@ -744,7 +980,7 @@ async function runForTransport(transportMode, fixture) {
     id: 13,
     method: 'tools/call',
     params: {
-      name: 'signboard.update_card',
+      name: 'signboard_update_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
@@ -772,7 +1008,7 @@ async function runForTransport(transportMode, fixture) {
     id: 14,
     method: 'tools/call',
     params: {
-      name: 'signboard.create_card',
+      name: 'signboard_create_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
@@ -805,7 +1041,7 @@ async function runForTransport(transportMode, fixture) {
     id: 15,
     method: 'tools/call',
     params: {
-      name: 'signboard.move_card',
+      name: 'signboard_move_card',
       arguments: {
         boardRoot: fixture.boardRoot,
         fromListName: fixture.leadsList,
@@ -830,7 +1066,7 @@ async function runForTransport(transportMode, fixture) {
     id: 16,
     method: 'tools/call',
     params: {
-      name: 'signboard.list_cards',
+      name: 'signboard_list_cards',
       arguments: {
         boardRoot: fixture.boardRoot,
         listName: fixture.workingList,

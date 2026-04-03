@@ -30,11 +30,12 @@ File: `main.js`
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` as a thin renderer bridge into main-process IPC.
 - Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
-- Owns explicit board import operations for Trello and Obsidian; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
+- Owns explicit board import operations for Trello, Obsidian, and Tasks.md; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
+- Owns archive browse/read/restore operations through `lib/archive.js`; renderer code never scans or restores archive contents directly.
 - In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
-- Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card management.
-- The packaged Electron executable also routes `lists ...` and `cards ...` CLI invocations through `main.js` without opening the desktop window.
+- Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card/archive management.
+- The packaged Electron executable also routes `lists ...`, `cards ...`, `archive ...`, `settings ...`, and `import ...` CLI invocations through `main.js` without opening the desktop window.
 - Help menu includes `Install Signboard CLI` on macOS/Linux, which installs a per-user shim and PATH profile block for the packaged app executable.
 - Security-related window settings are:
   - `contextIsolation: true`
@@ -48,7 +49,8 @@ File: `preload.js`
 - `window.electronAPI` includes external-link opening and manual update checks.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
-- `window.chooser.pickImportSources(...)` returns tokenized external file/directory selections for import flows, and `window.board.importTrello(...)` / `window.board.importObsidian(...)` invoke the main-process importers.
+- Archive browsing uses preload bridge methods (`listArchiveEntries`, `readArchiveEntry`, `restoreArchivedCard`, `restoreArchivedList`) backed by the same trusted-board gate as normal board operations.
+- `window.chooser.pickImportSources(...)` returns tokenized external file/directory selections for import flows, and `window.board.importTrello(...)` / `window.board.importObsidian(...)` / `window.board.importTasksMd(...)` invoke the main-process importers.
 - Still exposes board watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`), but the watcher implementation now lives in `main.js`.
 
 ### Renderer
@@ -57,7 +59,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - UI is vanilla HTML/CSS/JS.
 - `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
 - `app/signboard.js` is concatenated from source modules by `buildjs.sh`.
-- Board Settings includes an `Import` section for Trello and Obsidian imports, with summary/warning rendering in the existing settings modal.
+- Board Settings includes an `Import` section for Trello, Obsidian, and Tasks.md imports, with summary/warning rendering in the existing settings modal.
+- The Board menu now opens a dedicated Archive browser modal; Archive remains hidden from normal board rendering and is not a fourth board view.
 
 ## Data Model and Naming Conventions
 
@@ -79,6 +82,22 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - YAML frontmatter (`title`, optional `due`, optional `labels`, unknown keys preserved)
   - Markdown body
 - Card `labels` frontmatter stores board label ids (e.g. `labels: ["label-1"]`).
+- New cards created through current app flows now also carry:
+  - `createdAt` (ISO timestamp)
+  - `activity` (compact lifecycle entries only: `created`, `moved-list`, `archived`, `restored`)
+- Archived cards temporarily carry an `archive` object in frontmatter while they remain archived:
+  - `archivedAt`
+  - `originalListDirectoryName`
+  - `originalListDisplayName`
+  - `archiveContainerType` (`standalone-card` or `archived-list`)
+
+### Archived list metadata
+- Archived list directories may contain a hidden sidecar file: `.signboard-archive.json`
+- The sidecar stores only lightweight recovery metadata:
+  - original list directory/display name
+  - archived timestamp
+  - compact list lifecycle activity
+- Restored lists keep that sidecar so future archive/restore cycles retain lightweight history without a full event log.
 
 ### Task checklist lines (in card body markdown)
 
@@ -116,19 +135,26 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Reads list metadata and routes rendering to the active board view (Kanban, Calendar, or This Week).
   - Builds Kanban columns and enables list drag-and-drop reorder when Kanban is active.
   - Fetches each list's card names concurrently for faster initial render.
-  - Loads board label definitions and filter state before rendering cards.
+  - Loads board label definitions and temporary filter state before rendering cards.
+- `app/board/archiveBrowser.js`:
+  - Opens the dedicated Archive modal from the Board menu.
+  - Lists archived cards and archived lists with search-first filtering, incremental result rendering, and a detail pane.
+  - Reads archive entry detail lazily over preload IPC.
+  - Restores cards through an explicit destination-list picker and restores archived lists back into the board root with rename-on-collision handling.
 - `app/board/boardViews.js`:
   - Owns active board view state and the `Views` dropdown behavior.
   - Renders Calendar month layout (Monday-first week), today highlighting, and month navigation.
   - Renders This Week layout, week navigation, and current-day highlighting.
   - Renders due-date cards in temporal views and updates card due dates by drag/drop across days.
   - Includes cards by both card due date and task due markers, deduped per day per card.
+  - Applies the active header filter state in temporal views before placing cards into the visible month/week buckets.
   - Shows task progress badges and a subdued source-list label on temporal cards.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior.
   - Enables card drag-and-drop reorder and cross-list move.
   - Sanitizes list names before filesystem rename.
   - Builds card DOM for a list concurrently to reduce list render time.
+  - Records `moved-list` lifecycle events only for real cross-list card moves, not same-list reindexing.
 - `app/cards/createCardElement.js`:
   - Reads card frontmatter/body preview.
   - Computes task summary + task due dates from card body checklist lines.
@@ -138,7 +164,10 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Opens edit modal on click.
 - `app/board/boardLabels.js`:
   - Owns board label state in the renderer.
-  - Renders board label filter dropdown (multi-select, OR matching).
+  - Renders the header filter dropdown with mutually exclusive `Today` / `Overdue` date filters plus multi-select OR label filters.
+  - Combines date filters, label filters, and board search with AND logic when determining visibility.
+  - Keeps filter state temporary only; opening or switching boards resets the active date + label filters.
+  - Keeps the filter toolbar button icon-only and applies an accent-tinted active state when any filter is set; active summary text lives in tooltip/ARIA copy.
   - Handles card label popovers, board settings editors, and the Board Settings import UI/actions.
   - Persists board labels through preload APIs.
 - `app/board/boardSearch.js`:
@@ -155,6 +184,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Renders task-line due-date controls at the start of each parsed checklist line in the editor.
   - Uses measured textarea line-start coordinates for control placement so wrapped lines do not drift button positions.
   - Handles due date picker, labels picker, duplicate, and archive actions.
+  - Card duplication now resets archive/lifecycle fields and seeds a fresh `created` event.
 - `app/utilities/taskList.js`:
   - Parses checklist items from card markdown body.
   - Computes task summary (`total`, `completed`, `remaining`) and task due-date sets.
@@ -176,13 +206,17 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Cmd/Ctrl + 1`: switch to Kanban view.
   - `Cmd/Ctrl + 2`: switch to Calendar view.
   - `Cmd/Ctrl + 3`: switch to This Week view.
+  - Native menu accelerators now also dispatch `Cmd/Ctrl + ,` for Board Settings and `Cmd/Ctrl + Shift + D` for theme toggling back into the renderer.
   - Any shortcut changes must update the helper list in `index.html` (`#modalKeyboardShortcuts`) in the same change.
+- View-switcher rows and list-action rows surface the same shortcut hints in subtle monospace text so the app teaches the keyboard path inline.
+- Board date filtering treats overdue task markers as actionable work only: completed task due markers do not keep a card visible in the `Overdue` filter, but overdue card-level due dates still do.
 
 ### Theme support
 - `app/ui/theme.js`:
   - Toggles `document.documentElement.dataset.theme`.
   - Persists theme to localStorage.
   - Updates OverType theme to match app theme.
+  - Renders the board-menu theme action label, shortcut hint, and accessible shortcut metadata.
 - `app/ui/tooltips.js`:
   - Provides custom app-styled tooltips for primary controls without third-party dependencies.
   - Sources tooltip text from existing control labels (`title`, `aria-label`, `alt`) and keeps styling aligned with board palette CSS variables.
@@ -205,6 +239,23 @@ File: `lib/cardFrontmatter.js`
   2) optional `due`
   3) optional `labels` (non-empty only)
   4) other keys sorted alphabetically
+
+File: `lib/cardLifecycle.js`
+
+- Shared lifecycle helper for:
+  - `createdAt` seeding on new cards
+  - compact `activity` entry creation
+  - temporary archive frontmatter state
+  - `moved-list` / `archived` / `restored` card metadata transitions
+
+File: `lib/archive.js`
+
+- Owns archive/archive-list filesystem operations plus archive browsing and restore.
+- Lists both standalone archived cards and cards nested inside archived lists.
+- Restores archived cards to the top of an explicit destination list.
+- Restores whole archived lists back into the board root and updates each card's archive lifecycle metadata.
+- Cleans up empty archived-list containers automatically when the last card is extracted.
+- Falls back gracefully for legacy archived cards/lists that predate archive metadata.
 
 File: `lib/boardLabels.js`
 
@@ -232,10 +283,17 @@ Files: `lib/importers/*`
 - `npm run cli -- <command>`
 - `node bin/signboard.js <command>`
 - `electron . <command>` routes through the desktop executable path used by packaged builds.
-- CLI board selection is stateful: `signboard use /path/to/board`, then `signboard lists`, `signboard cards`, `signboard settings`, or `signboard import ...`.
+- CLI board selection is stateful: `signboard use /path/to/board`, then `signboard lists`, `signboard cards`, `signboard archive ...`, `signboard settings`, or `signboard import ...`.
 - Import commands:
   - `signboard import trello --file /absolute/or/relative/export.json [--board <path>] [--json]`
   - `signboard import obsidian --source /path/to/file-or-dir [--source /another/path] [--board <path>] [--json]`
+  - `signboard import tasksmd --source /path/to/tasks-project [--board <path>] [--json]`
+- Archive commands:
+  - `signboard archive cards [--search <query>] [--board <path>] [--json]`
+  - `signboard archive lists [--search <query>] [--board <path>] [--json]`
+  - `signboard archive read --kind card|list --entry <ref> [--board <path>] [--json]`
+  - `signboard archive restore-card --card <ref> --to-list <list-ref> [--board <path>] [--json]`
+  - `signboard archive restore-list --list <ref> [--as <directory-name>] [--board <path>] [--json]`
 
 ### Run MCP server locally
 - `npm run mcp:server`
@@ -248,11 +306,15 @@ Files: `lib/importers/*`
 - Concatenates module files into `app/signboard.js` in strict order.
 
 ### CLI internals
-- `lib/cliBoard.js` owns CLI board/list/card filesystem operations.
+- `lib/cliBoard.js` owns CLI board/list/card filesystem operations, including due filtering with `--due-source any|card|task` and `--task-status open|any`.
 - `lib/taskList.js` exposes shared task parsing and due-date helpers for CLI filtering.
-- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including path-based Trello/Obsidian imports.
+- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including archive listing/read/restore flows plus path-based Trello/Obsidian/Tasks.md imports.
 - `lib/cliInstall.js` owns user-level CLI shim + shell profile installation.
 - `lib/cliState.js` persists the currently selected board for subsequent CLI commands.
+
+CLI overdue behavior:
+- `signboard cards --due overdue` now defaults task-derived matches to open/incomplete tasks only, aligning with the desktop overdue filter.
+- Pass `--task-status any` to include completed task due markers again.
 
 ### Frontmatter tests
 - `npm run test:frontmatter`
@@ -270,12 +332,16 @@ Files: `lib/importers/*`
 ### MCP smoke test
 - `npm run test:mcp`
 - Script: `scripts/test-mcp-server.js`
-- Asserts card tool outputs include `taskSummary` + `taskDueDates`, and verifies Trello/Obsidian import tools.
+- Asserts card tool outputs include `taskSummary` + `taskDueDates`, verifies archive browse/read/restore tools, and covers Trello/Obsidian/Tasks.md import tools.
 
 ### CLI smoke test
 - `npm run test:cli`
 - Script: `scripts/test-cli.js`
-- Covers list creation/rename, card create/edit/read/filter flows, and Trello/Obsidian imports.
+- Covers list creation/rename, card create/edit/read/filter flows, archive list/read/restore flows, and Trello/Obsidian/Tasks.md imports.
+
+### Archive tests
+- `node scripts/test-archive.js`
+- Covers archive metadata, archive-browser listing data, restore flows, empty archived-list cleanup, and legacy archive fallbacks.
 
 ### Desktop CLI smoke test
 - `npm run test:desktop-cli`
@@ -305,6 +371,8 @@ Files: `lib/importers/*`
 - Electron Builder config in `package.json` and `electron-builder.json`.
 - macOS notarization hook: `scripts/notarize.js` (env vars from `.env`).
 - Release validation script: `scripts/verify-release-assets.js` (`npm run release:verify`) checks cross-platform updater assets and metadata naming.
+- Standard public releases should promote macOS universal, a single Windows installer, and Linux `x64`/`ARM64` `AppImage` + `deb` downloads; use `docs/release-template.md` for the curated GitHub release body.
+- The in-app update dialog reads GitHub release notes and strips a `## Downloads` section before rendering, so curated download links can live in release bodies without polluting the changelog shown in-app.
 - End-to-end release prep: `npm run release:prepare` (build all + verify release assets).
 - MCP instructions for packaged and source installs: `MCP_README.md`.
 - Optional reusable agent skill for MCP workflows: `skills/signboard-mcp/SKILL.md`.
@@ -314,7 +382,8 @@ Files: `lib/importers/*`
 
 - Prefer editing `app/**` source modules, not `app/signboard.js` directly.
 - Rebuild with `./buildjs.sh` whenever `app/**` module files change.
-- Always update Codex docs (`CODEX.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`) when behavior/architecture/tooling changes.
+- Always update agent docs (`CODEX.md`, `AGENTS.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`) when behavior/architecture/tooling changes.
+- Always update release-facing docs (`readme.md`, `docs/README.md`, `docs/using-signboard.md`, `docs/signboard-cli.md`, and `MCP_README.md` when relevant) when user behavior, CLI behavior, or setup flows change.
 - Keep list/card filename conventions intact; drag/drop logic depends on numeric prefixes.
 - Avoid refactoring path concatenation casually; many flows assume trailing `/`.
 - For content/parsing changes, update both `lib/cardFrontmatter.js` and `scripts/test-frontmatter.js`.

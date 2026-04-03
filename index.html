@@ -19,27 +19,17 @@
       <div class="headerControls">
         <div id="boardPathWrapper">
           <input id="boardPath" type="text" class="hidden" readonly>
-          <button id="openBoardSettings" title="Open board settings"><i data-feather="sliders"></i></button>
-          <div class="board-toolbar-group" id="boardViewGroup">
-            <button id="boardViewButton" title="Switch board view" aria-label="Switch board view"><i data-feather="columns"></i></button>
-            <div id="boardViewPopover" class="label-popover board-view-popover hidden"></div>
-          </div>
-          <button id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode"><i data-feather="moon"></i></button>
-          <button id="openCommercialLicenseModal" class="support-signboard-button" type="button" title="Support Signboard for commercial use" aria-label="Support Signboard for commercial use">
-            <i data-feather="heart"></i>
-            <span>Support</span>
-          </button>
         </div>
         <div id="boardControls">
           <input id="boardSearchInput" type="search" placeholder="Search cards">
           <div class="board-toolbar-group">
-            <button id="labelFilterButton" title="Sort and filter cards">
-              <i data-feather="tag" class="label-toolbar-icon"></i>
-              <span id="labelFilterButtonText">Sort</span>
+            <button id="labelFilterButton" title="Filter cards" aria-label="Filter cards">
+              <i data-feather="filter" class="label-toolbar-icon"></i>
             </button>
-            <div id="labelFilterPopover" class="label-popover hidden"></div>
           </div>
-          <button id="btnAddNewList" title="Add new list">+ Add List</button>
+          <div class="board-toolbar-group" id="boardMenuGroup">
+            <button id="boardMenuButton" title="Board menu" aria-label="Board menu"><i data-feather="menu"></i></button>
+          </div>
         </div>
       </div>
     </div>
@@ -62,7 +52,77 @@
     </button>
   </main>
 
+  <div id="labelFilterPopover" class="label-popover hidden"></div>
+
+  <div id="boardMenuPopover" class="label-popover hidden" aria-hidden="true">
+    <button id="openBoardSettings" class="board-menu-action" type="button" title="Open board settings" aria-label="Open board settings">
+      <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="sliders"></i></span>
+      <span class="board-menu-action-label">Board Settings</span>
+      <span class="menu-shortcut-hint" data-shortcut-action="boardSettings" data-shortcut-format="menu" aria-hidden="true">⌘,</span>
+    </button>
+    <div class="board-toolbar-group board-menu-group">
+      <button id="boardViewButton" class="board-menu-action" type="button" title="Switch board view" aria-label="Switch board view">
+        <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="columns"></i></span>
+        <span class="board-menu-action-label">View</span>
+      </button>
+      <div id="boardViewPopover" class="label-popover board-view-popover hidden"></div>
+    </div>
+    <button id="openArchiveBrowser" class="board-menu-action" type="button" title="Browse archived cards and lists" aria-label="Browse archived cards and lists">
+      <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="archive"></i></span>
+      <span class="board-menu-action-label">Archive</span>
+    </button>
+    <button id="themeToggle" class="board-menu-action" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">
+      <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="moon"></i></span>
+      <span class="board-menu-action-label">Dark Mode</span>
+      <span class="menu-shortcut-hint" data-shortcut-action="toggleTheme" data-shortcut-format="menu" aria-hidden="true">⌘⇧D</span>
+    </button>
+    <button id="openCommercialLicenseModal" class="board-menu-action" type="button" title="Support Signboard for commercial use" aria-label="Support Signboard for commercial use">
+      <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="heart"></i></span>
+      <span class="board-menu-action-label">Support</span>
+    </button>
+  </div>
+
   <div id="listActionsPopover" class="label-popover list-actions-popover hidden" aria-hidden="true"></div>
+
+  <div id="modalArchiveBrowser" class="modal archive-browser-modal hidden" role="dialog" aria-modal="true" aria-labelledby="archiveBrowserTitle" aria-hidden="true">
+    <div class="archive-browser-header">
+      <div>
+        <h2 id="archiveBrowserTitle">Restore from archive</h2>
+      </div>
+      <button id="archiveBrowserClose" class="commercial-license-close" type="button" title="Close archive browser" aria-label="Close archive browser"><i data-feather="x"></i></button>
+    </div>
+
+    <div class="archive-browser-controls">
+      <div class="archive-browser-toolbar">
+        <div class="archive-browser-tabs" role="tablist" aria-label="Archive types">
+          <button id="archiveBrowserTabCards" class="archive-browser-tab is-active" type="button" role="tab" aria-selected="true">Cards</button>
+          <button id="archiveBrowserTabLists" class="archive-browser-tab" type="button" role="tab" aria-selected="false">Lists</button>
+        </div>
+        <input id="archiveBrowserSearchInput" type="search" placeholder="Search archived cards" aria-label="Search archive">
+        <select id="archiveBrowserSortSelect" aria-label="Sort archive results"></select>
+        <span id="archiveBrowserResultCount" class="archive-browser-result-count" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <div class="archive-browser-body">
+      <div id="archiveBrowserResults" class="archive-browser-results" aria-label="Archived items"></div>
+      <aside id="archiveBrowserDetail" class="archive-browser-detail" aria-live="polite"></aside>
+    </div>
+
+    <div id="archiveRestoreDialog" class="archive-restore-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="archiveRestoreTitle" aria-hidden="true">
+      <div class="archive-restore-dialog-card">
+        <h3 id="archiveRestoreTitle">Restore card</h3>
+        <p id="archiveRestoreOriginalList" class="archive-restore-subtitle"></p>
+        <input id="archiveRestoreSearchInput" type="search" placeholder="Search lists" aria-label="Search destination lists">
+        <div id="archiveRestoreListOptions" class="archive-restore-options"></div>
+        <p id="archiveRestoreError" class="archive-restore-error" aria-live="polite"></p>
+        <div class="archive-restore-actions">
+          <button id="archiveRestoreCancel" type="button">Cancel</button>
+          <button id="archiveRestoreConfirm" type="button">Restore card</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="modalAddList" class="modal hidden">
     <input id="userInputListName" type="text" placeholder="Backlog">
@@ -92,11 +152,11 @@
         <ul class="keyboard-shortcuts-list">
           <li>
             <span>Add card</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + N</kbd>
+            <kbd data-shortcut-action="addCard">⌘ + N</kbd>
           </li>
           <li>
             <span>Add list</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + Shift + N</kbd>
+            <kbd data-shortcut-action="addList">⌘ + ⇧ + N</kbd>
           </li>
         </ul>
       </section>
@@ -105,15 +165,28 @@
         <ul class="keyboard-shortcuts-list">
           <li>
             <span>Kanban view</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + 1</kbd>
+            <kbd data-shortcut-action="kanbanView">⌘ + 1</kbd>
           </li>
           <li>
             <span>Calendar view</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + 2</kbd>
+            <kbd data-shortcut-action="calendarView">⌘ + 2</kbd>
           </li>
           <li>
             <span>This Week view</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + 3</kbd>
+            <kbd data-shortcut-action="thisWeekView">⌘ + 3</kbd>
+          </li>
+        </ul>
+      </section>
+      <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-board">
+        <h3 id="keyboard-shortcuts-section-board">Board</h3>
+        <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Board settings</span>
+            <kbd data-shortcut-action="boardSettings">⌘ + ,</kbd>
+          </li>
+          <li>
+            <span>Toggle light/dark mode</span>
+            <kbd data-shortcut-action="toggleTheme">⌘ + ⇧ + D</kbd>
           </li>
         </ul>
       </section>
@@ -122,7 +195,7 @@
         <ul class="keyboard-shortcuts-list">
           <li>
             <span>Focus search</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + F</kbd>
+            <kbd data-shortcut-action="focusSearch">⌘ + F</kbd>
           </li>
         </ul>
       </section>
@@ -131,11 +204,11 @@
         <ul class="keyboard-shortcuts-list">
           <li>
             <span>Keyboard shortcuts</span>
-            <kbd><span class="shortcut-key-modifier">⌘</span> + /</kbd>
+            <kbd data-shortcut-action="keyboardShortcuts">⌘ + /</kbd>
           </li>
           <li>
             <span>Close open modals</span>
-            <kbd>Esc</kbd>
+            <kbd data-shortcut-action="closeModals">Escape</kbd>
           </li>
         </ul>
       </section>
@@ -325,6 +398,14 @@
             <p class="boardSettingsHint">Choose one markdown file, several markdown files, or an entire Obsidian folder. Signboard will try to preserve lists, cards, order, dates, labels, and extra metadata.</p>
             <div class="board-settings-inline-actions board-settings-inline-actions-right">
               <button id="btnImportBoardFromObsidian" type="button" title="Import from Obsidian">Import from Obsidian</button>
+            </div>
+          </div>
+
+          <div class="board-import-option">
+            <h4>Tasks.md</h4>
+            <p class="boardSettingsHint">Choose a Tasks.md project folder. Signboard imports lanes, markdown body, `[tag:...]` markers, `[due:YYYY-MM-DD]` markers, and will also preserve tag colors/order when it can find the companion Tasks.md config directory.</p>
+            <div class="board-settings-inline-actions board-settings-inline-actions-right">
+              <button id="btnImportBoardFromTasksMd" type="button" title="Import from Tasks.md">Import from Tasks.md</button>
             </div>
           </div>
 

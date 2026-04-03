@@ -21,7 +21,8 @@
     "icon": "build/icon.ico"
   },
   "nsis": {
-    "artifactName": "signboard_${version}_${os}_${arch}.${ext}"
+    "artifactName": "signboard_${version}_${os}.${ext}",
+    "buildUniversalInstaller": true
   },
   "mac": {
     "category": "public.app-category.productivity",

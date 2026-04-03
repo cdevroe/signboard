@@ -182,6 +182,7 @@ function isModalOpen(modalId) {
 function isExternalBoardRefreshBlocked() {
     return isModalOpen('modalEditCard')
         || isModalOpen('modalBoardSettings')
+        || isModalOpen('modalArchiveBrowser')
         || isModalOpen('modalCommercialLicense')
         || isModalOpen('modalAboutSignboard');
 }
@@ -416,6 +417,114 @@ function closeCommercialLicenseModal() {
     }
 }
 
+function closeBoardMenuPopover() {
+    const popover = document.getElementById('boardMenuPopover');
+    if (!popover) {
+        return;
+    }
+
+    popover.classList.add('hidden');
+    popover.setAttribute('aria-hidden', 'true');
+
+    if (typeof closeBoardViewPopover === 'function') {
+        closeBoardViewPopover();
+    }
+}
+
+function closeBoardMenuPopoverIfClickOutside(target) {
+    const button = document.getElementById('boardMenuButton');
+    const popover = document.getElementById('boardMenuPopover');
+    if (!button || !popover || popover.classList.contains('hidden')) {
+        return;
+    }
+
+    if (button.contains(target) || popover.contains(target)) {
+        return;
+    }
+
+    closeBoardMenuPopover();
+}
+
+function positionBoardMenuPopover(button, popover) {
+    if (!(button instanceof Element) || !(popover instanceof Element)) {
+        return;
+    }
+
+    const viewportPadding = 8;
+    popover.style.left = '0px';
+    popover.style.top = '0px';
+
+    const buttonBounds = button.getBoundingClientRect();
+    const popoverRect = popover.getBoundingClientRect();
+    const preferredLeft = buttonBounds.right - popoverRect.width;
+    const clampedLeft = Math.min(
+        window.innerWidth - popoverRect.width - viewportPadding,
+        Math.max(viewportPadding, preferredLeft),
+    );
+
+    let nextTop = buttonBounds.bottom + 8;
+    if (nextTop + popoverRect.height > window.innerHeight - viewportPadding) {
+        const aboveButton = buttonBounds.top - popoverRect.height - 8;
+        if (aboveButton >= viewportPadding) {
+            nextTop = aboveButton;
+        } else {
+            nextTop = Math.max(viewportPadding, window.innerHeight - popoverRect.height - viewportPadding);
+        }
+    }
+
+    popover.style.left = `${Math.round(clampedLeft)}px`;
+    popover.style.top = `${Math.round(nextTop)}px`;
+}
+
+function toggleBoardMenuPopover() {
+    const button = document.getElementById('boardMenuButton');
+    const popover = document.getElementById('boardMenuPopover');
+    if (!button || !popover) {
+        return;
+    }
+
+    if (typeof closeBoardLabelFilterPopover === 'function') {
+        closeBoardLabelFilterPopover();
+    }
+    if (typeof closeCardLabelPopover === 'function') {
+        closeCardLabelPopover();
+    }
+    if (typeof closeListActionsPopover === 'function') {
+        closeListActionsPopover();
+    }
+
+    const isHidden = popover.classList.contains('hidden');
+    popover.classList.toggle('hidden', !isHidden);
+    popover.setAttribute('aria-hidden', isHidden ? 'false' : 'true');
+    if (isHidden) {
+        positionBoardMenuPopover(button, popover);
+    }
+}
+
+function initializeBoardMenuControls() {
+    const button = document.getElementById('boardMenuButton');
+    const popover = document.getElementById('boardMenuPopover');
+    if (!button || !popover) {
+        return;
+    }
+
+    button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleBoardMenuPopover();
+    });
+
+    popover.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+
+    window.addEventListener('resize', () => {
+        if (!popover.classList.contains('hidden')) {
+            positionBoardMenuPopover(button, popover);
+        }
+    });
+}
+
 function initializeCommercialLicenseControls() {
     const openButton = document.getElementById('openCommercialLicenseModal');
     const closeButton = document.getElementById('commercialLicenseClose');
@@ -428,6 +537,7 @@ function initializeCommercialLicenseControls() {
         openButton.addEventListener('click', async (event) => {
             event.preventDefault();
             event.stopPropagation();
+            closeBoardMenuPopover();
             if (typeof closeAllModals === 'function') {
                 await closeAllModals({ key: 'Escape' });
             }
@@ -607,11 +717,13 @@ async function init() {
 
     const restoredBoard = restoreBoardTabs();
     const initializeHeaderControls = () => {
-        initializeAboutSignboardControls();
-        initializeCommercialLicenseControls();
+    initializeAboutSignboardControls();
+    initializeBoardMenuControls();
+    initializeCommercialLicenseControls();
         initializeBoardLabelControls();
         initializeBoardSearchControls();
         initializeBoardViewControls();
+        initializeArchiveBrowserControls();
     };
 
     if (!restoredBoard) {
@@ -694,42 +806,14 @@ async function init() {
         if (typeof closeBoardViewPopoverIfClickOutside === 'function') {
             closeBoardViewPopoverIfClickOutside(e.target);
         }
+        if (typeof closeBoardMenuPopoverIfClickOutside === 'function') {
+            closeBoardMenuPopoverIfClickOutside(e.target);
+        }
         if (typeof closeListActionsPopoverIfClickOutside === 'function') {
             closeListActionsPopoverIfClickOutside(e.target);
         }
 
         await closeAllModals(e);
-    });
-    document.getElementById('btnAddNewList').addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (typeof closeListActionsPopover === 'function') {
-            closeListActionsPopover();
-        }
-        const listName = document.getElementById('userInputListName');
-        toggleAddListModal( (window.innerWidth / 2)-200, (window.innerHeight / 2)-100 );
-        listName.focus();
-        const btnAddList = document.getElementById('btnAddList');
-
-        btnAddList.onclick = async (e) => {
-            e.stopPropagation();   
-            const listName = document.getElementById('userInputListName');
-
-            if ( listName.value.length < 3 ) {
-                return;
-            }
-            
-            await processAddNewList( listName.value );
-
-            listName.value = '';
-
-            return;
-        };
-
-        listName.onkeydown = (key) => {
-            if (key.code != 'Enter') return;
-            const btnAddList = document.getElementById('btnAddList');
-            btnAddList.click();
-        };
     });
 
     startExternalBoardSync();

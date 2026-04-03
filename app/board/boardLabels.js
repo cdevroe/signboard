@@ -61,6 +61,124 @@ const BOARD_THEME_STYLE_VAR_MAP = Object.freeze({
     shadowCard: '--sb-dark-shadow-card',
   }),
 });
+
+const SHORTCUT_ACTION_DEFINITIONS = Object.freeze({
+  keyboardShortcuts: Object.freeze({ key: '/', usesPrimaryModifier: true }),
+  addCard: Object.freeze({ key: 'N', usesPrimaryModifier: true }),
+  addList: Object.freeze({ key: 'N', usesPrimaryModifier: true, shiftKey: true }),
+  kanbanView: Object.freeze({ key: '1', usesPrimaryModifier: true }),
+  calendarView: Object.freeze({ key: '2', usesPrimaryModifier: true }),
+  thisWeekView: Object.freeze({ key: '3', usesPrimaryModifier: true }),
+  focusSearch: Object.freeze({ key: 'F', usesPrimaryModifier: true }),
+  boardSettings: Object.freeze({ key: ',', usesPrimaryModifier: true }),
+  toggleTheme: Object.freeze({ key: 'D', usesPrimaryModifier: true, shiftKey: true }),
+  closeModals: Object.freeze({ key: 'Escape', usesPrimaryModifier: false }),
+});
+
+const SPOKEN_SHORTCUT_KEY_LABELS = Object.freeze({
+  '/': 'slash',
+  ',': 'comma',
+  Escape: 'Escape',
+});
+
+function isPrimaryShortcutMacPlatform() {
+  const platformValue = String(
+    (
+      typeof navigator !== 'undefined' &&
+      navigator &&
+      ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform)
+    ) || ''
+  ).toLowerCase();
+
+  return platformValue.includes('mac');
+}
+
+function getShortcutDefinition(actionId) {
+  return SHORTCUT_ACTION_DEFINITIONS[actionId] || null;
+}
+
+function getShortcutTokens(actionId, { spoken = false } = {}) {
+  const definition = getShortcutDefinition(actionId);
+  if (!definition) {
+    return [];
+  }
+
+  const isMac = isPrimaryShortcutMacPlatform();
+  const tokens = [];
+
+  if (definition.usesPrimaryModifier) {
+    tokens.push(spoken ? (isMac ? 'Command' : 'Control') : (isMac ? '⌘' : 'Ctrl'));
+  }
+
+  if (definition.shiftKey) {
+    tokens.push(spoken ? 'Shift' : (isMac ? '⇧' : 'Shift'));
+  }
+
+  const keyLabel = spoken
+    ? (SPOKEN_SHORTCUT_KEY_LABELS[definition.key] || definition.key)
+    : definition.key;
+
+  tokens.push(keyLabel);
+  return tokens;
+}
+
+function getShortcutHintText(actionId) {
+  const tokens = getShortcutTokens(actionId);
+  if (tokens.length === 0) {
+    return '';
+  }
+
+  return isPrimaryShortcutMacPlatform() ? tokens.join('') : tokens.join('+');
+}
+
+function getShortcutKeycapText(actionId) {
+  const tokens = getShortcutTokens(actionId);
+  return tokens.join(' + ');
+}
+
+function getShortcutAriaKeyshortcuts(actionId) {
+  const definition = getShortcutDefinition(actionId);
+  if (!definition) {
+    return '';
+  }
+
+  const tokens = [];
+
+  if (definition.usesPrimaryModifier) {
+    tokens.push(isPrimaryShortcutMacPlatform() ? 'Meta' : 'Control');
+  }
+
+  if (definition.shiftKey) {
+    tokens.push('Shift');
+  }
+
+  tokens.push(definition.key);
+  return tokens.join('+');
+}
+
+function syncShortcutDisplayText(root = document) {
+  if (!root || typeof root.querySelectorAll !== 'function') {
+    return;
+  }
+
+  const modifierLabel = isPrimaryShortcutMacPlatform() ? 'Command' : 'Control';
+
+  root.querySelectorAll('.shortcut-modifier-label').forEach((element) => {
+    element.textContent = modifierLabel;
+  });
+
+  root.querySelectorAll('[data-shortcut-action]').forEach((element) => {
+    const actionId = String(element.getAttribute('data-shortcut-action') || '').trim();
+    if (!actionId) {
+      return;
+    }
+
+    const format = String(element.getAttribute('data-shortcut-format') || '').trim().toLowerCase();
+    element.textContent = format === 'menu'
+      ? getShortcutHintText(actionId)
+      : getShortcutKeycapText(actionId);
+  });
+}
 /* ──────────────────────────────────────────────────────────────────────────────
  * COLOR SCHEMES
  *
@@ -244,6 +362,90 @@ const COLOR_SCHEMES = [
       accentText:      '#1e2526',
       shadow:          'rgba(0, 0, 0, 0.40)',
       shadowCard:      'rgba(0, 0, 0, 0.50)',
+    },
+  },
+
+  /* ── Mid-winter  ─  palette #2F6690 · #3A7CA5 · #D9DCD6 · #16425B · #81C3D7 */
+  {
+    id: 'mid-winter',
+    name: 'Mid-winter',
+    light: {
+      boardBackground: '#d9dcd6',
+      surface:         '#eef3f5',
+      text:            '#16425b',
+      muted:           '#2f6690',
+      border:          '#81c3d7',
+      accent:          '#3a7ca5',
+      accentText:      '#ffffff',
+      shadow:          'rgba(22, 66, 91, 0.07)',
+      shadowCard:      'rgba(22, 66, 91, 0.11)',
+    },
+    dark: {
+      boardBackground: '#16425b',
+      surface:         '#235775',
+      text:            '#d9dcd6',
+      muted:           '#81c3d7',
+      border:          '#3a7ca5',
+      accent:          '#81c3d7',
+      accentText:      '#16425b',
+      shadow:          'rgba(0, 0, 0, 0.42)',
+      shadowCard:      'rgba(0, 0, 0, 0.54)',
+    },
+  },
+
+  /* ── Cozy Blush  ─  palette #D8E2DC · #FFE5D9 · #FFCAD4 · #F4ACB7 · #9D8189 */
+  {
+    id: 'cozy-blush',
+    name: 'Cozy Blush',
+    light: {
+      boardBackground: '#ffe5d9',
+      surface:         '#d8e2dc',
+      text:            '#5e4b52',
+      muted:           '#9d8189',
+      border:          '#f4acb7',
+      accent:          '#f4acb7',
+      accentText:      '#4f3c43',
+      shadow:          'rgba(94, 75, 82, 0.06)',
+      shadowCard:      'rgba(94, 75, 82, 0.10)',
+    },
+    dark: {
+      boardBackground: '#5e4b52',
+      surface:         '#7d666e',
+      text:            '#ffe5d9',
+      muted:           '#d8e2dc',
+      border:          '#f4acb7',
+      accent:          '#ffcad4',
+      accentText:      '#5e4b52',
+      shadow:          'rgba(0, 0, 0, 0.42)',
+      shadowCard:      'rgba(0, 0, 0, 0.54)',
+    },
+  },
+
+  /* ── Coffee  ─  inspired by Claude for Mac's warm neutral app chrome */
+  {
+    id: 'coffee',
+    name: 'Coffee',
+    light: {
+      boardBackground: '#f4f1eb',
+      surface:         '#ebe5db',
+      text:            '#2f2a24',
+      muted:           '#7b7165',
+      border:          '#d7d0c4',
+      accent:          '#b08a64',
+      accentText:      '#fffaf4',
+      shadow:          'rgba(47, 42, 36, 0.05)',
+      shadowCard:      'rgba(47, 42, 36, 0.09)',
+    },
+    dark: {
+      boardBackground: '#211b17',
+      surface:         '#302823',
+      text:            '#f1e9dc',
+      muted:           '#b8aa96',
+      border:          '#4b4037',
+      accent:          '#d0ab82',
+      accentText:      '#211b17',
+      shadow:          'rgba(0, 0, 0, 0.42)',
+      shadowCard:      'rgba(0, 0, 0, 0.56)',
     },
   },
 ];
@@ -610,13 +812,18 @@ function hasThemeModeOverride(themeModeOverrides) {
   return Boolean(themeModeOverrides && typeof themeModeOverrides.boardBackground === 'string' && themeModeOverrides.boardBackground.length > 0);
 }
 
+const BOARD_DATE_FILTER_NONE = '';
+const BOARD_DATE_FILTER_TODAY = 'today';
+const BOARD_DATE_FILTER_OVERDUE = 'overdue';
+const BOARD_LABEL_SCROLL_THRESHOLD = 11;
+
 function getBoardLabelState() {
   if (!window.__boardLabelState) {
     window.__boardLabelState = {
       labels: [],
       labelsById: new Map(),
       filterIds: [],
-      hasDueDateFilter: false,
+      activeDateFilter: BOARD_DATE_FILTER_NONE,
       activeCardLabelPopover: null,
       colorScheme: '',
       themeOverrides: { light: {}, dark: {} },
@@ -733,6 +940,21 @@ function applyThemePaletteVariables(themeMode, palette) {
   rootStyle.setProperty(modeMap.shadowCard, palette.shadowCard);
 }
 
+function syncBoardThemeMetadata() {
+  const root = document.documentElement;
+  if (!root || !root.dataset) {
+    return;
+  }
+
+  const schemeId = getBoardColorScheme();
+  if (schemeId) {
+    root.dataset.boardColorScheme = schemeId;
+    return;
+  }
+
+  delete root.dataset.boardColorScheme;
+}
+
 function applyColorSchemeById(schemeId, options = {}) {
   const state = getBoardLabelState();
   const scheme = getColorSchemeById(schemeId) || getDefaultColorScheme();
@@ -747,6 +969,7 @@ function applyColorSchemeById(schemeId, options = {}) {
 
   applyThemePaletteVariables('light', lightPalette);
   applyThemePaletteVariables('dark', darkPalette);
+  syncBoardThemeMetadata();
 
   if (typeof setCustomOverTypeThemesFromBoardPalettes === 'function') {
     setCustomOverTypeThemesFromBoardPalettes(state.themePalettes);
@@ -778,6 +1001,7 @@ function applyDerivedBoardThemes(themeOverrides, options = {}) {
 
   applyThemePaletteVariables('light', lightPalette);
   applyThemePaletteVariables('dark', darkPalette);
+  syncBoardThemeMetadata();
 
   if (typeof setCustomOverTypeThemesFromBoardPalettes === 'function') {
     setCustomOverTypeThemesFromBoardPalettes(state.themePalettes);
@@ -829,20 +1053,129 @@ function getActiveBoardLabelFilterIds() {
   return getBoardLabelState().filterIds.slice();
 }
 
+function normalizeBoardDateFilter(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === BOARD_DATE_FILTER_TODAY) {
+    return BOARD_DATE_FILTER_TODAY;
+  }
+
+  if (normalized === BOARD_DATE_FILTER_OVERDUE) {
+    return BOARD_DATE_FILTER_OVERDUE;
+  }
+
+  return BOARD_DATE_FILTER_NONE;
+}
+
+function getActiveBoardDateFilter() {
+  return normalizeBoardDateFilter(getBoardLabelState().activeDateFilter);
+}
+
 function isBoardDueDateFilterActive() {
-  return getBoardLabelState().hasDueDateFilter === true;
+  return getActiveBoardDateFilter() !== BOARD_DATE_FILTER_NONE;
+}
+
+function getBoardDateFilterLabel(filterValue) {
+  if (filterValue === BOARD_DATE_FILTER_TODAY) {
+    return 'Today';
+  }
+
+  if (filterValue === BOARD_DATE_FILTER_OVERDUE) {
+    return 'Overdue';
+  }
+
+  return '';
+}
+
+function getTodayIsoDateForBoardFilters() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeBoardFilterDueDate(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  return parseIsoDateStringToLocalDate(normalized) ? normalized : '';
+}
+
+function doesBoardDateFilterMatchDueDate(dueDateValue, activeFilter = getActiveBoardDateFilter()) {
+  const normalizedDueDate = normalizeBoardFilterDueDate(dueDateValue);
+  if (!normalizedDueDate) {
+    return false;
+  }
+
+  if (!activeFilter) {
+    return true;
+  }
+
+  const todayIsoDate = getTodayIsoDateForBoardFilters();
+  if (activeFilter === BOARD_DATE_FILTER_TODAY) {
+    return normalizedDueDate === todayIsoDate;
+  }
+
+  if (activeFilter === BOARD_DATE_FILTER_OVERDUE) {
+    return normalizedDueDate < todayIsoDate;
+  }
+
+  return true;
+}
+
+function getCardFilterDueDates(cardDueDateValue, taskDueDateValues = []) {
+  const dueSet = new Set();
+
+  const addDueDate = (value) => {
+    const normalized = normalizeBoardFilterDueDate(value);
+    if (normalized) {
+      dueSet.add(normalized);
+    }
+  };
+
+  if (Array.isArray(cardDueDateValue)) {
+    for (const value of cardDueDateValue) {
+      addDueDate(value);
+    }
+  } else {
+    addDueDate(cardDueDateValue);
+  }
+
+  for (const value of Array.isArray(taskDueDateValues) ? taskDueDateValues : []) {
+    addDueDate(value);
+  }
+
+  return [...dueSet].sort();
+}
+
+function getActiveBoardFilterDueDates(
+  cardDueDateValue,
+  taskDueDateValues = [],
+  incompleteTaskDueDateValues = taskDueDateValues,
+  activeFilter = getActiveBoardDateFilter(),
+) {
+  if (activeFilter === BOARD_DATE_FILTER_OVERDUE) {
+    return getCardFilterDueDates(
+      cardDueDateValue,
+      Array.isArray(incompleteTaskDueDateValues) ? incompleteTaskDueDateValues : taskDueDateValues,
+    );
+  }
+
+  return getCardFilterDueDates(cardDueDateValue, taskDueDateValues);
 }
 
 function isBoardLabelFilterActive() {
   return getActiveBoardLabelFilterIds().length > 0 || isBoardDueDateFilterActive();
 }
 
-function cardMatchesBoardLabelFilter(cardLabelIds, hasDueDate = false) {
+function cardMatchesBoardLabelFilter(cardLabelIds, cardDueDates = [], activeFilterDueDates = cardDueDates) {
   const selectedFilterIds = getActiveBoardLabelFilterIds();
-  const requireDueDate = isBoardDueDateFilterActive();
+  const activeDateFilter = getActiveBoardDateFilter();
   const hasLabelFilters = selectedFilterIds.length > 0;
 
-  if (!hasLabelFilters && !requireDueDate) {
+  if (!hasLabelFilters && !activeDateFilter) {
     return true;
   }
 
@@ -853,7 +1186,10 @@ function cardMatchesBoardLabelFilter(cardLabelIds, hasDueDate = false) {
   const matchesLabelFilter = hasLabelFilters
     ? normalizedCardLabelIds.some((labelId) => selectedFilterIds.includes(labelId))
     : true;
-  const matchesDueDateFilter = requireDueDate ? Boolean(hasDueDate) : true;
+  const normalizedCardDueDates = getCardFilterDueDates(activeFilterDueDates);
+  const matchesDueDateFilter = activeDateFilter
+    ? normalizedCardDueDates.some((dateValue) => doesBoardDateFilterMatchDueDate(dateValue, activeDateFilter))
+    : true;
 
   return matchesLabelFilter && matchesDueDateFilter;
 }
@@ -864,32 +1200,38 @@ function renderBoardLabelFilterButton() {
     return;
   }
 
-  const labelSpan = document.getElementById('labelFilterButtonText');
   const selectedFilterIds = getActiveBoardLabelFilterIds();
-  const hasDueDateFilter = isBoardDueDateFilterActive();
-  const activeFilterCount = selectedFilterIds.length + (hasDueDateFilter ? 1 : 0);
+  const activeDateFilter = getActiveBoardDateFilter();
+  const activeFilterCount = selectedFilterIds.length + (activeDateFilter ? 1 : 0);
+  let summaryText = 'Filter cards';
 
-  if (!labelSpan) {
-    return;
-  }
+  button.classList.toggle('is-active', activeFilterCount > 0);
+  button.setAttribute('data-active-filters', String(activeFilterCount));
 
   if (activeFilterCount === 0) {
-    labelSpan.textContent = 'Sort';
+    button.setAttribute('aria-label', summaryText);
+    button.setAttribute('data-sb-tooltip', summaryText);
     return;
   }
 
   if (activeFilterCount === 1) {
-    if (hasDueDateFilter) {
-      labelSpan.textContent = 'Sort: Due Date';
+    if (activeDateFilter) {
+      summaryText = `Filter cards: ${getBoardDateFilterLabel(activeDateFilter)}`;
+      button.setAttribute('aria-label', summaryText);
+      button.setAttribute('data-sb-tooltip', summaryText);
       return;
     }
 
     const selectedLabel = getBoardLabelById(selectedFilterIds[0]);
-    labelSpan.textContent = selectedLabel ? `Sort: ${selectedLabel.name}` : 'Sort: 1';
+    summaryText = selectedLabel ? `Filter cards: ${selectedLabel.name}` : 'Filter cards: 1 active';
+    button.setAttribute('aria-label', summaryText);
+    button.setAttribute('data-sb-tooltip', summaryText);
     return;
   }
 
-  labelSpan.textContent = `Sort: ${activeFilterCount}`;
+  summaryText = `Filter cards: ${activeFilterCount} active`;
+  button.setAttribute('aria-label', summaryText);
+  button.setAttribute('data-sb-tooltip', summaryText);
 }
 
 async function handleBoardLabelFilterChange(labelId, enabled) {
@@ -909,9 +1251,9 @@ async function handleBoardLabelFilterChange(labelId, enabled) {
   await renderBoard();
 }
 
-async function handleBoardDueDateFilterChange(enabled) {
+async function handleBoardDateFilterChange(filterValue, enabled) {
   const state = getBoardLabelState();
-  state.hasDueDateFilter = Boolean(enabled);
+  state.activeDateFilter = enabled ? normalizeBoardDateFilter(filterValue) : BOARD_DATE_FILTER_NONE;
   renderBoardLabelFilterButton();
   renderBoardLabelFilterPopover();
 
@@ -926,36 +1268,54 @@ function renderBoardLabelFilterPopover() {
 
   const labels = getBoardLabels();
   const selectedFilterIds = new Set(getActiveBoardLabelFilterIds());
-  const hasDueDateFilter = isBoardDueDateFilterActive();
+  const activeDateFilter = getActiveBoardDateFilter();
   popover.innerHTML = '';
 
-  const dueDateRow = document.createElement('label');
-  dueDateRow.className = 'label-popover-row';
+  const createDateFilterRow = (filterValue, labelText, iconName) => {
+    const row = document.createElement('label');
+    row.className = 'label-popover-row';
 
-  const dueDateCheckbox = document.createElement('input');
-  dueDateCheckbox.type = 'checkbox';
-  dueDateCheckbox.checked = hasDueDateFilter;
-  dueDateCheckbox.addEventListener('change', async (event) => {
-    await handleBoardDueDateFilterChange(event.target.checked);
-  });
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = activeDateFilter === filterValue;
+    checkbox.addEventListener('change', async (event) => {
+      await handleBoardDateFilterChange(filterValue, event.target.checked);
+    });
 
-  const dueDateIcon = document.createElement('i');
-  dueDateIcon.className = 'label-filter-feature-icon';
-  dueDateIcon.setAttribute('data-feather', 'clock');
+    const icon = document.createElement('i');
+    icon.className = 'label-filter-feature-icon';
+    icon.setAttribute('data-feather', iconName);
 
-  const dueDateText = document.createElement('span');
-  dueDateText.textContent = 'Due Date';
+    const text = document.createElement('span');
+    text.textContent = labelText;
 
-  dueDateRow.appendChild(dueDateCheckbox);
-  dueDateRow.appendChild(dueDateIcon);
-  dueDateRow.appendChild(dueDateText);
-  popover.appendChild(dueDateRow);
+    row.appendChild(checkbox);
+    row.appendChild(icon);
+    row.appendChild(text);
+
+    return row;
+  };
+
+  popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_TODAY, 'Today', 'sun'));
+  popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_OVERDUE, 'Overdue', 'alert-circle'));
+
+  const separator = document.createElement('div');
+  separator.className = 'label-popover-separator';
+  separator.setAttribute('aria-hidden', 'true');
+  popover.appendChild(separator);
+
+  const labelList = document.createElement('div');
+  labelList.className = 'label-popover-labels';
+
+  if (labels.length >= BOARD_LABEL_SCROLL_THRESHOLD) {
+    labelList.classList.add('label-popover-labels-scroll');
+  }
 
   if (labels.length === 0) {
     const emptyState = document.createElement('p');
     emptyState.className = 'label-popover-empty';
     emptyState.textContent = 'No labels yet. Add labels in Settings.';
-    popover.appendChild(emptyState);
+    labelList.appendChild(emptyState);
   }
 
   for (const label of labels) {
@@ -979,15 +1339,17 @@ function renderBoardLabelFilterPopover() {
     row.appendChild(checkbox);
     row.appendChild(swatch);
     row.appendChild(text);
-    popover.appendChild(row);
+    labelList.appendChild(row);
   }
+
+  popover.appendChild(labelList);
 
   const clearButton = document.createElement('button');
   clearButton.type = 'button';
   clearButton.className = 'label-popover-clear';
-  clearButton.textContent = 'Clear filter';
-  clearButton.title = 'Clear label and due date filters';
-  clearButton.disabled = selectedFilterIds.size === 0 && !hasDueDateFilter;
+  clearButton.textContent = 'Clear filters';
+  clearButton.title = 'Clear active date and label filters';
+  clearButton.disabled = selectedFilterIds.size === 0 && !activeDateFilter;
   clearButton.addEventListener('click', async () => {
     resetBoardLabelFilter();
     renderBoardLabelFilterButton();
@@ -1717,7 +2079,11 @@ function getBoardImportPicker() {
 
 function getBoardImportRunner(importer) {
   const overrides = getBoardImportOverrides();
-  const overrideKey = importer === 'trello' ? 'importTrello' : 'importObsidian';
+  const overrideKey = importer === 'trello'
+    ? 'importTrello'
+    : importer === 'tasksmd'
+      ? 'importTasksMd'
+      : 'importObsidian';
   if (overrides && typeof overrides[overrideKey] === 'function') {
     return overrides[overrideKey];
   }
@@ -1726,7 +2092,11 @@ function getBoardImportRunner(importer) {
     return null;
   }
 
-  const defaultRunner = importer === 'trello' ? window.board.importTrello : window.board.importObsidian;
+  const defaultRunner = importer === 'trello'
+    ? window.board.importTrello
+    : importer === 'tasksmd'
+      ? window.board.importTasksMd
+      : window.board.importObsidian;
   return typeof defaultRunner === 'function' ? defaultRunner : null;
 }
 
@@ -1734,6 +2104,7 @@ function renderBoardImportControls() {
   const state = getBoardLabelState();
   const trelloButton = document.getElementById('btnImportBoardFromTrello');
   const obsidianButton = document.getElementById('btnImportBoardFromObsidian');
+  const tasksMdButton = document.getElementById('btnImportBoardFromTasksMd');
   const status = document.getElementById('boardSettingsImportStatus');
   const warnings = document.getElementById('boardSettingsImportWarnings');
   const isBusy = Boolean(state.importInProgress);
@@ -1750,6 +2121,11 @@ function renderBoardImportControls() {
   if (obsidianButton) {
     obsidianButton.disabled = !canImport;
     obsidianButton.textContent = state.importInProgress === 'obsidian' ? 'Importing Obsidian' : 'Import from Obsidian';
+  }
+
+  if (tasksMdButton) {
+    tasksMdButton.disabled = !canImport;
+    tasksMdButton.textContent = state.importInProgress === 'tasksmd' ? 'Importing Tasks.md' : 'Import from Tasks.md';
   }
 
   if (status) {
@@ -1802,6 +2178,8 @@ async function runBoardImport(importer) {
     let summary = null;
     if (importer === 'trello') {
       summary = await runImporter(window.boardRoot, selections[0].token);
+    } else if (importer === 'tasksmd') {
+      summary = await runImporter(window.boardRoot, selections.map((selection) => selection.token));
     } else {
       summary = await runImporter(window.boardRoot, selections.map((selection) => selection.token));
     }
@@ -1925,16 +2303,29 @@ function isBoardSettingsModalOpen() {
   return Boolean(modal && modal.style.display === 'block');
 }
 
+function renderBoardSettingsActionState() {
+  const openSettingsButton = document.getElementById('openBoardSettings');
+  if (!openSettingsButton) {
+    return;
+  }
+
+  const shortcutHint = getShortcutHintText('boardSettings');
+  openSettingsButton.setAttribute('title', `Open board settings (${shortcutHint})`);
+  openSettingsButton.setAttribute('aria-label', 'Open board settings');
+  openSettingsButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts('boardSettings'));
+}
+
 function resetBoardLabelFilter() {
   const state = getBoardLabelState();
   state.filterIds = [];
-  state.hasDueDateFilter = false;
+  state.activeDateFilter = BOARD_DATE_FILTER_NONE;
 }
 
 async function ensureBoardLabelsLoaded() {
   if (!window.boardRoot) {
     const state = getBoardLabelState();
     state.importSummaryBoardRoot = '';
+    resetBoardLabelFilter();
     setBoardLabels([]);
     applyColorSchemeById('light', { renderControls: false });
     setBoardNotificationSettings(DEFAULT_BOARD_NOTIFICATION_SETTINGS);
@@ -1969,6 +2360,9 @@ async function ensureBoardLabelsLoaded() {
 function closeAllLabelPopovers() {
   closeBoardLabelFilterPopover();
   closeCardLabelPopover();
+  if (typeof closeBoardMenuPopover === 'function') {
+    closeBoardMenuPopover();
+  }
   if (typeof closeBoardViewPopover === 'function') {
     closeBoardViewPopover();
   }
@@ -1995,6 +2389,9 @@ function initializeBoardLabelControls() {
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
   const importFromTrelloButton = document.getElementById('btnImportBoardFromTrello');
   const importFromObsidianButton = document.getElementById('btnImportBoardFromObsidian');
+  const importFromTasksMdButton = document.getElementById('btnImportBoardFromTasksMd');
+
+  renderBoardSettingsActionState();
 
   if (filterButton) {
     filterButton.addEventListener('click', (event) => {
@@ -2034,6 +2431,9 @@ function initializeBoardLabelControls() {
       event.stopPropagation();
       if (!window.boardRoot) {
         return;
+      }
+      if (typeof closeBoardMenuPopover === 'function') {
+        closeBoardMenuPopover();
       }
       if (typeof closeAllModals === 'function') {
         await closeAllModals({ key: 'Escape' });
@@ -2213,6 +2613,14 @@ function initializeBoardLabelControls() {
       event.preventDefault();
       event.stopPropagation();
       await runBoardImport('obsidian');
+    });
+  }
+
+  if (importFromTasksMdButton) {
+    importFromTasksMdButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await runBoardImport('tasksmd');
     });
   }
 

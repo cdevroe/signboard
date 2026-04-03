@@ -1,7 +1,7 @@
 {
   "name": "signboard",
   "productName": "Signboard",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "license": "MIT",
   "author": "Colin Devroe <colin@cdevroe.com> (https://cdevroe.com)",
   "main": "main.js",
@@ -11,7 +11,8 @@
   "build": {
     "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
     "nsis": {
-      "artifactName": "signboard_${version}_${os}_${arch}.${ext}"
+      "artifactName": "signboard_${version}_${os}.${ext}",
+      "buildUniversalInstaller": true
     }
   },
   "private": true,
@@ -36,11 +37,12 @@
     "test:archive": "node scripts/test-archive.js",
     "test:import-trello": "node scripts/test-import-trello.js",
     "test:import-obsidian": "node scripts/test-import-obsidian.js",
+    "test:import-tasksmd": "node scripts/test-import-tasksmd.js",
     "test:timestamp": "node scripts/test-timestamp-format.js",
     "test:playwright": "npm run build:js && playwright test",
     "migrate:legacy-cards": "node scripts/migrate-legacy-cards.js",
     "dist": "npm run dist:mac",
-    "dist:mac": "npm run build:js && electron-builder --mac --publish never",
+    "dist:mac": "npm run build:js && electron-builder --mac --universal --publish never",
     "dist:mac:arm64": "npm run build:js && electron-builder --mac --arm64 --publish never",
     "dist:mac:arm64:no-notarize": "CSC_LINK= CSC_KEY_PASSWORD= SIGNBOARD_SKIP_NOTARIZATION=1 npm run build:js && CSC_LINK= CSC_KEY_PASSWORD= SIGNBOARD_SKIP_NOTARIZATION=1 electron-builder --mac --arm64 --publish never",
     "dist:mac:x64": "npm run build:js && electron-builder --mac --x64 --publish never",
@@ -49,10 +51,10 @@
     "dist:macarm64": "npm run dist:mac:arm64",
     "dist:macx64": "npm run dist:mac:x64",
     "dist:macuniversal": "npm run dist:mac:universal",
-    "dist:win": "npm run dist:win:all",
+    "dist:win": "npm run build:js && electron-builder --win nsis --x64 --arm64 --publish never",
     "dist:win:x64": "npm run build:js && electron-builder --win nsis --x64 --publish never",
     "dist:win:arm64": "npm run build:js && electron-builder --win nsis --arm64 --publish never",
-    "dist:win:all": "npm run dist:win:x64 && npm run dist:win:arm64",
+    "dist:win:all": "npm run dist:win",
     "dist:winarm64": "npm run dist:win:arm64",
     "dist:winx64": "npm run dist:win:x64",
     "dist:linux": "npm run dist:linux:all",
@@ -62,7 +64,7 @@
     "dist:linux:rpm:x64": "npm run build:js && electron-builder --linux rpm --x64 --publish never",
     "dist:linux:rpm:arm64": "npm run build:js && electron-builder --linux rpm --arm64 --publish never",
     "dist:linux:rpm:all": "npm run build:js && electron-builder --linux rpm --x64 --arm64 --publish never",
-    "dist:all": "npm run dist:mac:all && npm run dist:win:all && npm run dist:linux:all",
+    "dist:all": "npm run dist:mac && npm run dist:win && npm run dist:linux",
     "release:verify": "node scripts/verify-release-assets.js",
     "release:verify:partial": "node scripts/verify-release-assets.js --allow-partial",
     "release:prepare": "npm run dist:all && npm run release:verify"

@@ -12,9 +12,18 @@ const fsPromises = fs.promises;
 const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
-const { archiveCard, archiveList } = require('./lib/archive');
+const { prepareNewCardFrontmatter } = require('./lib/cardLifecycle');
+const {
+  archiveCard,
+  archiveList,
+  listArchiveEntries,
+  readArchiveEntry,
+  recordCardListMove,
+  restoreArchivedCard,
+  restoreArchivedList,
+} = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
-const { importTrello, importObsidian } = require('./lib/importers');
+const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
 const { installCliForCurrentUser } = require('./lib/cliInstall');
@@ -591,6 +600,18 @@ function requireWritablePath(sender, candidatePath) {
   }
 
   throw new Error('UNAUTHORIZED_PATH');
+}
+
+function requireActiveBoardRootForSender(sender) {
+  const senderState = getSenderBoardAccessState(sender);
+  const activeBoardRoot = typeof senderState.activeBoardRoot === 'string'
+    ? senderState.activeBoardRoot
+    : '';
+  if (!activeBoardRoot) {
+    throw new Error('UNAUTHORIZED_BOARD_ROOT');
+  }
+
+  return activeBoardRoot;
 }
 
 function authorizeTrustedBoardRootForSender(sender, boardRoot) {
@@ -1289,8 +1310,30 @@ function extractReleaseNotes(info) {
   return '';
 }
 
+function escapeRegExp(input) {
+  return String(input).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripReleaseNotesSection(notes, headingText) {
+  const source = typeof notes === 'string' ? notes.trim() : '';
+  const heading = String(headingText || '').trim();
+  if (!source || !heading) {
+    return source;
+  }
+
+  const sectionPattern = new RegExp(
+    `(?:^|\\n)##\\s+${escapeRegExp(heading)}\\s*\\n[\\s\\S]*?(?=\\n##\\s+|$)`,
+    'i'
+  );
+
+  return source
+    .replace(sectionPattern, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function formatReleaseNotesForDialog(info) {
-  const notes = extractReleaseNotes(info);
+  const notes = stripReleaseNotesSection(extractReleaseNotes(info), 'Downloads');
 
   if (!notes) {
     return 'No changelog details were provided in the release metadata.';
@@ -1685,11 +1728,29 @@ function buildApplicationMenu() {
       await installCliFromApp();
     },
   });
+  const createDocumentationMenuItem = () => ({
+    label: 'Documentation',
+    click: () => shell.openExternal(`https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}#documentation`),
+  });
   const createKeyboardShortcutsMenuItem = () => ({
     label: 'Keyboard Shortcuts',
     accelerator: 'CmdOrCtrl+/',
     click: () => {
       sendToMainWindow('open-keyboard-shortcuts');
+    },
+  });
+  const createBoardSettingsMenuItem = () => ({
+    label: 'Board Settings...',
+    accelerator: 'CmdOrCtrl+,',
+    click: () => {
+      sendToMainWindow('open-board-settings');
+    },
+  });
+  const createToggleThemeMenuItem = () => ({
+    label: 'Toggle Light/Dark Mode',
+    accelerator: 'CmdOrCtrl+Shift+D',
+    click: () => {
+      sendToMainWindow('toggle-theme-mode');
     },
   });
   const createAboutSignboardMenuItem = () => ({
@@ -1706,6 +1767,7 @@ function buildApplicationMenu() {
       label: app.name,
       submenu: [
         createAboutSignboardMenuItem(),
+        createBoardSettingsMenuItem(),
         { type: 'separator' },
         createCheckForUpdatesMenuItem(),
         { type: 'separator' },
@@ -1722,7 +1784,9 @@ function buildApplicationMenu() {
 
   template.push({
     label: 'File',
-    submenu: [isMac ? { role: 'close' } : { role: 'quit' }],
+    submenu: isMac
+      ? [{ role: 'close' }]
+      : [createBoardSettingsMenuItem(), { type: 'separator' }, { role: 'quit' }],
   });
 
   template.push({
@@ -1740,7 +1804,19 @@ function buildApplicationMenu() {
 
   template.push({
     label: 'View',
-    submenu: [{ role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }],
+    submenu: [
+      createToggleThemeMenuItem(),
+      { type: 'separator' },
+      { role: 'reload' },
+      { role: 'forceReload' },
+      { role: 'toggleDevTools' },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' },
+    ],
   });
 
   template.push({
@@ -1753,6 +1829,7 @@ function buildApplicationMenu() {
     submenu: [
       !isMac ? createAboutSignboardMenuItem() : null,
       !isMac ? createCheckForUpdatesMenuItem() : null,
+      createDocumentationMenuItem(),
       createInstallCliMenuItem(),
       createCopyMcpConfigMenuItem(),
       createKeyboardShortcutsMenuItem(),
@@ -1887,6 +1964,17 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       return cardFrontmatter.readCard(filePath);
     }
 
+    case 'listArchiveEntries': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      return listArchiveEntries(boardRoot);
+    }
+
+    case 'readArchiveEntry': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const entryPath = requireReadablePath(event.sender, args[0]);
+      return readArchiveEntry(boardRoot, entryPath);
+    }
+
     case 'writeCard': {
       const filePath = requireWritablePath(event.sender, args[0]);
       const card = args[1] && typeof args[1] === 'object' ? args[1] : {};
@@ -1930,7 +2018,9 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       const body = lines.join('\n').replace(/^\n+/, '');
 
       await cardFrontmatter.writeCard(filePath, {
-        frontmatter: { title: title || 'Untitled' },
+        frontmatter: prepareNewCardFrontmatter({
+          title: title || 'Untitled',
+        }),
         body,
       });
 
@@ -1947,6 +2037,28 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       const listPath = requireWritablePath(event.sender, args[0]);
       const senderState = getSenderBoardAccessState(event.sender);
       return archiveList(senderState.activeBoardRoot, listPath);
+    }
+
+    case 'restoreArchivedCard': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const archivedCardPath = requireWritablePath(event.sender, args[0]);
+      const targetListPath = requireWritablePath(event.sender, args[1]);
+      return restoreArchivedCard(boardRoot, archivedCardPath, targetListPath);
+    }
+
+    case 'restoreArchivedList': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const archivedListPath = requireWritablePath(event.sender, args[0]);
+      const restoredDirectoryName = typeof args[1] === 'string' ? args[1] : '';
+      return restoreArchivedList(boardRoot, archivedListPath, restoredDirectoryName);
+    }
+
+    case 'recordCardListMove': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const cardPath = requireWritablePath(event.sender, args[0]);
+      const fromListPath = requireWritablePath(event.sender, args[1]);
+      const toListPath = requireWritablePath(event.sender, args[2]);
+      return recordCardListMove(boardRoot, cardPath, fromListPath, toListPath);
     }
 
     case 'moveCard':
@@ -2018,6 +2130,23 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       });
     }
 
+    case 'importTasksMd': {
+      const boardRoot = requireWritableBoardRoot(event.sender, args[0]);
+      const selectionTokens = Array.isArray(args[1]) ? args[1] : [];
+      const sourcePaths = selectionTokens
+        .map((token) => consumePendingSelection(event.sender, token, ['file', 'directory']))
+        .filter(Boolean);
+
+      if (sourcePaths.length === 0) {
+        throw new Error('INVALID_SELECTION_TOKEN');
+      }
+
+      return importTasksMd({
+        boardRoot,
+        sourcePaths,
+      });
+    }
+
     default:
       throw new Error(`UNKNOWN_BOARD_OPERATION:${operation}`);
   }
@@ -2048,17 +2177,34 @@ ipcMain.handle('choose-directory', async (event, { defaultPath } = {}) => {
 });
 
 ipcMain.handle('pick-import-sources', async (event, { importer, defaultPath } = {}) => {
-  const normalizedImporter = importer === 'trello' ? 'trello' : 'obsidian';
+  const normalizedImporter = importer === 'trello'
+    ? 'trello'
+    : importer === 'tasksmd'
+      ? 'tasksmd'
+      : 'obsidian';
+  const dialogOptions = normalizedImporter === 'trello'
+    ? {
+        title: 'Select Trello JSON export',
+        buttonLabel: 'Choose JSON',
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+        properties: ['openFile'],
+      }
+    : normalizedImporter === 'tasksmd'
+      ? {
+          title: 'Select Tasks.md project folder and optional config files',
+          buttonLabel: 'Choose Sources',
+          filters: [{ name: 'JSON', extensions: ['json'] }],
+          properties: ['openDirectory', 'openFile', 'multiSelections'],
+        }
+      : {
+          title: 'Select Obsidian files or folder',
+          buttonLabel: 'Choose Sources',
+          filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+          properties: ['openFile', 'openDirectory', 'multiSelections'],
+        };
   const result = await dialog.showOpenDialog({
-    title: normalizedImporter === 'trello' ? 'Select Trello JSON export' : 'Select Obsidian files or folder',
-    buttonLabel: normalizedImporter === 'trello' ? 'Choose JSON' : 'Choose Sources',
     defaultPath,
-    filters: normalizedImporter === 'trello'
-      ? [{ name: 'JSON', extensions: ['json'] }]
-      : [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
-    properties: normalizedImporter === 'trello'
-      ? ['openFile']
-      : ['openFile', 'openDirectory', 'multiSelections'],
+    ...dialogOptions,
   });
 
   if (result.canceled) {

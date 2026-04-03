@@ -5,6 +5,10 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const cardFrontmatter = require('../lib/cardFrontmatter');
 const boardLabels = require('../lib/boardLabels');
+const {
+  archiveCard,
+  archiveList: archiveListOnDisk,
+} = require('../lib/archive');
 
 const CLI_PATH = path.resolve(__dirname, '..', 'bin', 'signboard.js');
 
@@ -58,11 +62,13 @@ async function createFixtureBoard() {
   const boardRoot = path.join(root, 'Client Work');
   const todoList = path.join(boardRoot, '000-To do-stock');
   const doingList = path.join(boardRoot, '001-Doing-stock');
-  const archiveList = path.join(boardRoot, 'XXX-Archive');
+  const backlogList = path.join(boardRoot, '002-Backlog-stock');
+  const archiveDirectory = path.join(boardRoot, 'XXX-Archive');
 
   await fs.mkdir(todoList, { recursive: true });
   await fs.mkdir(doingList, { recursive: true });
-  await fs.mkdir(archiveList, { recursive: true });
+  await fs.mkdir(backlogList, { recursive: true });
+  await fs.mkdir(archiveDirectory, { recursive: true });
 
   await boardLabels.writeBoardSettings(boardRoot, {
     labels: [
@@ -95,6 +101,47 @@ async function createFixtureBoard() {
     },
     body: 'Review notes',
   });
+
+  await cardFrontmatter.writeCard(path.join(doingList, '002-open-overdue-task-gh012.md'), {
+    frontmatter: {
+      title: 'Open overdue task',
+    },
+    body: `Still waiting\n- [ ] (due: ${daysFromTodayIso(-2)}) Chase reply`,
+  });
+
+  await cardFrontmatter.writeCard(path.join(doingList, '003-completed-overdue-task-ij345.md'), {
+    frontmatter: {
+      title: 'Completed overdue task',
+    },
+    body: `Wrapped up\n- [x] (due: ${daysFromTodayIso(-2)}) Sent reply`,
+  });
+
+  await cardFrontmatter.writeCard(path.join(doingList, '004-overdue-card-kl678.md'), {
+    frontmatter: {
+      title: 'Overdue card',
+      due: daysFromTodayIso(-1),
+    },
+    body: `Card-level due date only\n- [x] (due: ${daysFromTodayIso(-3)}) Finished prep`,
+  });
+
+  const standaloneArchivedSourcePath = path.join(todoList, '003-archived-standalone-mn901.md');
+  await cardFrontmatter.writeCard(standaloneArchivedSourcePath, {
+    frontmatter: {
+      title: 'Archived standalone note',
+      labels: ['urgent'],
+    },
+    body: 'Saved for later.',
+  });
+
+  await cardFrontmatter.writeCard(path.join(backlogList, '001-archived-list-card-op234.md'), {
+    frontmatter: {
+      title: 'Archived list card',
+    },
+    body: 'Backlog work item.',
+  });
+
+  await archiveCard(boardRoot, standaloneArchivedSourcePath);
+  await archiveListOnDisk(boardRoot, backlogList);
 
   return { root, boardRoot };
 }
@@ -169,9 +216,30 @@ async function createImportFixtures(root) {
     '',
   ].join('\n'), 'utf8');
 
+  const tasksRoot = path.join(importsRoot, 'tasks-workspace', 'tasks');
+  const configRoot = path.join(importsRoot, 'tasks-workspace', 'config');
+  const tasksProjectPath = path.join(tasksRoot, 'CLI Project');
+  await fs.mkdir(path.join(tasksProjectPath, 'Todo'), { recursive: true });
+  await fs.mkdir(configRoot, { recursive: true });
+
+  await fs.writeFile(path.join(tasksProjectPath, 'Todo', 'Tasks md card.md'), [
+    '[due:2026-03-26]',
+    '',
+    '[tag:CLI]',
+    '',
+    'Imported from Tasks.md.',
+  ].join('\n'), 'utf8');
+
+  await fs.writeFile(path.join(configRoot, 'tags.json'), JSON.stringify({
+    '/CLI Project': {
+      CLI: 'var(--color-alt-6)',
+    },
+  }, null, 2), 'utf8');
+
   return {
     trelloPath,
     obsidianPath,
+    tasksProjectPath,
   };
 }
 
@@ -229,6 +297,60 @@ async function main() {
   assert.strictEqual(dueCards.length, 2);
   assert.ok(dueCards.some((card) => card.title === 'Launch plan'));
   assert.ok(dueCards.some((card) => card.title === 'Client follow up'));
+
+  const overdueCards = JSON.parse(
+    runCli([
+      'cards',
+      '--due',
+      'overdue',
+      '--json',
+    ], env).stdout
+  );
+  assert.deepStrictEqual(
+    overdueCards.map((card) => card.title).sort(),
+    ['Open overdue task', 'Overdue card'],
+  );
+
+  const overdueTaskCardsDefault = JSON.parse(
+    runCli([
+      'cards',
+      '--due',
+      'overdue',
+      '--due-source',
+      'task',
+      '--json',
+    ], env).stdout
+  );
+  assert.deepStrictEqual(
+    overdueTaskCardsDefault.map((card) => card.title).sort(),
+    ['Open overdue task'],
+  );
+
+  const overdueTaskCardsAny = JSON.parse(
+    runCli([
+      'cards',
+      '--due',
+      'overdue',
+      '--due-source',
+      'task',
+      '--task-status',
+      'any',
+      '--json',
+    ], env).stdout
+  );
+  assert.deepStrictEqual(
+    overdueTaskCardsAny.map((card) => card.title).sort(),
+    ['Completed overdue task', 'Open overdue task', 'Overdue card'],
+  );
+
+  const invalidTaskStatus = runCliExpectFail([
+    'cards',
+    '--due',
+    'overdue',
+    '--task-status',
+    'closed',
+  ], env);
+  assert.ok(invalidTaskStatus.stderr.includes('Unsupported task status filter: closed'));
 
   const waitingCards = JSON.parse(
     runCli([
@@ -316,6 +438,90 @@ async function main() {
   );
   assert.strictEqual(doingCards[0].title, 'Needs approval');
 
+  const archivedCards = JSON.parse(
+    runCli([
+      'archive',
+      'cards',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(archivedCards.length, 2);
+  assert.ok(archivedCards.some((entry) => entry.title === 'Archived standalone note'));
+  assert.ok(archivedCards.some((entry) => entry.title === 'Archived list card'));
+
+  const archivedLists = JSON.parse(
+    runCli([
+      'archive',
+      'lists',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(archivedLists.length, 1);
+  assert.strictEqual(archivedLists[0].listDisplayName, 'Backlog');
+
+  const archivedCardDetail = JSON.parse(
+    runCli([
+      'archive',
+      'read',
+      '--kind',
+      'card',
+      '--entry',
+      'Archived standalone note',
+    ], env).stdout
+  );
+  assert.strictEqual(archivedCardDetail.kind, 'card');
+  assert.strictEqual(archivedCardDetail.entry.title, 'Archived standalone note');
+
+  const archivedListDetail = JSON.parse(
+    runCli([
+      'archive',
+      'read',
+      '--kind',
+      'list',
+      '--entry',
+      'Backlog',
+    ], env).stdout
+  );
+  assert.strictEqual(archivedListDetail.kind, 'list');
+  assert.strictEqual(archivedListDetail.entry.cardCount, 1);
+
+  const restoredArchivedCard = JSON.parse(
+    runCli([
+      'archive',
+      'restore-card',
+      '--card',
+      'Archived standalone note',
+      '--to-list',
+      'Waiting',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(restoredArchivedCard.title, 'Archived standalone note');
+  assert.strictEqual(restoredArchivedCard.targetListDisplayName, 'Waiting');
+
+  const waitingCardsAfterRestore = JSON.parse(
+    runCli([
+      'cards',
+      'Waiting',
+      '--json',
+    ], env).stdout
+  );
+  assert.ok(waitingCardsAfterRestore.some((card) => card.title === 'Archived standalone note'));
+
+  const restoredArchivedList = JSON.parse(
+    runCli([
+      'archive',
+      'restore-list',
+      '--list',
+      'Backlog',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(restoredArchivedList.listDisplayName, 'Backlog');
+
+  const listsAfterArchiveRestore = JSON.parse(runCli(['lists', '--json'], env).stdout);
+  assert.ok(listsAfterArchiveRestore.some((list) => list.displayName === 'Backlog'));
+
   const trelloImport = JSON.parse(
     runCli([
       'import',
@@ -364,6 +570,31 @@ async function main() {
   assert.strictEqual(obsidianCards.length, 1);
   assert.strictEqual(obsidianCards[0].due, '2026-03-24');
   assert.ok(obsidianCards[0].labelNames.includes('Writing'));
+
+  const tasksMdImport = JSON.parse(
+    runCli([
+      'import',
+      'tasksmd',
+      '--source',
+      importFixtures.tasksProjectPath,
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(tasksMdImport.importer, 'tasksmd');
+  assert.strictEqual(tasksMdImport.listsCreated, 1);
+  assert.strictEqual(tasksMdImport.cardsCreated, 1);
+
+  const tasksMdCards = JSON.parse(
+    runCli([
+      'cards',
+      '--search',
+      'Tasks md card',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(tasksMdCards.length, 1);
+  assert.strictEqual(tasksMdCards[0].due, '2026-03-26');
+  assert.ok(tasksMdCards[0].labelNames.includes('CLI'));
 
   console.log('CLI tests passed.');
 }

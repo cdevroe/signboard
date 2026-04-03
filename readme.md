@@ -12,17 +12,16 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 ---
 
 ## ✨ Highlights
-- ⬇️ Import from Trello and Obsidian
 - 📂 Cards saved as Markdown files
 - 🖌️ Color scheme per board (several to choose from!)
 - 🌙 Light and dark mode variants for all color schemes
-- 🏷 Custom labels per Board
-- 🗓 Card due dates and Task list item due dates
+- 🏷 Custom labels per board
+- 🗓 Card due dates and task list item due dates
 - 📅 Calendar and "This Week" views
 - ✅ Progress counters on cards
 - 🔎 Live search
 - ⌨️ Keyboard shortcuts
-- 🤖 MCP Server
+- 🤖 MCP server
 - 💻 CLI
 
 ---
@@ -30,17 +29,40 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 ## Installation
 
 1. Go to the [Releases page](../../releases).
-2. On the latest release, download the correct file for your operating system.
+2. On the latest release, use the curated download links in the release body:
+   - `Download for macOS (Universal)`
+   - `Download for Windows`
+   - Linux packages grouped by package type with explicit `x64` and `ARM64` labels
 
-## ⌨️ Keyboard Shortcuts
+For standard releases, Signboard intentionally promotes a smaller public download set:
 
-- `Cmd/Ctrl + /`: open the keyboard shortcuts helper
-- `Cmd/Ctrl + N`: add card
-- `Cmd/Ctrl + Shift + N`: add list
-- `Cmd/Ctrl + 1`, `2`, `3`: switch board views
-- `Cmd/Ctrl + F`: focus search field
+- macOS: universal build
+- Windows: single installer
+- Linux: separate `x64` and `ARM64` packages
+
+## Documentation
+
+- [Documentation hub](./docs/README.md)
+- [Using Signboard](./docs/using-signboard.md)
+- [Signboard CLI](./docs/signboard-cli.md)
+- [MCP Server](./MCP_README.md)
+
+### Keyboard Shortcuts
+
+On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
+
+- `Cmd/Ctrl + /`: open keyboard shortcuts
+- `Cmd/Ctrl + N`: create a card
+- `Cmd/Ctrl + Shift + N`: create a list
+- `Cmd/Ctrl + 1`: switch to Kanban view
+- `Cmd/Ctrl + 2`: switch to Calendar view
+- `Cmd/Ctrl + 3`: switch to This Week view
+- `Cmd/Ctrl + ,`: open Board Settings
+- `Cmd/Ctrl + Shift + D`: toggle light and dark mode
+- `Cmd/Ctrl + F`: focus search
 - `Esc`: close open modals
-- In app: `Help` -> `Keyboard Shortcuts`
+
+You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 
 ## 🤖 MCP Server
 
@@ -53,6 +75,8 @@ Signboard includes a built-in MCP server so agents can interact with local board
 ## 💻 CLI
 
 Signboard includes a terminal CLI for direct board management without going through MCP.
+
+- Full guide: [docs/signboard-cli.md](./docs/signboard-cli.md)
 
 - In the desktop app on macOS/Linux: `Help` -> `Install Signboard CLI`
 - Use `signboard use /Path/to/Board` once to remember the active board for later commands
@@ -83,6 +107,7 @@ signboard cards read --list Doing --card ab123
 # Imports
 signboard import trello --file ~/Downloads/trello-export.json
 signboard import obsidian --source ~/Vault/Kanban.md --source ~/Vault/Boards/
+signboard import tasksmd --source ~/TasksWorkspace/tasks/Project-A
 
 # Or run through the packaged app executable
 /Applications/Signboard.app/Contents/MacOS/Signboard use /Path/to/Board
@@ -107,16 +132,9 @@ Import options:
 
 - `signboard import trello --file <export.json> [--board <path>] [--json]`
 - `signboard import obsidian --source <path> [--source <path> ...] [--board <path>] [--json]`
+- `signboard import tasksmd --source <path> [--board <path>] [--json]`
 
-## ✅ Task List Items
-
-- Card counters now use `completed/total` task checklist totals and stay visible while tasks exist.
-- Counter badges turn green when all tasks on a card are complete.
-- Task list lines can include a task-level due date marker at the start of the task content:
-  - `(due: YYYY-MM-DD)`
-- Cards appear in Calendar and This Week for both card due dates and task due markers.
-
-Example checklist syntax:
+Example task checklist syntax:
 
 ```md
 - [ ] Draft update
@@ -127,11 +145,7 @@ Example checklist syntax:
 
 ## 🔄 Automatic Updates
 
-- Packaged Signboard builds can check GitHub releases for updates automatically.
-- When a release is available, Signboard shows release notes and lets you:
-  - install immediately,
-  - remind later,
-  - or view the release changelog on GitHub.
+- The Signboard app can check for updates automatically.
 - You can manually check any time from `Check for Updates...`:
   - macOS: Signboard app menu
   - Windows/Linux: Help menu
@@ -169,27 +183,30 @@ npm run test:playwright
 ### macOS
 
 ```bash
-# Current host architecture
-npm run dist
+# Default public macOS release build
+npm run dist:mac
 
-# Specific macOS architectures
+# Optional: specific macOS architectures for troubleshooting
+npm run dist:mac:universal
 npm run dist:mac:arm64
 npm run dist:mac:x64
-npm run dist:mac:universal
 
-# Build all macOS variants
+# Optional: build every macOS variant
 npm run dist:mac:all
 ```
 
 ### Windows (NSIS installer)
 
 ```bash
-# Specific Windows architecture
+# Default public Windows release build
+npm run dist:win
+
+# Alias for the default Windows release build
+npm run dist:win:all
+
+# Optional: specific Windows architectures for troubleshooting
 npm run dist:win:x64
 npm run dist:win:arm64
-
-# Build both Windows architectures
-npm run dist:win:all
 ```
 
 ### Linux (AppImage, deb)
@@ -211,11 +228,14 @@ npm run dist:linux:rpm:all
 ### Build everything
 
 ```bash
+# Public release matrix: macOS universal, Windows installer, Linux x64 + ARM64
 npm run dist:all
 ```
 
 Notes:
 - `--publish never` is used for local builds so these commands package artifacts without attempting to publish releases.
+- Standard public downloads are: macOS universal, one Windows installer, and Linux `AppImage`/`deb` builds for `x64` and `ARM64`.
+- The GitHub release body should be treated as the curated download surface. Link the public download set there instead of expecting users to interpret the raw asset list.
 - Copy `.env-sample` to `.env` and fill in your credentials before running signing/notarization builds.
 - macOS signing/notarization uses environment variables from `.env` (`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`).
 

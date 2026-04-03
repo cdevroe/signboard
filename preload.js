@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld('board', {
   openCard: async (filePath) => invokeBoard('openCard', filePath),
   shareCard: async (filePath) => ipcRenderer.invoke('share-file', filePath),
   readCard: async (filePath) => invokeBoard('readCard', filePath),
+  listArchiveEntries: async () => invokeBoard('listArchiveEntries'),
+  readArchiveEntry: async (entryPath) => invokeBoard('readArchiveEntry', entryPath),
   writeCard: async (filePath, card) => invokeBoard('writeCard', filePath, card),
   updateFrontmatter: async (filePath, partialFrontmatter) =>
     invokeBoard('updateFrontmatter', filePath, partialFrontmatter),
@@ -51,12 +53,19 @@ contextBridge.exposeInMainWorld('board', {
   createCard: async (filePath, content) => invokeBoard('createCard', filePath, content),
   archiveCard: async (filePath) => invokeBoard('archiveCard', filePath),
   archiveList: async (listPath) => invokeBoard('archiveList', listPath),
+  restoreArchivedCard: async (archivedCardPath, targetListPath) =>
+    invokeBoard('restoreArchivedCard', archivedCardPath, targetListPath),
+  restoreArchivedList: async (archivedListPath, restoredDirectoryName) =>
+    invokeBoard('restoreArchivedList', archivedListPath, restoredDirectoryName),
+  recordCardListMove: async (cardPath, fromListPath, toListPath) =>
+    invokeBoard('recordCardListMove', cardPath, fromListPath, toListPath),
   moveCard: async (src, dst) => invokeBoard('moveCard', src, dst),
   moveList: async (src, dst) => invokeBoard('moveList', src, dst),
   createList: async (listPath) => invokeBoard('createList', listPath),
   deleteList: async (listPath) => invokeBoard('deleteList', listPath),
   importTrello: async (boardRoot, selectionToken) => invokeBoard('importTrello', boardRoot, selectionToken),
   importObsidian: async (boardRoot, selectionTokens) => invokeBoard('importObsidian', boardRoot, selectionTokens),
+  importTasksMd: async (boardRoot, selectionTokens) => invokeBoard('importTasksMd', boardRoot, selectionTokens),
   copyExternal: async () => {
     throw new Error('UNSUPPORTED_OPERATION');
   },
@@ -98,6 +107,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('open-keyboard-shortcuts', listener);
     return () => {
       ipcRenderer.removeListener('open-keyboard-shortcuts', listener);
+    };
+  },
+  onOpenBoardSettings: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = () => {
+      callback();
+    };
+
+    ipcRenderer.on('open-board-settings', listener);
+    return () => {
+      ipcRenderer.removeListener('open-board-settings', listener);
+    };
+  },
+  onToggleThemeMode: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = () => {
+      callback();
+    };
+
+    ipcRenderer.on('toggle-theme-mode', listener);
+    return () => {
+      ipcRenderer.removeListener('toggle-theme-mode', listener);
     };
   },
 });

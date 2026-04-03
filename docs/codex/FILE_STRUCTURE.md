@@ -4,11 +4,14 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu + GitHub-release auto-update flow (`electron-updater`).
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board settings/theme shortcuts) + archive browse/restore IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
+- `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
+- `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
-- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC.
-- `index.html` - App shell, header board tab strip, modal markup (including `#modalKeyboardShortcuts`), and deferred script/style includes.
+- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and menu-triggered renderer events, including archive browse/read/restore calls.
+- `index.html` - App shell, header board tab strip, board-menu/archive modal markup (including `#modalKeyboardShortcuts` and `#modalArchiveBrowser`), and deferred script/style includes.
 - `readme.md` - Human-facing project README.
+- `docs/release-template.md` - Curated GitHub release-body template for public download links.
 - `package.json` - Runtime/build scripts and dependencies.
 - `package-lock.json` - NPM lockfile.
 - `.gitignore` - Ignores `node_modules`, `dist`, `.env`, etc.
@@ -24,50 +27,55 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/santizeFileName.js` - Filename sanitization + random suffix helper.
 - `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and task due markers.
-- `app/board/boardLabels.js` - Board-label state, toolbar filter UI, card label popovers, board settings editor, and Trello/Obsidian import panel wiring + summary rendering.
+- `app/board/boardLabels.js` - Board-label state, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with `Overdue` ignoring completed task due markers), card label popovers, board settings editor, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
-- `app/board/boardViews.js` - Board view state, `Views` menu wiring, Calendar + This Week rendering/navigation/drag-to-reschedule logic, temporal card placement by card due/task due markers, and source-list labels on temporal cards.
+- `app/board/boardViews.js` - Board view state, `Views` menu wiring + shortcut hints, Calendar + This Week rendering/navigation/drag-to-reschedule logic, temporal card placement by card due/task due markers, and source-list labels on temporal cards.
+- `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing, detail-pane rendering, incremental result loading, and restore flows.
 - `app/cards/createCardElement.js` - Card DOM rendering, task progress badge display, and click behavior.
 - `app/cards/processAddNewCard.js` - New card creation flow.
 - `app/cards/processAddNewList.js` - New list creation flow.
-- `app/lists/createListElement.js` - List DOM rendering, sanitized rename, card DnD handling.
+- `app/lists/createListElement.js` - List DOM rendering, sanitized rename, card DnD handling, and cross-list move lifecycle logging.
 - `app/board/renderBoard.js` - Whole-board render (with concurrent card-list reads) and list DnD handling.
 - `app/board/openBoard.js` - Board tab session state (restore/open/close/reorder), board open/init logic, and starter content.
 - `app/modals/closeAllModals.js` - Modal close logic + editor cleanup + conditional rerender + board interaction lock/unlock.
 - `app/modals/toggleAddCardModal.js` - Add-card modal position/toggle.
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
-- `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic with debounced + serialized saves and task-line due-date controls aligned from measured line coordinates.
-- `app/listeners/window.js` - Keyboard shortcuts, including the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
+- `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic with debounced + serialized saves, fresh duplicate lifecycle metadata, and task-line due-date controls aligned from measured line coordinates.
+- `app/listeners/window.js` - Keyboard shortcuts, menu-command listeners, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, and external board-change auto-refresh sync loop.
-- `app/ui/theme.js` - Theme toggle + OverType theme integration.
+- `app/ui/theme.js` - Theme toggle + OverType theme integration, including the theme shortcut hint/state in the board menu.
 - `app/ui/tooltips.js` - Lightweight custom tooltip engine (event delegation + mutation observer) using existing element label attributes.
 
 ## Shared/library code
 
 - `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support.
+- `lib/cardLifecycle.js` - Shared card lifecycle metadata helper for `createdAt`, compact `activity` trails, archive frontmatter state, and moved/restored transitions.
+- `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
 - `lib/boardLabels.js` - Board-level label settings read/write/defaults/filter helpers (`board-settings.md`).
 - `lib/importers/index.js` - Export surface for board importers.
 - `lib/importers/shared.js` - Shared importer helpers for list/card creation, label reuse/creation, metadata section building, and markdown source discovery.
 - `lib/importers/trello.js` - Trello JSON importer.
 - `lib/importers/obsidian.js` - Obsidian importer covering `obsidian-kanban`, generic task scopes, and CardBoard snapshot imports.
-- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings operations, safe board creation, Trello/Obsidian imports, and task-summary metadata on card tools.
-- `lib/cliApp.js` - CLI command parsing/output for `use`, `lists`, `cards`, `settings`, and path-based `import` commands.
+- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings/archive operations, safe board creation, archive browse/read/restore tools, Trello/Obsidian/Tasks.md imports, and task-summary metadata on card tools.
+- `lib/cliApp.js` - CLI command parsing/output for `use`, `lists`, `cards`, `archive`, `settings`, and path-based `import` commands, including `--task-status open|any` for card due filtering.
+- `lib/cliBoard.js` - CLI board/list/card filesystem operations, record loading, and due/search/label filtering; overdue task filtering defaults to incomplete/open task markers unless callers pass `--task-status any`.
 
 ## Scripts (`scripts/`)
 
 - `scripts/test-frontmatter.js` - Node assertions for frontmatter behavior.
 - `scripts/test-board-labels.js` - Node assertions for board label settings defaults/migration/filter logic.
 - `scripts/test-board-card-metadata.js` - Board card metadata rendering assertions (due/labels/task badge behavior).
+- `scripts/test-archive.js` - Archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.
 - `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
 - `scripts/test-import-trello.js` - Trello importer assertions for order, label reuse, archive routing, and metadata preservation.
 - `scripts/test-import-obsidian.js` - Obsidian importer assertions for kanban/task/CardBoard cases, due conversion, and source-prefix naming.
 - `scripts/test-task-list-parser.js` - Task checklist parser assertions (`completed/total` and task due-date extraction).
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
-- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux.
-- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including card task metadata assertions and import-tool coverage.
-- `scripts/test-cli.js` - Node CLI smoke test covering list/card flows plus Trello/Obsidian imports.
+- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux plus curated public-download guidance.
+- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including archive tool coverage, card task metadata assertions, and import-tool coverage.
+- `scripts/test-cli.js` - Node CLI smoke test covering list/card/archive flows plus Trello/Obsidian imports.
 - `scripts/test-desktop-cli.js` - Electron executable CLI dispatch smoke test, including import command routing.
 
 ## Static assets (`static/`)
@@ -95,7 +103,15 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Codex doc maintenance rule
 
-- When behavior, architecture, or tooling changes, update Codex docs in the same change set:
+- When behavior, architecture, or tooling changes, update agent docs in the same change set:
   - `CODEX.md`
+  - `AGENTS.md`
   - `docs/codex/PROJECT_CONTEXT.md`
   - `docs/codex/FILE_STRUCTURE.md`
+
+- When user-facing behavior, setup, or CLI flows change, update release-facing docs in the same change set:
+  - `readme.md`
+  - `docs/README.md`
+  - `docs/using-signboard.md`
+  - `docs/signboard-cli.md`
+  - `MCP_README.md` (when MCP setup or behavior changes)

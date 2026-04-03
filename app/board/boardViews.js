@@ -102,6 +102,9 @@ function setActiveBoardView(viewId, options = {}) {
 
   syncBoardViewControlState();
   closeBoardViewPopover();
+  if (typeof closeBoardMenuPopover === 'function') {
+    closeBoardMenuPopover();
+  }
 
   if (options.render === false) {
     return;
@@ -398,6 +401,7 @@ async function collectCardsForCalendar(boardRoot, lists) {
         taskSummary: getTaskListSummary(body),
         taskItems,
         taskDueDates: getTaskListDueDates(body),
+        incompleteTaskDueDates: getIncompleteTaskListDueDates(body),
       };
     }),
   );
@@ -410,29 +414,21 @@ function buildCalendarCardBuckets(cardEntries, monthCursor) {
   const buckets = new Map();
 
   for (const entry of entries) {
-    const dueDates = new Set();
-    const cardDueDate = normalizeTaskDueDateValue(entry.due);
-    if (cardDueDate) {
-      dueDates.add(cardDueDate);
-    }
-
-    const taskDueDates = Array.isArray(entry.taskDueDates) ? entry.taskDueDates : [];
-    for (const taskDueDate of taskDueDates) {
-      const normalizedTaskDueDate = normalizeTaskDueDateValue(taskDueDate);
-      if (normalizedTaskDueDate) {
-        dueDates.add(normalizedTaskDueDate);
-      }
-    }
-
-    const hasDueDate = dueDates.size > 0;
-    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, hasDueDate);
+    const dueDates = getCardFilterDueDates(entry.due, entry.taskDueDates);
+    const activeFilterDueDates = getActiveBoardFilterDueDates(
+      entry.due,
+      entry.taskDueDates,
+      entry.incompleteTaskDueDates,
+    );
+    const visibleDueDates = activeFilterDueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, activeFilterDueDates);
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
 
-    if (!hasDueDate || !matchesLabelFilter || !matchesSearchFilter) {
+    if (visibleDueDates.length === 0 || !matchesLabelFilter || !matchesSearchFilter) {
       continue;
     }
 
-    for (const dueDateValue of dueDates) {
+    for (const dueDateValue of visibleDueDates) {
       const dueDate = parseIsoDateStringToLocalDate(dueDateValue);
       if (!dueDate) {
         continue;
@@ -471,28 +467,20 @@ function buildWeekCardBuckets(cardEntries, weekStartDate) {
   const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
 
   for (const entry of entries) {
-    const dueDates = new Set();
-    const cardDueDate = normalizeTaskDueDateValue(entry.due);
-    if (cardDueDate) {
-      dueDates.add(cardDueDate);
-    }
-
-    const taskDueDates = Array.isArray(entry.taskDueDates) ? entry.taskDueDates : [];
-    for (const taskDueDate of taskDueDates) {
-      const normalizedTaskDueDate = normalizeTaskDueDateValue(taskDueDate);
-      if (normalizedTaskDueDate) {
-        dueDates.add(normalizedTaskDueDate);
-      }
-    }
-
-    const hasDueDate = dueDates.size > 0;
-    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, hasDueDate);
+    const dueDates = getCardFilterDueDates(entry.due, entry.taskDueDates);
+    const activeFilterDueDates = getActiveBoardFilterDueDates(
+      entry.due,
+      entry.taskDueDates,
+      entry.incompleteTaskDueDates,
+    );
+    const visibleDueDates = activeFilterDueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, activeFilterDueDates);
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
-    if (!hasDueDate || !matchesLabelFilter || !matchesSearchFilter) {
+    if (visibleDueDates.length === 0 || !matchesLabelFilter || !matchesSearchFilter) {
       continue;
     }
 
-    for (const dueDateValue of dueDates) {
+    for (const dueDateValue of visibleDueDates) {
       const dueDate = parseIsoDateStringToLocalDate(dueDateValue);
       if (!dueDate) {
         continue;
@@ -535,17 +523,34 @@ function syncBoardViewSelectWithState() {
   viewButton.setAttribute('aria-label', `Current view: ${activeOption.label}. Change view.`);
   viewButton.setAttribute('title', `Current view: ${activeOption.label}. Change view.`);
 
-  if (
+  const iconMarkup = (
     window.feather &&
     window.feather.icons &&
     typeof window.feather.icons[iconName]?.toSvg === 'function'
+  )
+    ? window.feather.icons[iconName].toSvg({
+      width: 16,
+      height: 16,
+      stroke: 'currentColor',
+    })
+    : `<i data-feather="${iconName}"></i>`;
+
+  viewButton.innerHTML = `
+    <span class="board-menu-action-icon" aria-hidden="true">${iconMarkup}</span>
+    <span class="board-menu-action-label">View: ${activeOption.label}</span>
+  `;
+
+  if (
+    !(
+      window.feather &&
+      window.feather.icons &&
+      typeof window.feather.icons[iconName]?.toSvg === 'function'
+    ) &&
+    typeof feather !== 'undefined' &&
+    feather &&
+    typeof feather.replace === 'function'
   ) {
-    viewButton.innerHTML = window.feather.icons[iconName].toSvg();
-  } else {
-    viewButton.innerHTML = `<i data-feather="${iconName}"></i>`;
-    if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
-      feather.replace();
-    }
+    feather.replace();
   }
 
   const svgIcon = viewButton.querySelector('svg');
@@ -612,15 +617,20 @@ function renderBoardViewPopover() {
   popover.innerHTML = '';
 
   for (const option of BOARD_VIEW_OPTIONS) {
+    const shortcutActionId = option.id === BOARD_VIEW_IDS.KANBAN
+      ? 'kanbanView'
+      : (option.id === BOARD_VIEW_IDS.CALENDAR ? 'calendarView' : 'thisWeekView');
     const optionButton = document.createElement('button');
     optionButton.type = 'button';
     optionButton.className = 'board-view-option';
     optionButton.dataset.viewId = option.id;
     optionButton.setAttribute('aria-pressed', String(option.id === activeView));
+    optionButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(shortcutActionId));
     optionButton.innerHTML = `
       <span class="board-view-option-check">${option.id === activeView ? '✓' : ''}</span>
       <span class="board-view-option-icon" aria-hidden="true">${getBoardViewIconMarkup(option.id)}</span>
       <span class="board-view-option-label">${option.label}</span>
+      <span class="menu-shortcut-hint board-view-option-shortcut" aria-hidden="true">${getShortcutHintText(shortcutActionId)}</span>
     `;
     optionButton.addEventListener('click', (event) => {
       event.preventDefault();
