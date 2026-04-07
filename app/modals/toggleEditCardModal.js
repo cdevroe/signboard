@@ -637,7 +637,7 @@ function setupTaskLineDueDateControls(editor) {
 
             const measuredLineHeight = Math.max(toFiniteNumber(linePosition.height, lineHeight), lineHeight);
             const buttonTop = Math.round(
-                linePosition.top - textarea.scrollTop + ((measuredLineHeight - controlSize) / 2),
+                linePosition.top - textarea.scrollTop + ((measuredLineHeight - controlSize) / 2) + -3,
             );
             if (buttonTop < visibleTop || buttonTop > visibleBottom) {
                 continue;
@@ -806,7 +806,7 @@ async function toggleEditCardModal(cardPath, options = {}) {
         value: card.body,
         fontSize: '16px',
         lineHeight: 1.6,
-        fontFamily: '"JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        fontFamily: 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif',
         padding: '16px',
         toolbar: true,
         placeholder: 'Notes...',
