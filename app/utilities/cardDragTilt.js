@@ -247,13 +247,26 @@ function createBoardCardSortableOptions(options = {}) {
       beginBoardCardDragTilt(evt);
     },
     onEnd(evt) {
-      try {
-        if (typeof baseOnEnd === 'function') {
-          return baseOnEnd.call(this, evt);
-        }
-      } finally {
+      const runCleanup = () => {
         endBoardCardDragTilt(evt);
         unlockBoardCardTextSelection();
+      };
+
+      try {
+        if (typeof baseOnEnd === 'function') {
+          const result = baseOnEnd.call(this, evt);
+          if (result && typeof result.then === 'function') {
+            return result.then(runCleanup, (err) => {
+              runCleanup();
+              throw err;
+            });
+          }
+          return result;
+        }
+      } finally {
+        if (!(baseOnEnd && typeof baseOnEnd.then === 'function')) {
+          runCleanup();
+        }
       }
     },
   };

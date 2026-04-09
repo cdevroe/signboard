@@ -2116,7 +2116,16 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
         }
       }
 
-      await fsPromises.rename(sourcePath, destinationPath);
+      try {
+        await fsPromises.rename(sourcePath, destinationPath);
+      } catch (err) {
+        if (err.code === 'EXDEV') {
+          await fsPromises.copyFile(sourcePath, destinationPath);
+          await fsPromises.unlink(sourcePath);
+        } else {
+          throw err;
+        }
+      }
 
       if (movingBoardRoot) {
         replaceTrustedBoardRoot(sourcePath, destinationPath);
