@@ -445,24 +445,6 @@ function renderBoardTabs() {
 
         boardTab.appendChild(tabButton);
 
-        // Card drag and drop highlighting
-        boardTab.addEventListener('mouseover', () => {
-            if (document.body.classList.contains('board-card-drag-active')) {
-                if (typeof Sortable !== 'undefined' && Sortable.active && Sortable.active.options.group.name === 'cards') {
-                    const draggedItem = Sortable.active.dragged;
-                    const cardPath = draggedItem.getAttribute('data-path');
-                    if (boardPath !== UNIFIED_BOARD_PATH && cardPath.startsWith(boardPath)) {
-                        return;
-                    }
-                    boardTab.classList.add('board-tab--drop-target');
-                }
-            }
-        });
-
-        boardTab.addEventListener('mouseout', () => {
-            boardTab.classList.remove('board-tab--drop-target');
-        });
-
         const closeButton = document.createElement('button');
         closeButton.type = 'button';
         closeButton.classList.add('board-tab-close');
@@ -477,6 +459,33 @@ function renderBoardTabs() {
         boardTab.appendChild(closeButton);
 
         tabsEl.appendChild(boardTab);
+    }
+
+    // Initialize global drag tracking for tabs if not already done
+    if (!window.__tabDragTrackerInitialized) {
+        window.__tabDragTrackerInitialized = true;
+        document.addEventListener('mousemove', (e) => {
+            if (document.body.classList.contains('board-card-drag-active')) {
+                const hit = document.elementFromPoint(e.clientX, e.clientY);
+                const boardTab = hit ? hit.closest('.board-tab[data-board-path]') : null;
+                
+                document.querySelectorAll('.board-tab--drop-target').forEach(el => {
+                    if (el !== boardTab) el.classList.remove('board-tab--drop-target');
+                });
+                
+                if (boardTab) {
+                    if (typeof Sortable !== 'undefined' && Sortable.active && Sortable.active.options.group.name === 'cards') {
+                        const draggedItem = Sortable.active.dragged;
+                        const cardPath = draggedItem ? draggedItem.getAttribute('data-path') : null;
+                        const targetBoardPath = boardTab.getAttribute('data-board-path');
+                        if (targetBoardPath !== '__unified__' && cardPath && cardPath.startsWith(targetBoardPath)) {
+                            return;
+                        }
+                        boardTab.classList.add('board-tab--drop-target');
+                    }
+                }
+            }
+        });
     }
 
     const addBoardTab = document.createElement('div');

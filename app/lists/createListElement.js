@@ -95,11 +95,10 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
       onEnd: async (evt) => {
           const movedCardOriginalPath = evt && evt.item ? evt.item.getAttribute('data-path') : '';
           const sourceListPath = evt && evt.from ? evt.from.dataset.path : '';
-          let targetListPath = evt && evt.to ? evt.to.dataset.path : '';
           const targetIsUnified = evt.to.dataset.isUnified === 'true';
           const targetDisplayName = evt.to.dataset.displayName;
 
-          // Check if dropped on a board tab - use the highlight class we set in mouseover
+          // 1. Detect if dropped on a board tab (Drag-to-Tab)
           const boardTab = document.querySelector('.board-tab--drop-target');
 
           if (boardTab) {
@@ -134,7 +133,7 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
                       });
                       const destinationPath = finalTargetListPath + '/' + nextPrefix + cardFileName.slice(3);
                       
-                      // Remove visually before we do the work to prevent "stuck" look
+                      // Remove visually immediately
                       if (evt.item && evt.item.parentNode) {
                           evt.item.parentNode.removeChild(evt.item);
                       }
@@ -156,25 +155,36 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
               }
           }
 
-          // Resolve physical target list if in unified view
+          // 2. Resolve target list path (preserving board if in Unified view)
+          let targetListPath = evt.to.dataset.path;
+          
           if (targetIsUnified && movedCardOriginalPath) {
               const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
-              let cardBoardRoot = '';
-              for (const root of openBoards) {
-                  if (movedCardOriginalPath.startsWith(root)) {
-                      cardBoardRoot = root;
-                      break;
-                  }
-              }
+              const actualBoards = openBoards.filter(b => b !== '__unified__');
+              let cardBoardRoot = actualBoards.find(root => movedCardOriginalPath.startsWith(root));
 
               if (cardBoardRoot) {
                   const boardLists = await window.board.listLists(cardBoardRoot);
+                  let foundList = null;
                   for (const boardListName of boardLists) {
                       const boardListDisplayName = typeof getBoardListDisplayName === 'function' ? getBoardListDisplayName(boardListName) : boardListName;
                       if (boardListDisplayName === targetDisplayName) {
-                          targetListPath = cardBoardRoot + boardListName;
+                          foundList = boardListName;
                           break;
                       }
+                  }
+                  
+                  if (foundList) {
+                      targetListPath = cardBoardRoot + foundList;
+                  } else {
+                      // Create list on this board if missing
+                      const currentLists = await window.board.listLists(cardBoardRoot);
+                      const prefix = String(currentLists.length).padStart(3, '0');
+                      const suffix = typeof rand5 === 'function' ? await rand5() : 'stock';
+                      const newListName = `${prefix}-${targetDisplayName}-${suffix}`;
+                      const newListPath = cardBoardRoot + newListName;
+                      await window.board.createList(newListPath);
+                      targetListPath = newListPath;
                   }
               }
           }
@@ -185,44 +195,70 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           }
 
           const finalOrder = [...evt.to.querySelectorAll('.card')].map(card =>
-              card.getAttribute('data-path')  // array of CURRENT filenames in final order
+              card.getAttribute('data-path')
           );
 
-          // In unified view, we only want to reorder cards that belong to THIS physical list
-          const cardsBelongingToThisList = finalOrder.filter(path => path && path.includes(targetListPath));
+          // 3. Robust reordering
+          // Filter out cards NOT belonging to the physical target board/list
+          const cardsForThisPhysicalList = finalOrder.filter(path => path && path.startsWith(targetListPath.replace(/\/$/, '')));
           
-          const allCardsInPhysicalList = await window.board.listCards(targetListPath);
+          // If we moved a card from another list/board, it is now in finalOrder but its path is the original one
+          // We need to ensure it's included in the reordering if it's supposed to land in this physical list.
+          
+          const allCardsInTargetPhysicalList = await window.board.listCards(targetListPath);
 
-          let tempFileCounter = 0;
-          for (const fileName of allCardsInPhysicalList) {
-              await window.board.moveCard(targetListPath + '/' + fileName, targetListPath + '/' + fileName.replace('.md','.tmp'));
+          // Rename all existing files in target physical list to .tmp to avoid collisions during re-indexing
+          for (const fileName of allCardsInTargetPhysicalList) {
+              const fullPath = targetListPath.endsWith('/') ? targetListPath + fileName : targetListPath + '/' + fileName;
+              await window.board.moveCard(fullPath, fullPath.replace('.md', '.tmp'));
           }
 
           let fileCounter = 0;
           let movedCardNextPath = '';
+          
           for (const filePath of finalOrder) {
-              // If we are in unified view, we skip reordering for cards NOT in this list's board
-              if (targetIsUnified && (!filePath || !filePath.includes(targetListPath))) {
+              if (!filePath) continue;
+              
+              const belongsToThisBoard = filePath.startsWith(targetListPath.replace(/\/$/, ''));
+              const isTheMovedCard = (filePath === movedCardOriginalPath);
+              
+              // If in unified view, we only reorder cards that belong to this physical list's board
+              if (targetIsUnified && !belongsToThisBoard && !isTheMovedCard) {
+                  continue;
+              }
+              
+              // If it's the moved card but it's from another board, we still want to move it to THIS board's list?
+              // No, our resolution above ensured targetListPath matches the card's board if possible.
+              // If we are here and belongsToThisBoard is false, it means we are moving across boards 
+              // but NOT via a tab drop (just dragging between columns).
+              // In that case, the resolution above should have already updated targetListPath 
+              // to the matching list ON THE CARD'S ORIGINAL BOARD.
+              
+              // Wait, if targetListPath was updated to Card's board, then belongsToThisBoard SHOULD be true 
+              // for existing cards on that board in this column.
+              
+              if (!filePath.startsWith(targetListPath.replace(/\/$/, ''))) {
+                  // This card doesn't belong in the physical reordering of targetListPath
                   continue;
               }
 
-              let fileNumber = (fileCounter).toLocaleString('en-US', {
-                  minimumIntegerDigits: 3,
-                  useGrouping: false
-              });
-
-              let adjustedFrom;
-
-              if ( !filePath || !filePath.includes( targetListPath ) ) {
-                  adjustedFrom = filePath;
-              } else {
-                  adjustedFrom = filePath.replace('.md','.tmp');
+              let fileNumber = String(fileCounter).padStart(3, '0');
+              let adjustedFrom = filePath;
+              
+              // If it was already in this list, it now has a .tmp extension
+              const allCardsSet = new Set(allCardsInTargetPhysicalList);
+              const fileName = window.board.getCardFileName(filePath);
+              if (allCardsSet.has(fileName)) {
+                  adjustedFrom = filePath.replace('.md', '.tmp');
               }
 
-              let adjustedTo = targetListPath + '/' + fileNumber + window.board.getCardFileName(filePath).slice(3).replace('.tmp','.md');
+              const cardFileName = window.board.getCardFileName(filePath);
+              const nameWithoutPrefix = cardFileName.slice(3).replace('.tmp', '').replace('.md', '');
+              const adjustedTo = (targetListPath.endsWith('/') ? targetListPath : targetListPath + '/') + fileNumber + '-' + nameWithoutPrefix + '.md';
 
               await window.board.moveCard(adjustedFrom, adjustedTo);
-              if (movedCardOriginalPath && filePath === movedCardOriginalPath) {
+              
+              if (isTheMovedCard) {
                 movedCardNextPath = adjustedTo;
               }
 
