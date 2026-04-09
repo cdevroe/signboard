@@ -26,6 +26,7 @@ function getBoardRenderState() {
 }
 
 function destroyBoardSortables() {
+  cleanupSortableArtifacts();
   const state = getBoardRenderState();
 
   for (const sortable of state.activeSortables) {
@@ -36,6 +37,38 @@ function destroyBoardSortables() {
 
   state.activeSortables = [];
 }
+
+function cleanupSortableArtifacts() {
+    try {
+        // 1. Target standard Sortable.js classes
+        document.querySelectorAll('.sortable-drag, .sortable-ghost, .sortable-chosen, .sortable-fallback').forEach(el => {
+            if (el && el.parentNode) {
+                el.parentNode.removeChild(el);
+            }
+        });
+
+        // 2. Target ANY .card element that is not inside the main board
+        const board = document.getElementById('board');
+        document.querySelectorAll('.card').forEach(card => {
+            if (board && !board.contains(card)) {
+                if (card.parentNode) {
+                    card.parentNode.removeChild(card);
+                }
+            }
+        });
+
+        // 3. Final sweep of direct children of body that might be orphaned clones
+        Array.from(document.body.children).forEach(child => {
+            if (child.classList.contains('card') || (child.tagName === 'DIV' && child.querySelector('.card'))) {
+                document.body.removeChild(child);
+            }
+        });
+    } catch (e) {
+        console.warn('Failed to perform global Exterminator cleanup', e);
+    }
+}
+
+
 
 function storeBoardSortables(sortables) {
   const state = getBoardRenderState();
@@ -313,6 +346,10 @@ async function renderBoard() {
   const renderState = getBoardRenderState();
   const requestId = renderState.requestId + 1;
   renderState.requestId = requestId;
+  
+  // Wipe all drag-and-drop phantoms before every single render
+  cleanupSortableArtifacts();
+
   const boardRoot = window.boardRoot; // set in the drop-zone handler
   const UNIFIED_BOARD_PATH = '__unified__';
 
