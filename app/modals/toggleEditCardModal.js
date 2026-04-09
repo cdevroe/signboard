@@ -1037,7 +1037,8 @@ async function getOrderedListPaths(cardPath) {
     
     if (boardRoot === UNIFIED_BOARD_PATH && cardPath) {
         // Derive board root from card path
-        const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+        const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+        const openBoards = storedBoards.filter(b => b !== UNIFIED_BOARD_PATH);
         for (const root of openBoards) {
             if (cardPath.startsWith(root)) {
                 boardRoot = root;

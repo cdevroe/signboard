@@ -39,7 +39,8 @@ function formatLocalIsoDate(dateValue = new Date()) {
 }
 
 function getDueNotificationBoardRoots() {
-    const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const openBoards = storedBoards.filter(b => b !== '__unified__');
     if (Array.isArray(openBoards) && openBoards.length > 0) {
         return openBoards;
     }
@@ -708,8 +709,10 @@ async function init() {
     initializeTooltips();
 
     if (window.board && typeof window.board.adoptLegacyBoardRoots === 'function' && typeof getStoredOpenBoards === 'function') {
+        const storedBoards = getStoredOpenBoards();
+        const openBoards = storedBoards.filter(b => b !== '__unified__');
         try {
-            await window.board.adoptLegacyBoardRoots(getStoredOpenBoards());
+            await window.board.adoptLegacyBoardRoots(openBoards);
         } catch (error) {
             console.warn('Unable to migrate previously opened boards into trusted board access.', error);
         }

@@ -74,7 +74,8 @@ async function createCardElement(cardPath) {
     const boardIndicator = document.createElement('div');
     boardIndicator.className = 'card-board-indicator';
     
-    const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const openBoards = storedBoards.filter(b => b !== UNIFIED_BOARD_PATH);
     let boardPath = '';
     for (const root of openBoards) {
         if (cardPath.startsWith(root)) {

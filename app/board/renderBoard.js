@@ -342,7 +342,14 @@ async function renderBoard() {
   try {
     const boardNameEl = document.getElementById('boardName');
     const isUnified = boardRoot === UNIFIED_BOARD_PATH;
-    const openBoards = isUnified ? (typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : []) : [boardRoot];
+    
+    let openBoards = [];
+    if (isUnified) {
+        const stored = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+        openBoards = stored.filter(b => b !== UNIFIED_BOARD_PATH);
+    } else {
+        openBoards = [boardRoot];
+    }
     
     // For Unified view, we don't have a single board name
     const boardName = isUnified ? 'All Boards' : await window.board.getBoardName(boardRoot);

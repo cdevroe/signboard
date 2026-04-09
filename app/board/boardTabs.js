@@ -379,9 +379,6 @@ function renderBoardTabs() {
     const activeBoard = normalizeBoardPath(window.boardRoot || getStoredActiveBoard());
 
     const boardsToDisplay = [...openBoards];
-    if (openBoards.length > 1) {
-        boardsToDisplay.unshift(UNIFIED_BOARD_PATH);
-    }
 
     for (const boardPath of boardsToDisplay) {
         const boardTab = document.createElement('div');
@@ -439,28 +436,27 @@ function renderBoardTabs() {
             await renderBoard();
         });
 
-        boardTab.appendChild(tabButton);
-
-        if (boardPath !== UNIFIED_BOARD_PATH) {
-            const closeButton = document.createElement('button');
-            closeButton.type = 'button';
-            closeButton.classList.add('board-tab-close');
-            closeButton.setAttribute('aria-label', `Close ${getBoardLabelFromPath(boardPath)} board`);
-            closeButton.title = `Close ${getBoardLabelFromPath(boardPath)}`;
-            closeButton.textContent = '×';
-            closeButton.addEventListener('click', async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await closeBoardTab(boardPath);
-            });
-            boardTab.appendChild(closeButton);
-        } else {
-            // Give Unified tab a special icon or class
+        if (boardPath === UNIFIED_BOARD_PATH) {
             const icon = document.createElement('span');
             icon.className = 'board-tab-unified-icon';
             icon.innerHTML = '<i data-feather="layers"></i>';
             tabButton.prepend(icon);
         }
+
+        boardTab.appendChild(tabButton);
+
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.classList.add('board-tab-close');
+        closeButton.setAttribute('aria-label', `Close ${getBoardLabelFromPath(boardPath)} board`);
+        closeButton.title = `Close ${getBoardLabelFromPath(boardPath)}`;
+        closeButton.textContent = '×';
+        closeButton.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await closeBoardTab(boardPath);
+        });
+        boardTab.appendChild(closeButton);
 
         tabsEl.appendChild(boardTab);
     }
@@ -491,6 +487,41 @@ function renderBoardTabs() {
 
     addBoardTab.appendChild(addBoardButton);
     tabsEl.appendChild(addBoardTab);
+
+    const actualBoardsCount = openBoards.filter(b => b !== UNIFIED_BOARD_PATH).length;
+    if (actualBoardsCount > 1 && !openBoards.includes(UNIFIED_BOARD_PATH)) {
+        const addUnifiedTab = document.createElement('div');
+        addUnifiedTab.classList.add('board-tab', 'board-tab-add');
+        addUnifiedTab.setAttribute('role', 'presentation');
+
+        const addUnifiedButton = document.createElement('button');
+        addUnifiedButton.type = 'button';
+        addUnifiedButton.classList.add('board-tab-label', 'board-tab-add-label');
+        addUnifiedButton.innerHTML = '<i data-feather="layers" style="width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px;"></i> All Boards';
+        addUnifiedButton.title = 'Open All Boards view';
+        
+        if (openBoards.length >= MAX_OPEN_BOARDS) {
+            addUnifiedTab.classList.add('is-disabled');
+            addUnifiedButton.disabled = true;
+            addUnifiedButton.title = `Maximum ${MAX_OPEN_BOARDS} open boards`;
+        } else {
+            addUnifiedButton.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const updatedOpenBoards = [...openBoards, UNIFIED_BOARD_PATH];
+                setStoredOpenBoards(updatedOpenBoards);
+                
+                window.boardRoot = UNIFIED_BOARD_PATH;
+                setStoredActiveBoard(UNIFIED_BOARD_PATH);
+                if (typeof resetBoardLabelFilter === 'function') resetBoardLabelFilter();
+                if (typeof resetBoardSearch === 'function') resetBoardSearch();
+                await renderBoard();
+            });
+        }
+
+        addUnifiedTab.appendChild(addUnifiedButton);
+        tabsEl.appendChild(addUnifiedTab);
+    }
 
     initializeBoardTabsSortable(tabsEl, openBoards.length > 1);
 

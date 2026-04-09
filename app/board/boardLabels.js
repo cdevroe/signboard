@@ -1674,9 +1674,11 @@ async function applyThemeOverridesToOpenBoards() {
     return;
   }
 
+  const UNIFIED_BOARD_PATH = '__unified__';
   const sourceOverrides = getBoardThemeOverrides();
   const sourceBoard = window.boardRoot;
-  const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [sourceBoard];
+  const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [sourceBoard];
+  const openBoards = storedBoards.filter(b => b !== UNIFIED_BOARD_PATH);
 
   const targets = Array.isArray(openBoards) ? openBoards : [];
   for (const boardPath of targets) {
@@ -1701,9 +1703,11 @@ async function applyNotificationSettingsToOpenBoards() {
     return;
   }
 
+  const UNIFIED_BOARD_PATH = '__unified__';
   const sourceNotifications = getBoardNotificationSettings();
   const sourceBoard = window.boardRoot;
-  const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [sourceBoard];
+  const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [sourceBoard];
+  const openBoards = storedBoards.filter(b => b !== UNIFIED_BOARD_PATH);
   const targets = Array.isArray(openBoards) ? openBoards : [];
 
   for (const boardPath of targets) {
@@ -2342,7 +2346,8 @@ async function ensureBoardLabelsLoaded() {
   }
 
   if (window.boardRoot === UNIFIED_BOARD_PATH) {
-    const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const openBoards = storedBoards.filter(b => b !== UNIFIED_BOARD_PATH);
     const allLabels = [];
     const seenLabelIds = new Set();
 

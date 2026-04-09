@@ -752,7 +752,8 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
 
   const UNIFIED_BOARD_PATH = '__unified__';
   if (window.boardRoot === UNIFIED_BOARD_PATH) {
-    const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const openBoards = storedBoards.filter(b => b !== UNIFIED_BOARD_PATH);
     let boardPath = '';
     for (const root of openBoards) {
         if (cardEntry.cardPath.startsWith(root)) {
