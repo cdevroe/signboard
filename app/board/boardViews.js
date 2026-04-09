@@ -352,30 +352,34 @@ function createTemporalPlacementForDate(cardEntry, dueDateValue) {
   };
 }
 
-async function collectCardsForCalendar(boardRoot, lists) {
-  const listNames = Array.isArray(lists) ? lists : [];
+async function collectCardsForCalendar(boardRoots, lists) {
+  const roots = Array.isArray(boardRoots) ? boardRoots : [boardRoots];
   const cardPaths = [];
 
-  const listEntries = await Promise.all(
-    listNames.map(async (listName) => {
-      const listPath = `${boardRoot}${listName}`;
-      const cardNames = await window.board.listCards(listPath);
-      return {
-        listName,
-        listDisplayName: getBoardListDisplayName(listName),
-        listPath,
-        cardNames: Array.isArray(cardNames) ? cardNames : [],
-      };
-    }),
-  );
+  for (const boardRoot of roots) {
+    const listNames = Array.isArray(lists) ? lists : await window.board.listLists(boardRoot);
+    
+    const listEntries = await Promise.all(
+      listNames.map(async (listName) => {
+        const listPath = `${boardRoot}${listName}`;
+        const cardNames = await window.board.listCards(listPath);
+        return {
+          listName,
+          listDisplayName: getBoardListDisplayName(listName),
+          listPath,
+          cardNames: Array.isArray(cardNames) ? cardNames : [],
+        };
+      }),
+    );
 
-  for (const { listName, listDisplayName, listPath, cardNames } of listEntries) {
-    for (const cardName of cardNames) {
-      cardPaths.push({
-        listName,
-        listDisplayName,
-        cardPath: `${listPath}/${cardName}`,
-      });
+    for (const { listName, listDisplayName, listPath, cardNames } of listEntries) {
+      for (const cardName of cardNames) {
+        cardPaths.push({
+          listName,
+          listDisplayName,
+          cardPath: `${listPath}/${cardName}`,
+        });
+      }
     }
   }
 

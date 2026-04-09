@@ -1,11 +1,16 @@
 const OPEN_BOARDS_STORAGE_KEY = 'openBoardPaths';
 const ACTIVE_BOARD_STORAGE_KEY = 'activeBoardPath';
 const MAX_OPEN_BOARDS = 6;
+const UNIFIED_BOARD_PATH = '__unified__';
 let boardTabsSortable = null;
 
 function normalizeBoardPath(dir) {
     if (!dir || typeof dir !== 'string') {
         return '';
+    }
+
+    if (dir === UNIFIED_BOARD_PATH) {
+        return UNIFIED_BOARD_PATH;
     }
 
     const normalizedDir = dir.replace(/\\/g, '/').trim();
@@ -38,6 +43,10 @@ async function authorizeBoardAccess(selection) {
         return '';
     }
 
+    if (normalizedPath === UNIFIED_BOARD_PATH) {
+        return UNIFIED_BOARD_PATH;
+    }
+
     let result = null;
     if (
         selection &&
@@ -66,6 +75,9 @@ async function clearAuthorizedBoardAccess() {
 }
 
 function getBoardLabelFromPath(boardPath) {
+    if (boardPath === UNIFIED_BOARD_PATH) {
+        return 'All Boards';
+    }
     const normalizedPath = normalizeBoardPath(boardPath).replace(/\/+$/, '');
     const pathParts = normalizedPath.split('/').filter(Boolean);
     return pathParts[pathParts.length - 1] || 'Board';
@@ -366,12 +378,21 @@ function renderBoardTabs() {
     tabsWrapper.classList.remove('hidden');
     const activeBoard = normalizeBoardPath(window.boardRoot || getStoredActiveBoard());
 
-    for (const boardPath of openBoards) {
+    const boardsToDisplay = [...openBoards];
+    if (openBoards.length > 1) {
+        boardsToDisplay.unshift(UNIFIED_BOARD_PATH);
+    }
+
+    for (const boardPath of boardsToDisplay) {
         const boardTab = document.createElement('div');
         boardTab.classList.add('board-tab');
         boardTab.setAttribute('data-board-path', boardPath);
         boardTab.setAttribute('role', 'presentation');
-        boardTab.title = boardPath;
+        boardTab.title = boardPath === UNIFIED_BOARD_PATH ? 'View all open boards' : boardPath;
+
+        if (boardPath === UNIFIED_BOARD_PATH) {
+            boardTab.classList.add('board-tab-unified');
+        }
 
         const tabButton = document.createElement('button');
         tabButton.type = 'button';
@@ -418,20 +439,29 @@ function renderBoardTabs() {
             await renderBoard();
         });
 
-        const closeButton = document.createElement('button');
-        closeButton.type = 'button';
-        closeButton.classList.add('board-tab-close');
-        closeButton.setAttribute('aria-label', `Close ${getBoardLabelFromPath(boardPath)} board`);
-        closeButton.title = `Close ${getBoardLabelFromPath(boardPath)}`;
-        closeButton.textContent = '×';
-        closeButton.addEventListener('click', async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            await closeBoardTab(boardPath);
-        });
-
         boardTab.appendChild(tabButton);
-        boardTab.appendChild(closeButton);
+
+        if (boardPath !== UNIFIED_BOARD_PATH) {
+            const closeButton = document.createElement('button');
+            closeButton.type = 'button';
+            closeButton.classList.add('board-tab-close');
+            closeButton.setAttribute('aria-label', `Close ${getBoardLabelFromPath(boardPath)} board`);
+            closeButton.title = `Close ${getBoardLabelFromPath(boardPath)}`;
+            closeButton.textContent = '×';
+            closeButton.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await closeBoardTab(boardPath);
+            });
+            boardTab.appendChild(closeButton);
+        } else {
+            // Give Unified tab a special icon or class
+            const icon = document.createElement('span');
+            icon.className = 'board-tab-unified-icon';
+            icon.innerHTML = '<i data-feather="layers"></i>';
+            tabButton.prepend(icon);
+        }
+
         tabsEl.appendChild(boardTab);
     }
 
@@ -463,4 +493,8 @@ function renderBoardTabs() {
     tabsEl.appendChild(addBoardTab);
 
     initializeBoardTabsSortable(tabsEl, openBoards.length > 1);
+
+    if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
+        feather.replace();
+    }
 }

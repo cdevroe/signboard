@@ -3450,3 +3450,40 @@ select:disabled {
   .list { box-shadow: none; border-color: #bbb; }
   .card { box-shadow: none; border-color: #bbb; }
 }
+
+/* 12) Unified View Styles */
+.board-tab-unified {
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--border));
+  background: color-mix(in oklab, var(--accent) 8%, var(--bg-card));
+}
+
+.board-tab-unified .board-tab-unified-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  color: var(--accent);
+}
+
+.board-tab-unified .board-tab-unified-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.board-tab.board-tab-unified.is-active {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--bg-card) 85%, var(--accent) 15%) 0%,
+    var(--bg) 100%
+  );
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
+}
+
+.list--unified {
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--accent) 30%, var(--border));
+}
+
+.list--unified .list-header {
+  border-bottom-style: dashed;
+  color: var(--accent);
+}

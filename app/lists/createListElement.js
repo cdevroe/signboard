@@ -1,4 +1,5 @@
-async function createListElement(name, listPath, cardNames, options = {}) {
+async function createListElement(name, listPath, cardPaths, options = {}) {
+  const isUnified = options.isUnified === true;
   const listEl = document.createElement('div');
   listEl.className = 'list';
   listEl.dataset.path = listPath;
@@ -6,47 +7,57 @@ async function createListElement(name, listPath, cardNames, options = {}) {
   const header = document.createElement('div');
   header.className = 'list-header';
   const listName = document.createElement('span');
-  listName.setAttribute('contenteditable',true);
-  listName.setAttribute('data-listpath',listPath);
-  listName.textContent = name.substring(4,name.length-6);
+  
+  if (!isUnified) {
+    listName.setAttribute('contenteditable',true);
+    listName.setAttribute('data-listpath',listPath);
+    
+    listName.addEventListener('keydown', async function (e){
+        if ( e.code == 'Enter' ) { 
+          e.preventDefault(); 
+          return; }
+    });
 
-  listName.addEventListener('keydown', async function (e){
+    listName.addEventListener('keyup', async (e) => {
       if ( e.code == 'Enter' ) { 
         e.preventDefault(); 
-        
-        
-        return; }
-  });
-
-  listName.addEventListener('keyup', async (e) => {
-    if ( e.code == 'Enter' ) { 
-      e.preventDefault(); 
-      
-      await renameList(e);
-      
-      return;
-    }
-  });
-
-  listName.addEventListener('focusout', async (e) => { await renameList(e) });
-
-  const actionsBtn = document.createElement('button');
-  actionsBtn.type = 'button';
-  actionsBtn.className = 'list-actions-button';
-  actionsBtn.title = 'List actions';
-  actionsBtn.setAttribute('aria-label', 'List actions');
-  actionsBtn.innerHTML = '<i data-feather="more-horizontal"></i>';
-  actionsBtn.addEventListener('click', async function (e) {
-    e.stopPropagation();
-    toggleListActionsPopover({
-      anchorElement: actionsBtn,
-      listPath,
-      listDisplayName: listName.textContent,
-      cardCount: cardNames.length,
+        await renameList(e);
+        return;
+      }
     });
-  });
+
+    listName.addEventListener('focusout', async (e) => { await renameList(e) });
+  } else {
+    listEl.classList.add('list--unified');
+  }
+
+  // Handle names like "001-Todo-suffix" or just "Todo"
+  const displayName = typeof getBoardListDisplayName === 'function' 
+    ? getBoardListDisplayName(name) 
+    : (name.length > 10 ? name.substring(4, name.length - 6) : name);
+  
+  listName.textContent = displayName;
   header.appendChild(listName);
-  header.appendChild(actionsBtn);
+
+  if (!isUnified) {
+    const actionsBtn = document.createElement('button');
+    actionsBtn.type = 'button';
+    actionsBtn.className = 'list-actions-button';
+    actionsBtn.title = 'List actions';
+    actionsBtn.setAttribute('aria-label', 'List actions');
+    actionsBtn.innerHTML = '<i data-feather="more-horizontal"></i>';
+    actionsBtn.addEventListener('click', async function (e) {
+      e.stopPropagation();
+      toggleListActionsPopover({
+        anchorElement: actionsBtn,
+        listPath,
+        listDisplayName: listName.textContent,
+        cardCount: cardPaths.length,
+      });
+    });
+    header.appendChild(actionsBtn);
+  }
+
   listEl.appendChild(header);
 
   const cardsEl = document.createElement('div');
@@ -55,7 +66,7 @@ async function createListElement(name, listPath, cardNames, options = {}) {
   listEl.appendChild(cardsEl);
 
   const cardElements = await Promise.all(
-    cardNames.map((cardName) => createCardElement(listPath + '/' + cardName))
+    cardPaths.map((cardPath) => createCardElement(cardPath))
   );
 
   for (const cardEl of cardElements) {

@@ -1031,12 +1031,26 @@ function getCardEditorListDisplayName(directoryName) {
     return normalized || 'Untitled';
 }
 
-async function getOrderedListPaths() {
-    if (!window.boardRoot) {
+async function getOrderedListPaths(cardPath) {
+    let boardRoot = window.boardRoot;
+    const UNIFIED_BOARD_PATH = '__unified__';
+    
+    if (boardRoot === UNIFIED_BOARD_PATH && cardPath) {
+        // Derive board root from card path
+        const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+        for (const root of openBoards) {
+            if (cardPath.startsWith(root)) {
+                boardRoot = root;
+                break;
+            }
+        }
+    }
+
+    if (!boardRoot || boardRoot === UNIFIED_BOARD_PATH) {
         return [];
     }
-    const listNames = await window.board.listLists(window.boardRoot);
-    return listNames.map((listName) => window.boardRoot + listName);
+    const listNames = await window.board.listLists(boardRoot);
+    return listNames.map((listName) => boardRoot + listName);
 }
 
 async function updateCardEditorListDropdown(cardPath) {
@@ -1045,7 +1059,7 @@ async function updateCardEditorListDropdown(cardPath) {
         return;
     }
 
-    const listPaths = await getOrderedListPaths();
+    const listPaths = await getOrderedListPaths(cardPath);
     const currentListPath = getCardListPath(cardPath);
 
     listSelect.innerHTML = '';
@@ -1077,7 +1091,7 @@ async function updateCardEditorListDropdown(cardPath) {
 }
 
 async function resolveCardMoveTarget(cardPath) {
-    const listPaths = await getOrderedListPaths();
+    const listPaths = await getOrderedListPaths(cardPath);
     const currentListPath = getCardListPath(cardPath);
     const currentIndex = listPaths.indexOf(currentListPath);
 

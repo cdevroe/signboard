@@ -1886,10 +1886,11 @@ function scheduleBoardLabelSettingsSave() {
 
 function persistBoardSettings() {
   const state = getBoardLabelState();
+  const UNIFIED_BOARD_PATH = '__unified__';
 
   state.settingsSaveInFlight = state.settingsSaveInFlight
     .then(async () => {
-      if (!window.boardRoot) {
+      if (!window.boardRoot || window.boardRoot === UNIFIED_BOARD_PATH) {
         return;
       }
 
@@ -2322,6 +2323,7 @@ function resetBoardLabelFilter() {
 }
 
 async function ensureBoardLabelsLoaded() {
+  const UNIFIED_BOARD_PATH = '__unified__';
   if (!window.boardRoot) {
     const state = getBoardLabelState();
     state.importSummaryBoardRoot = '';
@@ -2336,6 +2338,32 @@ async function ensureBoardLabelsLoaded() {
     renderBoardGeneralSettingsControls();
     renderNotificationSettingsControls();
     renderBoardImportControls();
+    return;
+  }
+
+  if (window.boardRoot === UNIFIED_BOARD_PATH) {
+    const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const allLabels = [];
+    const seenLabelIds = new Set();
+
+    for (const boardPath of openBoards) {
+      try {
+        const settings = await window.board.readBoardSettings(boardPath);
+        if (settings && Array.isArray(settings.labels)) {
+          for (const label of settings.labels) {
+            if (!seenLabelIds.has(label.id)) {
+              allLabels.push(label);
+              seenLabelIds.add(label.id);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`Failed to load labels for ${boardPath}`, e);
+      }
+    }
+    setBoardLabels(allLabels);
+    // Use default theme for unified view for now
+    applyColorSchemeById('default', { renderControls: false });
     return;
   }
 

@@ -599,6 +599,14 @@ function requireWritablePath(sender, candidatePath) {
     return normalizedPath;
   }
 
+  // Also allow writing to any trusted root
+  const trustedRoots = readTrustedBoardRoots();
+  for (const trustedRoot of trustedRoots) {
+    if (isPathInsideRoot(trustedRoot, normalizedPath)) {
+      return normalizedPath;
+    }
+  }
+
   throw new Error('UNAUTHORIZED_PATH');
 }
 
@@ -2069,12 +2077,24 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
         throw new Error('INVALID_PATH');
       }
 
-      const senderState = getSenderBoardAccessState(event.sender);
+      const senderState = getSenderBoardAccessState(sender);
       const activeBoardRoot = senderState.activeBoardRoot;
       const movingBoardRoot = sourcePath === activeBoardRoot;
 
-      if (!movingBoardRoot && !isPathInsideRoot(activeBoardRoot, destinationPath)) {
-        throw new Error('UNAUTHORIZED_PATH');
+      if (!movingBoardRoot) {
+        let authorized = activeBoardRoot && isPathInsideRoot(activeBoardRoot, destinationPath);
+        if (!authorized) {
+          const trustedRoots = readTrustedBoardRoots();
+          for (const trustedRoot of trustedRoots) {
+            if (isPathInsideRoot(trustedRoot, destinationPath)) {
+              authorized = true;
+              break;
+            }
+          }
+        }
+        if (!authorized) {
+          throw new Error('UNAUTHORIZED_PATH');
+        }
       }
 
       await fsPromises.rename(sourcePath, destinationPath);
