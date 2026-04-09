@@ -252,21 +252,23 @@ function createBoardCardSortableOptions(options = {}) {
         unlockBoardCardTextSelection();
       };
 
-      try {
-        if (typeof baseOnEnd === 'function') {
-          const result = baseOnEnd.call(this, evt);
-          if (result && typeof result.then === 'function') {
-            return result.then(runCleanup, (err) => {
-              runCleanup();
-              throw err;
-            });
+      if (typeof baseOnEnd !== 'function') {
+        runCleanup();
+        return;
+      }
+
+      const result = baseOnEnd.call(this, evt);
+      if (result && typeof result.then === 'function') {
+        return result.then(
+          () => runCleanup(),
+          (err) => {
+            runCleanup();
+            throw err;
           }
-          return result;
-        }
-      } finally {
-        if (!(baseOnEnd && typeof baseOnEnd.then === 'function')) {
-          runCleanup();
-        }
+        );
+      } else {
+        runCleanup();
+        return result;
       }
     },
   };

@@ -99,7 +99,13 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           const targetDisplayName = evt && evt.to && evt.to.dataset ? evt.to.dataset.displayName : '';
 
           // 1. Detect if dropped on a board tab (Drag-to-Tab)
-          const targetBoardPath = window.__activeBoardDropTarget;
+          let targetBoardPath = window.__activeBoardDropTarget;
+          
+          // Fallback to class-based detection if global variable is missing
+          if (!targetBoardPath) {
+              const highlightedTab = document.querySelector('.board-tab--drop-target');
+              if (highlightedTab) targetBoardPath = highlightedTab.getAttribute('data-board-path');
+          }
 
           if (targetBoardPath) {
               const UNIFIED_BOARD_PATH = '__unified__';

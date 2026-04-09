@@ -461,16 +461,23 @@ function renderBoardTabs() {
         // Card drag and drop highlighting
         boardTab.addEventListener('mouseenter', () => {
             if (document.body.classList.contains('board-card-drag-active')) {
+                // Clear any other highlights first
+                document.querySelectorAll('.board-tab--drop-target').forEach(el => el.classList.remove('board-tab--drop-target'));
+                
                 window.__activeBoardDropTarget = boardPath;
                 boardTab.classList.add('board-tab--drop-target');
             }
         });
 
         boardTab.addEventListener('mouseleave', () => {
-            if (window.__activeBoardDropTarget === boardPath) {
-                window.__activeBoardDropTarget = null;
+            // ONLY remove if NOT dragging. If dragging, we want to keep the "last hovered" tab 
+            // as the drop target to be robust against slight mouse movements during drop.
+            if (!document.body.classList.contains('board-card-drag-active')) {
+                if (window.__activeBoardDropTarget === boardPath) {
+                    window.__activeBoardDropTarget = null;
+                }
+                boardTab.classList.remove('board-tab--drop-target');
             }
-            boardTab.classList.remove('board-tab--drop-target');
         });
 
         tabsEl.appendChild(boardTab);
