@@ -94,74 +94,67 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
       disabled: isBoardLabelFilterActive(),
       onEnd: async (evt) => {
           const movedCardOriginalPath = evt && evt.item ? evt.item.getAttribute('data-path') : '';
-          const sourceListPath = evt && evt.from ? evt.from.dataset.path : '';
+          const sourceListPath = evt && evt.from && evt.from.dataset ? evt.from.dataset.path : '';
           const targetIsUnified = evt && evt.to && evt.to.dataset ? evt.to.dataset.isUnified === 'true' : false;
           const targetDisplayName = evt && evt.to && evt.to.dataset ? evt.to.dataset.displayName : '';
 
           // 1. Detect if dropped on a board tab (Drag-to-Tab)
-          let targetBoardPath = window.__activeBoardDropTarget;
-          
-          // Fallback to class-based detection if global variable is missing
-          if (!targetBoardPath) {
-              const highlightedTab = document.querySelector('.board-tab--drop-target');
-              if (highlightedTab) targetBoardPath = highlightedTab.getAttribute('data-board-path');
-          }
+          const targetBoardPath = window.__activeBoardDropTarget;
 
           if (targetBoardPath) {
               const UNIFIED_BOARD_PATH = '__unified__';
               
-              if (targetBoardPath !== UNIFIED_BOARD_PATH) {
-                  // If dropped on own board tab, just switch to it and return
-                  if (movedCardOriginalPath.startsWith(targetBoardPath)) {
-                      window.boardRoot = targetBoardPath;
-                      if (typeof setStoredActiveBoard === 'function') setStoredActiveBoard(targetBoardPath);
-                      await renderBoard();
-                      return;
-                  }
-
+              if (targetBoardPath !== UNIFIED_BOARD_PATH && !movedCardOriginalPath.startsWith(targetBoardPath)) {
                   // Move card to different board
-                  const targetLists = await window.board.listLists(targetBoardPath);
-                  let targetListName = '';
-                  const sourceListDisplayName = evt && evt.from && evt.from.dataset ? evt.from.dataset.displayName : '';
+                  try {
+                      const targetLists = await window.board.listLists(targetBoardPath);
+                      let targetListName = '';
+                      const sourceListDisplayName = evt && evt.from && evt.from.dataset ? evt.from.dataset.displayName : '';
 
-                  for (const list of targetLists) {
-                      if (list.displayName === sourceListDisplayName) {
-                          targetListName = list.directoryName;
-                          break;
-                      }
-                  }
-
-                  if (!targetListName) {
-                      const nonArchive = targetLists.filter(l => !l.isArchive);
-                      if (nonArchive.length > 0) targetListName = nonArchive[0].directoryName;
-                  }
-
-                  if (targetListName) {
-                      const finalTargetListPath = targetBoardPath + targetListName;
-                      const cardFileName = window.board.getCardFileName(movedCardOriginalPath);
-                      const nextPrefix = await window.board.listCards(finalTargetListPath).then(cards => {
-                          const prefixes = cards.map(c => parseInt(c.slice(0, 3))).filter(n => !isNaN(n));
-                          const max = prefixes.length > 0 ? Math.max(...prefixes) : -1;
-                          return String(max + 1).padStart(3, '0');
-                      });
-                      const destinationPath = finalTargetListPath + '/' + nextPrefix + cardFileName.slice(3);
-                      
-                      // Remove visually immediately
-                      if (evt.item && evt.item.parentNode) {
-                          evt.item.parentNode.removeChild(evt.item);
+                      for (const list of targetLists) {
+                          if (list.displayName === sourceListDisplayName) {
+                              targetListName = list.directoryName;
+                              break;
+                          }
                       }
 
-                      await window.board.moveCard(movedCardOriginalPath, destinationPath);
-                      if (typeof window.board.recordCardListMove === 'function') {
-                          await window.board.recordCardListMove(destinationPath, sourceListPath, finalTargetListPath);
+                      if (!targetListName) {
+                          const nonArchive = targetLists.filter(l => !l.isArchive);
+                          if (nonArchive.length > 0) targetListName = nonArchive[0].directoryName;
                       }
 
-                      // Switch to the target board
-                      window.boardRoot = targetBoardPath;
-                      if (typeof setStoredActiveBoard === 'function') {
-                          setStoredActiveBoard(targetBoardPath);
+                      if (targetListName) {
+                          const finalTargetListPath = targetBoardPath + targetListName;
+                          const cardFileName = window.board.getCardFileName(movedCardOriginalPath);
+                          const nextPrefix = await window.board.listCards(finalTargetListPath).then(cards => {
+                              const prefixes = cards.map(c => parseInt(c.slice(0, 3))).filter(n => !isNaN(n));
+                              const max = prefixes.length > 0 ? Math.max(...prefixes) : -1;
+                              return String(max + 1).padStart(3, '0');
+                          });
+                          const destinationPath = finalTargetListPath + '/' + nextPrefix + cardFileName.slice(3);
+                          
+                          // Remove visually immediately
+                          if (evt.item && evt.item.parentNode) {
+                              evt.item.parentNode.removeChild(evt.item);
+                          }
+
+                          await window.board.moveCard(movedCardOriginalPath, destinationPath);
+                          
+                          // recordCardListMove only works if boardRoot matches. Derived boardRoot should match targetBoardPath here.
+                          // But recordCardListMove in lib/archive.js requires card to be inside boardRoot.
+                          // If we are moving BETWEEN boards, we probably should skip recording for now as it's not supported by the lib.
+                          
+                          // Switch to the target board
+                          window.boardRoot = targetBoardPath;
+                          if (typeof setStoredActiveBoard === 'function') {
+                              setStoredActiveBoard(targetBoardPath);
+                          }
+                          
+                          await renderBoard();
+                          return;
                       }
-                      
+                  } catch (e) {
+                      console.error('Failed to move card to another board', e);
                       await renderBoard();
                       return;
                   }
@@ -182,27 +175,33 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
               let cardBoardRoot = actualBoards.find(root => movedCardOriginalPath.startsWith(root));
 
               if (cardBoardRoot) {
-                  const boardLists = await window.board.listLists(cardBoardRoot);
-                  let foundList = null;
-                  for (const boardListName of boardLists) {
-                      const boardListDisplayName = typeof getBoardListDisplayName === 'function' ? getBoardListDisplayName(boardListName) : boardListName;
-                      if (boardListDisplayName === targetDisplayName) {
-                          foundList = boardListName;
-                          break;
+                  try {
+                      const boardLists = await window.board.listLists(cardBoardRoot);
+                      let foundList = null;
+                      for (const boardListName of boardLists) {
+                          const boardListDisplayName = typeof getBoardListDisplayName === 'function' ? getBoardListDisplayName(boardListName) : boardListName;
+                          if (boardListDisplayName === targetDisplayName) {
+                              foundList = boardListName;
+                              break;
+                          }
                       }
-                  }
-                  
-                  if (foundList) {
-                      targetListPath = cardBoardRoot + foundList;
-                  } else {
-                      // Create list on this board if missing
-                      const currentLists = await window.board.listLists(cardBoardRoot);
-                      const prefix = String(currentLists.length).padStart(3, '0');
-                      const suffix = typeof rand5 === 'function' ? await rand5() : 'stock';
-                      const newListName = `${prefix}-${targetDisplayName}-${suffix}`;
-                      const newListPath = cardBoardRoot + newListName;
-                      await window.board.createList(newListPath);
-                      targetListPath = newListPath;
+                      
+                      if (foundList) {
+                          targetListPath = cardBoardRoot + foundList;
+                      } else {
+                          // Create list on this board if missing
+                          const currentLists = await window.board.listLists(cardBoardRoot);
+                          const prefix = String(currentLists.length).padStart(3, '0');
+                          const suffix = typeof rand5 === 'function' ? await rand5() : 'stock';
+                          const newListName = `${prefix}-${targetDisplayName}-${suffix}`;
+                          const newListPath = cardBoardRoot + newListName;
+                          await window.board.createList(newListPath);
+                          targetListPath = newListPath;
+                      }
+                  } catch (e) {
+                      console.error('Failed to resolve target list in Unified view', e);
+                      await renderBoard();
+                      return;
                   }
               }
           }
@@ -212,67 +211,76 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
               return;
           }
 
-          const finalOrder = [...evt.to.querySelectorAll('.card')].map(card =>
-              card.getAttribute('data-path')
-          );
+          try {
+              const finalOrder = [...evt.to.querySelectorAll('.card')].map(card =>
+                  card.getAttribute('data-path')
+              );
 
-          // 3. Robust reordering
-          const resolvedPathBase = targetListPath.replace(/\/$/, '');
-          const allCardsInTargetPhysicalList = await window.board.listCards(targetListPath);
+              // 3. Robust reordering
+              const resolvedPathBase = targetListPath.replace(/\/$/, '');
+              const allCardsInTargetPhysicalList = await window.board.listCards(targetListPath);
 
-          // Rename all existing files in target physical list to .tmp to avoid collisions during re-indexing
-          for (const fileName of allCardsInTargetPhysicalList) {
-              const fullPath = targetListPath.endsWith('/') ? targetListPath + fileName : targetListPath + '/' + fileName;
-              await window.board.moveCard(fullPath, fullPath.replace('.md', '.tmp'));
-          }
-
-          let fileCounter = 0;
-          let movedCardNextPath = '';
-          
-          for (const filePath of finalOrder) {
-              if (!filePath) continue;
-              
-              const isTheMovedCard = (filePath === movedCardOriginalPath);
-              const belongsToThisBoard = filePath.startsWith(resolvedPathBase);
-              
-              // If in unified view, we only reorder cards that belong to this physical list's board
-              // OR the card we just moved into this column from another list on the same board
-              if (!belongsToThisBoard && !isTheMovedCard) {
-                  continue;
+              // Rename all existing files in target physical list to .tmp to avoid collisions during re-indexing
+              for (const fileName of allCardsInTargetPhysicalList) {
+                  const fullPath = targetListPath.endsWith('/') ? targetListPath + fileName : targetListPath + '/' + fileName;
+                  await window.board.moveCard(fullPath, fullPath.replace('.md', '.tmp'));
               }
 
-              let fileNumber = String(fileCounter).padStart(3, '0');
-              let adjustedFrom = filePath;
+              let fileCounter = 0;
+              let movedCardNextPath = '';
               
-              // If it was already in this list, it now has a .tmp extension
-              const allCardsSet = new Set(allCardsInTargetPhysicalList);
-              const fileName = window.board.getCardFileName(filePath);
-              if (allCardsSet.has(fileName)) {
-                  adjustedFrom = filePath.replace('.md', '.tmp');
+              for (const filePath of finalOrder) {
+                  if (!filePath) continue;
+                  
+                  const isTheMovedCard = (filePath === movedCardOriginalPath);
+                  const belongsToThisBoard = filePath.startsWith(resolvedPathBase);
+                  
+                  // If in unified view, we only reorder cards that belong to this physical list's board
+                  // OR the card we just moved into this column from another list on the same board
+                  if (!belongsToThisBoard && !isTheMovedCard) {
+                      continue;
+                  }
+
+                  let fileNumber = String(fileCounter).padStart(3, '0');
+                  let adjustedFrom = filePath;
+                  
+                  // If it was already in this list, it now has a .tmp extension
+                  const allCardsSet = new Set(allCardsInTargetPhysicalList);
+                  const fileName = window.board.getCardFileName(filePath);
+                  if (allCardsSet.has(fileName)) {
+                      adjustedFrom = filePath.replace('.md', '.tmp');
+                  }
+
+                  const cardFileName = window.board.getCardFileName(filePath);
+                  const fileNameSuffix = cardFileName.slice(3); // Fix: don't add extra hyphen, preserve existing suffix
+                  const adjustedTo = (targetListPath.endsWith('/') ? targetListPath : targetListPath + '/') + fileNumber + fileNameSuffix.replace('.tmp', '.md');
+
+                  await window.board.moveCard(adjustedFrom, adjustedTo);
+                  
+                  if (isTheMovedCard) {
+                    movedCardNextPath = adjustedTo;
+                  }
+
+                  fileCounter++;
               }
 
-              const cardFileName = window.board.getCardFileName(filePath);
-              const fileNameSuffix = cardFileName.slice(3); // Fix: don't add extra hyphen, preserve existing suffix
-              const adjustedTo = (targetListPath.endsWith('/') ? targetListPath : targetListPath + '/') + fileNumber + fileNameSuffix.replace('.tmp', '.md');
-
-              await window.board.moveCard(adjustedFrom, adjustedTo);
-              
-              if (isTheMovedCard) {
-                movedCardNextPath = adjustedTo;
+              if (
+                movedCardNextPath &&
+                sourceListPath &&
+                targetListPath &&
+                sourceListPath !== targetListPath &&
+                window.board &&
+                typeof window.board.recordCardListMove === 'function' &&
+                movedCardNextPath.startsWith(targetListPath.replace(/\/$/, '')) // Only record if same board
+              ) {
+                try {
+                    await window.board.recordCardListMove(movedCardNextPath, sourceListPath, targetListPath);
+                } catch (recErr) {
+                    console.warn('Failed to record card move activity', recErr);
+                }
               }
-
-              fileCounter++;
-          }
-
-          if (
-            movedCardNextPath &&
-            sourceListPath &&
-            targetListPath &&
-            sourceListPath !== targetListPath &&
-            window.board &&
-            typeof window.board.recordCardListMove === 'function'
-          ) {
-            await window.board.recordCardListMove(movedCardNextPath, sourceListPath, targetListPath);
+          } catch (e) {
+              console.error('Critical error during card movement/reordering', e);
           }
 
           await renderBoard();

@@ -615,6 +615,11 @@ function requireActiveBoardRootForSender(sender) {
   const activeBoardRoot = typeof senderState.activeBoardRoot === 'string'
     ? senderState.activeBoardRoot
     : '';
+  
+  if (activeBoardRoot === '__unified__') {
+    return '__unified__';
+  }
+
   if (!activeBoardRoot) {
     throw new Error('UNAUTHORIZED_BOARD_ROOT');
   }

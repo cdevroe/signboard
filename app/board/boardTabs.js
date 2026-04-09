@@ -457,30 +457,50 @@ function renderBoardTabs() {
             await closeBoardTab(boardPath);
         });
         boardTab.appendChild(closeButton);
+        tabsEl.appendChild(boardTab);
+    }
 
-        // Card drag and drop highlighting
-        boardTab.addEventListener('mouseenter', () => {
+    // Global drag tracking for tabs
+    if (!window.__tabDragTrackerInitialized) {
+        window.__tabDragTrackerInitialized = true;
+        document.addEventListener('mousemove', (e) => {
             if (document.body.classList.contains('board-card-drag-active')) {
-                // Clear any other highlights first
-                document.querySelectorAll('.board-tab--drop-target').forEach(el => el.classList.remove('board-tab--drop-target'));
+                const hit = document.elementFromPoint(e.clientX, e.clientY);
+                const boardTab = hit ? hit.closest('.board-tab[data-board-path]') : null;
                 
-                window.__activeBoardDropTarget = boardPath;
-                boardTab.classList.add('board-tab--drop-target');
-            }
-        });
+                // Clear highlights from other tabs
+                document.querySelectorAll('.board-tab--drop-target').forEach(el => {
+                    if (el !== boardTab) el.classList.remove('board-tab--drop-target');
+                });
+                
+                if (boardTab) {
+                    const boardPath = boardTab.getAttribute('data-board-path');
+                    const UNIFIED_BOARD_PATH = '__unified__';
+                    
+                    // Don't highlight if it's the "All Boards" tab or if the card already belongs to this board
+                    if (boardPath === UNIFIED_BOARD_PATH) {
+                        window.__activeBoardDropTarget = null;
+                        return;
+                    }
 
-        boardTab.addEventListener('mouseleave', () => {
-            // ONLY remove if NOT dragging. If dragging, we want to keep the "last hovered" tab 
-            // as the drop target to be robust against slight mouse movements during drop.
-            if (!document.body.classList.contains('board-card-drag-active')) {
-                if (window.__activeBoardDropTarget === boardPath) {
+                    if (typeof Sortable !== 'undefined' && Sortable.active && Sortable.active.options.group.name === 'cards') {
+                        const draggedItem = Sortable.active.dragged;
+                        const cardPath = draggedItem ? draggedItem.getAttribute('data-path') : null;
+                        if (cardPath && cardPath.startsWith(boardPath)) {
+                            window.__activeBoardDropTarget = null;
+                            return;
+                        }
+                    }
+
+                    window.__activeBoardDropTarget = boardPath;
+                    boardTab.classList.add('board-tab--drop-target');
+                } else {
                     window.__activeBoardDropTarget = null;
                 }
-                boardTab.classList.remove('board-tab--drop-target');
+            } else {
+                window.__activeBoardDropTarget = null;
             }
         });
-
-        tabsEl.appendChild(boardTab);
     }
 
     const addBoardTab = document.createElement('div');
