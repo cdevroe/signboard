@@ -99,12 +99,8 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           const targetIsUnified = evt.to.dataset.isUnified === 'true';
           const targetDisplayName = evt.to.dataset.displayName;
 
-          // Check if dropped on a board tab
-          const originalEvent = evt.originalEvent;
-          const clientX = originalEvent.clientX !== undefined ? originalEvent.clientX : (originalEvent.touches && originalEvent.touches[0] ? originalEvent.touches[0].clientX : (originalEvent.pageX - window.scrollX));
-          const clientY = originalEvent.clientY !== undefined ? originalEvent.clientY : (originalEvent.touches && originalEvent.touches[0] ? originalEvent.touches[0].clientY : (originalEvent.pageY - window.scrollY));
-          const dropTarget = document.elementFromPoint(clientX, clientY);
-          const boardTab = dropTarget ? dropTarget.closest('.board-tab[data-board-path]') : null;
+          // Check if dropped on a board tab - use the highlight class we set in mouseover
+          const boardTab = document.querySelector('.board-tab--drop-target');
 
           if (boardTab) {
               const targetBoardPath = boardTab.getAttribute('data-board-path');
