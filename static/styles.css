@@ -3488,6 +3488,14 @@ select:disabled {
   pointer-events: none !important;
 }
 
+/* Ensure tab sub-elements don't interfere with drag-to-tab detection */
+.board-card-drag-active .board-tab-label,
+.board-card-drag-active .board-tab-close,
+.board-card-drag-active .board-tab-unified-icon,
+.board-card-drag-active .board-tab-unified-icon svg {
+  pointer-events: none !important;
+}
+
 .list--unified {
   border-style: dashed;
   border-color: color-mix(in oklab, var(--accent) 30%, var(--border));

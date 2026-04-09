@@ -95,8 +95,8 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
       onEnd: async (evt) => {
           const movedCardOriginalPath = evt && evt.item ? evt.item.getAttribute('data-path') : '';
           const sourceListPath = evt && evt.from ? evt.from.dataset.path : '';
-          const targetIsUnified = evt.to.dataset.isUnified === 'true';
-          const targetDisplayName = evt.to.dataset.displayName;
+          const targetIsUnified = evt && evt.to && evt.to.dataset ? evt.to.dataset.isUnified === 'true' : false;
+          const targetDisplayName = evt && evt.to && evt.to.dataset ? evt.to.dataset.displayName : '';
 
           // 1. Detect if dropped on a board tab (Drag-to-Tab)
           const targetBoardPath = window.__activeBoardDropTarget;
@@ -104,11 +104,19 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           if (targetBoardPath) {
               const UNIFIED_BOARD_PATH = '__unified__';
               
-              if (targetBoardPath !== UNIFIED_BOARD_PATH && !movedCardOriginalPath.startsWith(targetBoardPath)) {
+              if (targetBoardPath !== UNIFIED_BOARD_PATH) {
+                  // If dropped on own board tab, just switch to it and return
+                  if (movedCardOriginalPath.startsWith(targetBoardPath)) {
+                      window.boardRoot = targetBoardPath;
+                      if (typeof setStoredActiveBoard === 'function') setStoredActiveBoard(targetBoardPath);
+                      await renderBoard();
+                      return;
+                  }
+
                   // Move card to different board
                   const targetLists = await window.board.listLists(targetBoardPath);
                   let targetListName = '';
-                  const sourceListDisplayName = evt.from.dataset.displayName;
+                  const sourceListDisplayName = evt && evt.from && evt.from.dataset ? evt.from.dataset.displayName : '';
 
                   for (const list of targetLists) {
                       if (list.displayName === sourceListDisplayName) {
@@ -155,6 +163,11 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           }
 
           // 2. Resolve target list path (preserving board if in Unified view)
+          if (!evt || !evt.to) {
+              await renderBoard();
+              return;
+          }
+
           let targetListPath = evt.to.dataset.path;
           
           if (targetIsUnified && movedCardOriginalPath) {
@@ -233,8 +246,8 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
               }
 
               const cardFileName = window.board.getCardFileName(filePath);
-              const nameWithoutPrefix = cardFileName.slice(3).replace('.tmp', '').replace('.md', '');
-              const adjustedTo = (targetListPath.endsWith('/') ? targetListPath : targetListPath + '/') + fileNumber + '-' + nameWithoutPrefix + '.md';
+              const fileNameSuffix = cardFileName.slice(3); // Fix: don't add extra hyphen, preserve existing suffix
+              const adjustedTo = (targetListPath.endsWith('/') ? targetListPath : targetListPath + '/') + fileNumber + fileNameSuffix.replace('.tmp', '.md');
 
               await window.board.moveCard(adjustedFrom, adjustedTo);
               

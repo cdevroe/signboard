@@ -461,15 +461,8 @@ function renderBoardTabs() {
         // Card drag and drop highlighting
         boardTab.addEventListener('mouseenter', () => {
             if (document.body.classList.contains('board-card-drag-active')) {
-                if (typeof Sortable !== 'undefined' && Sortable.active && Sortable.active.options.group.name === 'cards') {
-                    const draggedItem = Sortable.active.dragged;
-                    const cardPath = draggedItem ? draggedItem.getAttribute('data-path') : null;
-                    if (boardPath !== UNIFIED_BOARD_PATH && cardPath && cardPath.startsWith(boardPath)) {
-                        return;
-                    }
-                    window.__activeBoardDropTarget = boardPath;
-                    boardTab.classList.add('board-tab--drop-target');
-                }
+                window.__activeBoardDropTarget = boardPath;
+                boardTab.classList.add('board-tab--drop-target');
             }
         });
 
