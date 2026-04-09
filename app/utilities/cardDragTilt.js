@@ -36,6 +36,7 @@ function unlockBoardCardTextSelection() {
   for (const target of dropTargets) {
     target.classList.remove('board-tab--drop-target');
   }
+  window.__activeBoardDropTarget = null;
 }
 
 function isBoardCardDragTiltElement(element) {

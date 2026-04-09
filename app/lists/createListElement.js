@@ -99,13 +99,12 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           const targetDisplayName = evt.to.dataset.displayName;
 
           // 1. Detect if dropped on a board tab (Drag-to-Tab)
-          const boardTab = document.querySelector('.board-tab--drop-target');
+          const targetBoardPath = window.__activeBoardDropTarget;
 
-          if (boardTab) {
-              const targetBoardPath = boardTab.getAttribute('data-board-path');
+          if (targetBoardPath) {
               const UNIFIED_BOARD_PATH = '__unified__';
               
-              if (targetBoardPath && targetBoardPath !== UNIFIED_BOARD_PATH && !movedCardOriginalPath.startsWith(targetBoardPath)) {
+              if (targetBoardPath !== UNIFIED_BOARD_PATH && !movedCardOriginalPath.startsWith(targetBoardPath)) {
                   // Move card to different board
                   const targetLists = await window.board.listLists(targetBoardPath);
                   let targetListName = '';
@@ -199,12 +198,7 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           );
 
           // 3. Robust reordering
-          // Filter out cards NOT belonging to the physical target board/list
-          const cardsForThisPhysicalList = finalOrder.filter(path => path && path.startsWith(targetListPath.replace(/\/$/, '')));
-          
-          // If we moved a card from another list/board, it is now in finalOrder but its path is the original one
-          // We need to ensure it's included in the reordering if it's supposed to land in this physical list.
-          
+          const resolvedPathBase = targetListPath.replace(/\/$/, '');
           const allCardsInTargetPhysicalList = await window.board.listCards(targetListPath);
 
           // Rename all existing files in target physical list to .tmp to avoid collisions during re-indexing
@@ -219,26 +213,12 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           for (const filePath of finalOrder) {
               if (!filePath) continue;
               
-              const belongsToThisBoard = filePath.startsWith(targetListPath.replace(/\/$/, ''));
               const isTheMovedCard = (filePath === movedCardOriginalPath);
+              const belongsToThisBoard = filePath.startsWith(resolvedPathBase);
               
               // If in unified view, we only reorder cards that belong to this physical list's board
-              if (targetIsUnified && !belongsToThisBoard && !isTheMovedCard) {
-                  continue;
-              }
-              
-              // If it's the moved card but it's from another board, we still want to move it to THIS board's list?
-              // No, our resolution above ensured targetListPath matches the card's board if possible.
-              // If we are here and belongsToThisBoard is false, it means we are moving across boards 
-              // but NOT via a tab drop (just dragging between columns).
-              // In that case, the resolution above should have already updated targetListPath 
-              // to the matching list ON THE CARD'S ORIGINAL BOARD.
-              
-              // Wait, if targetListPath was updated to Card's board, then belongsToThisBoard SHOULD be true 
-              // for existing cards on that board in this column.
-              
-              if (!filePath.startsWith(targetListPath.replace(/\/$/, ''))) {
-                  // This card doesn't belong in the physical reordering of targetListPath
+              // OR the card we just moved into this column from another list on the same board
+              if (!belongsToThisBoard && !isTheMovedCard) {
                   continue;
               }
 

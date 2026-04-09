@@ -458,34 +458,29 @@ function renderBoardTabs() {
         });
         boardTab.appendChild(closeButton);
 
-        tabsEl.appendChild(boardTab);
-    }
-
-    // Initialize global drag tracking for tabs if not already done
-    if (!window.__tabDragTrackerInitialized) {
-        window.__tabDragTrackerInitialized = true;
-        document.addEventListener('mousemove', (e) => {
+        // Card drag and drop highlighting
+        boardTab.addEventListener('mouseenter', () => {
             if (document.body.classList.contains('board-card-drag-active')) {
-                const hit = document.elementFromPoint(e.clientX, e.clientY);
-                const boardTab = hit ? hit.closest('.board-tab[data-board-path]') : null;
-                
-                document.querySelectorAll('.board-tab--drop-target').forEach(el => {
-                    if (el !== boardTab) el.classList.remove('board-tab--drop-target');
-                });
-                
-                if (boardTab) {
-                    if (typeof Sortable !== 'undefined' && Sortable.active && Sortable.active.options.group.name === 'cards') {
-                        const draggedItem = Sortable.active.dragged;
-                        const cardPath = draggedItem ? draggedItem.getAttribute('data-path') : null;
-                        const targetBoardPath = boardTab.getAttribute('data-board-path');
-                        if (targetBoardPath !== '__unified__' && cardPath && cardPath.startsWith(targetBoardPath)) {
-                            return;
-                        }
-                        boardTab.classList.add('board-tab--drop-target');
+                if (typeof Sortable !== 'undefined' && Sortable.active && Sortable.active.options.group.name === 'cards') {
+                    const draggedItem = Sortable.active.dragged;
+                    const cardPath = draggedItem ? draggedItem.getAttribute('data-path') : null;
+                    if (boardPath !== UNIFIED_BOARD_PATH && cardPath && cardPath.startsWith(boardPath)) {
+                        return;
                     }
+                    window.__activeBoardDropTarget = boardPath;
+                    boardTab.classList.add('board-tab--drop-target');
                 }
             }
         });
+
+        boardTab.addEventListener('mouseleave', () => {
+            if (window.__activeBoardDropTarget === boardPath) {
+                window.__activeBoardDropTarget = null;
+            }
+            boardTab.classList.remove('board-tab--drop-target');
+        });
+
+        tabsEl.appendChild(boardTab);
     }
 
     const addBoardTab = document.createElement('div');
