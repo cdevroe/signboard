@@ -138,10 +138,22 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
                       });
                       const destinationPath = finalTargetListPath + '/' + nextPrefix + cardFileName.slice(3);
                       
+                      // Remove visually before we do the work to prevent "stuck" look
+                      if (evt.item && evt.item.parentNode) {
+                          evt.item.parentNode.removeChild(evt.item);
+                      }
+
                       await window.board.moveCard(movedCardOriginalPath, destinationPath);
                       if (typeof window.board.recordCardListMove === 'function') {
                           await window.board.recordCardListMove(destinationPath, sourceListPath, finalTargetListPath);
                       }
+
+                      // Switch to the target board
+                      window.boardRoot = targetBoardPath;
+                      if (typeof setStoredActiveBoard === 'function') {
+                          setStoredActiveBoard(targetBoardPath);
+                      }
+                      
                       await renderBoard();
                       return;
                   }
@@ -181,7 +193,7 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           );
 
           // In unified view, we only want to reorder cards that belong to THIS physical list
-          const cardsBelongingToThisList = finalOrder.filter(path => path.includes(targetListPath));
+          const cardsBelongingToThisList = finalOrder.filter(path => path && path.includes(targetListPath));
           
           const allCardsInPhysicalList = await window.board.listCards(targetListPath);
 
@@ -194,7 +206,7 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           let movedCardNextPath = '';
           for (const filePath of finalOrder) {
               // If we are in unified view, we skip reordering for cards NOT in this list's board
-              if (targetIsUnified && !filePath.includes(targetListPath)) {
+              if (targetIsUnified && (!filePath || !filePath.includes(targetListPath))) {
                   continue;
               }
 
@@ -205,7 +217,7 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
 
               let adjustedFrom;
 
-              if ( !filePath.includes( targetListPath ) ) {
+              if ( !filePath || !filePath.includes( targetListPath ) ) {
                   adjustedFrom = filePath;
               } else {
                   adjustedFrom = filePath.replace('.md','.tmp');
