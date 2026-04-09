@@ -94,17 +94,44 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
       disabled: isBoardLabelFilterActive(),
       onEnd: async (evt) => {
           const movedCardOriginalPath = evt && evt.item ? evt.item.getAttribute('data-path') : '';
-          const sourceListPath = evt && evt.from && evt.from.dataset ? evt.from.dataset.path : '';
+          const sourceListPath = evt && evt.from ? evt.from.dataset.path : '';
           const targetIsUnified = evt && evt.to && evt.to.dataset ? evt.to.dataset.isUnified === 'true' : false;
           const targetDisplayName = evt && evt.to && evt.to.dataset ? evt.to.dataset.displayName : '';
 
-          // 1. Detect if dropped on a board tab (Drag-to-Tab)
-          const targetBoardPath = window.__activeBoardDropTarget;
+          // 1. Manual Hit-Test for Board Tabs (Drag-to-Tab)
+          // originalEvent might be a MouseEvent or TouchEvent
+          const originalEvent = evt.originalEvent;
+          let clientX, clientY;
+          
+          if (originalEvent) {
+              clientX = originalEvent.clientX !== undefined ? originalEvent.clientX : (originalEvent.touches && originalEvent.touches[0] ? originalEvent.touches[0].clientX : 0);
+              clientY = originalEvent.clientY !== undefined ? originalEvent.clientY : (originalEvent.touches && originalEvent.touches[0] ? originalEvent.touches[0].clientY : 0);
+          }
+
+          let targetBoardPath = null;
+          if (clientX !== undefined && clientY !== undefined) {
+              const tabs = document.querySelectorAll('.board-tab[data-board-path]');
+              for (const tab of tabs) {
+                  const rect = tab.getBoundingClientRect();
+                  if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+                      targetBoardPath = tab.getAttribute('data-board-path');
+                      break;
+                  }
+              }
+          }
 
           if (targetBoardPath) {
               const UNIFIED_BOARD_PATH = '__unified__';
               
-              if (targetBoardPath !== UNIFIED_BOARD_PATH && !movedCardOriginalPath.startsWith(targetBoardPath)) {
+              if (targetBoardPath !== UNIFIED_BOARD_PATH) {
+                  // If dropped on own board tab, just switch to it and return
+                  if (movedCardOriginalPath && movedCardOriginalPath.startsWith(targetBoardPath)) {
+                      window.boardRoot = targetBoardPath;
+                      if (typeof setStoredActiveBoard === 'function') setStoredActiveBoard(targetBoardPath);
+                      await renderBoard();
+                      return;
+                  }
+
                   // Move card to different board
                   try {
                       const targetLists = await window.board.listLists(targetBoardPath);
@@ -133,23 +160,13 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
                           });
                           const destinationPath = finalTargetListPath + '/' + nextPrefix + cardFileName.slice(3);
                           
-                          // Remove visually immediately
-                          if (evt.item && evt.item.parentNode) {
-                              evt.item.parentNode.removeChild(evt.item);
-                          }
-
-                          await window.board.moveCard(movedCardOriginalPath, destinationPath);
-                          
-                          // recordCardListMove only works if boardRoot matches. Derived boardRoot should match targetBoardPath here.
-                          // But recordCardListMove in lib/archive.js requires card to be inside boardRoot.
-                          // If we are moving BETWEEN boards, we probably should skip recording for now as it's not supported by the lib.
-                          
-                          // Switch to the target board
+                          // Switch to the target board state first
                           window.boardRoot = targetBoardPath;
                           if (typeof setStoredActiveBoard === 'function') {
                               setStoredActiveBoard(targetBoardPath);
                           }
-                          
+
+                          await window.board.moveCard(movedCardOriginalPath, destinationPath);
                           await renderBoard();
                           return;
                       }
