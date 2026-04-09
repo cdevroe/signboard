@@ -3484,6 +3484,10 @@ select:disabled {
   background: color-mix(in oklab, var(--accent) 15%, var(--bg-card)) !important;
 }
 
+.card-sortable--fallback {
+  pointer-events: none !important;
+}
+
 .list--unified {
   border-style: dashed;
   border-color: color-mix(in oklab, var(--accent) 30%, var(--border));

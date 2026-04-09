@@ -101,8 +101,8 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
 
           // Check if dropped on a board tab
           const originalEvent = evt.originalEvent;
-          const clientX = originalEvent.clientX || (originalEvent.touches && originalEvent.touches[0] ? originalEvent.touches[0].clientX : 0);
-          const clientY = originalEvent.clientY || (originalEvent.touches && originalEvent.touches[0] ? originalEvent.touches[0].clientY : 0);
+          const clientX = originalEvent.clientX !== undefined ? originalEvent.clientX : (originalEvent.touches && originalEvent.touches[0] ? originalEvent.touches[0].clientX : (originalEvent.pageX - window.scrollX));
+          const clientY = originalEvent.clientY !== undefined ? originalEvent.clientY : (originalEvent.touches && originalEvent.touches[0] ? originalEvent.touches[0].clientY : (originalEvent.pageY - window.scrollY));
           const dropTarget = document.elementFromPoint(clientX, clientY);
           const boardTab = dropTarget ? dropTarget.closest('.board-tab[data-board-path]') : null;
 

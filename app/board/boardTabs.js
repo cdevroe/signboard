@@ -394,7 +394,6 @@ function renderBoardTabs() {
         const tabButton = document.createElement('button');
         tabButton.type = 'button';
         tabButton.classList.add('board-tab-label');
-        tabButton.style.pointerEvents = 'none'; // Ensure hit test finds the parent .board-tab
         tabButton.textContent = getBoardLabelFromPath(boardPath);
         tabButton.setAttribute('role', 'tab');
         tabButton.setAttribute('aria-selected', boardPath === activeBoard ? 'true' : 'false');
