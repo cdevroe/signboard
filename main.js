@@ -623,9 +623,9 @@ function requireActiveBoardRootForSender(sender) {
 }
 
 function authorizeTrustedBoardRootForSender(sender, boardRoot) {
-  const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
+  const normalizedBoardRoot = boardRoot === '__unified__' ? '__unified__' : normalizeBoardRootPath(boardRoot);
   const trustedRoots = readTrustedBoardRoots();
-  if (!normalizedBoardRoot || !trustedRoots.has(normalizedBoardRoot)) {
+  if (normalizedBoardRoot !== '__unified__' && (!normalizedBoardRoot || !trustedRoots.has(normalizedBoardRoot))) {
     return { ok: false, error: 'UNTRUSTED_BOARD_ROOT' };
   }
 
@@ -2062,10 +2062,29 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     }
 
     case 'recordCardListMove': {
-      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      let boardRoot = requireActiveBoardRootForSender(event.sender);
+      if (boardRoot === '__unified__') {
+        const cardPath = normalizeAbsolutePath(args[0]);
+        if (cardPath) {
+          const trustedRoots = readTrustedBoardRoots();
+          for (const root of trustedRoots) {
+            if (isPathInsideRoot(root, cardPath)) {
+              boardRoot = root;
+              break;
+            }
+          }
+        }
+      }
+
       const cardPath = requireWritablePath(event.sender, args[0]);
       const fromListPath = requireWritablePath(event.sender, args[1]);
       const toListPath = requireWritablePath(event.sender, args[2]);
+      
+      // If after derivation we still don't have a physical board root, we can't record.
+      if (boardRoot === '__unified__') {
+        return { ok: false, error: 'UNABLE_TO_DETERMINE_BOARD_ROOT' };
+      }
+
       return recordCardListMove(boardRoot, cardPath, fromListPath, toListPath);
     }
 
@@ -2077,7 +2096,7 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
         throw new Error('INVALID_PATH');
       }
 
-      const senderState = getSenderBoardAccessState(sender);
+      const senderState = getSenderBoardAccessState(event.sender);
       const activeBoardRoot = senderState.activeBoardRoot;
       const movingBoardRoot = sourcePath === activeBoardRoot;
 

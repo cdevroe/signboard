@@ -116,7 +116,7 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
                   adjustedFrom = filePath.replace('.md','.tmp');
               }
 
-              let adjustedTo = evt.to.dataset.path + '/' + fileNumber + await window.board.getCardFileName(filePath).slice(3).replace('.tmp','.md');
+              let adjustedTo = evt.to.dataset.path + '/' + fileNumber + window.board.getCardFileName(filePath).slice(3).replace('.tmp','.md');
 
               await window.board.moveCard(adjustedFrom, adjustedTo);
               if (movedCardOriginalPath && filePath === movedCardOriginalPath) {
@@ -156,7 +156,7 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
 }
 
 async function renameList( e ) {
-  const currentListName = await window.board.getListDirectoryName( e.target.dataset.listpath );
+  const currentListName = window.board.getListDirectoryName( e.target.dataset.listpath );
   const listNameMatch = currentListName.match(/^(\d{3}-)(.*?)(-[^-]{5}|-stock)$/);
 
   if (!listNameMatch) {
