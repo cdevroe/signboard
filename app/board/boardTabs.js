@@ -251,7 +251,7 @@ async function closeBoardTab(boardPath) {
         return;
     }
 
-    if (!closedActiveBoard) {
+    if (!closedActiveBoard && activeBoard !== UNIFIED_BOARD_PATH) {
         renderBoardTabs();
         return;
     }
