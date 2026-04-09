@@ -533,7 +533,7 @@ function renderBoardTabs() {
     const actualBoardsCount = openBoards.filter(b => b !== UNIFIED_BOARD_PATH).length;
     if (actualBoardsCount > 1 && !openBoards.includes(UNIFIED_BOARD_PATH)) {
         const addUnifiedTab = document.createElement('div');
-        addUnifiedTab.classList.add('board-tab', 'board-tab-add');
+        addUnifiedTab.classList.add('board-tab', 'board-tab-add', 'board-tab-unified-unopened');
         addUnifiedTab.setAttribute('role', 'presentation');
 
         const addUnifiedButton = document.createElement('button');

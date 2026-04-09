@@ -466,6 +466,18 @@ body:not(.board-empty) #boardTabs {
   padding-right: 12px;
 }
 
+.board-tab-unified-unopened {
+  opacity: 0.5;
+  filter: grayscale(0.5);
+  transition: opacity .15s ease, filter .15s ease;
+}
+
+.board-tab-unified-unopened:hover {
+  opacity: 1;
+  filter: grayscale(0);
+}
+
+
 .board-tab-add .board-tab-label {
   padding-right: 0;
 }
