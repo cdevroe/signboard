@@ -32,6 +32,10 @@ function unlockBoardCardTextSelection() {
   }
 
   document.body.classList.remove('board-card-drag-active');
+  const dropTargets = document.querySelectorAll('.board-tab--drop-target');
+  for (const target of dropTargets) {
+    target.classList.remove('board-tab--drop-target');
+  }
 }
 
 function isBoardCardDragTiltElement(element) {

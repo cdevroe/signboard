@@ -99,6 +99,55 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           const targetIsUnified = evt.to.dataset.isUnified === 'true';
           const targetDisplayName = evt.to.dataset.displayName;
 
+          // Check if dropped on a board tab
+          const originalEvent = evt.originalEvent;
+          const clientX = originalEvent.clientX || (originalEvent.touches && originalEvent.touches[0] ? originalEvent.touches[0].clientX : 0);
+          const clientY = originalEvent.clientY || (originalEvent.touches && originalEvent.touches[0] ? originalEvent.touches[0].clientY : 0);
+          const dropTarget = document.elementFromPoint(clientX, clientY);
+          const boardTab = dropTarget ? dropTarget.closest('.board-tab[data-board-path]') : null;
+
+          if (boardTab) {
+              const targetBoardPath = boardTab.getAttribute('data-board-path');
+              const UNIFIED_BOARD_PATH = '__unified__';
+              
+              if (targetBoardPath && targetBoardPath !== UNIFIED_BOARD_PATH && !movedCardOriginalPath.startsWith(targetBoardPath)) {
+                  // Move card to different board
+                  const targetLists = await window.board.listLists(targetBoardPath);
+                  let targetListName = '';
+                  const sourceListDisplayName = evt.from.dataset.displayName;
+
+                  for (const list of targetLists) {
+                      if (list.displayName === sourceListDisplayName) {
+                          targetListName = list.directoryName;
+                          break;
+                      }
+                  }
+
+                  if (!targetListName) {
+                      const nonArchive = targetLists.filter(l => !l.isArchive);
+                      if (nonArchive.length > 0) targetListName = nonArchive[0].directoryName;
+                  }
+
+                  if (targetListName) {
+                      const finalTargetListPath = targetBoardPath + targetListName;
+                      const cardFileName = window.board.getCardFileName(movedCardOriginalPath);
+                      const nextPrefix = await window.board.listCards(finalTargetListPath).then(cards => {
+                          const prefixes = cards.map(c => parseInt(c.slice(0, 3))).filter(n => !isNaN(n));
+                          const max = prefixes.length > 0 ? Math.max(...prefixes) : -1;
+                          return String(max + 1).padStart(3, '0');
+                      });
+                      const destinationPath = finalTargetListPath + '/' + nextPrefix + cardFileName.slice(3);
+                      
+                      await window.board.moveCard(movedCardOriginalPath, destinationPath);
+                      if (typeof window.board.recordCardListMove === 'function') {
+                          await window.board.recordCardListMove(destinationPath, sourceListPath, finalTargetListPath);
+                      }
+                      await renderBoard();
+                      return;
+                  }
+              }
+          }
+
           // Resolve physical target list if in unified view
           if (targetIsUnified && movedCardOriginalPath) {
               const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
