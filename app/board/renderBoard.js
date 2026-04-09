@@ -457,7 +457,8 @@ async function renderBoard() {
             listName: entry.listName,
             listPath: entry.listPath,
             cardPaths: entry.cardPaths,
-            isUnified: true
+            isUnified: true,
+            displayName: entry.displayName
         }));
     } else {
         const lists = await window.board.listLists(boardRoot);
@@ -469,16 +470,18 @@ async function renderBoard() {
             return { 
                 listName, 
                 listPath, 
-                cardPaths: cards.map(c => listPath + '/' + c) 
+                cardPaths: cards.map(c => listPath + '/' + c),
+                displayName: typeof getBoardListDisplayName === 'function' ? getBoardListDisplayName(listName) : listName
             };
           })
         );
     }
 
     const listBuilds = await Promise.all(
-      listsWithCards.map(({ listName, listPath, cardPaths, isUnified }) => createListElement(listName, listPath, cardPaths, {
+      listsWithCards.map(({ listName, listPath, cardPaths, isUnified, displayName }) => createListElement(listName, listPath, cardPaths, {
         deferSortableInit: true,
-        isUnified
+        isUnified,
+        displayName
       }))
     );
 

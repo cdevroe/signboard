@@ -445,6 +445,95 @@ function renderBoardTabs() {
 
         boardTab.appendChild(tabButton);
 
+        // Card drag and drop to tabs
+        boardTab.addEventListener('dragover', (e) => {
+            // Sortable.active.options.group.name check is a way to see if we are dragging a card
+            if (typeof Sortable !== 'undefined' && Sortable.active && Sortable.active.options.group.name === 'cards') {
+                const draggedItem = Sortable.active.dragged;
+                const cardPath = draggedItem.getAttribute('data-path');
+                // Don't highlight if the card already belongs to this board
+                if (boardPath !== UNIFIED_BOARD_PATH && cardPath.startsWith(boardPath)) {
+                    return;
+                }
+                
+                e.preventDefault();
+                boardTab.classList.add('board-tab--drop-target');
+            }
+        });
+
+        boardTab.addEventListener('dragleave', () => {
+            boardTab.classList.remove('board-tab--drop-target');
+        });
+
+        boardTab.addEventListener('drop', async (e) => {
+            boardTab.classList.remove('board-tab--drop-target');
+            if (typeof Sortable !== 'undefined' && Sortable.active && Sortable.active.options.group.name === 'cards') {
+                e.preventDefault();
+                const draggedItem = Sortable.active.dragged;
+                const cardPath = draggedItem.getAttribute('data-path');
+                const sourceListPath = draggedItem.parentElement.getAttribute('data-path');
+                const sourceListDisplayName = draggedItem.parentElement.getAttribute('data-displayName');
+
+                if (!cardPath || boardPath === UNIFIED_BOARD_PATH) {
+                    return;
+                }
+
+                // If dropping on same board, do nothing
+                if (cardPath.startsWith(boardPath)) {
+                    return;
+                }
+
+                // Find the best list on target board
+                const targetLists = await window.board.listLists(boardPath);
+                let targetListName = '';
+                
+                // Try to match by display name
+                for (const list of targetLists) {
+                    if (list.displayName === sourceListDisplayName) {
+                        targetListName = list.directoryName;
+                        break;
+                    }
+                }
+
+                // Fallback to first non-archive list
+                if (!targetListName) {
+                    const nonArchive = targetLists.filter(l => !l.isArchive);
+                    if (nonArchive.length > 0) {
+                        targetListName = nonArchive[0].directoryName;
+                    }
+                }
+
+                if (!targetListName) {
+                    return;
+                }
+
+                const targetListPath = boardPath + targetListName;
+                const cardFileName = window.board.getCardFileName(cardPath);
+                
+                // Ensure unique name by generating a new prefix if needed
+                // But moveCard just takes a destination path.
+                // We'll use insertCardFileAtTop logic implicitly if we could, 
+                // but moveCard is lower level. 
+                // For simplicity, we just append to the list.
+                const nextPrefix = await window.board.listCards(targetListPath).then(cards => {
+                    const prefixes = cards.map(c => parseInt(c.slice(0, 3))).filter(n => !isNaN(n));
+                    const max = prefixes.length > 0 ? Math.max(...prefixes) : -1;
+                    return String(max + 1).padStart(3, '0');
+                });
+
+                const newCardFileName = nextPrefix + cardFileName.slice(3);
+                const destinationPath = targetListPath + '/' + newCardFileName;
+
+                await window.board.moveCard(cardPath, destinationPath);
+                
+                if (typeof window.board.recordCardListMove === 'function') {
+                    await window.board.recordCardListMove(destinationPath, sourceListPath, targetListPath);
+                }
+
+                await renderBoard();
+            }
+        });
+
         const closeButton = document.createElement('button');
         closeButton.type = 'button';
         closeButton.classList.add('board-tab-close');

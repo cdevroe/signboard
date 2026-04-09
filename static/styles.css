@@ -3478,6 +3478,12 @@ select:disabled {
   border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
 }
 
+.board-tab--drop-target {
+  border-style: dashed !important;
+  border-color: var(--accent) !important;
+  background: color-mix(in oklab, var(--accent) 15%, var(--bg-card)) !important;
+}
+
 .list--unified {
   border-style: dashed;
   border-color: color-mix(in oklab, var(--accent) 30%, var(--border));

@@ -1,8 +1,13 @@
 async function createListElement(name, listPath, cardPaths, options = {}) {
   const isUnified = options.isUnified === true;
+  const listDisplayName = options.displayName || name;
   const listEl = document.createElement('div');
   listEl.className = 'list';
   listEl.dataset.path = listPath;
+  listEl.dataset.displayName = listDisplayName;
+  if (isUnified) {
+    listEl.dataset.isUnified = 'true';
+  }
 
   const header = document.createElement('div');
   header.className = 'list-header';
@@ -63,6 +68,10 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
   const cardsEl = document.createElement('div');
   cardsEl.className = 'cards';
   cardsEl.dataset.path = listPath;
+  cardsEl.dataset.displayName = listDisplayName;
+  if (isUnified) {
+    cardsEl.dataset.isUnified = 'true';
+  }
   listEl.appendChild(cardsEl);
 
   const cardElements = await Promise.all(
@@ -86,22 +95,59 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
       onEnd: async (evt) => {
           const movedCardOriginalPath = evt && evt.item ? evt.item.getAttribute('data-path') : '';
           const sourceListPath = evt && evt.from ? evt.from.dataset.path : '';
-          const targetListPath = evt && evt.to ? evt.to.dataset.path : '';
+          let targetListPath = evt && evt.to ? evt.to.dataset.path : '';
+          const targetIsUnified = evt.to.dataset.isUnified === 'true';
+          const targetDisplayName = evt.to.dataset.displayName;
+
+          // Resolve physical target list if in unified view
+          if (targetIsUnified && movedCardOriginalPath) {
+              const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+              let cardBoardRoot = '';
+              for (const root of openBoards) {
+                  if (movedCardOriginalPath.startsWith(root)) {
+                      cardBoardRoot = root;
+                      break;
+                  }
+              }
+
+              if (cardBoardRoot) {
+                  const boardLists = await window.board.listLists(cardBoardRoot);
+                  for (const boardListName of boardLists) {
+                      const boardListDisplayName = typeof getBoardListDisplayName === 'function' ? getBoardListDisplayName(boardListName) : boardListName;
+                      if (boardListDisplayName === targetDisplayName) {
+                          targetListPath = cardBoardRoot + boardListName;
+                          break;
+                      }
+                  }
+              }
+          }
+
+          if (!targetListPath) {
+              await renderBoard();
+              return;
+          }
 
           const finalOrder = [...evt.to.querySelectorAll('.card')].map(card =>
               card.getAttribute('data-path')  // array of CURRENT filenames in final order
           );
 
-          const allCardsInList = await window.board.listCards(evt.to.dataset.path);
+          // In unified view, we only want to reorder cards that belong to THIS physical list
+          const cardsBelongingToThisList = finalOrder.filter(path => path.includes(targetListPath));
+          
+          const allCardsInPhysicalList = await window.board.listCards(targetListPath);
 
           let tempFileCounter = 0;
-          for (const fileName of allCardsInList) {
-              await window.board.moveCard(evt.to.dataset.path + '/' + fileName, evt.to.dataset.path + '/' + fileName.replace('.md','.tmp'));
+          for (const fileName of allCardsInPhysicalList) {
+              await window.board.moveCard(targetListPath + '/' + fileName, targetListPath + '/' + fileName.replace('.md','.tmp'));
           }
 
           let fileCounter = 0;
           let movedCardNextPath = '';
           for (const filePath of finalOrder) {
+              // If we are in unified view, we skip reordering for cards NOT in this list's board
+              if (targetIsUnified && !filePath.includes(targetListPath)) {
+                  continue;
+              }
 
               let fileNumber = (fileCounter).toLocaleString('en-US', {
                   minimumIntegerDigits: 3,
@@ -110,13 +156,13 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
 
               let adjustedFrom;
 
-              if ( !filePath.includes( evt.to.dataset.path ) ) {
+              if ( !filePath.includes( targetListPath ) ) {
                   adjustedFrom = filePath;
               } else {
                   adjustedFrom = filePath.replace('.md','.tmp');
               }
 
-              let adjustedTo = evt.to.dataset.path + '/' + fileNumber + window.board.getCardFileName(filePath).slice(3).replace('.tmp','.md');
+              let adjustedTo = targetListPath + '/' + fileNumber + window.board.getCardFileName(filePath).slice(3).replace('.tmp','.md');
 
               await window.board.moveCard(adjustedFrom, adjustedTo);
               if (movedCardOriginalPath && filePath === movedCardOriginalPath) {
@@ -124,7 +170,6 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
               }
 
               fileCounter++;
-
           }
 
           if (
@@ -139,7 +184,6 @@ async function createListElement(name, listPath, cardPaths, options = {}) {
           }
 
           await renderBoard();
-          
       }
     }));
   };
