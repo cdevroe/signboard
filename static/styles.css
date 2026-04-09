@@ -3487,3 +3487,31 @@ select:disabled {
   border-bottom-style: dashed;
   color: var(--accent);
 }
+
+.card-board-indicator {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
+.board-temporal-card-board-name {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 6px;
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  background: color-mix(in oklab, var(--accent) 10%, var(--bg-card));
+  color: var(--accent);
+  font-size: 10px;
+  line-height: 1.15;
+  letter-spacing: .01em;
+  padding: 2px 6px;
+}

@@ -750,6 +750,27 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
   const footer = document.createElement('span');
   footer.className = 'board-temporal-card-footer';
 
+  const UNIFIED_BOARD_PATH = '__unified__';
+  if (window.boardRoot === UNIFIED_BOARD_PATH) {
+    const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    let boardPath = '';
+    for (const root of openBoards) {
+        if (cardEntry.cardPath.startsWith(root)) {
+            boardPath = root;
+            break;
+        }
+    }
+    const boardName = typeof getBoardLabelFromPath === 'function' 
+        ? getBoardLabelFromPath(boardPath) 
+        : boardPath.split('/').filter(Boolean).pop();
+        
+    const boardLabel = document.createElement('span');
+    boardLabel.className = 'board-temporal-card-board-name';
+    boardLabel.textContent = boardName;
+    boardLabel.title = `Board: ${boardName}`;
+    footer.appendChild(boardLabel);
+  }
+
   const listNameText = String(cardEntry.listDisplayName || '').trim();
   if (listNameText) {
     const listName = document.createElement('span');

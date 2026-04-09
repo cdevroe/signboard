@@ -69,6 +69,28 @@ async function createCardElement(cardPath) {
   cardLabelsWrap.className = 'card-labels';
   metadata.appendChild(cardLabelsWrap);
 
+  const UNIFIED_BOARD_PATH = '__unified__';
+  if (window.boardRoot === UNIFIED_BOARD_PATH) {
+    const boardIndicator = document.createElement('div');
+    boardIndicator.className = 'card-board-indicator';
+    
+    const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    let boardPath = '';
+    for (const root of openBoards) {
+        if (cardPath.startsWith(root)) {
+            boardPath = root;
+            break;
+        }
+    }
+    
+    const boardName = typeof getBoardLabelFromPath === 'function' 
+        ? getBoardLabelFromPath(boardPath) 
+        : boardPath.split('/').filter(Boolean).pop();
+        
+    boardIndicator.textContent = boardName;
+    cardFrame.prepend(boardIndicator);
+  }
+
   async function renderDueDateDisplay() {
     if (!dueDateValue) {
       formattedDue.textContent = '';
