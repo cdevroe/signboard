@@ -276,6 +276,65 @@ function parseDueDateStringToDate(dueDateValue) {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function captureTextareaScrollPosition(textarea) {
+    if (!textarea) {
+        return { top: 0, left: 0 };
+    }
+
+    return {
+        top: Number.isFinite(textarea.scrollTop) ? textarea.scrollTop : 0,
+        left: Number.isFinite(textarea.scrollLeft) ? textarea.scrollLeft : 0,
+    };
+}
+
+function restoreTextareaScrollPosition(textarea, scrollPosition) {
+    if (!textarea || !scrollPosition) {
+        return;
+    }
+
+    if (Number.isFinite(scrollPosition.top)) {
+        textarea.scrollTop = scrollPosition.top;
+    }
+
+    if (Number.isFinite(scrollPosition.left)) {
+        textarea.scrollLeft = scrollPosition.left;
+    }
+}
+
+function focusTextareaWithoutScrolling(textarea) {
+    if (!textarea || typeof textarea.focus !== 'function') {
+        return;
+    }
+
+    try {
+        textarea.focus({ preventScroll: true });
+    } catch {
+        textarea.focus();
+    }
+}
+
+function applyEditorTextareaValuePreservingScroll(textarea, nextValue, caretPosition) {
+    if (!textarea) {
+        return;
+    }
+
+    const scrollPosition = captureTextareaScrollPosition(textarea);
+    textarea.value = nextValue;
+    restoreTextareaScrollPosition(textarea, scrollPosition);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+    window.requestAnimationFrame(() => {
+        focusTextareaWithoutScrolling(textarea);
+        if (typeof textarea.setSelectionRange === 'function' && Number.isInteger(caretPosition) && caretPosition >= 0) {
+            textarea.setSelectionRange(caretPosition, caretPosition);
+        }
+        restoreTextareaScrollPosition(textarea, scrollPosition);
+        window.requestAnimationFrame(() => {
+            restoreTextareaScrollPosition(textarea, scrollPosition);
+        });
+    });
+}
+
 function openDueDatePickerAtTrigger({
     triggerElement,
     dueDateValue,
@@ -304,12 +363,6 @@ function openDueDatePickerAtTrigger({
         picker.setDate(initialDate);
     }
 
-    anchorInput.onchange = async () => {
-        if (String(anchorInput.value || '').trim().length === 0 && typeof onSelect === 'function') {
-            await onSelect('');
-        }
-    };
-
     picker.update({
         format: 'Y-m-d',
         autoClose: true,
@@ -335,6 +388,21 @@ function openDueDatePickerAtTrigger({
     picker.open();
     if (picker.popup) {
         picker.popup.classList.add('sb-themed-fdatepicker');
+        const clearButton = Array.from(
+            picker.popup.querySelectorAll('.fdatepicker-button-text'),
+        ).find((button) => String(button.textContent || '').trim().toLowerCase() === 'clear');
+
+        if (clearButton) {
+            clearButton.addEventListener('click', async () => {
+                if (typeof onSelect === 'function') {
+                    await onSelect('');
+                }
+
+                if (typeof picker.close === 'function') {
+                    picker.close();
+                }
+            }, { once: true });
+        }
     }
     if (typeof picker.setPosition === 'function') {
         picker.setPosition();
@@ -691,16 +759,7 @@ function setupTaskLineDueDateControls(editor) {
                 }
 
                 const caretPosition = getLineEndOffsetByLineIndex(nextValue, targetLineIndex);
-                textarea.value = nextValue;
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                window.requestAnimationFrame(() => {
-                    if (typeof textarea.focus === 'function') {
-                        textarea.focus();
-                    }
-                    if (typeof textarea.setSelectionRange === 'function') {
-                        textarea.setSelectionRange(caretPosition, caretPosition);
-                    }
-                });
+                applyEditorTextareaValuePreservingScroll(textarea, nextValue, caretPosition);
             });
 
             layer.appendChild(checkbox);
@@ -744,16 +803,7 @@ function setupTaskLineDueDateControls(editor) {
                         }
 
                         const caretPosition = getLineEndOffsetByLineIndex(nextValue, targetLineIndex);
-                        textarea.value = nextValue;
-                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                        window.requestAnimationFrame(() => {
-                            if (typeof textarea.focus === 'function') {
-                                textarea.focus();
-                            }
-                            if (typeof textarea.setSelectionRange === 'function') {
-                                textarea.setSelectionRange(caretPosition, caretPosition);
-                            }
-                        });
+                        applyEditorTextareaValuePreservingScroll(textarea, nextValue, caretPosition);
                     },
                 });
             });
