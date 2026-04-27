@@ -4,6 +4,7 @@ Start here before opening source files.
 
 - Read `docs/codex/PROJECT_CONTEXT.md` for architecture, data model, and behavior.
 - Read `docs/codex/FILE_STRUCTURE.md` for an annotated map of the repository.
+- Read `DESIGN.md` before changing the default theme, visual system, or UI component styling.
 - Treat `app/signboard.js` as generated output; edit the source modules in `app/**` and then run `./buildjs.sh`.
 - Tooltip UI is implemented in `app/ui/tooltips.js` and reads existing control labels (`title` / `aria-label` / `alt`) to keep tooltip copy centralized in markup.
 - App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`.
