@@ -7,6 +7,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board settings/theme shortcuts) + archive browse/restore IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
 - `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
+- `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
 - `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and menu-triggered renderer events, including archive browse/read/restore calls.
 - `index.html` - App shell, header board tab strip, board-menu/archive modal markup (including `#modalKeyboardShortcuts` and `#modalArchiveBrowser`), and deferred script/style includes.

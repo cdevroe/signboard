@@ -194,6 +194,36 @@ function setTaskListItemDueDateByLineIndex(bodyValue, lineIndex, dueDateValue) {
   return lines.join(newline);
 }
 
+function setTaskListItemCompletionByLineIndex(bodyValue, lineIndex, isCompleted) {
+  const body = String(bodyValue || '');
+  const requestedLineIndex = Number(lineIndex);
+  if (!Number.isInteger(requestedLineIndex) || requestedLineIndex < 0) {
+    return body;
+  }
+
+  const lines = body.split(/\r?\n/);
+  if (requestedLineIndex >= lines.length) {
+    return body;
+  }
+
+  const parsedLine = parseTaskListItemLine(lines[requestedLineIndex]);
+  if (!parsedLine) {
+    return body;
+  }
+
+  const checkboxMark = isCompleted ? 'x' : ' ';
+  lines[requestedLineIndex] = lines[requestedLineIndex].replace(
+    TASK_LIST_ITEM_PATTERN,
+    (match, prefix, state, content) => {
+      const newPrefix = prefix.replace(/\[[\sxX✓✔]*\]/, `[${checkboxMark}]`);
+      return `${newPrefix}${content}`;
+    },
+  );
+
+  const newline = body.includes('\r\n') ? '\r\n' : '\n';
+  return lines.join(newline);
+}
+
 function getLineEndOffsetByLineIndex(bodyValue, lineIndex) {
   const body = String(bodyValue || '');
   const requestedLineIndex = Number(lineIndex);

@@ -1462,6 +1462,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .modal h2 {
   margin: 15px 0 10px 0;
   font-size: var(--font-lg);
+  padding-left: 16px;
 }
 .modal textarea,
 .modal input {
@@ -2333,7 +2334,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 40px rgba(16, 24, 40, .12);
-  padding: 16px 16px 50px 35px;
+  padding: 16px 16px 50px 10px;
 }
 
 #modalBoardSettings {
@@ -2978,6 +2979,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   align-items: center;
   gap: 6px;
   min-width: 0;
+  margin-top: -10px;
 }
 #modalEditCard .cardEditorHeaderActions {
   display: flex;
@@ -3022,6 +3024,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   align-items: center;
   flex-wrap: wrap;
   gap: 14px;
+  padding-left: 16px;
 }
 #modalEditCard .cardEditorMetadataButtons a {
   display: inline-flex;
@@ -3213,7 +3216,16 @@ select:disabled {
 }
 
 #cardEditorOverType .overtype-container {
-  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol", sans-serif !important;
+}
+
+#cardEditorOverType .overtype-toolbar {
+  padding-left: 16px !important;
+}
+
+#cardEditorOverType .overtype-input,
+#cardEditorOverType .overtype-preview {
+  padding-left: 29px !important;
 }
 
 #cardEditorOverType .task-line-due-layer {
@@ -3228,8 +3240,8 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   border-radius: 999px;
   border: 1px solid color-mix(in oklab, var(--border) 84%, transparent);
@@ -3252,8 +3264,42 @@ select:disabled {
 }
 
 #cardEditorOverType .task-line-due-control svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+#cardEditorOverType .task-line-checkbox-control {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 84%, transparent);
+  background: color-mix(in oklab, var(--bg-card) 90%, transparent);
+  color: var(--muted);
+  box-shadow: 0 1px 3px var(--shadow-card);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+#cardEditorOverType .task-line-checkbox-control:hover {
+  border-color: color-mix(in oklab, var(--accent) 48%, var(--border));
+  color: color-mix(in oklab, var(--accent) 78%, var(--text));
+}
+
+#cardEditorOverType .task-line-checkbox-control.is-completed {
+  border-color: color-mix(in oklab, var(--task-progress-complete-color) 40%, var(--border));
+  background: color-mix(in oklab, var(--task-progress-complete-color) 12%, var(--bg-card));
+  color: var(--task-progress-complete-color);
+}
+
+#cardEditorOverType .task-line-checkbox-control svg {
+  width: 14px;
+  height: 14px;
   display: block;
 }
 

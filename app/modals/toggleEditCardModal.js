@@ -276,6 +276,65 @@ function parseDueDateStringToDate(dueDateValue) {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function captureTextareaScrollPosition(textarea) {
+    if (!textarea) {
+        return { top: 0, left: 0 };
+    }
+
+    return {
+        top: Number.isFinite(textarea.scrollTop) ? textarea.scrollTop : 0,
+        left: Number.isFinite(textarea.scrollLeft) ? textarea.scrollLeft : 0,
+    };
+}
+
+function restoreTextareaScrollPosition(textarea, scrollPosition) {
+    if (!textarea || !scrollPosition) {
+        return;
+    }
+
+    if (Number.isFinite(scrollPosition.top)) {
+        textarea.scrollTop = scrollPosition.top;
+    }
+
+    if (Number.isFinite(scrollPosition.left)) {
+        textarea.scrollLeft = scrollPosition.left;
+    }
+}
+
+function focusTextareaWithoutScrolling(textarea) {
+    if (!textarea || typeof textarea.focus !== 'function') {
+        return;
+    }
+
+    try {
+        textarea.focus({ preventScroll: true });
+    } catch {
+        textarea.focus();
+    }
+}
+
+function applyEditorTextareaValuePreservingScroll(textarea, nextValue, caretPosition) {
+    if (!textarea) {
+        return;
+    }
+
+    const scrollPosition = captureTextareaScrollPosition(textarea);
+    textarea.value = nextValue;
+    restoreTextareaScrollPosition(textarea, scrollPosition);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+    window.requestAnimationFrame(() => {
+        focusTextareaWithoutScrolling(textarea);
+        if (typeof textarea.setSelectionRange === 'function' && Number.isInteger(caretPosition) && caretPosition >= 0) {
+            textarea.setSelectionRange(caretPosition, caretPosition);
+        }
+        restoreTextareaScrollPosition(textarea, scrollPosition);
+        window.requestAnimationFrame(() => {
+            restoreTextareaScrollPosition(textarea, scrollPosition);
+        });
+    });
+}
+
 function openDueDatePickerAtTrigger({
     triggerElement,
     dueDateValue,
@@ -304,12 +363,6 @@ function openDueDatePickerAtTrigger({
         picker.setDate(initialDate);
     }
 
-    anchorInput.onchange = async () => {
-        if (String(anchorInput.value || '').trim().length === 0 && typeof onSelect === 'function') {
-            await onSelect('');
-        }
-    };
-
     picker.update({
         format: 'Y-m-d',
         autoClose: true,
@@ -335,6 +388,21 @@ function openDueDatePickerAtTrigger({
     picker.open();
     if (picker.popup) {
         picker.popup.classList.add('sb-themed-fdatepicker');
+        const clearButton = Array.from(
+            picker.popup.querySelectorAll('.fdatepicker-button-text'),
+        ).find((button) => String(button.textContent || '').trim().toLowerCase() === 'clear');
+
+        if (clearButton) {
+            clearButton.addEventListener('click', async () => {
+                if (typeof onSelect === 'function') {
+                    await onSelect('');
+                }
+
+                if (typeof picker.close === 'function') {
+                    picker.close();
+                }
+            }, { once: true });
+        }
     }
     if (typeof picker.setPosition === 'function') {
         picker.setPosition();
@@ -363,6 +431,23 @@ function getTaskLineDueControlIconMarkup(hasDueDate) {
     }
 
     return '<i data-feather="calendar" aria-hidden="true"></i>';
+}
+
+function getTaskLineCheckboxIconMarkup(isCompleted) {
+    const iconName = isCompleted ? 'check-square' : 'square';
+    if (
+        window.feather &&
+        window.feather.icons &&
+        typeof window.feather.icons[iconName]?.toSvg === 'function'
+    ) {
+        return window.feather.icons[iconName].toSvg({
+            width: 16,
+            height: 16,
+            stroke: 'currentColor',
+        });
+    }
+
+    return `<i data-feather="${iconName}" aria-hidden="true"></i>`;
 }
 
 function setupTaskLineDueDateControls(editor) {
@@ -624,7 +709,7 @@ function setupTaskLineDueDateControls(editor) {
         const style = window.getComputedStyle(textarea);
         const fontSize = toFiniteNumber(style.fontSize, 16);
         const lineHeight = Math.max(toFiniteNumber(style.lineHeight, fontSize * 1.6), 1);
-        const controlSize = 20;
+        const controlSize = 18;
         const lineStartPositions = getLineStartPositionByTaskIndex(taskItems);
         const visibleTop = -lineHeight;
         const visibleBottom = textarea.clientHeight + lineHeight;
@@ -637,18 +722,54 @@ function setupTaskLineDueDateControls(editor) {
 
             const measuredLineHeight = Math.max(toFiniteNumber(linePosition.height, lineHeight), lineHeight);
             const buttonTop = Math.round(
-                linePosition.top - textarea.scrollTop + ((measuredLineHeight - controlSize) / 2),
+                linePosition.top - textarea.scrollTop + ((measuredLineHeight - controlSize) / 2) + -3,
             );
             if (buttonTop < visibleTop || buttonTop > visibleBottom) {
                 continue;
             }
+
+            const controlLeft = Math.max(1, Math.round(linePosition.left - textarea.scrollLeft - 38));
+
+            const checkbox = document.createElement('button');
+            checkbox.type = 'button';
+            checkbox.className = 'task-line-checkbox-control';
+            if (taskItem.isCompleted) {
+                checkbox.classList.add('is-completed');
+            }
+            checkbox.dataset.lineIndex = String(taskItem.lineIndex);
+            checkbox.style.top = `${buttonTop}px`;
+            checkbox.style.left = `${controlLeft}px`;
+            checkbox.title = taskItem.isCompleted ? 'Mark incomplete' : 'Mark complete';
+            checkbox.setAttribute('aria-label', taskItem.isCompleted ? 'Mark task incomplete' : 'Mark task complete');
+            checkbox.innerHTML = getTaskLineCheckboxIconMarkup(taskItem.isCompleted);
+            checkbox.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const targetLineIndex = Number(checkbox.dataset.lineIndex);
+                const liveTaskItems = parseTaskListItems(textarea.value);
+                const liveTaskItem = liveTaskItems.find((item) => item.lineIndex === targetLineIndex);
+                if (!liveTaskItem) {
+                    return;
+                }
+
+                const nextValue = setTaskListItemCompletionByLineIndex(textarea.value, targetLineIndex, !liveTaskItem.isCompleted);
+                if (nextValue === textarea.value) {
+                    return;
+                }
+
+                const caretPosition = getLineEndOffsetByLineIndex(nextValue, targetLineIndex);
+                applyEditorTextareaValuePreservingScroll(textarea, nextValue, caretPosition);
+            });
+
+            layer.appendChild(checkbox);
 
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'task-line-due-control';
             button.dataset.lineIndex = String(taskItem.lineIndex);
             button.style.top = `${buttonTop}px`;
-            button.style.left = `${Math.max(1, Math.round(linePosition.left - textarea.scrollLeft - 22))}px`;
+            button.style.left = `${Math.round(controlLeft + 20)}px`;
 
             if (taskItem.due) {
                 const dueLabel = formatLongDueDateLabel(taskItem.due);
@@ -682,16 +803,7 @@ function setupTaskLineDueDateControls(editor) {
                         }
 
                         const caretPosition = getLineEndOffsetByLineIndex(nextValue, targetLineIndex);
-                        textarea.value = nextValue;
-                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                        window.requestAnimationFrame(() => {
-                            if (typeof textarea.focus === 'function') {
-                                textarea.focus();
-                            }
-                            if (typeof textarea.setSelectionRange === 'function') {
-                                textarea.setSelectionRange(caretPosition, caretPosition);
-                            }
-                        });
+                        applyEditorTextareaValuePreservingScroll(textarea, nextValue, caretPosition);
                     },
                 });
             });
@@ -806,7 +918,7 @@ async function toggleEditCardModal(cardPath, options = {}) {
         value: card.body,
         fontSize: '16px',
         lineHeight: 1.6,
-        fontFamily: '"JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        fontFamily: 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif',
         padding: '16px',
         toolbar: true,
         placeholder: 'Notes...',

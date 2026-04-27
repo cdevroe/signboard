@@ -217,6 +217,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Persists theme to localStorage.
   - Updates OverType theme to match app theme.
   - Renders the board-menu theme action label, shortcut hint, and accessible shortcut metadata.
+- `DESIGN.md` documents the default Signboard theme as Design.md-compatible tokens plus rationale; consult it before changing default palette, typography, spacing, shape, elevation, or core component styling.
 - `app/ui/tooltips.js`:
   - Provides custom app-styled tooltips for primary controls without third-party dependencies.
   - Sources tooltip text from existing control labels (`title`, `aria-label`, `alt`) and keeps styling aligned with board palette CSS variables.

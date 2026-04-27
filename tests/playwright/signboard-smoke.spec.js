@@ -67,6 +67,19 @@ async function openBoardMenu(page) {
   await expect(page.locator('#boardMenuPopover')).toBeVisible();
 }
 
+async function openFirstCardInEditor(page) {
+  await page.locator('.card').first().click();
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toBeVisible();
+}
+
+async function setEditorBody(page, body) {
+  await page.locator('#cardEditorOverType .overtype-input').evaluate((element, nextBody) => {
+    element.value = String(nextBody || '');
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  }, body);
+}
+
 const test = base.extend({
   boardRoot: async ({}, use) => {
     const fixture = await createFixtureBoard();
@@ -260,6 +273,52 @@ test('opens the keyboard shortcuts helper from the keyboard shortcut', async ({ 
 
   await page.keyboard.press('Escape');
   await expect(page.locator('#modalKeyboardShortcuts')).toBeHidden();
+});
+
+test('keeps the editor scroll position when toggling a task checkbox control', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  const taskLines = Array.from({ length: 40 }, (_, index) => `- [ ] Task ${index + 1}`).join('\n');
+  await setEditorBody(page, taskLines);
+
+  const textarea = page.locator('#cardEditorOverType .overtype-input');
+  const visibleCheckboxes = page.locator('#cardEditorOverType .task-line-checkbox-control');
+  await expect(visibleCheckboxes.first()).toBeVisible();
+
+  const initialScrollTop = await textarea.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event('scroll', { bubbles: true }));
+    return element.scrollTop;
+  });
+
+  expect(initialScrollTop).toBeGreaterThan(0);
+
+  await expect(visibleCheckboxes.last()).toBeVisible();
+  await visibleCheckboxes.last().click();
+  await page.waitForTimeout(150);
+
+  const finalScrollTop = await textarea.evaluate((element) => element.scrollTop);
+  expect(finalScrollTop).toBeGreaterThan(initialScrollTop - 10);
+});
+
+test('closes the task due date picker when clearing a task due date', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  await setEditorBody(page, '- [ ] (due: 2026-04-20) Follow up with beta testers');
+  await expect(page.locator('#cardEditorOverType .task-line-due-control.has-due')).toHaveCount(1);
+
+  await page.locator('#cardEditorOverType .task-line-due-control.has-due').click();
+  const datepickerPopup = page.locator('.sb-themed-fdatepicker');
+  await expect(datepickerPopup).toBeVisible();
+
+  await datepickerPopup.getByRole('button', { name: 'Clear' }).click();
+
+  await expect(datepickerPopup).toBeHidden();
+  await expect(page.locator('#cardEditorOverType .task-line-due-control.has-due')).toHaveCount(0);
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue(/^- \[ \] Follow up with beta testers$/);
+
+  await page.locator('#cardEditorOverType .task-line-due-control').click();
+  await expect(datepickerPopup).toBeVisible();
 });
 
 test('persists the board tooltip toggle and suppresses tooltips when disabled', async ({ page }) => {
