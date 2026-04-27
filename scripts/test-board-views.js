@@ -419,6 +419,11 @@ function run() {
   );
   assert.strictEqual(context.getShortcutHintText('boardSettings'), 'Ctrl+,');
   assert.strictEqual(context.getShortcutHintText('toggleTheme'), 'Ctrl+Shift+D');
+  assert.strictEqual(context.getShortcutHintText('cycleColorScheme'), 'Ctrl+Alt+Shift+C');
+  assert.strictEqual(context.getShortcutKeycapText('moveCardLeft'), 'Ctrl + Shift + [');
+  assert.strictEqual(context.getShortcutKeycapText('moveCardRight'), 'Ctrl + Shift + ]');
+  assert.strictEqual(context.getShortcutKeycapText('archiveCard'), 'Ctrl + Alt + Shift + Backspace');
+  assert.strictEqual(context.getShortcutHintText('archiveBrowser'), 'Ctrl+Shift+A');
   assert.strictEqual(context.getShortcutKeycapText('kanbanView'), 'Ctrl + 1');
 
   context.renderBoardViewPopover();

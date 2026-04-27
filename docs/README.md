@@ -22,7 +22,7 @@ If you want structured tool access from an agent, see [MCP Server](../MCP_README
 - Due dates, task lists, labels, and board views
 - Archiving and restoring cards and lists
 - Board settings including colors, labels, tooltips, notifications, and imports
-- Keyboard shortcuts
+- Keyboard shortcuts for creating cards/lists, switching views, cycling colors, moving open cards, archiving, and opening Archive
 - CLI setup, command reference, filters, JSON output, archive workflows, settings, and imports
 
 ## File-First Model

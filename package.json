@@ -28,6 +28,7 @@
     "test:cli-install": "node scripts/test-cli-install.js",
     "test:desktop-cli": "node scripts/test-desktop-cli.js",
     "test:frontmatter": "node scripts/test-frontmatter.js",
+    "test:card-ordering": "node scripts/test-card-ordering.js",
     "test:board-labels": "node scripts/test-board-labels.js",
     "test:mcp": "node scripts/test-mcp-server.js",
     "test:board-card-metadata": "node scripts/test-board-card-metadata.js",

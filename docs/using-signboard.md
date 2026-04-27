@@ -105,6 +105,8 @@ The card body is Markdown, so plain text notes, headings, lists, and checklists 
 
 Drag a card between lists in kanban view. You can also move it from the card editor by changing its list in the dropdown menu at the top of the card modal.
 
+The arrow action in the card editor moves the card to the adjacent list and places it at the top of that list. The card move keyboard shortcuts use the same top-of-list behavior.
+
 ### Duplicate a card
 
 Use the duplicate action in the card editor when you want a copy of the card, including its content and metadata. You can use this to make it quick and easy to create new cards from templates. That's what I do!
@@ -296,6 +298,11 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + 3`: switch to This Week view
 - `Cmd/Ctrl + ,`: open Board Settings
 - `Cmd/Ctrl + Shift + D`: toggle light and dark mode
+- `Cmd + Control + Shift + C` on macOS, `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes
+- `Cmd/Ctrl + Shift + [`: move the open card to the previous list
+- `Cmd/Ctrl + Shift + ]`: move the open card to the next list
+- `Cmd/Ctrl + Option/Alt + Shift + Backspace`: archive the open card
+- `Cmd/Ctrl + Shift + A`: open Archive
 - `Cmd/Ctrl + F`: focus search
 - `Esc`: close open modals
 

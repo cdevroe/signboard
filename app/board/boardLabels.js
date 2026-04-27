@@ -72,13 +72,21 @@ const SHORTCUT_ACTION_DEFINITIONS = Object.freeze({
   focusSearch: Object.freeze({ key: 'F', usesPrimaryModifier: true }),
   boardSettings: Object.freeze({ key: ',', usesPrimaryModifier: true }),
   toggleTheme: Object.freeze({ key: 'D', usesPrimaryModifier: true, shiftKey: true }),
+  cycleColorScheme: Object.freeze({ key: 'C', usesPrimaryModifier: true, controlKeyOnMac: true, altKeyOnNonMac: true, shiftKey: true }),
+  moveCardLeft: Object.freeze({ key: '[', usesPrimaryModifier: true, shiftKey: true }),
+  moveCardRight: Object.freeze({ key: ']', usesPrimaryModifier: true, shiftKey: true }),
+  archiveCard: Object.freeze({ key: 'Backspace', usesPrimaryModifier: true, altKey: true, shiftKey: true }),
+  archiveBrowser: Object.freeze({ key: 'A', usesPrimaryModifier: true, shiftKey: true }),
   closeModals: Object.freeze({ key: 'Escape', usesPrimaryModifier: false }),
 });
 
 const SPOKEN_SHORTCUT_KEY_LABELS = Object.freeze({
   '/': 'slash',
   ',': 'comma',
+  '[': 'left bracket',
+  ']': 'right bracket',
   Escape: 'Escape',
+  Backspace: 'Backspace',
 });
 
 function isPrimaryShortcutMacPlatform() {
@@ -108,6 +116,14 @@ function getShortcutTokens(actionId, { spoken = false } = {}) {
 
   if (definition.usesPrimaryModifier) {
     tokens.push(spoken ? (isMac ? 'Command' : 'Control') : (isMac ? '⌘' : 'Ctrl'));
+  }
+
+  if (definition.controlKey || (definition.controlKeyOnMac && isMac)) {
+    tokens.push(spoken ? 'Control' : (isMac ? '⌃' : 'Ctrl'));
+  }
+
+  if (definition.altKey || (definition.altKeyOnNonMac && !isMac)) {
+    tokens.push(spoken ? (isMac ? 'Option' : 'Alt') : (isMac ? '⌥' : 'Alt'));
   }
 
   if (definition.shiftKey) {
@@ -146,6 +162,14 @@ function getShortcutAriaKeyshortcuts(actionId) {
 
   if (definition.usesPrimaryModifier) {
     tokens.push(isPrimaryShortcutMacPlatform() ? 'Meta' : 'Control');
+  }
+
+  if (definition.controlKey || (definition.controlKeyOnMac && isPrimaryShortcutMacPlatform())) {
+    tokens.push('Control');
+  }
+
+  if (definition.altKey || (definition.altKeyOnNonMac && !isPrimaryShortcutMacPlatform())) {
+    tokens.push('Alt');
   }
 
   if (definition.shiftKey) {
@@ -978,6 +1002,41 @@ function applyColorSchemeById(schemeId, options = {}) {
   if (options.renderControls !== false) {
     renderBoardThemeSettingsControls();
   }
+}
+
+async function cycleBoardColorSchemeFromShortcut() {
+  if (!window.boardRoot || COLOR_SCHEMES.length === 0) {
+    return false;
+  }
+
+  const currentSchemeId = getBoardColorScheme();
+  const currentIndex = COLOR_SCHEMES.findIndex((scheme) => scheme.id === currentSchemeId);
+  const baseIndex = currentIndex >= 0 ? currentIndex : 0;
+  const nextScheme = COLOR_SCHEMES[(baseIndex + 1) % COLOR_SCHEMES.length];
+
+  if (!nextScheme) {
+    return false;
+  }
+
+  applyColorSchemeById(nextScheme.id, { renderControls: false });
+
+  if (typeof applyEditorThemeFromActiveMode === 'function') {
+    applyEditorThemeFromActiveMode();
+  }
+
+  const state = getBoardLabelState();
+  if (state.settingsSaveTimer) {
+    clearTimeout(state.settingsSaveTimer);
+    state.settingsSaveTimer = null;
+  }
+
+  await persistBoardSettings({ renderBoard: false, renderControls: false });
+
+  if (typeof applyEditorThemeFromActiveMode === 'function') {
+    applyEditorThemeFromActiveMode();
+  }
+
+  return true;
 }
 
 function applyDerivedBoardThemes(themeOverrides, options = {}) {
@@ -1884,8 +1943,10 @@ function scheduleBoardLabelSettingsSave() {
   scheduleBoardSettingsSave();
 }
 
-function persistBoardSettings() {
+function persistBoardSettings(options = {}) {
   const state = getBoardLabelState();
+  const shouldRenderBoard = options.renderBoard !== false;
+  const shouldRenderControls = options.renderControls !== false;
 
   state.settingsSaveInFlight = state.settingsSaveInFlight
     .then(async () => {
@@ -1909,15 +1970,19 @@ function persistBoardSettings() {
       }
       setBoardNotificationSettings(result.notifications || DEFAULT_BOARD_NOTIFICATION_SETTINGS);
       setBoardTooltipsEnabled(result.tooltipsEnabled);
-      if (!isBoardSettingsModalOpen()) {
+      if (shouldRenderControls && !isBoardSettingsModalOpen()) {
         renderBoardSettingsLabels();
         renderBoardThemeSettingsControls();
         renderBoardGeneralSettingsControls();
         renderNotificationSettingsControls();
       }
-      renderBoardLabelFilterButton();
-      renderBoardLabelFilterPopover();
-      await renderBoard();
+      if (shouldRenderControls) {
+        renderBoardLabelFilterButton();
+        renderBoardLabelFilterPopover();
+      }
+      if (shouldRenderBoard) {
+        await renderBoard();
+      }
     })
     .catch((error) => {
       console.error('Unable to save board settings.', error);

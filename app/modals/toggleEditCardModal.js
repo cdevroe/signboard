@@ -998,12 +998,9 @@ async function toggleEditCardModal(cardPath, options = {}) {
 
     const cardEditorArchiveLink = document.getElementById('cardEditorArchiveLink');
     cardEditorArchiveLink.onclick = async (e) => {
-        const cardEditorCardPath = document.getElementById('cardEditorCardPath');
-
         e.preventDefault();
         e.stopPropagation();
-        await window.board.archiveCard(cardEditorCardPath.value);
-        await closeAllModals(createCloseAllModalsRequest());
+        await archiveActiveEditorCard();
 
         return;
     };
@@ -1188,7 +1185,7 @@ async function updateCardEditorListDropdown(cardPath) {
     listSelect.disabled = false;
 }
 
-async function resolveCardMoveTarget(cardPath) {
+async function resolveCardMoveTarget(cardPath, direction = 'auto') {
     const listPaths = await getOrderedListPaths();
     const currentListPath = getCardListPath(cardPath);
     const currentIndex = listPaths.indexOf(currentListPath);
@@ -1199,12 +1196,24 @@ async function resolveCardMoveTarget(cardPath) {
             currentIndex,
             targetIndex: -1,
             targetPath: '',
+            isLeftmost: false,
             isRightmost: false,
+            direction: '',
         };
     }
 
+    const isLeftmost = currentIndex === 0;
     const isRightmost = currentIndex === listPaths.length - 1;
-    const targetIndex = isRightmost ? currentIndex - 1 : currentIndex + 1;
+    let targetIndex = -1;
+
+    if (direction === 'left') {
+        targetIndex = isLeftmost ? -1 : currentIndex - 1;
+    } else if (direction === 'right') {
+        targetIndex = isRightmost ? -1 : currentIndex + 1;
+    } else {
+        targetIndex = isRightmost ? currentIndex - 1 : currentIndex + 1;
+    }
+
     const targetPath = (targetIndex >= 0 && targetIndex < listPaths.length)
         ? listPaths[targetIndex]
         : '';
@@ -1214,7 +1223,9 @@ async function resolveCardMoveTarget(cardPath) {
         currentIndex,
         targetIndex,
         targetPath,
+        isLeftmost,
         isRightmost,
+        direction: targetPath ? (targetIndex < currentIndex ? 'left' : 'right') : '',
     };
 }
 
@@ -1259,6 +1270,24 @@ async function moveCardToListPath(cardPath, targetListPath) {
         await window.board.recordCardListMove(newPath, currentListPath, targetListPath);
     }
     return newPath;
+}
+
+async function moveCardToTopOfListPath(cardPath, targetListPath) {
+    if (!cardPath || !targetListPath) {
+        return '';
+    }
+
+    const currentListPath = getCardListPath(cardPath);
+    if (!currentListPath || currentListPath === targetListPath) {
+        return '';
+    }
+
+    if (!window.board || typeof window.board.moveCardToTop !== 'function') {
+        return '';
+    }
+
+    const result = await window.board.moveCardToTop(cardPath, targetListPath);
+    return result && result.cardPath ? result.cardPath : '';
 }
 
 function showCardEditorListMoveFeedback() {
@@ -1343,13 +1372,38 @@ async function handleClickMoveCard(e) {
         return;
     }
 
-    const newPath = await moveCardToListPath(cardEditorCardPath.value, moveInfo.targetPath);
+    const newPath = await moveCardToTopOfListPath(cardEditorCardPath.value, moveInfo.targetPath);
     if (!newPath) {
         return;
     }
 
     await refreshCardEditorAfterMove(newPath);
     return;
+}
+
+async function moveActiveEditorCardToAdjacentList(direction) {
+    const normalizedDirection = direction === 'left' ? 'left' : 'right';
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    if (!cardEditorCardPath || !cardEditorCardPath.value || !isCardEditorActive()) {
+        return false;
+    }
+
+    await flushEditorSaveIfNeeded();
+
+    const moveInfo = await resolveCardMoveTarget(cardEditorCardPath.value, normalizedDirection);
+    if (!moveInfo || !moveInfo.targetPath) {
+        await updateCardEditorMoveLink(cardEditorCardPath.value);
+        return false;
+    }
+
+    const newPath = await moveCardToTopOfListPath(cardEditorCardPath.value, moveInfo.targetPath);
+    if (!newPath) {
+        return false;
+    }
+
+    await refreshCardEditorAfterMove(newPath);
+    showCardEditorListMoveFeedback();
+    return true;
 }
 
 async function handleChangeCardListSelect(e) {
@@ -1388,6 +1442,19 @@ async function handleChangeCardListSelect(e) {
     }
 
     return;
+}
+
+async function archiveActiveEditorCard() {
+    const cardEditorCardPath = document.getElementById('cardEditorCardPath');
+    const cardPath = cardEditorCardPath ? String(cardEditorCardPath.value || '').trim() : '';
+    if (!cardPath || !isCardEditorActive()) {
+        return false;
+    }
+
+    await flushEditorSaveIfNeeded();
+    await window.board.archiveCard(cardPath);
+    await closeAllModals(createCloseAllModalsRequest());
+    return true;
 }
 
 async function handleClickCloseCard( e ) {

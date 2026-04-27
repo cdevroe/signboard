@@ -18,6 +18,14 @@ function getShortcut(shortcut) {
   return `${modifier}+${shortcut}`;
 }
 
+function getColorCycleShortcut() {
+  return usesMetaModifier ? 'Meta+Control+Shift+C' : 'Control+Alt+Shift+C';
+}
+
+function getArchiveCardShortcut() {
+  return getShortcut('Alt+Shift+Backspace');
+}
+
 async function pathExists(targetPath) {
   try {
     await fs.access(targetPath);
@@ -68,7 +76,11 @@ async function openBoardMenu(page) {
 }
 
 async function openFirstCardInEditor(page) {
-  await page.locator('.card').first().click();
+  await openCardInEditor(page, 0, 0);
+}
+
+async function openCardInEditor(page, listIndex, cardIndex = 0) {
+  await page.locator('.list').nth(listIndex).locator('.card').nth(cardIndex).click();
   await expect(page.locator('#modalEditCard')).toBeVisible();
   await expect(page.locator('#cardEditorOverType .overtype-input')).toBeVisible();
 }
@@ -273,6 +285,127 @@ test('opens the keyboard shortcuts helper from the keyboard shortcut', async ({ 
 
   await page.keyboard.press('Escape');
   await expect(page.locator('#modalKeyboardShortcuts')).toBeHidden();
+});
+
+test('opens board settings from the renderer keyboard shortcut', async ({ page }) => {
+  await page.keyboard.press(getShortcut('Comma'));
+
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+});
+
+test('cycles board color schemes without closing an active editor', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  await page.keyboard.press(getColorCycleShortcut());
+
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toBeVisible();
+  await expect.poll(async () => {
+    return await page.evaluate(() => document.documentElement.dataset.boardColorScheme || '');
+  }).toBe('lavender');
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      const settings = await window.board.readBoardSettings(window.boardRoot);
+      return settings.colorScheme;
+    });
+  }).toBe('lavender');
+});
+
+test('moves the active card to the top of the next list from the editor arrow', async ({ page, boardRoot }) => {
+  await openFirstCardInEditor(page);
+
+  await page.locator('#cardEditorMoveListLink').click();
+
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect.poll(async () => {
+    const entries = await fs.readdir(path.join(boardRoot, '001-Doing-stock'));
+    return entries.filter((entry) => entry.endsWith('.md')).sort();
+  }).toEqual([
+    '000-plan-release-stock.md',
+    '001-polish-copy-stock.md',
+  ]);
+  await expect(page.locator('.list').nth(1).locator('.card').first()).toContainText('Plan release notes');
+});
+
+test('moves the active card to the top of the previous list from the keyboard shortcut', async ({ page, boardRoot }) => {
+  await openCardInEditor(page, 1, 0);
+
+  await page.keyboard.press(getShortcut('Shift+['));
+
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect.poll(async () => {
+    const entries = await fs.readdir(path.join(boardRoot, '000-To-do-stock'));
+    return entries.filter((entry) => entry.endsWith('.md')).sort();
+  }).toEqual([
+    '000-polish-copy-stock.md',
+    '001-plan-release-stock.md',
+  ]);
+  await expect(page.locator('.list').first().locator('.card').first()).toContainText('Polish homepage copy');
+});
+
+test('rejects top-of-list card moves outside the active board', async ({ page, boardRoot }) => {
+  const outsideBoardPath = path.dirname(boardRoot);
+
+  const result = await page.evaluate(async (targetListPath) => {
+    const cardPath = `${window.boardRoot}000-To-do-stock/000-plan-release-stock.md`;
+    try {
+      await window.board.moveCardToTop(cardPath, targetListPath);
+      return { ok: true, message: '' };
+    } catch (error) {
+      return { ok: false, message: String(error && error.message ? error.message : error) };
+    }
+  }, outsideBoardPath);
+
+  expect(result.ok).toBe(false);
+  expect(result.message).toContain('UNAUTHORIZED_PATH');
+});
+
+test('keeps card move shortcuts inert at the outermost lists', async ({ page, boardRoot }) => {
+  await openCardInEditor(page, 0, 0);
+  const leftmostPath = await page.locator('#cardEditorCardPath').inputValue();
+
+  await page.keyboard.press(getShortcut('Shift+['));
+
+  await expect(page.locator('#cardEditorCardPath')).toHaveValue(leftmostPath);
+  await expect.poll(async () => {
+    const entries = await fs.readdir(path.join(boardRoot, '000-To-do-stock'));
+    return entries.filter((entry) => entry.endsWith('.md')).sort();
+  }).toEqual(['000-plan-release-stock.md']);
+
+  await page.locator('#cardEditorClose').click();
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+
+  await openCardInEditor(page, 2, 0);
+  const rightmostPath = await page.locator('#cardEditorCardPath').inputValue();
+
+  await page.keyboard.press(getShortcut('Shift+]'));
+
+  await expect(page.locator('#cardEditorCardPath')).toHaveValue(rightmostPath);
+  await expect.poll(async () => {
+    const entries = await fs.readdir(path.join(boardRoot, '002-Done-stock'));
+    return entries.filter((entry) => entry.endsWith('.md')).sort();
+  }).toEqual(['000-ship-beta-stock.md']);
+});
+
+test('archives the active card from the hard-to-press shortcut', async ({ page, boardRoot }) => {
+  await openFirstCardInEditor(page);
+
+  await page.keyboard.press(getArchiveCardShortcut());
+
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, 'XXX-Archive', '000-plan-release-stock.md'));
+  }).toBe(true);
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md'));
+  }).toBe(false);
+});
+
+test('opens the archive browser from the keyboard shortcut', async ({ page }) => {
+  await page.keyboard.press(getShortcut('Shift+A'));
+
+  await expect(page.locator('#modalArchiveBrowser')).toBeVisible();
+  await expect(page.locator('#archiveBrowserSearchInput')).toBeFocused();
 });
 
 test('keeps the editor scroll position when toggling a task checkbox control', async ({ page }) => {

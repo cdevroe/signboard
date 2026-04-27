@@ -20,9 +20,9 @@ By default, the server starts in read-only mode.
   - default: `true`
   - set to `false` (or `0`) to allow write tools
 - `SIGNBOARD_MCP_ALLOWED_ROOTS`:
-  - optional allowlist of board root parent directories
+  - required allowlist for board-scoped tools
   - uses your OS path delimiter (`:` on macOS/Linux, `;` on Windows)
-  - when set, `boardRoot` arguments must resolve inside one of these paths
+  - `boardRoot` arguments must resolve inside one of these paths
   - import tool `sourcePath` / `sourcePaths` arguments must also resolve inside one of these paths
 
 Example (macOS/Linux):
@@ -115,7 +115,7 @@ The server currently exposes these tools:
 
 Board-scoped tools take absolute `boardRoot` paths, `signboard_create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
 Board settings tools include labels, theme overrides, and notification preferences.
-Import tools also take absolute external source paths and honor `SIGNBOARD_MCP_ALLOWED_ROOTS` when it is configured.
+Import tools also take absolute external source paths, and those paths must resolve inside `SIGNBOARD_MCP_ALLOWED_ROOTS`.
 
 ## Task Metadata in Card Tool Responses
 

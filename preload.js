@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('board', {
     invokeBoard('restoreArchivedList', archivedListPath, restoredDirectoryName),
   recordCardListMove: async (cardPath, fromListPath, toListPath) =>
     invokeBoard('recordCardListMove', cardPath, fromListPath, toListPath),
+  moveCardToTop: async (cardPath, targetListPath) => invokeBoard('moveCardToTop', cardPath, targetListPath),
   moveCard: async (src, dst) => invokeBoard('moveCard', src, dst),
   moveList: async (src, dst) => invokeBoard('moveList', src, dst),
   createList: async (listPath) => invokeBoard('createList', listPath),

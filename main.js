@@ -12,6 +12,7 @@ const fsPromises = fs.promises;
 const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
+const { insertCardFileAtTop } = require('./lib/cardOrdering');
 const { prepareNewCardFrontmatter } = require('./lib/cardLifecycle');
 const {
   archiveCard,
@@ -1130,12 +1131,19 @@ function buildMcpConfigTemplate() {
   const env = {
     SIGNBOARD_MCP_READ_ONLY: 'false',
   };
+  let defaultAllowedRoot = '';
 
   try {
-    env.SIGNBOARD_MCP_ALLOWED_ROOTS = path.join(app.getPath('documents'), 'Boards');
+    defaultAllowedRoot = path.join(app.getPath('documents'), 'Boards');
   } catch {
-    env.SIGNBOARD_MCP_ALLOWED_ROOTS = '';
+    try {
+      defaultAllowedRoot = path.join(app.getPath('home'), 'Boards');
+    } catch {
+      defaultAllowedRoot = path.join(process.cwd(), 'Boards');
+    }
   }
+
+  env.SIGNBOARD_MCP_ALLOWED_ROOTS = defaultAllowedRoot;
 
   return {
     mcpServers: {
@@ -2059,6 +2067,53 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       const fromListPath = requireWritablePath(event.sender, args[1]);
       const toListPath = requireWritablePath(event.sender, args[2]);
       return recordCardListMove(boardRoot, cardPath, fromListPath, toListPath);
+    }
+
+    case 'moveCardToTop': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const sourcePath = requireWritablePath(event.sender, args[0]);
+      const targetListPath = requireWritablePath(event.sender, args[1]);
+      const sourceListPath = path.dirname(sourcePath);
+      const archiveRoot = path.join(boardRoot, 'XXX-Archive');
+
+      if (sourcePath === boardRoot || sourceListPath === boardRoot || targetListPath === boardRoot) {
+        throw new Error('INVALID_CARD_MOVE_PATH');
+      }
+
+      if (targetListPath === archiveRoot || isPathInsideRoot(archiveRoot, targetListPath)) {
+        throw new Error('TARGET_LIST_CANNOT_BE_ARCHIVE');
+      }
+
+      if (sourceListPath === archiveRoot || isPathInsideRoot(archiveRoot, sourceListPath)) {
+        throw new Error('SOURCE_CARD_CANNOT_BE_ARCHIVED');
+      }
+
+      if (!sourcePath.endsWith('.md')) {
+        throw new Error('INVALID_CARD_FILE');
+      }
+
+      const sourceStats = await fsPromises.stat(sourcePath);
+      if (!sourceStats.isFile()) {
+        throw new Error('INVALID_CARD_FILE');
+      }
+
+      const targetStats = await fsPromises.stat(targetListPath);
+      if (!targetStats.isDirectory()) {
+        throw new Error('INVALID_TARGET_LIST');
+      }
+
+      const movedCardFile = await insertCardFileAtTop(targetListPath, sourcePath, path.basename(sourcePath));
+      const movedCardPath = path.join(targetListPath, movedCardFile);
+
+      if (sourceListPath !== targetListPath) {
+        await recordCardListMove(boardRoot, movedCardPath, sourceListPath, targetListPath);
+      }
+
+      return {
+        ok: true,
+        cardFile: movedCardFile,
+        cardPath: movedCardPath,
+      };
     }
 
     case 'moveCard':

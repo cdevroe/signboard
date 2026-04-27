@@ -1088,6 +1088,127 @@ async function runForTransport(transportMode, fixture) {
   await waitForExit;
 }
 
+async function runRequiresAllowedRootsSmoke() {
+  const child = spawn(
+    process.execPath,
+    ['-e', "const { startSignboardMcpServer } = require('./lib/mcpServer'); startSignboardMcpServer({ appVersion: 'test' });"],
+    {
+      cwd: path.resolve(__dirname, '..'),
+      env: {
+        ...process.env,
+        SIGNBOARD_MCP_ALLOWED_ROOTS: '',
+        SIGNBOARD_MCP_READ_ONLY: 'true',
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    },
+  );
+
+  let stderr = '';
+  let stdoutBuffer = Buffer.alloc(0);
+  let streamError = null;
+  const responsesById = new Map();
+
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString('utf8');
+  });
+
+  const waitForExit = new Promise((resolve, reject) => {
+    child.once('exit', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`MCP allowed-roots child exited with code=${code}. stderr=${stderr.trim()}`));
+    });
+
+    child.once('error', reject);
+  });
+
+  child.stdout.on('data', (chunk) => {
+    try {
+      stdoutBuffer = readNdjsonFrames(Buffer.concat([stdoutBuffer, chunk]), (frame) => {
+        if (Object.prototype.hasOwnProperty.call(frame, 'id')) {
+          responsesById.set(frame.id, frame);
+        }
+      });
+    } catch (error) {
+      streamError = error;
+      child.kill('SIGTERM');
+    }
+  });
+
+  const send = (payload) => {
+    child.stdin.write(encodeMessage(payload, NDJSON_TRANSPORT));
+  };
+
+  const waitForResponse = (id, timeoutMs = 3000) => new Promise((resolve, reject) => {
+    const start = Date.now();
+
+    const poll = () => {
+      if (streamError) {
+        reject(streamError);
+        return;
+      }
+
+      if (responsesById.has(id)) {
+        const response = responsesById.get(id);
+        responsesById.delete(id);
+        resolve(response);
+        return;
+      }
+
+      if (Date.now() - start > timeoutMs) {
+        reject(new Error(`Timed out waiting for MCP allowed-roots response id=${id}. stderr=${stderr.trim()}`));
+        return;
+      }
+
+      setTimeout(poll, 10);
+    };
+
+    poll();
+  });
+
+  try {
+    send({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-11-25',
+        capabilities: {},
+        clientInfo: { name: 'signboard-test', version: '0.0.0' },
+      },
+    });
+
+    const initializeResponse = await waitForResponse(1);
+    if (initializeResponse.error) {
+      throw new Error(`Initialize without allowed roots failed: ${JSON.stringify(initializeResponse.error)}`);
+    }
+
+    send({
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: {
+        name: 'signboard_list_lists',
+        arguments: {
+          boardRoot: os.tmpdir(),
+        },
+      },
+    });
+
+    const listResponse = await waitForResponse(2);
+    const payload = listResponse.result?.structuredContent || {};
+    if (!listResponse.result?.isError || !String(payload.error || '').includes('SIGNBOARD_MCP_ALLOWED_ROOTS')) {
+      throw new Error(`MCP without allowed roots did not reject board access: ${JSON.stringify(listResponse)}`);
+    }
+  } finally {
+    child.stdin.end();
+    await waitForExit;
+  }
+}
+
 async function run() {
   const transportModes = [HEADER_TRANSPORT, HEADER_BOM_TRANSPORT, NDJSON_TRANSPORT];
 
@@ -1099,6 +1220,8 @@ async function run() {
       await fs.rm(fixture.cleanupRoot, { recursive: true, force: true });
     }
   }
+
+  await runRequiresAllowedRootsSmoke();
 
   console.log('MCP server smoke test passed (header + header-bom + ndjson).');
 }

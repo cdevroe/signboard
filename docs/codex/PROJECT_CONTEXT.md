@@ -18,6 +18,7 @@ File: `main.js`
 - Creates a single `BrowserWindow` and loads `index.html`.
 - Supports a headless MCP server mode when launched with `--mcp-server` (no window created).
 - Supports `--mcp-config` mode to print MCP client config JSON and exit.
+- MCP board-scoped tools require `SIGNBOARD_MCP_ALLOWED_ROOTS`; with no configured allowed roots, only non-board config/listing tools are usable.
 - Registers IPC handler `choose-directory` to open native folder picker.
 - Registers IPC handler `pick-import-sources` to open native file/directory pickers for Trello JSON and Obsidian markdown/vault sources.
 - Registers IPC handler `check-for-updates` for renderer-triggered manual update checks.
@@ -32,6 +33,7 @@ File: `main.js`
 - Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
 - Owns explicit board import operations for Trello, Obsidian, and Tasks.md; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
 - Owns archive browse/read/restore operations through `lib/archive.js`; renderer code never scans or restores archive contents directly.
+- Owns adjacent-card top-of-list moves through `moveCardToTop`, backed by `lib/cardOrdering.js`.
 - In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
 - Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card/archive management.
@@ -50,6 +52,7 @@ File: `preload.js`
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
 - Archive browsing uses preload bridge methods (`listArchiveEntries`, `readArchiveEntry`, `restoreArchivedCard`, `restoreArchivedList`) backed by the same trusted-board gate as normal board operations.
+- Adjacent-card moves from renderer shortcuts use preload method `moveCardToTop`, which validates source/target paths in `main.js` and inserts the card at the top of the target list through `lib/cardOrdering.js`.
 - `window.chooser.pickImportSources(...)` returns tokenized external file/directory selections for import flows, and `window.board.importTrello(...)` / `window.board.importObsidian(...)` / `window.board.importTasksMd(...)` invoke the main-process importers.
 - Still exposes board watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`), but the watcher implementation now lives in `main.js`.
 
@@ -181,6 +184,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Loads card into OverType editor.
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
+  - Moves active cards to adjacent lists from the arrow action/keyboard shortcuts by calling the main-process `moveCardToTop` IPC path, which inserts at the top of the destination list.
   - Renders task-line due-date controls at the start of each parsed checklist line in the editor.
   - Uses measured textarea line-start coordinates for control placement so wrapped lines do not drift button positions.
   - Handles due date picker, labels picker, duplicate, and archive actions.
@@ -206,7 +210,12 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Cmd/Ctrl + 1`: switch to Kanban view.
   - `Cmd/Ctrl + 2`: switch to Calendar view.
   - `Cmd/Ctrl + 3`: switch to This Week view.
-  - Native menu accelerators now also dispatch `Cmd/Ctrl + ,` for Board Settings and `Cmd/Ctrl + Shift + D` for theme toggling back into the renderer.
+  - `Cmd/Ctrl + ,`: open Board Settings from renderer key handling and the native menu accelerator.
+  - `Cmd/Ctrl + Shift + D`: toggle light/dark mode through the native menu accelerator.
+  - `Cmd + Control + Shift + C` on macOS / `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes without closing the active screen.
+  - `Cmd/Ctrl + Shift + [` and `Cmd/Ctrl + Shift + ]`: move the open card to the previous/next list, no-op at board edges.
+  - `Cmd/Ctrl + Option/Alt + Shift + Backspace`: archive the open card.
+  - `Cmd/Ctrl + Shift + A`: open the Archive browser modal.
   - Any shortcut changes must update the helper list in `index.html` (`#modalKeyboardShortcuts`) in the same change.
 - View-switcher rows and list-action rows surface the same shortcut hints in subtle monospace text so the app teaches the keyboard path inline.
 - Board date filtering treats overdue task markers as actionable work only: completed task due markers do not keep a card visible in the `Overdue` filter, but overdue card-level due dates still do.

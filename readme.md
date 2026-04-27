@@ -59,6 +59,11 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + 3`: switch to This Week view
 - `Cmd/Ctrl + ,`: open Board Settings
 - `Cmd/Ctrl + Shift + D`: toggle light and dark mode
+- `Cmd + Control + Shift + C` on macOS, `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes
+- `Cmd/Ctrl + Shift + [`: move the open card to the previous list
+- `Cmd/Ctrl + Shift + ]`: move the open card to the next list
+- `Cmd/Ctrl + Option/Alt + Shift + Backspace`: archive the open card
+- `Cmd/Ctrl + Shift + A`: open Archive
 - `Cmd/Ctrl + F`: focus search
 - `Esc`: close open modals
 

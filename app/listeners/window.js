@@ -87,6 +87,115 @@ function isKeyboardShortcutsShortcut(event) {
     return event.code === 'Slash' || key === '/';
 }
 
+function isShortcutMacPlatform() {
+    if (typeof isPrimaryShortcutMacPlatform === 'function') {
+        return isPrimaryShortcutMacPlatform();
+    }
+
+    const platformValue = String(
+        (
+            typeof navigator !== 'undefined' &&
+            navigator &&
+            ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform)
+        ) || ''
+    ).toLowerCase();
+
+    return platformValue.includes('mac');
+}
+
+function hasPrimaryShortcutModifier(event) {
+    if (!event) {
+        return false;
+    }
+
+    return isShortcutMacPlatform() ? event.metaKey : event.ctrlKey;
+}
+
+function hasPrimaryShiftOnly(event) {
+    if (!event || !hasPrimaryShortcutModifier(event) || !event.shiftKey || event.altKey) {
+        return false;
+    }
+
+    return isShortcutMacPlatform() ? !event.ctrlKey : !event.metaKey;
+}
+
+function isBoardSettingsShortcut(event) {
+    if (!event || !hasPrimaryShortcutModifier(event) || event.altKey || event.shiftKey) {
+        return false;
+    }
+
+    if (isShortcutMacPlatform() && event.ctrlKey) {
+        return false;
+    }
+
+    if (!isShortcutMacPlatform() && event.metaKey) {
+        return false;
+    }
+
+    const key = String(event.key || '').trim();
+    return event.code === 'Comma' || key === ',';
+}
+
+function isColorSchemeCycleShortcut(event) {
+    if (!event || !event.shiftKey) {
+        return false;
+    }
+
+    const key = String(event.key || '').trim().toLowerCase();
+    if (event.code !== 'KeyC' && key !== 'c') {
+        return false;
+    }
+
+    if (isShortcutMacPlatform()) {
+        return event.metaKey && event.ctrlKey && !event.altKey;
+    }
+
+    return event.ctrlKey && event.altKey && !event.metaKey;
+}
+
+function isArchiveBrowserShortcut(event) {
+    if (!hasPrimaryShiftOnly(event)) {
+        return false;
+    }
+
+    const key = String(event.key || '').trim().toLowerCase();
+    return event.code === 'KeyA' || key === 'a';
+}
+
+function isMoveCardLeftShortcut(event) {
+    if (!hasPrimaryShiftOnly(event)) {
+        return false;
+    }
+
+    const key = String(event.key || '').trim();
+    return event.code === 'BracketLeft' || key === '[' || key === '{';
+}
+
+function isMoveCardRightShortcut(event) {
+    if (!hasPrimaryShiftOnly(event)) {
+        return false;
+    }
+
+    const key = String(event.key || '').trim();
+    return event.code === 'BracketRight' || key === ']' || key === '}';
+}
+
+function isArchiveCardShortcut(event) {
+    if (!event || !hasPrimaryShortcutModifier(event) || !event.altKey || !event.shiftKey) {
+        return false;
+    }
+
+    if (isShortcutMacPlatform() && event.ctrlKey) {
+        return false;
+    }
+
+    if (!isShortcutMacPlatform() && event.metaKey) {
+        return false;
+    }
+
+    return event.code === 'Backspace' || event.key === 'Backspace';
+}
+
 function focusBoardSearchInput() {
     const searchInput = document.getElementById('boardSearchInput');
     if (!searchInput) {
@@ -104,6 +213,10 @@ function focusBoardSearchInput() {
 async function openBoardSettingsFromShortcut() {
     if (!window.boardRoot) {
         return false;
+    }
+
+    if (typeof isBoardSettingsModalOpen === 'function' && isBoardSettingsModalOpen()) {
+        return true;
     }
 
     const openSettingsButton = document.getElementById('openBoardSettings');
@@ -139,6 +252,35 @@ function toggleThemeModeFromShortcut() {
     return true;
 }
 
+async function openArchiveBrowserFromShortcut() {
+    if (!window.boardRoot) {
+        return false;
+    }
+
+    if (typeof isArchiveBrowserModalOpen === 'function' && isArchiveBrowserModalOpen()) {
+        return true;
+    }
+
+    if (typeof closeBoardMenuPopover === 'function') {
+        closeBoardMenuPopover();
+    }
+    if (typeof closeAllModals === 'function') {
+        await closeAllModals({ key: 'Escape' });
+    }
+    if (typeof openArchiveBrowserModal === 'function') {
+        await openArchiveBrowserModal();
+        return true;
+    }
+
+    const openArchiveButton = document.getElementById('openArchiveBrowser');
+    if (openArchiveButton && typeof openArchiveButton.click === 'function') {
+        openArchiveButton.click();
+        return true;
+    }
+
+    return false;
+}
+
 syncShortcutHelpModifierLabels();
 
 if (window.electronAPI && typeof window.electronAPI.onOpenKeyboardShortcuts === 'function') {
@@ -171,6 +313,52 @@ window.addEventListener('keydown', async (e) => {
         }
     
         if (!e.ctrlKey && !e.metaKey) return;
+
+        if (isBoardSettingsShortcut(e)) {
+            e.preventDefault();
+            hideShortcutHelpModal();
+            await openBoardSettingsFromShortcut();
+            return;
+        }
+
+        if (isColorSchemeCycleShortcut(e)) {
+            e.preventDefault();
+            hideShortcutHelpModal();
+            if (typeof cycleBoardColorSchemeFromShortcut === 'function') {
+                await cycleBoardColorSchemeFromShortcut();
+            }
+            return;
+        }
+
+        if (isArchiveBrowserShortcut(e)) {
+            e.preventDefault();
+            hideShortcutHelpModal();
+            await openArchiveBrowserFromShortcut();
+            return;
+        }
+
+        if (isMoveCardLeftShortcut(e) || isMoveCardRightShortcut(e)) {
+            if (typeof isCardEditorActive === 'function' && isCardEditorActive()) {
+                e.preventDefault();
+                hideShortcutHelpModal();
+                const direction = isMoveCardLeftShortcut(e) ? 'left' : 'right';
+                if (typeof moveActiveEditorCardToAdjacentList === 'function') {
+                    await moveActiveEditorCardToAdjacentList(direction);
+                }
+            }
+            return;
+        }
+
+        if (isArchiveCardShortcut(e)) {
+            if (typeof isCardEditorActive === 'function' && isCardEditorActive()) {
+                e.preventDefault();
+                hideShortcutHelpModal();
+                if (typeof archiveActiveEditorCard === 'function') {
+                    await archiveActiveEditorCard();
+                }
+            }
+            return;
+        }
 
         if (isKeyboardShortcutsShortcut(e)) {
             e.preventDefault();
