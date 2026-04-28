@@ -1,11 +1,16 @@
 const OPEN_BOARDS_STORAGE_KEY = 'openBoardPaths';
 const ACTIVE_BOARD_STORAGE_KEY = 'activeBoardPath';
 const MAX_OPEN_BOARDS = 6;
+const UNIFIED_BOARD_PATH = '__unified__';
 let boardTabsSortable = null;
 
 function normalizeBoardPath(dir) {
     if (!dir || typeof dir !== 'string') {
         return '';
+    }
+
+    if (dir === UNIFIED_BOARD_PATH) {
+        return UNIFIED_BOARD_PATH;
     }
 
     const normalizedDir = dir.replace(/\\/g, '/').trim();
@@ -38,6 +43,10 @@ async function authorizeBoardAccess(selection) {
         return '';
     }
 
+    if (normalizedPath === UNIFIED_BOARD_PATH) {
+        return UNIFIED_BOARD_PATH;
+    }
+
     let result = null;
     if (
         selection &&
@@ -66,6 +75,9 @@ async function clearAuthorizedBoardAccess() {
 }
 
 function getBoardLabelFromPath(boardPath) {
+    if (boardPath === UNIFIED_BOARD_PATH) {
+        return 'All Boards';
+    }
     const normalizedPath = normalizeBoardPath(boardPath).replace(/\/+$/, '');
     const pathParts = normalizedPath.split('/').filter(Boolean);
     return pathParts[pathParts.length - 1] || 'Board';
@@ -239,7 +251,7 @@ async function closeBoardTab(boardPath) {
         return;
     }
 
-    if (!closedActiveBoard) {
+    if (!closedActiveBoard && activeBoard !== UNIFIED_BOARD_PATH) {
         renderBoardTabs();
         return;
     }
@@ -366,12 +378,18 @@ function renderBoardTabs() {
     tabsWrapper.classList.remove('hidden');
     const activeBoard = normalizeBoardPath(window.boardRoot || getStoredActiveBoard());
 
-    for (const boardPath of openBoards) {
+    const boardsToDisplay = [...openBoards];
+
+    for (const boardPath of boardsToDisplay) {
         const boardTab = document.createElement('div');
         boardTab.classList.add('board-tab');
         boardTab.setAttribute('data-board-path', boardPath);
         boardTab.setAttribute('role', 'presentation');
-        boardTab.title = boardPath;
+        boardTab.title = boardPath === UNIFIED_BOARD_PATH ? 'View all open boards' : boardPath;
+
+        if (boardPath === UNIFIED_BOARD_PATH) {
+            boardTab.classList.add('board-tab-unified');
+        }
 
         const tabButton = document.createElement('button');
         tabButton.type = 'button';
@@ -418,6 +436,15 @@ function renderBoardTabs() {
             await renderBoard();
         });
 
+        if (boardPath === UNIFIED_BOARD_PATH) {
+            const icon = document.createElement('span');
+            icon.className = 'board-tab-unified-icon';
+            icon.innerHTML = '<i data-feather="layers"></i>';
+            tabButton.prepend(icon);
+        }
+
+        boardTab.appendChild(tabButton);
+
         const closeButton = document.createElement('button');
         closeButton.type = 'button';
         closeButton.classList.add('board-tab-close');
@@ -429,10 +456,51 @@ function renderBoardTabs() {
             event.stopPropagation();
             await closeBoardTab(boardPath);
         });
-
-        boardTab.appendChild(tabButton);
         boardTab.appendChild(closeButton);
         tabsEl.appendChild(boardTab);
+    }
+
+    // Global drag tracking for tabs
+    if (!window.__tabDragTrackerInitialized) {
+        window.__tabDragTrackerInitialized = true;
+        document.addEventListener('mousemove', (e) => {
+            if (document.body.classList.contains('board-card-drag-active')) {
+                const hit = document.elementFromPoint(e.clientX, e.clientY);
+                const boardTab = hit ? hit.closest('.board-tab[data-board-path]') : null;
+                
+                // Clear highlights from other tabs
+                document.querySelectorAll('.board-tab--drop-target').forEach(el => {
+                    if (el !== boardTab) el.classList.remove('board-tab--drop-target');
+                });
+                
+                if (boardTab) {
+                    const boardPath = boardTab.getAttribute('data-board-path');
+                    const UNIFIED_BOARD_PATH = '__unified__';
+                    
+                    // Don't highlight if it's the "All Boards" tab or if the card already belongs to this board
+                    if (boardPath === UNIFIED_BOARD_PATH) {
+                        window.__activeBoardDropTarget = null;
+                        return;
+                    }
+
+                    if (typeof Sortable !== 'undefined' && Sortable.active && Sortable.active.options.group.name === 'cards') {
+                        const draggedItem = Sortable.active.dragged;
+                        const cardPath = draggedItem ? draggedItem.getAttribute('data-path') : null;
+                        if (cardPath && cardPath.startsWith(boardPath)) {
+                            window.__activeBoardDropTarget = null;
+                            return;
+                        }
+                    }
+
+                    window.__activeBoardDropTarget = boardPath;
+                    boardTab.classList.add('board-tab--drop-target');
+                } else {
+                    window.__activeBoardDropTarget = null;
+                }
+            } else {
+                window.__activeBoardDropTarget = null;
+            }
+        });
     }
 
     const addBoardTab = document.createElement('div');
@@ -462,5 +530,44 @@ function renderBoardTabs() {
     addBoardTab.appendChild(addBoardButton);
     tabsEl.appendChild(addBoardTab);
 
+    const actualBoardsCount = openBoards.filter(b => b !== UNIFIED_BOARD_PATH).length;
+    if (actualBoardsCount > 1 && !openBoards.includes(UNIFIED_BOARD_PATH)) {
+        const addUnifiedTab = document.createElement('div');
+        addUnifiedTab.classList.add('board-tab', 'board-tab-add', 'board-tab-unified-unopened');
+        addUnifiedTab.setAttribute('role', 'presentation');
+
+        const addUnifiedButton = document.createElement('button');
+        addUnifiedButton.type = 'button';
+        addUnifiedButton.classList.add('board-tab-label', 'board-tab-add-label');
+        addUnifiedButton.innerHTML = '<i data-feather="layers" style="width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px;"></i> All Boards';
+        addUnifiedButton.title = 'Open All Boards view';
+        
+        if (openBoards.length >= MAX_OPEN_BOARDS) {
+            addUnifiedTab.classList.add('is-disabled');
+            addUnifiedButton.disabled = true;
+            addUnifiedButton.title = `Maximum ${MAX_OPEN_BOARDS} open boards`;
+        } else {
+            addUnifiedButton.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const updatedOpenBoards = [...openBoards, UNIFIED_BOARD_PATH];
+                setStoredOpenBoards(updatedOpenBoards);
+                
+                window.boardRoot = UNIFIED_BOARD_PATH;
+                setStoredActiveBoard(UNIFIED_BOARD_PATH);
+                if (typeof resetBoardLabelFilter === 'function') resetBoardLabelFilter();
+                if (typeof resetBoardSearch === 'function') resetBoardSearch();
+                await renderBoard();
+            });
+        }
+
+        addUnifiedTab.appendChild(addUnifiedButton);
+        tabsEl.appendChild(addUnifiedTab);
+    }
+
     initializeBoardTabsSortable(tabsEl, openBoards.length > 1);
+
+    if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
+        feather.replace();
+    }
 }

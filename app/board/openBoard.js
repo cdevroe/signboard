@@ -70,6 +70,16 @@ async function pickAndOpenBoard() {
     return openBoard(authorizedBoardPath);
 }
 
+async function isBoardRoot(path) {
+    try {
+        const directories = await window.board.listDirectories(path);
+        // A board root must contain at least one list directory like 000-Todo...
+        return directories.some(d => /^\d{3}-.+/.test(d) || d === 'XXX-Archive');
+    } catch (e) {
+        return false;
+    }
+}
+
 async function openBoard( dir ) {
     const boardPath = await authorizeBoardAccess(dir);
     if (!boardPath) {
@@ -88,6 +98,61 @@ async function openBoard( dir ) {
         await flushBoardLabelSettingsSave();
     }
 
+    // Check if the selected folder is a board itself
+    const selectedIsBoard = await isBoardRoot(boardPath);
+
+    if (!selectedIsBoard) {
+        // Scanner Mode: check subdirectories for boards
+        try {
+            const subdirs = await window.board.listDirectories(boardPath);
+            const foundBoardPaths = [];
+            
+            for (const subdir of subdirs) {
+                const fullSubPath = boardPath.endsWith('/') ? boardPath + subdir : boardPath + '/' + subdir;
+                if (await isBoardRoot(fullSubPath)) {
+                    foundBoardPaths.push(fullSubPath);
+                }
+            }
+
+            if (foundBoardPaths.length > 0) {
+                const confirmMsg = foundBoardPaths.length === 1 
+                    ? `Found 1 board in this folder ("${foundBoardPaths[0].split('/').filter(Boolean).pop()}"). Open it?`
+                    : `Found ${foundBoardPaths.length} boards in this folder. Would you like to open them all as tabs?`;
+
+                if (window.confirm(confirmMsg)) {
+                    let openedCount = 0;
+                    const openBoards = getStoredOpenBoards();
+                    const availableSlots = Math.max(0, 6 - openBoards.length); // MAX_OPEN_BOARDS is 6
+
+                    for (const p of foundBoardPaths) {
+                        if (openedCount >= availableSlots) break;
+                        const normalizedP = normalizeBoardPath(p);
+                        if (!openBoards.includes(normalizedP)) {
+                            ensureBoardInTabs(normalizedP);
+                            openedCount++;
+                        }
+                    }
+
+                    if (foundBoardPaths.length > availableSlots) {
+                        alert(`Only opened the first ${availableSlots} boards to stay within the 6-board limit.`);
+                    }
+
+                    // Switch to the first newly opened board if we opened something
+                    if (foundBoardPaths.length > 0) {
+                        const firstOpened = normalizeBoardPath(foundBoardPaths[0]);
+                        window.boardRoot = firstOpened;
+                        setStoredActiveBoard(firstOpened);
+                        await renderBoard();
+                        return true;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Scanner failed', e);
+        }
+    }
+
+    // Default behavior for a single board or a new board bootstrap
     const tabResult = ensureBoardInTabs(boardPath);
     if (tabResult && tabResult.limitReached) {
         if (typeof alertBoardTabLimit === 'function') {
@@ -172,3 +237,4 @@ If you want, leave this card here as a little orientation guide. Or archive it i
     await renderBoard();
     return true;
 }
+

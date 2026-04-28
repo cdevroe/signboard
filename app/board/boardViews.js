@@ -352,30 +352,34 @@ function createTemporalPlacementForDate(cardEntry, dueDateValue) {
   };
 }
 
-async function collectCardsForCalendar(boardRoot, lists) {
-  const listNames = Array.isArray(lists) ? lists : [];
+async function collectCardsForCalendar(boardRoots, lists) {
+  const roots = Array.isArray(boardRoots) ? boardRoots : [boardRoots];
   const cardPaths = [];
 
-  const listEntries = await Promise.all(
-    listNames.map(async (listName) => {
-      const listPath = `${boardRoot}${listName}`;
-      const cardNames = await window.board.listCards(listPath);
-      return {
-        listName,
-        listDisplayName: getBoardListDisplayName(listName),
-        listPath,
-        cardNames: Array.isArray(cardNames) ? cardNames : [],
-      };
-    }),
-  );
+  for (const boardRoot of roots) {
+    const listNames = Array.isArray(lists) ? lists : await window.board.listLists(boardRoot);
+    
+    const listEntries = await Promise.all(
+      listNames.map(async (listName) => {
+        const listPath = `${boardRoot}${listName}`;
+        const cardNames = await window.board.listCards(listPath);
+        return {
+          listName,
+          listDisplayName: getBoardListDisplayName(listName),
+          listPath,
+          cardNames: Array.isArray(cardNames) ? cardNames : [],
+        };
+      }),
+    );
 
-  for (const { listName, listDisplayName, listPath, cardNames } of listEntries) {
-    for (const cardName of cardNames) {
-      cardPaths.push({
-        listName,
-        listDisplayName,
-        cardPath: `${listPath}/${cardName}`,
-      });
+    for (const { listName, listDisplayName, listPath, cardNames } of listEntries) {
+      for (const cardName of cardNames) {
+        cardPaths.push({
+          listName,
+          listDisplayName,
+          cardPath: `${listPath}/${cardName}`,
+        });
+      }
     }
   }
 
@@ -745,6 +749,28 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
 
   const footer = document.createElement('span');
   footer.className = 'board-temporal-card-footer';
+
+  const UNIFIED_BOARD_PATH = '__unified__';
+  if (window.boardRoot === UNIFIED_BOARD_PATH) {
+    const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const openBoards = storedBoards.filter(b => b !== UNIFIED_BOARD_PATH);
+    let boardPath = '';
+    for (const root of openBoards) {
+        if (cardEntry.cardPath.startsWith(root)) {
+            boardPath = root;
+            break;
+        }
+    }
+    const boardName = typeof getBoardLabelFromPath === 'function' 
+        ? getBoardLabelFromPath(boardPath) 
+        : boardPath.split('/').filter(Boolean).pop();
+        
+    const boardLabel = document.createElement('span');
+    boardLabel.className = 'board-temporal-card-board-name';
+    boardLabel.textContent = boardName;
+    boardLabel.title = `Board: ${boardName}`;
+    footer.appendChild(boardLabel);
+  }
 
   const listNameText = String(cardEntry.listDisplayName || '').trim();
   if (listNameText) {

@@ -32,6 +32,11 @@ function unlockBoardCardTextSelection() {
   }
 
   document.body.classList.remove('board-card-drag-active');
+  const dropTargets = document.querySelectorAll('.board-tab--drop-target');
+  for (const target of dropTargets) {
+    target.classList.remove('board-tab--drop-target');
+  }
+  window.__activeBoardDropTarget = null;
 }
 
 function isBoardCardDragTiltElement(element) {
@@ -242,13 +247,28 @@ function createBoardCardSortableOptions(options = {}) {
       beginBoardCardDragTilt(evt);
     },
     onEnd(evt) {
-      try {
-        if (typeof baseOnEnd === 'function') {
-          return baseOnEnd.call(this, evt);
-        }
-      } finally {
+      const runCleanup = () => {
         endBoardCardDragTilt(evt);
         unlockBoardCardTextSelection();
+      };
+
+      if (typeof baseOnEnd !== 'function') {
+        runCleanup();
+        return;
+      }
+
+      const result = baseOnEnd.call(this, evt);
+      if (result && typeof result.then === 'function') {
+        return result.then(
+          () => runCleanup(),
+          (err) => {
+            runCleanup();
+            throw err;
+          }
+        );
+      } else {
+        runCleanup();
+        return result;
       }
     },
   };

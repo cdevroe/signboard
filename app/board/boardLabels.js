@@ -1674,9 +1674,11 @@ async function applyThemeOverridesToOpenBoards() {
     return;
   }
 
+  const UNIFIED_BOARD_PATH = '__unified__';
   const sourceOverrides = getBoardThemeOverrides();
   const sourceBoard = window.boardRoot;
-  const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [sourceBoard];
+  const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [sourceBoard];
+  const openBoards = storedBoards.filter(b => b !== UNIFIED_BOARD_PATH);
 
   const targets = Array.isArray(openBoards) ? openBoards : [];
   for (const boardPath of targets) {
@@ -1701,9 +1703,11 @@ async function applyNotificationSettingsToOpenBoards() {
     return;
   }
 
+  const UNIFIED_BOARD_PATH = '__unified__';
   const sourceNotifications = getBoardNotificationSettings();
   const sourceBoard = window.boardRoot;
-  const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [sourceBoard];
+  const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [sourceBoard];
+  const openBoards = storedBoards.filter(b => b !== UNIFIED_BOARD_PATH);
   const targets = Array.isArray(openBoards) ? openBoards : [];
 
   for (const boardPath of targets) {
@@ -1886,10 +1890,11 @@ function scheduleBoardLabelSettingsSave() {
 
 function persistBoardSettings() {
   const state = getBoardLabelState();
+  const UNIFIED_BOARD_PATH = '__unified__';
 
   state.settingsSaveInFlight = state.settingsSaveInFlight
     .then(async () => {
-      if (!window.boardRoot) {
+      if (!window.boardRoot || window.boardRoot === UNIFIED_BOARD_PATH) {
         return;
       }
 
@@ -2322,6 +2327,7 @@ function resetBoardLabelFilter() {
 }
 
 async function ensureBoardLabelsLoaded() {
+  const UNIFIED_BOARD_PATH = '__unified__';
   if (!window.boardRoot) {
     const state = getBoardLabelState();
     state.importSummaryBoardRoot = '';
@@ -2336,6 +2342,33 @@ async function ensureBoardLabelsLoaded() {
     renderBoardGeneralSettingsControls();
     renderNotificationSettingsControls();
     renderBoardImportControls();
+    return;
+  }
+
+  if (window.boardRoot === UNIFIED_BOARD_PATH) {
+    const storedBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const openBoards = storedBoards.filter(b => b !== UNIFIED_BOARD_PATH);
+    const allLabels = [];
+    const seenLabelIds = new Set();
+
+    for (const boardPath of openBoards) {
+      try {
+        const settings = await window.board.readBoardSettings(boardPath);
+        if (settings && Array.isArray(settings.labels)) {
+          for (const label of settings.labels) {
+            if (!seenLabelIds.has(label.id)) {
+              allLabels.push(label);
+              seenLabelIds.add(label.id);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`Failed to load labels for ${boardPath}`, e);
+      }
+    }
+    setBoardLabels(allLabels);
+    // Use default theme for unified view for now
+    applyColorSchemeById('default', { renderControls: false });
     return;
   }
 

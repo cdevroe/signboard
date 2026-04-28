@@ -599,6 +599,14 @@ function requireWritablePath(sender, candidatePath) {
     return normalizedPath;
   }
 
+  // Also allow writing to any trusted root
+  const trustedRoots = readTrustedBoardRoots();
+  for (const trustedRoot of trustedRoots) {
+    if (isPathInsideRoot(trustedRoot, normalizedPath)) {
+      return normalizedPath;
+    }
+  }
+
   throw new Error('UNAUTHORIZED_PATH');
 }
 
@@ -607,6 +615,11 @@ function requireActiveBoardRootForSender(sender) {
   const activeBoardRoot = typeof senderState.activeBoardRoot === 'string'
     ? senderState.activeBoardRoot
     : '';
+  
+  if (activeBoardRoot === '__unified__') {
+    return '__unified__';
+  }
+
   if (!activeBoardRoot) {
     throw new Error('UNAUTHORIZED_BOARD_ROOT');
   }
@@ -615,9 +628,9 @@ function requireActiveBoardRootForSender(sender) {
 }
 
 function authorizeTrustedBoardRootForSender(sender, boardRoot) {
-  const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
+  const normalizedBoardRoot = boardRoot === '__unified__' ? '__unified__' : normalizeBoardRootPath(boardRoot);
   const trustedRoots = readTrustedBoardRoots();
-  if (!normalizedBoardRoot || !trustedRoots.has(normalizedBoardRoot)) {
+  if (normalizedBoardRoot !== '__unified__' && (!normalizedBoardRoot || !trustedRoots.has(normalizedBoardRoot))) {
     return { ok: false, error: 'UNTRUSTED_BOARD_ROOT' };
   }
 
@@ -2054,10 +2067,29 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     }
 
     case 'recordCardListMove': {
-      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      let boardRoot = requireActiveBoardRootForSender(event.sender);
+      if (boardRoot === '__unified__') {
+        const cardPath = normalizeAbsolutePath(args[0]);
+        if (cardPath) {
+          const trustedRoots = readTrustedBoardRoots();
+          for (const root of trustedRoots) {
+            if (isPathInsideRoot(root, cardPath)) {
+              boardRoot = root;
+              break;
+            }
+          }
+        }
+      }
+
       const cardPath = requireWritablePath(event.sender, args[0]);
       const fromListPath = requireWritablePath(event.sender, args[1]);
       const toListPath = requireWritablePath(event.sender, args[2]);
+      
+      // If after derivation we still don't have a physical board root, we can't record.
+      if (boardRoot === '__unified__') {
+        return { ok: false, error: 'UNABLE_TO_DETERMINE_BOARD_ROOT' };
+      }
+
       return recordCardListMove(boardRoot, cardPath, fromListPath, toListPath);
     }
 
@@ -2073,11 +2105,32 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       const activeBoardRoot = senderState.activeBoardRoot;
       const movingBoardRoot = sourcePath === activeBoardRoot;
 
-      if (!movingBoardRoot && !isPathInsideRoot(activeBoardRoot, destinationPath)) {
-        throw new Error('UNAUTHORIZED_PATH');
+      if (!movingBoardRoot) {
+        let authorized = activeBoardRoot && isPathInsideRoot(activeBoardRoot, destinationPath);
+        if (!authorized) {
+          const trustedRoots = readTrustedBoardRoots();
+          for (const trustedRoot of trustedRoots) {
+            if (isPathInsideRoot(trustedRoot, destinationPath)) {
+              authorized = true;
+              break;
+            }
+          }
+        }
+        if (!authorized) {
+          throw new Error('UNAUTHORIZED_PATH');
+        }
       }
 
-      await fsPromises.rename(sourcePath, destinationPath);
+      try {
+        await fsPromises.rename(sourcePath, destinationPath);
+      } catch (err) {
+        if (err.code === 'EXDEV') {
+          await fsPromises.copyFile(sourcePath, destinationPath);
+          await fsPromises.unlink(sourcePath);
+        } else {
+          throw err;
+        }
+      }
 
       if (movingBoardRoot) {
         replaceTrustedBoardRoot(sourcePath, destinationPath);

@@ -26,6 +26,7 @@ function getBoardRenderState() {
 }
 
 function destroyBoardSortables() {
+  cleanupSortableArtifacts();
   const state = getBoardRenderState();
 
   for (const sortable of state.activeSortables) {
@@ -36,6 +37,38 @@ function destroyBoardSortables() {
 
   state.activeSortables = [];
 }
+
+function cleanupSortableArtifacts() {
+    try {
+        // 1. Target standard Sortable.js classes
+        document.querySelectorAll('.sortable-drag, .sortable-ghost, .sortable-chosen, .sortable-fallback').forEach(el => {
+            if (el && el.parentNode) {
+                el.parentNode.removeChild(el);
+            }
+        });
+
+        // 2. Target ANY .card element that is not inside the main board
+        const board = document.getElementById('board');
+        document.querySelectorAll('.card').forEach(card => {
+            if (board && !board.contains(card)) {
+                if (card.parentNode) {
+                    card.parentNode.removeChild(card);
+                }
+            }
+        });
+
+        // 3. Final sweep of direct children of body that might be orphaned clones
+        Array.from(document.body.children).forEach(child => {
+            if (child.classList.contains('card') || (child.tagName === 'DIV' && child.querySelector('.card'))) {
+                document.body.removeChild(child);
+            }
+        });
+    } catch (e) {
+        console.warn('Failed to perform global Exterminator cleanup', e);
+    }
+}
+
+
 
 function storeBoardSortables(sortables) {
   const state = getBoardRenderState();
@@ -313,7 +346,12 @@ async function renderBoard() {
   const renderState = getBoardRenderState();
   const requestId = renderState.requestId + 1;
   renderState.requestId = requestId;
+  
+  // Wipe all drag-and-drop phantoms before every single render
+  cleanupSortableArtifacts();
+
   const boardRoot = window.boardRoot; // set in the drop-zone handler
+  const UNIFIED_BOARD_PATH = '__unified__';
 
   closeCardLabelPopover();
   if (typeof closeListActionsPopover === 'function') {
@@ -340,14 +378,38 @@ async function renderBoard() {
 
   try {
     const boardNameEl = document.getElementById('boardName');
-    const [boardName, lists] = await Promise.all([
-      window.board.getBoardName(boardRoot),
-      window.board.listLists(boardRoot),
-      ensureBoardLabelsLoaded(),
-    ]);
+    const isUnified = boardRoot === UNIFIED_BOARD_PATH;
+    
+    let openBoards = [];
+    if (isUnified) {
+        const stored = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+        openBoards = stored.filter(b => b !== UNIFIED_BOARD_PATH);
+    } else {
+        openBoards = [boardRoot];
+    }
+    
+    // For Unified view, we don't have a single board name
+    const boardName = isUnified ? 'All Boards' : await window.board.getBoardName(boardRoot);
 
-    if (!isCurrentBoardRenderRequest(requestId)) {
-      return;
+    const archiveBtn = document.getElementById('openArchiveBrowser');
+    const settingsBtn = document.getElementById('openBoardSettings');
+    const boardMenuBtn = document.getElementById('boardMenuButton');
+
+    if (archiveBtn) {
+        archiveBtn.disabled = isUnified;
+        archiveBtn.title = isUnified ? 'Archive browser is not available in Unified view' : 'Browse archived cards and lists';
+    }
+    if (settingsBtn) {
+        settingsBtn.disabled = isUnified;
+        settingsBtn.title = isUnified ? 'Board settings are not available in Unified view' : 'Open board settings';
+    }
+    if (boardMenuBtn) {
+        boardMenuBtn.title = isUnified ? 'Menu (All Boards)' : `Menu (${boardName})`;
+    }
+
+    if (isUnified && openBoards.length === 0) {
+        renderBoardEmptyState();
+        return;
     }
 
     const activeBoardView = typeof getActiveBoardView === 'function'
@@ -356,7 +418,8 @@ async function renderBoard() {
 
     if (activeBoardView === 'calendar' && typeof renderCalendarBoard === 'function') {
       const stagingEl = document.createElement('div');
-      const renderResult = await renderCalendarBoard(stagingEl, boardRoot, lists, {
+      // Pass array of roots to support unified calendar
+      const renderResult = await renderCalendarBoard(stagingEl, isUnified ? openBoards : boardRoot, isUnified ? null : await window.board.listLists(boardRoot), {
         deferSortableInit: true,
       });
 
@@ -383,7 +446,8 @@ async function renderBoard() {
 
     if (activeBoardView === 'this-week' && typeof renderThisWeekBoard === 'function') {
       const stagingEl = document.createElement('div');
-      const renderResult = await renderThisWeekBoard(stagingEl, boardRoot, lists, {
+      // Pass array of roots to support unified this-week
+      const renderResult = await renderThisWeekBoard(stagingEl, isUnified ? openBoards : boardRoot, isUnified ? null : await window.board.listLists(boardRoot), {
         deferSortableInit: true,
       });
 
@@ -408,17 +472,53 @@ async function renderBoard() {
       return;
     }
 
-    const listsWithCards = await Promise.all(
-      lists.map(async (listName) => {
-        const listPath = boardRoot + listName;
-        const cards = await window.board.listCards(listPath);
-        return { listName, listPath, cards };
-      })
-    );
+    let listsWithCards = [];
+    if (isUnified) {
+        const aggregatedLists = new Map(); // displayName -> { listName, listPath (first one), cardPaths[] }
+        for (const root of openBoards) {
+            const boardLists = await window.board.listLists(root);
+            for (const listName of boardLists) {
+                const displayName = typeof getBoardListDisplayName === 'function' ? getBoardListDisplayName(listName) : listName;
+                if (!aggregatedLists.has(displayName)) {
+                    aggregatedLists.set(displayName, { listName, listPath: root + listName, cardPaths: [] });
+                }
+                const entry = aggregatedLists.get(displayName);
+                const listPath = root + listName;
+                const cardNames = await window.board.listCards(listPath);
+                for (const cardName of cardNames) {
+                    entry.cardPaths.push(listPath + '/' + cardName);
+                }
+            }
+        }
+        listsWithCards = Array.from(aggregatedLists.values()).map(entry => ({
+            listName: entry.listName,
+            listPath: entry.listPath,
+            cardPaths: entry.cardPaths,
+            isUnified: true,
+            displayName: entry.displayName
+        }));
+    } else {
+        const lists = await window.board.listLists(boardRoot);
+        await ensureBoardLabelsLoaded();
+        listsWithCards = await Promise.all(
+          lists.map(async (listName) => {
+            const listPath = boardRoot + listName;
+            const cards = await window.board.listCards(listPath);
+            return { 
+                listName, 
+                listPath, 
+                cardPaths: cards.map(c => listPath + '/' + c),
+                displayName: typeof getBoardListDisplayName === 'function' ? getBoardListDisplayName(listName) : listName
+            };
+          })
+        );
+    }
 
     const listBuilds = await Promise.all(
-      listsWithCards.map(({ listName, listPath, cards }) => createListElement(listName, listPath, cards, {
+      listsWithCards.map(({ listName, listPath, cardPaths, isUnified, displayName }) => createListElement(listName, listPath, cardPaths, {
         deferSortableInit: true,
+        isUnified,
+        displayName
       }))
     );
 
@@ -460,31 +560,33 @@ async function renderBoard() {
         }
       }
 
-      activeSortables.push(new Sortable(boardEl, {
-        group: 'lists',
-        animation: 150,
-        onEnd: async (evt) => {
-          const finalOrder = [...evt.to.querySelectorAll('.list')].map((list) =>
-            list.getAttribute('data-path')
-          );
+      if (!isUnified) {
+          activeSortables.push(new Sortable(boardEl, {
+            group: 'lists',
+            animation: 150,
+            onEnd: async (evt) => {
+              const finalOrder = [...evt.to.querySelectorAll('.list')].map((list) =>
+                list.getAttribute('data-path')
+              );
 
-          let directoryCounter = 0;
-          for (const directoryPath of finalOrder) {
-            const directoryNumber = (directoryCounter).toLocaleString('en-US', {
-              minimumIntegerDigits: 3,
-              useGrouping: false
-            });
+              let directoryCounter = 0;
+              for (const directoryPath of finalOrder) {
+                const directoryNumber = (directoryCounter).toLocaleString('en-US', {
+                  minimumIntegerDigits: 3,
+                  useGrouping: false
+                });
 
-            const newDirectoryName = window.boardRoot + directoryNumber + await window.board.getListDirectoryName(directoryPath).slice(3);
+                const newDirectoryName = window.boardRoot + directoryNumber + await window.board.getListDirectoryName(directoryPath).slice(3);
 
-            await window.board.moveCard(directoryPath, newDirectoryName);
+                await window.board.moveCard(directoryPath, newDirectoryName);
 
-            directoryCounter++;
-          }
+                directoryCounter++;
+              }
 
-          await renderBoard();
-        }
-      }));
+              await renderBoard();
+            }
+          }));
+      }
     }
 
     storeBoardSortables(activeSortables);

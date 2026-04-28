@@ -23,6 +23,27 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - ⌨️ Keyboard shortcuts
 - 🤖 MCP server
 - 💻 CLI
+- 🔗 Unified Board View (New!)
+
+---
+
+## 🔗 Unified Board View (Experimental)
+
+Signboard now supports a **Unified View** that aggregates all your open boards into a single workspace.
+
+### Key Features
+- **Aggregated Kanban**: Columns with the same name (e.g., "Todo", "Done") from different boards are merged into a single view.
+- **Unified Calendar & Week Views**: See all your tasks from every board in one temporal view.
+- **Board Indicators**: Each card in the Unified view shows which board it belongs to.
+- **Cross-Board Drag and Drop**: 
+  - Drag a card between columns in Unified view and it stays on its original board.
+  - Drag a card directly to a **Board Tab** at the top to move it to that board.
+- **Auto-List Creation**: Dragging a card to a column that doesn't exist on its original board will automatically create that list for you.
+
+### How to use
+1. Open two or more boards using the "+ Add Board" button or by dragging folders into the app.
+2. Click the **"All Boards"** button that appears next to the Add Board button.
+3. Switch between individual boards and the All Boards view using the tabs. You can close the All Boards tab at any time.
 
 ---
 
@@ -287,3 +308,27 @@ Signboard includes static versions of the following open source libraries:
 - [SortableJS](https://github.com/SortableJS/Sortable) – [MIT License](https://github.com/SortableJS/Sortable/blob/master/LICENSE)
 - [Feather Icons](https://github.com/feathericons/feather) – [MIT License](https://github.com/feathericons/feather/blob/master/LICENSE)
 - [fDatepicker](https://github.com/liedekef/fdatepicker) – [MIT License](https://github.com/liedekef/fdatepicker/blob/master/LICENSE.md)
+
+---
+
+## 🛠 Technical Notes for Handoff (Unified View & Drag-and-Drop)
+
+This section documents the architectural changes made during the implementation of the **Unified View** and the hardened **Drag-and-Drop** system.
+
+### Unified View Architecture
+- **Virtual Root**: Uses `__unified__` as a special `window.boardRoot`.
+- **Aggregation**: `renderBoard.js` and `boardViews.js` were updated to aggregate lists and cards from all `getStoredOpenBoards()` when in unified mode.
+- **Label Merging**: `boardLabels.js` merges labels from all open boards into a single map so filtering and colors work correctly across boards.
+- **Permission Relaxation**: `main.js` now allows write access to any "trusted" board root (not just the active one) to enable editing cards in Unified view.
+
+### Hardened Drag-and-Drop
+- **Manual Hit-Testing**: Due to Sortable's `forceFallback: true`, standard `drop` events on tabs are unreliable. The `onEnd` handler in `createListElement.js` now uses manual coordinate mapping via `getBoundingClientRect` to detect drops on board tabs.
+- **Board Preservation**: In Unified view, reordering logic specifically filters cards by their physical board path. If a card is moved to a column that doesn't exist on its original board, the system auto-creates the directory.
+- **Cross-Device Moves**: `main.js` now handles `EXDEV` errors during `fs.rename` by falling back to `copyFile` + `unlink`.
+- **Async Synchronization**: `app/utilities/cardDragTilt.js` was updated to correctly `await` the `onEnd` promise, preventing premature cleanup of the drag state (`__activeBoardDropTarget`).
+- **Filename Integrity**: Fixed a bug where re-indexing was injecting double hyphens into card filenames.
+
+### Future Work
+- **Archive Browser**: Currently disabled in Unified view. Could be enabled by aggregating archive entries from all boards.
+- **Board Settings**: Currently disabled in Unified view.
+- **Cross-Board Reordering**: Reordering currently only affects cards from the same board within a merged column.
