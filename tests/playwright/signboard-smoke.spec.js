@@ -3,7 +3,7 @@ const os = require('os');
 const path = require('path');
 const electronBinary = require('electron');
 const { test: base, expect, _electron: electron } = require('@playwright/test');
-const { createFixtureBoard } = require('./helpers/fixtureBoard');
+const { createFixtureBoard, createFixtureBoardAt } = require('./helpers/fixtureBoard');
 
 const repoRoot = path.resolve(__dirname, '../..');
 const usesMetaModifier = process.platform === 'darwin';
@@ -39,19 +39,42 @@ async function pathExists(targetPath) {
 }
 
 async function seedBoardState(page, boardRoot) {
-  const normalizedBoardRoot = normalizeBoardRoot(boardRoot);
+  await seedOpenBoardState(page, [boardRoot], boardRoot);
+}
+
+async function seedOpenBoardState(page, boardRoots, activeBoardRoot) {
+  const normalizedBoardRoots = boardRoots.map(normalizeBoardRoot);
+  const normalizedActiveBoardRoot = normalizeBoardRoot(activeBoardRoot || boardRoots[0]);
 
   await page.waitForLoadState('domcontentloaded');
   await page.waitForSelector('#board');
-  await page.evaluate((nextBoardRoot) => {
-    localStorage.setItem('activeBoardPath', nextBoardRoot);
-    localStorage.setItem('boardPath', nextBoardRoot);
-    localStorage.setItem('openBoardPaths', JSON.stringify([nextBoardRoot]));
-  }, normalizedBoardRoot);
+  await page.evaluate(({ openBoards, activeBoard }) => {
+    localStorage.setItem('activeBoardPath', activeBoard);
+    localStorage.setItem('boardPath', activeBoard);
+    localStorage.setItem('openBoardPaths', JSON.stringify(openBoards));
+  }, { openBoards: normalizedBoardRoots, activeBoard: normalizedActiveBoardRoot });
   await page.reload();
   await page.waitForLoadState('domcontentloaded');
-  await expect(page.locator('#boardName')).toHaveText('Playwright Board');
+  await expect(page.locator('#boardName')).toHaveText(path.basename(normalizedActiveBoardRoot.replace(/\/+$/, '')));
   await expect(page.locator('.list')).toHaveCount(3);
+}
+
+async function prepareOpenBoardsPage(electronApp, boardRoot, boardNames = ['Roadmap Board']) {
+  const root = path.dirname(boardRoot);
+  const additionalBoardRoots = [];
+
+  for (const boardName of boardNames) {
+    additionalBoardRoots.push(await createFixtureBoardAt(root, boardName));
+  }
+
+  const page = await electronApp.firstWindow();
+  await page.bringToFront();
+  await seedOpenBoardState(page, [boardRoot, ...additionalBoardRoots], boardRoot);
+
+  return {
+    page,
+    boardRoots: [boardRoot, ...additionalBoardRoots],
+  };
 }
 
 async function getVerticalGap(upperLocator, lowerLocator) {
@@ -282,9 +305,77 @@ test('opens the keyboard shortcuts helper from the keyboard shortcut', async ({ 
 
   await expect(page.locator('#modalKeyboardShortcuts')).toBeVisible();
   await expect(page.locator('#modalKeyboardShortcuts')).toContainText('Keyboard Shortcuts');
+  await expect(page.locator('#modalKeyboardShortcuts')).toContainText('Switch board');
+  await expect(page.locator('#modalKeyboardShortcuts [data-shortcut-action="switchBoard"]')).toHaveText(
+    usesMetaModifier ? '⌘ + K' : 'Ctrl + K',
+  );
 
   await page.keyboard.press('Escape');
   await expect(page.locator('#modalKeyboardShortcuts')).toBeHidden();
+});
+
+test('opens the board switcher from the keyboard shortcut and focuses search', async ({ page }) => {
+  await page.keyboard.press(getShortcut('K'));
+
+  await expect(page.locator('#modalBoardSwitcher')).toBeVisible();
+  await expect(page.locator('#boardSwitcherInput')).toBeFocused();
+  await expect(page.locator('#boardSwitcherInput')).toHaveAttribute('placeholder', 'Switch to board');
+  await expect(page.locator('#boardSwitcherResults')).toContainText('Playwright Board');
+  await expect(page.locator('#boardSwitcherResults')).toContainText('Current');
+});
+
+test('filters the board switcher to currently open boards', async ({ electronApp, boardRoot }) => {
+  const { page } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
+
+  await page.keyboard.press(getShortcut('K'));
+  await page.locator('#boardSwitcherInput').fill('road');
+
+  await expect(page.locator('.board-switcher-option')).toHaveCount(1);
+  await expect(page.locator('.board-switcher-option')).toContainText('Roadmap Board');
+  await expect(page.locator('.board-switcher-option')).not.toContainText('Playwright Board');
+});
+
+test('switches to the highlighted board from the switcher with arrows and Enter', async ({ electronApp, boardRoot }) => {
+  const { page } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board', 'Ideas Board']);
+
+  await page.keyboard.press(getShortcut('K'));
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+
+  await expect(page.locator('#modalBoardSwitcher')).toBeHidden();
+  await expect(page.locator('#boardName')).toHaveText('Ideas Board');
+  await expect(page.locator('#boardTabs .board-tab.is-active .board-tab-label')).toHaveText('Ideas Board');
+});
+
+test('closes the board switcher with Escape without changing boards', async ({ electronApp, boardRoot }) => {
+  const { page } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
+
+  await page.keyboard.press(getShortcut('K'));
+  await page.locator('#boardSwitcherInput').fill('road');
+  await page.keyboard.press('Escape');
+
+  await expect(page.locator('#modalBoardSwitcher')).toBeHidden();
+  await expect(page.locator('#boardName')).toHaveText('Playwright Board');
+});
+
+test('switching boards from an open editor flushes the pending edit and closes the editor', async ({ electronApp, boardRoot }) => {
+  const { page } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+
+  await openFirstCardInEditor(page);
+  await setEditorBody(page, 'Pending switch save.');
+
+  await page.keyboard.press(getShortcut('K'));
+  await expect(page.locator('#modalBoardSwitcher')).toBeVisible();
+  await page.locator('#boardSwitcherInput').fill('road');
+  await page.keyboard.press('Enter');
+
+  await expect(page.locator('#modalBoardSwitcher')).toBeHidden();
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+  await expect(page.locator('#boardName')).toHaveText('Roadmap Board');
+  await expect.poll(async () => {
+    return await fs.readFile(cardPath, 'utf8');
+  }).toContain('Pending switch save.');
 });
 
 test('opens board settings from the renderer keyboard shortcut', async ({ page }) => {

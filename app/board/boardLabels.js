@@ -70,6 +70,7 @@ const SHORTCUT_ACTION_DEFINITIONS = Object.freeze({
   calendarView: Object.freeze({ key: '2', usesPrimaryModifier: true }),
   thisWeekView: Object.freeze({ key: '3', usesPrimaryModifier: true }),
   focusSearch: Object.freeze({ key: 'F', usesPrimaryModifier: true }),
+  switchBoard: Object.freeze({ key: 'K', usesPrimaryModifier: true }),
   boardSettings: Object.freeze({ key: ',', usesPrimaryModifier: true }),
   toggleTheme: Object.freeze({ key: 'D', usesPrimaryModifier: true, shiftKey: true }),
   cycleColorScheme: Object.freeze({ key: 'C', usesPrimaryModifier: true, controlKeyOnMac: true, altKeyOnNonMac: true, shiftKey: true }),

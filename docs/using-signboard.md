@@ -41,7 +41,7 @@ If the directory is empty, Signboard creates a starter board with:
 
 It also creates a starter card that explains the basics. 👋
 
-You can switch between multiple projects using the board tabs across the top of the window.
+You can switch between multiple projects using the board tabs across the top of the window. Press `Cmd/Ctrl + K` from any screen to open the quick board switcher, then type an open board name and press `Enter`.
 
 ## Work with Lists
 
@@ -291,6 +291,7 @@ Imports copy data into Signboard and leave the original source files where they 
 On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 
 - `Cmd/Ctrl + /`: open keyboard shortcuts
+- `Cmd/Ctrl + K`: switch between currently open boards
 - `Cmd/Ctrl + N`: create a card
 - `Cmd/Ctrl + Shift + N`: create a list
 - `Cmd/Ctrl + 1`: switch to Kanban view

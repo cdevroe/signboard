@@ -724,6 +724,7 @@ async function init() {
         initializeBoardSearchControls();
         initializeBoardViewControls();
         initializeArchiveBrowserControls();
+        initializeBoardSwitcherControls();
     };
 
     if (!restoredBoard) {

@@ -1527,6 +1527,93 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   padding: 18px 20px;
 }
 
+.board-switcher-modal {
+  position: fixed;
+  z-index: 12060;
+  top: max(56px, calc(env(safe-area-inset-top) + 14px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, calc(100vw - 28px));
+  max-width: 520px;
+  padding: 10px;
+  box-shadow: 0 18px 48px rgba(16, 24, 40, .18);
+}
+
+.board-switcher-modal.hidden {
+  display: none !important;
+}
+
+#boardSwitcherInput {
+  border-radius: 12px;
+  font-size: 17px;
+  padding: 12px 14px;
+}
+
+.board-switcher-results {
+  display: grid;
+  gap: 4px;
+  max-height: min(320px, calc(100vh - 150px));
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.board-switcher-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.board-switcher-option:hover,
+.board-switcher-option.is-active {
+  border-color: color-mix(in oklab, var(--accent) 34%, var(--border));
+  background: color-mix(in oklab, var(--accent) 10%, var(--bg-card));
+}
+
+.board-switcher-option-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-md);
+  font-weight: 650;
+}
+
+.board-switcher-option-path {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: var(--font-xs);
+}
+
+.board-switcher-current {
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--border));
+  border-radius: 999px;
+  color: color-mix(in oklab, var(--accent) 68%, var(--text));
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 7px;
+  text-transform: uppercase;
+}
+
+.board-switcher-empty {
+  color: var(--muted);
+  font-size: var(--font-sm);
+  padding: 14px 10px 10px;
+}
+
 .about-signboard-modal {
   position: fixed;
   z-index: 45;

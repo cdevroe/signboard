@@ -144,6 +144,7 @@ Here are a few example tasks so you can see how checklists and task due dates wo
 On macOS use Cmd. On Windows and Linux use Ctrl.
 
 - Cmd/Ctrl + / opens the keyboard shortcuts helper
+- Cmd/Ctrl + K switches between open boards
 - Cmd/Ctrl + N creates a new card
 - Cmd/Ctrl + Shift + N creates a new list
 - Cmd/Ctrl + 1 opens Kanban view

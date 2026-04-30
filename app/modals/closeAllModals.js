@@ -77,11 +77,20 @@ async function closeAllModals(e, options = {}){
     const isClick = e && e.type === 'click';
     const closeAllRequest = Boolean(eventTarget && eventTarget.id === 'board') || isEscape;
 
+    if (
+        eventTarget &&
+        typeof eventTarget.closest === 'function' &&
+        eventTarget.closest('#modalBoardSwitcher')
+    ) {
+        return;
+    }
+
     if (!closeAllRequest && !isClick) {
         return;
     }
 
     const shouldRerender = Boolean(options.rerender);
+    const skipRerender = Boolean(options.skipRerender);
 
     const modalAddCard = document.getElementById('modalAddCard');
     const modalEditCard = document.getElementById('modalEditCard');
@@ -233,7 +242,7 @@ async function closeAllModals(e, options = {}){
         }
     }
 
-    if (shouldRerender || editModalClosed || boardSettingsClosed) {
+    if (!skipRerender && (shouldRerender || editModalClosed || boardSettingsClosed)) {
         await renderBoard();
     }
 }

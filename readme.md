@@ -20,6 +20,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 📅 Calendar and "This Week" views
 - ✅ Progress counters on cards
 - 🔎 Live search
+- ⚡ Quick board switcher for open boards
 - ⌨️ Keyboard shortcuts
 - 🤖 MCP server
 - 💻 CLI
@@ -52,6 +53,7 @@ For standard releases, Signboard intentionally promotes a smaller public downloa
 On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 
 - `Cmd/Ctrl + /`: open keyboard shortcuts
+- `Cmd/Ctrl + K`: switch between currently open boards
 - `Cmd/Ctrl + N`: create a card
 - `Cmd/Ctrl + Shift + N`: create a list
 - `Cmd/Ctrl + 1`: switch to Kanban view

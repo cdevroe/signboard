@@ -4,9 +4,8 @@ const path = require('path');
 const cardFrontmatter = require('../../../lib/cardFrontmatter');
 const boardLabels = require('../../../lib/boardLabels');
 
-async function createFixtureBoard() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-playwright-'));
-  const boardRoot = path.join(root, 'Playwright Board');
+async function createFixtureBoardAt(root, boardName = 'Playwright Board') {
+  const boardRoot = path.join(root, boardName);
   const lists = [
     '000-To-do-stock',
     '001-Doing-stock',
@@ -50,9 +49,17 @@ async function createFixtureBoard() {
     }),
   ]);
 
+  return boardRoot;
+}
+
+async function createFixtureBoard() {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-playwright-'));
+  const boardRoot = await createFixtureBoardAt(root, 'Playwright Board');
+
   return { root, boardRoot };
 }
 
 module.exports = {
   createFixtureBoard,
+  createFixtureBoardAt,
 };

@@ -4,13 +4,13 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board settings/theme shortcuts) + archive browse/restore + top-of-list card move IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board switcher/settings/theme shortcuts) + archive browse/restore + top-of-list card move IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
 - `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
-- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and menu-triggered renderer events, including archive browse/read/restore and top-of-list card move calls.
-- `index.html` - App shell, header board tab strip, board-menu/archive modal markup (including `#modalKeyboardShortcuts` and `#modalArchiveBrowser`), and deferred script/style includes.
+- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and menu-triggered renderer events, including board switcher/settings events, archive browse/read/restore, and top-of-list card move calls.
+- `index.html` - App shell, header board tab strip, board-menu/archive/switcher modal markup (including `#modalKeyboardShortcuts`, `#modalBoardSwitcher`, and `#modalArchiveBrowser`), and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `docs/release-template.md` - Curated GitHub release-body template for public download links.
 - `package.json` - Runtime/build scripts and dependencies.
@@ -32,18 +32,20 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
 - `app/board/boardViews.js` - Board view state, `Views` menu wiring + shortcut hints, Calendar + This Week rendering/navigation/drag-to-reschedule logic, temporal card placement by card due/task due markers, and source-list labels on temporal cards.
 - `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing, detail-pane rendering, incremental result loading, and restore flows.
+- `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder) plus the shared safe board-switch helper used by tab clicks and the switcher.
+- `app/board/boardSwitcher.js` - Quick board switcher overlay for `Cmd/Ctrl + K`, filtering currently open board tabs and delegating selected board changes to the shared switch helper.
 - `app/cards/createCardElement.js` - Card DOM rendering, task progress badge display, and click behavior.
 - `app/cards/processAddNewCard.js` - New card creation flow.
 - `app/cards/processAddNewList.js` - New list creation flow.
 - `app/lists/createListElement.js` - List DOM rendering, sanitized rename, card DnD handling, and cross-list move lifecycle logging.
 - `app/board/renderBoard.js` - Whole-board render (with concurrent card-list reads) and list DnD handling.
-- `app/board/openBoard.js` - Board tab session state (restore/open/close/reorder), board open/init logic, and starter content.
+- `app/board/openBoard.js` - Board open/init logic and starter content.
 - `app/modals/closeAllModals.js` - Modal close logic + editor cleanup + conditional rerender + board interaction lock/unlock.
 - `app/modals/toggleAddCardModal.js` - Add-card modal position/toggle.
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
 - `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, active-card directional list moves, debounced + serialized saves, fresh duplicate lifecycle metadata, and task-line due-date controls aligned from measured line coordinates.
-- `app/listeners/window.js` - Keyboard shortcuts, menu-command listeners, Board Settings fallback handling, color cycling, active-card move/archive shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
+- `app/listeners/window.js` - Keyboard shortcuts, menu-command listeners, Board Settings fallback handling, quick board switcher shortcut handling, color cycling, active-card move/archive shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, and external board-change auto-refresh sync loop.
 - `app/ui/theme.js` - Theme toggle + OverType theme integration, including the theme shortcut hint/state in the board menu.
 - `app/ui/tooltips.js` - Lightweight custom tooltip engine (event delegation + mutation observer) using existing element label attributes.

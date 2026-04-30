@@ -64,6 +64,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/signboard.js` is concatenated from source modules by `buildjs.sh`.
 - Board Settings includes an `Import` section for Trello, Obsidian, and Tasks.md imports, with summary/warning rendering in the existing settings modal.
 - The Board menu now opens a dedicated Archive browser modal; Archive remains hidden from normal board rendering and is not a fourth board view.
+- The quick board switcher is a top-center renderer overlay opened with `Cmd/Ctrl + K`; it searches currently open board tabs only and switches through the same safe board transition helper as tab clicks.
 
 ## Data Model and Naming Conventions
 
@@ -126,9 +127,11 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Initializes the board `Views` selector (Kanban default, plus Calendar and This Week options).
   - Runs an external-change sync loop that watches active board files and re-renders after external updates (for example MCP card moves).
   - Calls directory chooser and `openBoard`.
+- `app/board/boardTabs.js`:
+  - Manages board tabs (add/open/close/reorder + active tab persistence).
+  - Provides the shared safe board-switch helper used by both board tabs and the quick switcher.
 - `app/board/openBoard.js`:
   - Creates starter lists/cards when board folder is empty.
-  - Manages board tabs (add/open/close/reorder + active tab persistence).
   - Sets `window.boardRoot` and renders only the active board.
   - Uses `Open Board` for the folder picker label.
   - No longer performs any implicit Trello import during board open; imports are settings-driven only.
@@ -144,6 +147,9 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Lists archived cards and archived lists with search-first filtering, incremental result rendering, and a detail pane.
   - Reads archive entry detail lazily over preload IPC.
   - Restores cards through an explicit destination-list picker and restores archived lists back into the board root with rename-on-collision handling.
+- `app/board/boardSwitcher.js`:
+  - Opens the `Cmd/Ctrl + K` board switcher overlay.
+  - Filters currently open boards by folder name/path, highlights autocomplete results, and delegates switching to the shared board switch helper.
 - `app/board/boardViews.js`:
   - Owns active board view state and the `Views` dropdown behavior.
   - Renders Calendar month layout (Monday-first week), today highlighting, and month navigation.
@@ -204,6 +210,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 ### Keyboard shortcuts
 - `app/listeners/window.js`:
   - `Cmd/Ctrl + /`: open the keyboard shortcuts helper modal.
+  - `Cmd/Ctrl + K`: open/toggle the quick board switcher from any screen.
   - `Esc`: close modals.
   - `Cmd/Ctrl + N`: add card (with list picker modal).
   - `Cmd/Ctrl + Shift + N`: add list.

@@ -27,6 +27,7 @@ cat \
   app/ui/theme.js \
   app/ui/tooltips.js \
   app/board/boardTabs.js \
+  app/board/boardSwitcher.js \
   app/board/renderBoard.js \
   app/board/openBoard.js \
   app/init.js \

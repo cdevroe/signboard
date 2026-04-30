@@ -201,6 +201,52 @@ function clearRenderedBoard() {
     }
 }
 
+async function prepareForBoardSwitch() {
+    if (typeof closeBoardSwitcher === 'function') {
+        closeBoardSwitcher();
+    }
+    if (typeof hideShortcutHelpModal === 'function') {
+        hideShortcutHelpModal();
+    }
+    if (typeof closeBoardMenuPopover === 'function') {
+        closeBoardMenuPopover();
+    }
+    if (typeof closeAllModals === 'function') {
+        await closeAllModals({ key: 'Escape' }, { skipRerender: true });
+    }
+}
+
+async function switchToBoardPath(boardPath) {
+    const normalizedPath = normalizeBoardPath(boardPath);
+    if (!normalizedPath) {
+        return false;
+    }
+
+    if (normalizeBoardPath(window.boardRoot) === normalizedPath) {
+        setStoredActiveBoard(normalizedPath);
+        renderBoardTabs();
+        return true;
+    }
+
+    await prepareForBoardSwitch();
+
+    const authorizedBoardPath = await authorizeBoardAccess(normalizedPath);
+    if (!authorizedBoardPath) {
+        return false;
+    }
+
+    window.boardRoot = authorizedBoardPath;
+    setStoredActiveBoard(authorizedBoardPath);
+    if (typeof resetBoardLabelFilter === 'function') {
+        resetBoardLabelFilter();
+    }
+    if (typeof resetBoardSearch === 'function') {
+        resetBoardSearch();
+    }
+    await renderBoard();
+    return true;
+}
+
 async function closeBoardTab(boardPath) {
     if (typeof closeBoardSettingsModal === 'function') {
         await closeBoardSettingsModal();
@@ -386,36 +432,7 @@ function renderBoardTabs() {
         }
 
         tabButton.addEventListener('click', async () => {
-            if (normalizeBoardPath(window.boardRoot) === boardPath) {
-                return;
-            }
-
-            if (typeof closeBoardSettingsModal === 'function') {
-                await closeBoardSettingsModal();
-            } else if (typeof flushBoardSettingsSave === 'function') {
-                await flushBoardSettingsSave();
-            } else if (typeof flushBoardLabelSettingsSave === 'function') {
-                await flushBoardLabelSettingsSave();
-            }
-
-            if (typeof closeArchiveBrowserModal === 'function') {
-                closeArchiveBrowserModal();
-            }
-
-            const authorizedBoardPath = await authorizeBoardAccess(boardPath);
-            if (!authorizedBoardPath) {
-                return;
-            }
-
-            window.boardRoot = authorizedBoardPath;
-            setStoredActiveBoard(authorizedBoardPath);
-            if (typeof resetBoardLabelFilter === 'function') {
-                resetBoardLabelFilter();
-            }
-            if (typeof resetBoardSearch === 'function') {
-                resetBoardSearch();
-            }
-            await renderBoard();
+            await switchToBoardPath(boardPath);
         });
 
         const closeButton = document.createElement('button');

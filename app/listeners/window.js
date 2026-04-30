@@ -87,6 +87,23 @@ function isKeyboardShortcutsShortcut(event) {
     return event.code === 'Slash' || key === '/';
 }
 
+function isBoardSwitcherShortcut(event) {
+    if (!event || !hasPrimaryShortcutModifier(event) || event.altKey || event.shiftKey) {
+        return false;
+    }
+
+    if (isShortcutMacPlatform() && event.ctrlKey) {
+        return false;
+    }
+
+    if (!isShortcutMacPlatform() && event.metaKey) {
+        return false;
+    }
+
+    const key = String(event.key || '').trim().toLowerCase();
+    return event.code === 'KeyK' || key === 'k';
+}
+
 function isShortcutMacPlatform() {
     if (typeof isPrimaryShortcutMacPlatform === 'function') {
         return isPrimaryShortcutMacPlatform();
@@ -215,6 +232,10 @@ async function openBoardSettingsFromShortcut() {
         return false;
     }
 
+    if (typeof closeBoardSwitcher === 'function') {
+        closeBoardSwitcher();
+    }
+
     if (typeof isBoardSettingsModalOpen === 'function' && isBoardSettingsModalOpen()) {
         return true;
     }
@@ -257,6 +278,10 @@ async function openArchiveBrowserFromShortcut() {
         return false;
     }
 
+    if (typeof closeBoardSwitcher === 'function') {
+        closeBoardSwitcher();
+    }
+
     if (typeof isArchiveBrowserModalOpen === 'function' && isArchiveBrowserModalOpen()) {
         return true;
     }
@@ -289,6 +314,15 @@ if (window.electronAPI && typeof window.electronAPI.onOpenKeyboardShortcuts === 
     });
 }
 
+if (window.electronAPI && typeof window.electronAPI.onOpenBoardSwitcher === 'function') {
+    window.electronAPI.onOpenBoardSwitcher(() => {
+        hideShortcutHelpModal();
+        if (typeof openBoardSwitcher === 'function') {
+            openBoardSwitcher();
+        }
+    });
+}
+
 if (window.electronAPI && typeof window.electronAPI.onOpenBoardSettings === 'function') {
     window.electronAPI.onOpenBoardSettings(() => {
         hideShortcutHelpModal();
@@ -307,12 +341,44 @@ if (window.electronAPI && typeof window.electronAPI.onToggleThemeMode === 'funct
 
 window.addEventListener('keydown', async (e) => {
         if ( e.key == 'Escape' ) {
+            if (typeof isBoardSwitcherOpen === 'function' && isBoardSwitcherOpen()) {
+                e.preventDefault();
+                closeBoardSwitcher();
+                return;
+            }
             hideShortcutHelpModal();
             await closeAllModals(e);
             return;
         }
+
+        if (typeof isBoardSwitcherOpen === 'function' && isBoardSwitcherOpen()) {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
+                e.preventDefault();
+                if (e.key === 'ArrowDown' && typeof moveBoardSwitcherSelection === 'function') {
+                    moveBoardSwitcherSelection(1);
+                    return;
+                }
+                if (e.key === 'ArrowUp' && typeof moveBoardSwitcherSelection === 'function') {
+                    moveBoardSwitcherSelection(-1);
+                    return;
+                }
+                if (e.key === 'Enter' && typeof selectActiveBoardSwitcherOption === 'function') {
+                    await selectActiveBoardSwitcherOption();
+                    return;
+                }
+            }
+        }
     
         if (!e.ctrlKey && !e.metaKey) return;
+
+        if (isBoardSwitcherShortcut(e)) {
+            e.preventDefault();
+            hideShortcutHelpModal();
+            if (typeof toggleBoardSwitcherFromShortcut === 'function') {
+                toggleBoardSwitcherFromShortcut();
+            }
+            return;
+        }
 
         if (isBoardSettingsShortcut(e)) {
             e.preventDefault();
@@ -324,6 +390,9 @@ window.addEventListener('keydown', async (e) => {
         if (isColorSchemeCycleShortcut(e)) {
             e.preventDefault();
             hideShortcutHelpModal();
+            if (typeof closeBoardSwitcher === 'function') {
+                closeBoardSwitcher();
+            }
             if (typeof cycleBoardColorSchemeFromShortcut === 'function') {
                 await cycleBoardColorSchemeFromShortcut();
             }
@@ -362,6 +431,9 @@ window.addEventListener('keydown', async (e) => {
 
         if (isKeyboardShortcutsShortcut(e)) {
             e.preventDefault();
+            if (typeof closeBoardSwitcher === 'function') {
+                closeBoardSwitcher();
+            }
 
             if (shortcutHelpVisible) {
                 hideShortcutHelpModal();
@@ -373,6 +445,9 @@ window.addEventListener('keydown', async (e) => {
 
         if (handleBoardViewShortcut(e)) {
             hideShortcutHelpModal();
+            if (typeof closeBoardSwitcher === 'function') {
+                closeBoardSwitcher();
+            }
             return;
         }
 
@@ -380,6 +455,9 @@ window.addEventListener('keydown', async (e) => {
             if (focusBoardSearchInput()) {
                 e.preventDefault();
                 hideShortcutHelpModal();
+                if (typeof closeBoardSwitcher === 'function') {
+                    closeBoardSwitcher();
+                }
             }
             return;
         }
@@ -387,6 +465,9 @@ window.addEventListener('keydown', async (e) => {
         if ((e.ctrlKey || e.metaKey) && String(e.key || '').toLowerCase() === 'n') {
             e.preventDefault(); // Prevent default behavior (if any)
             hideShortcutHelpModal();
+            if (typeof closeBoardSwitcher === 'function') {
+                closeBoardSwitcher();
+            }
             
             if ( e.shiftKey ) { // Add List
                 const listName = document.getElementById('userInputListName');

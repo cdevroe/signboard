@@ -418,6 +418,7 @@ function run() {
     'expected overdue active-filter due dates to keep overdue card due dates',
   );
   assert.strictEqual(context.getShortcutHintText('boardSettings'), 'Ctrl+,');
+  assert.strictEqual(context.getShortcutHintText('switchBoard'), 'Ctrl+K');
   assert.strictEqual(context.getShortcutHintText('toggleTheme'), 'Ctrl+Shift+D');
   assert.strictEqual(context.getShortcutHintText('cycleColorScheme'), 'Ctrl+Alt+Shift+C');
   assert.strictEqual(context.getShortcutKeycapText('moveCardLeft'), 'Ctrl + Shift + [');

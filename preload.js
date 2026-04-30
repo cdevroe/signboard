@@ -110,6 +110,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('open-keyboard-shortcuts', listener);
     };
   },
+  onOpenBoardSwitcher: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = () => {
+      callback();
+    };
+
+    ipcRenderer.on('open-board-switcher', listener);
+    return () => {
+      ipcRenderer.removeListener('open-board-switcher', listener);
+    };
+  },
   onOpenBoardSettings: (callback) => {
     if (typeof callback !== 'function') {
       return () => {};

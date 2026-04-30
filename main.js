@@ -1747,6 +1747,13 @@ function buildApplicationMenu() {
       sendToMainWindow('open-keyboard-shortcuts');
     },
   });
+  const createBoardSwitcherMenuItem = () => ({
+    label: 'Switch Board...',
+    accelerator: 'CmdOrCtrl+K',
+    click: () => {
+      sendToMainWindow('open-board-switcher');
+    },
+  });
   const createBoardSettingsMenuItem = () => ({
     label: 'Board Settings...',
     accelerator: 'CmdOrCtrl+,',
@@ -1775,6 +1782,7 @@ function buildApplicationMenu() {
       label: app.name,
       submenu: [
         createAboutSignboardMenuItem(),
+        createBoardSwitcherMenuItem(),
         createBoardSettingsMenuItem(),
         { type: 'separator' },
         createCheckForUpdatesMenuItem(),
@@ -1794,7 +1802,7 @@ function buildApplicationMenu() {
     label: 'File',
     submenu: isMac
       ? [{ role: 'close' }]
-      : [createBoardSettingsMenuItem(), { type: 'separator' }, { role: 'quit' }],
+      : [createBoardSwitcherMenuItem(), createBoardSettingsMenuItem(), { type: 'separator' }, { role: 'quit' }],
   });
 
   template.push({

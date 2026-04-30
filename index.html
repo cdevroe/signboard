@@ -84,6 +84,11 @@
 
   <div id="listActionsPopover" class="label-popover list-actions-popover hidden" aria-hidden="true"></div>
 
+  <div id="modalBoardSwitcher" class="modal board-switcher-modal hidden" role="dialog" aria-modal="false" aria-label="Switch to board" aria-hidden="true">
+    <input id="boardSwitcherInput" type="search" placeholder="Switch to board" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-controls="boardSwitcherResults">
+    <div id="boardSwitcherResults" class="board-switcher-results" role="listbox" aria-label="Open boards"></div>
+  </div>
+
   <div id="modalArchiveBrowser" class="modal archive-browser-modal hidden" role="dialog" aria-modal="true" aria-labelledby="archiveBrowserTitle" aria-hidden="true">
     <div class="archive-browser-header">
       <div>
@@ -180,6 +185,10 @@
       <section class="keyboard-shortcuts-section" aria-labelledby="keyboard-shortcuts-section-board">
         <h3 id="keyboard-shortcuts-section-board">Board</h3>
         <ul class="keyboard-shortcuts-list">
+          <li>
+            <span>Switch board</span>
+            <kbd data-shortcut-action="switchBoard">⌘ + K</kbd>
+          </li>
           <li>
             <span>Board settings</span>
             <kbd data-shortcut-action="boardSettings">⌘ + ,</kbd>
