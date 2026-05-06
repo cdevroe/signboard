@@ -169,6 +169,96 @@ test('keeps add modals hidden on startup', async ({ page }) => {
   await expect(page.locator('#boardMenuPopover')).toBeHidden();
 });
 
+test('renders card drag ghost as an empty drop slot', async ({ page }) => {
+  const card = page.locator('.list').first().locator('.card').first();
+  const frame = card.locator('.card-drag-frame');
+
+  await expect(card.locator('h3')).toHaveText('Plan release notes');
+
+  await card.evaluate((element) => {
+    element.classList.add('card-sortable--ghost');
+  });
+
+  await expect(card).toHaveCSS('opacity', '1');
+  await expect(frame).toHaveCSS('border-top-style', 'dashed');
+  await expect(card.locator('h3')).toHaveCSS('visibility', 'hidden');
+  await expect(card.locator('.card-body')).toHaveCSS('visibility', 'hidden');
+});
+
+test('does not leave duplicate card nodes after rapid cross-list dragging', async ({ page }) => {
+  const card = page.locator('.list').first().locator('.card').first();
+  const firstList = page.locator('.list').first();
+  const secondList = page.locator('.list').nth(1);
+
+  const cardBox = await card.boundingBox();
+  const firstListBox = await firstList.boundingBox();
+  const secondListBox = await secondList.boundingBox();
+
+  if (!cardBox || !firstListBox || !secondListBox) {
+    throw new Error('Unable to measure card/list positions.');
+  }
+
+  const start = {
+    x: cardBox.x + (cardBox.width / 2),
+    y: cardBox.y + (cardBox.height / 2),
+  };
+  const firstListBottom = {
+    x: firstListBox.x + (firstListBox.width / 2),
+    y: firstListBox.y + firstListBox.height - 24,
+  };
+  const secondListBottom = {
+    x: secondListBox.x + (secondListBox.width / 2),
+    y: secondListBox.y + secondListBox.height - 24,
+  };
+
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  for (let index = 0; index < 10; index += 1) {
+    await page.mouse.move(secondListBottom.x, secondListBottom.y, { steps: 3 });
+    await page.mouse.move(firstListBottom.x, firstListBottom.y, { steps: 3 });
+  }
+
+  const duringDrag = await page.evaluate(() => ({
+    fallbackCount: document.querySelectorAll('.card-sortable--fallback').length,
+    ghostCount: document.querySelectorAll('.card-sortable--ghost').length,
+    fallbackInCardListCount: Array.from(document.querySelectorAll('.card-sortable--fallback')).filter((element) => element.closest('.cards')).length,
+    fallbackOpacity: (() => {
+      const fallback = document.querySelector('.card-sortable--fallback');
+      return fallback ? window.getComputedStyle(fallback).opacity : '';
+    })(),
+    cardsByPath: Array.from(document.querySelectorAll('.card[data-path]')).reduce((counts, element) => {
+      const path = String(element.dataset.path || '');
+      counts[path] = (counts[path] || 0) + 1;
+      return counts;
+    }, {}),
+  }));
+
+  expect(duringDrag.fallbackCount).toBe(1);
+  expect(duringDrag.ghostCount).toBe(1);
+  expect(duringDrag.fallbackInCardListCount).toBe(0);
+  expect(duringDrag.fallbackOpacity).toBe('1');
+
+  await page.mouse.up();
+  await page.waitForTimeout(500);
+
+  const afterDrop = await page.evaluate(() => ({
+    fallbackCount: document.querySelectorAll('.card-sortable--fallback').length,
+    ghostCount: document.querySelectorAll('.card-sortable--ghost').length,
+    cardsByPath: Array.from(document.querySelectorAll('.card[data-path]')).reduce((counts, element) => {
+      const path = String(element.dataset.path || '');
+      counts[path] = (counts[path] || 0) + 1;
+      return counts;
+    }, {}),
+  }));
+
+  expect(afterDrop.fallbackCount).toBe(0);
+  expect(afterDrop.ghostCount).toBe(0);
+
+  for (const count of Object.values(afterDrop.cardsByPath)) {
+    expect(count).toBe(1);
+  }
+});
+
 test('opens the list actions popover and routes Add new card through the existing modal', async ({ page }) => {
   await page.locator('.list-actions-button').first().click();
 

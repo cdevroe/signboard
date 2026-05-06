@@ -134,6 +134,7 @@ signboard cards read --card 003-ship-release-notes-ab123.md
 signboard cards create --list "To do" --title "Ship release notes"
 signboard cards create --list "To do" --title "Write announcement" --due 2026-04-10
 signboard cards create --list "To do" --title "Draft copy" --label Writing --label Marketing
+signboard cards create --from-card ab123 --list "Leads" --title "New lead" --remove-label Template
 ```
 
 Create options:
@@ -142,8 +143,13 @@ Create options:
 - `--title <title>` required
 - `--body <text>`
 - `--body-file <path>`
+- `--from-card <card-ref>` optional source card/template to copy
+- `--from-list <list-ref>` optional source list disambiguation for `--from-card`
 - `--due <YYYY-MM-DD|none>`
 - `--label <ref>` repeatable
+- `--remove-label <ref>` repeatable with `--from-card`
+- `--clear-labels` with `--from-card`
+- `--dry-run`
 
 Using a body file means you can make your commands much shorter and import previous content faster, potentially.
 
@@ -164,8 +170,11 @@ signboard cards edit --card ab123 --due 2026-04-12
 signboard cards edit --card ab123 --due none
 signboard cards edit --card ab123 --move-to Doing
 signboard cards edit --card ab123 --append-body $'\n\nFollow up with QA.'
+signboard cards edit --card ab123 --replace-section "Notes" --body-file ./notes.md
+signboard cards edit --card ab123 --insert-after-heading "## Source" --text "Website form."
 signboard cards edit --card ab123 --set-label Urgent
 signboard cards edit --card ab123 --add-label Docs --remove-label Backlog
+signboard cards edit --card ab123 --clear-labels
 ```
 
 Edit options:
@@ -176,11 +185,55 @@ Edit options:
 - `--body <text>`
 - `--body-file <path>`
 - `--append-body <text>`
+- `--replace-section <heading>` with `--body` or `--body-file`
+- `--insert-after-heading <heading>` with `--text` or `--text-file`
 - `--due <YYYY-MM-DD|none>`
 - `--set-label <ref>` repeatable, replaces all labels
 - `--add-label <ref>` repeatable
 - `--remove-label <ref>` repeatable
+- `--clear-labels`
 - `--move-to <list-ref>`
+- `--dry-run`
+
+#### Duplicate a card
+
+Use `cards duplicate` when you want Signboard to copy the full card structure, frontmatter, body, checklist metadata, ordering prefix, and future card fields.
+
+```bash
+signboard cards duplicate --card ab123 --list "Leads" --title "New lead"
+signboard cards duplicate --card ab123 --from-list Templates --list "Leads" --remove-label Template --json
+signboard cards duplicate --card ab123 --list "Leads" --dry-run --json
+```
+
+Duplicate options:
+
+- `--card <card-ref>` required
+- `--from-list <list-ref>` optional source disambiguation
+- `--list <list-ref>` optional target list; defaults to the source list
+- `--title <title>` optional exact title; defaults to `Copy of <source title>`
+- `--body <text>` or `--body-file <path>` optional replacement body
+- `--label <ref>` repeatable, adds labels to the duplicate
+- `--remove-label <ref>` repeatable
+- `--clear-labels`
+- `--dry-run`
+
+#### Add a note
+
+Use `cards notes add` for append-only note updates. It writes under a `## Notes` section and creates that section when missing.
+
+```bash
+signboard cards notes add --card ab123 --text "Emailed follow-up" --timestamp
+signboard cards notes add --card ab123 --section "Call Notes" --text-file ./call-notes.md
+```
+
+Note options:
+
+- `--card <card-ref>` required
+- `--list <list-ref>` optional disambiguation
+- `--text <text>` or `--text-file <path>`
+- `--timestamp` prefixes the note with the same month/day/time format used by the editor toolbar
+- `--section <heading>` defaults to `Notes`
+- `--dry-run`
 
 ## Reference Matching
 
@@ -246,7 +299,8 @@ Recommended agent workflow:
 1. Pass `--board <path>` instead of changing global state with `signboard use`.
 2. Read before write when references may be ambiguous.
 3. Use `--json` for reads and verification.
-4. Use exact list or card references when possible.
+4. Use `--dry-run --json` before card writes when you need to preview a mutation.
+5. Use exact list or card references when possible.
 
 ## Common Workflows
 

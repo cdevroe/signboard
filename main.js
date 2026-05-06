@@ -867,6 +867,80 @@ function writeWindowState(windowState) {
   }
 }
 
+function getContextMenuEditFlag(editFlags, key, fallback = false) {
+  if (!editFlags || typeof editFlags !== 'object') {
+    return fallback;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(editFlags, key)) {
+    return Boolean(editFlags[key]);
+  }
+
+  return fallback;
+}
+
+function buildRendererContextMenuTemplate(params = {}) {
+  const editFlags = params && typeof params.editFlags === 'object' ? params.editFlags : {};
+  const isEditable = Boolean(params.isEditable);
+  const hasSelection = Boolean(String(params.selectionText || '').trim());
+  const linkURL = String(params.linkURL || '').trim();
+
+  if (isEditable) {
+    return [
+      { role: 'undo', enabled: getContextMenuEditFlag(editFlags, 'canUndo') },
+      { role: 'redo', enabled: getContextMenuEditFlag(editFlags, 'canRedo') },
+      { type: 'separator' },
+      { role: 'cut', enabled: getContextMenuEditFlag(editFlags, 'canCut') },
+      { role: 'copy', enabled: getContextMenuEditFlag(editFlags, 'canCopy') },
+      { role: 'paste', enabled: getContextMenuEditFlag(editFlags, 'canPaste') },
+      ...(process.platform === 'darwin'
+        ? [{ role: 'pasteAndMatchStyle', enabled: getContextMenuEditFlag(editFlags, 'canPaste') }]
+        : []),
+      { role: 'delete', enabled: getContextMenuEditFlag(editFlags, 'canDelete') },
+      { type: 'separator' },
+      { role: 'selectAll', enabled: getContextMenuEditFlag(editFlags, 'canSelectAll', true) },
+    ];
+  }
+
+  const template = [];
+
+  if (hasSelection) {
+    template.push({ role: 'copy', enabled: getContextMenuEditFlag(editFlags, 'canCopy', true) });
+  }
+
+  if (linkURL) {
+    if (template.length > 0) {
+      template.push({ type: 'separator' });
+    }
+
+    template.push({
+      label: 'Copy Link',
+      click: () => {
+        clipboard.writeText(linkURL);
+      },
+    });
+  }
+
+  return template;
+}
+
+function showRendererContextMenu(win, params = {}) {
+  if (!win || win.isDestroyed()) {
+    return;
+  }
+
+  const template = buildRendererContextMenuTemplate(params).filter(Boolean);
+  if (template.length === 0) {
+    return;
+  }
+
+  Menu.buildFromTemplate(template).popup({
+    window: win,
+    x: Number.isFinite(params.x) ? params.x : undefined,
+    y: Number.isFinite(params.y) ? params.y : undefined,
+  });
+}
+
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) {
@@ -975,6 +1049,10 @@ function createWindow() {
     if (shouldOpenExternally(url)) {
       shell.openExternal(url);
     }
+  });
+
+  win.webContents.on('context-menu', (_event, params) => {
+    showRendererContextMenu(win, params);
   });
 
   win.webContents.on('unresponsive', async () => {
@@ -1132,14 +1210,19 @@ function buildMcpConfigTemplate() {
     SIGNBOARD_MCP_READ_ONLY: 'false',
   };
   let defaultAllowedRoot = '';
+  const trustedRoots = Array.from(readTrustedBoardRoots());
 
-  try {
-    defaultAllowedRoot = path.join(app.getPath('documents'), 'Boards');
-  } catch {
+  if (trustedRoots.length > 0) {
+    defaultAllowedRoot = trustedRoots.join(path.delimiter);
+  } else {
     try {
-      defaultAllowedRoot = path.join(app.getPath('home'), 'Boards');
+      defaultAllowedRoot = path.join(app.getPath('documents'), 'Boards');
     } catch {
-      defaultAllowedRoot = path.join(process.cwd(), 'Boards');
+      try {
+        defaultAllowedRoot = path.join(app.getPath('home'), 'Boards');
+      } catch {
+        defaultAllowedRoot = path.join(process.cwd(), 'Boards');
+      }
     }
   }
 
@@ -2418,6 +2501,7 @@ app.whenReady().then(async () => {
 
     await startSignboardMcpServer({
       appVersion: app.getVersion(),
+      trustedBoardRoots: Array.from(readTrustedBoardRoots()),
       onStop: () => {
         if (isMcpPowerSaveBlockerActive()) {
           powerSaveBlocker.stop(mcpPowerSaveBlockerId);

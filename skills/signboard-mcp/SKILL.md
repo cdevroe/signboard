@@ -13,13 +13,12 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 - `boardRoot` values must be absolute paths.
 - Respect server mode from `signboard_get_config`:
   - `readOnly: true` means do not attempt write tools.
-  - If `allowedRoots` is non-empty, only use board paths inside those roots.
+  - `allowedRoots` is the union of explicit MCP roots and desktop trusted board roots; only use board paths inside those roots.
 
 ## Tool Workflow
 
 1. Call `signboard_get_config` first.
-2. If board root is unknown, ask user for the absolute board path.
-   - If `allowedRoots` are configured, prefer `signboard_resolve_board_by_name` first.
+2. If board root is unknown, prefer `signboard_resolve_board_by_name` first when `allowedRoots` are available; otherwise ask user for the absolute board path.
 3. Discover structure:
    - `signboard_list_lists`
    - `signboard_list_cards`
@@ -51,13 +50,13 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 
 - `signboard_get_config`: inspect MCP mode and path constraints.
 - `signboard_list_board_views`: list available board views (`kanban`, `calendar`, `this-week`).
-- `signboard_resolve_board_by_name`: map a board directory name to absolute board paths under allowed roots.
+- `signboard_resolve_board_by_name`: map a board directory name to absolute board paths under allowed roots, including allowed roots that are themselves board folders.
 - `signboard_list_lists`: get list directory names in a board.
 - `signboard_list_cards`: get card markdown files in a list.
 - `signboard_read_card`: return normalized frontmatter and body.
 - `signboard_create_card`: create a card from title/body/optional due+labels.
-- `signboard_update_card`: patch title/body/due/labels of a card.
-- `signboard_duplicate_card`: duplicate an existing card with optional label removal.
+- `signboard_update_card`: patch title/body/due/labels of a card, including section edits, note insertion, label add/remove/clear, and dry-run previews.
+- `signboard_duplicate_card`: duplicate an existing card with optional title/body override, label add/remove/clear, and dry-run preview.
 - `signboard_archive_card`: move a card to `XXX-Archive`.
 - `signboard_move_card`: move card between lists.
 - `signboard_create_list`: create a list directory.

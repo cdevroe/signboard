@@ -1217,7 +1217,18 @@ body.board-empty main#board {
 }
 
 .card-sortable--ghost {
-  opacity: .34;
+  opacity: 1;
+}
+
+.card-sortable--ghost > .card-drag-frame {
+  background: color-mix(in oklab, var(--accent) 6%, var(--bg-card));
+  border: 1px dashed color-mix(in oklab, var(--accent) 28%, var(--border));
+  box-shadow: none;
+  transform: none;
+}
+
+.card-sortable--ghost > .card-drag-frame > * {
+  visibility: hidden;
 }
 
 .card-sortable--dragging,
@@ -1225,8 +1236,14 @@ body.board-empty main#board {
   cursor: grabbing;
 }
 
+.card-sortable--fallback {
+  opacity: 1 !important;
+}
+
 .card-sortable--dragging > .card-drag-frame,
 .card-sortable--fallback > .card-drag-frame {
+  border-color: color-mix(in oklab, var(--accent) 34%, var(--border));
+  box-shadow: 0 12px 28px color-mix(in oklab, var(--shadow-card) 74%, transparent);
   transform: rotate(var(--card-drag-tilt, 0deg));
 }
 

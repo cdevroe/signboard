@@ -20,10 +20,11 @@ By default, the server starts in read-only mode.
   - default: `true`
   - set to `false` (or `0`) to allow write tools
 - `SIGNBOARD_MCP_ALLOWED_ROOTS`:
-  - required allowlist for board-scoped tools
+  - optional allowlist for board-scoped tools when the desktop app already has trusted board roots
   - uses your OS path delimiter (`:` on macOS/Linux, `;` on Windows)
-  - `boardRoot` arguments must resolve inside one of these paths
-  - import tool `sourcePath` / `sourcePaths` arguments must also resolve inside one of these paths
+  - MCP combines these paths with Signboard's desktop trusted board roots from `trusted-board-roots.json`
+  - `boardRoot` arguments must resolve inside one configured or trusted root
+  - import tool `sourcePath` / `sourcePaths` arguments must also resolve inside one configured or trusted root
 
 Example (macOS/Linux):
 
@@ -75,7 +76,7 @@ Signboard includes a menu helper at `Help` -> `Copy MCP Config`.
 
 - It copies a complete JSON config snippet to your clipboard.
 - It sets `command` to Signboard's current executable path.
-- It includes `SIGNBOARD_MCP_READ_ONLY=false` and a starter `SIGNBOARD_MCP_ALLOWED_ROOTS` value (`Documents/Boards`).
+- It includes `SIGNBOARD_MCP_READ_ONLY=false` and uses existing trusted board roots for `SIGNBOARD_MCP_ALLOWED_ROOTS` when available; otherwise it falls back to a starter `Documents/Boards` value.
 
 ## Optional agent skill file
 
@@ -97,9 +98,9 @@ The server currently exposes these tools:
 - `signboard_list_lists`
 - `signboard_list_cards`
 - `signboard_read_card` (includes `taskSummary` + `taskDueDates`)
-- `signboard_create_card` (write mode only, includes `taskSummary` + `taskDueDates`)
-- `signboard_update_card` (write mode only, includes `taskSummary` + `taskDueDates`)
-- `signboard_duplicate_card` (write mode only, includes `taskSummary` + `taskDueDates`)
+- `signboard_create_card` (write mode only, includes `taskSummary` + `taskDueDates`; supports `dryRun`)
+- `signboard_update_card` (write mode only, includes `taskSummary` + `taskDueDates`; supports section edits, note insertion, label operations, and `dryRun`)
+- `signboard_duplicate_card` (write mode only, includes `taskSummary` + `taskDueDates`; supports title/body override, label operations, and `dryRun`)
 - `signboard_archive_card` (write mode only)
 - `signboard_move_card` (write mode only)
 - `signboard_create_list` (write mode only)
@@ -115,7 +116,7 @@ The server currently exposes these tools:
 
 Board-scoped tools take absolute `boardRoot` paths, `signboard_create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
 Board settings tools include labels, theme overrides, and notification preferences.
-Import tools also take absolute external source paths, and those paths must resolve inside `SIGNBOARD_MCP_ALLOWED_ROOTS`.
+Import tools also take absolute external source paths, and those paths must resolve inside configured or trusted roots.
 
 ## Task Metadata in Card Tool Responses
 
@@ -156,8 +157,8 @@ If you do not want to manually type absolute board paths, use:
 
 - `signboard_resolve_board_by_name`
 
-This searches within `SIGNBOARD_MCP_ALLOWED_ROOTS` and returns absolute matches.
-If `SIGNBOARD_MCP_ALLOWED_ROOTS` is not set, the resolver tool returns an error.
+This searches within configured and desktop-trusted roots and returns absolute matches. It also matches a root directory itself, so a trusted root can be the board folder, not only a parent folder.
+If neither `SIGNBOARD_MCP_ALLOWED_ROOTS` nor desktop trusted board roots are available, the resolver tool returns an error.
 
 ## Example client config snippets
 
@@ -200,6 +201,8 @@ If `SIGNBOARD_MCP_ALLOWED_ROOTS` is not set, the resolver tool returns an error.
 - `signboard_list_board_views` describes that Calendar/This Week group cards by both card due dates and task due markers.
 - Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`).
 - `signboard_create_card` and `signboard_update_card` normalize literal `\n` / `\N` escape sequences in body input into real line breaks.
+- `signboard_update_card` can replace a Markdown heading section (`replaceSection` + `body`), insert text after a heading (`insertAfterHeading` + `insertText`), append a note under `## Notes` (`addNote`), and clear/add/remove labels without replacing the full body.
+- `dryRun: true` on card create/update/duplicate returns the planned card payload without writing a file.
 - Board settings use Signboard's existing settings logic (`lib/boardLabels.js`).
 - Trello/Obsidian/Tasks.md import tools reuse the same importer modules as the desktop app (`lib/importers/*`).
 - When the desktop app is open, external board edits (including MCP edits) are watched and auto-refreshed.

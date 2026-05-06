@@ -74,6 +74,7 @@ async function createFixtureBoard() {
     labels: [
       { id: 'urgent', name: 'Urgent', colorLight: '#ef4444', colorDark: '#dc2626' },
       { id: 'client', name: 'Client', colorLight: '#3b82f6', colorDark: '#2563eb' },
+      { id: 'template', name: 'Template', colorLight: '#a855f7', colorDark: '#9333ea' },
     ],
     notifications: { enabled: false, time: '09:00' },
   });
@@ -82,9 +83,18 @@ async function createFixtureBoard() {
     frontmatter: {
       title: 'Launch plan',
       due: daysFromTodayIso(3),
-      labels: ['urgent'],
+      labels: ['urgent', 'template'],
     },
-    body: `Prepare launch notes\n- [ ] (due: ${daysFromTodayIso(2)}) Draft email`,
+    body: [
+      '## Source',
+      'Original referral',
+      '',
+      '## Notes',
+      'Template instructions.',
+      '',
+      'Prepare launch notes',
+      `- [ ] (due: ${daysFromTodayIso(2)}) Draft email`,
+    ].join('\n'),
   });
 
   await cardFrontmatter.writeCard(path.join(todoList, '002-client-follow-up-cd456.md'), {
@@ -371,6 +381,178 @@ async function main() {
   );
   assert.strictEqual(labelCards.length, 1);
   assert.strictEqual(labelCards[0].title, 'Launch plan');
+
+  const duplicatePreview = JSON.parse(
+    runCli([
+      'cards',
+      'duplicate',
+      '--card',
+      'ab123',
+      '--list',
+      'Waiting',
+      '--title',
+      'Lead from template',
+      '--remove-label',
+      'Template',
+      '--dry-run',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(duplicatePreview.dryRun, true);
+  assert.strictEqual(duplicatePreview.operation, 'duplicate-card');
+  assert.strictEqual(duplicatePreview.listDisplayName, 'Waiting');
+  assert.strictEqual(duplicatePreview.title, 'Lead from template');
+  assert.ok(duplicatePreview.labels.includes('urgent'));
+  assert.ok(!duplicatePreview.labels.includes('template'));
+
+  const waitingAfterDuplicatePreview = JSON.parse(runCli(['cards', 'Waiting', '--json'], env).stdout);
+  assert.strictEqual(waitingAfterDuplicatePreview.length, 0);
+
+  const duplicatedCard = JSON.parse(
+    runCli([
+      'cards',
+      'duplicate',
+      '--card',
+      'ab123',
+      '--list',
+      'Waiting',
+      '--title',
+      'Lead from template',
+      '--remove-label',
+      'Template',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(duplicatedCard.listDisplayName, 'Waiting');
+  assert.strictEqual(duplicatedCard.title, 'Lead from template');
+  assert.ok(duplicatedCard.labels.includes('urgent'));
+  assert.ok(!duplicatedCard.labels.includes('template'));
+  assert.strictEqual(duplicatedCard.taskSummary.total, 1);
+
+  const preparedBodyPath = path.join(fixture.root, 'prepared.md');
+  const replacementNotesPath = path.join(fixture.root, 'replacement-notes.md');
+  await fs.writeFile(preparedBodyPath, [
+    '## Source',
+    'Imported lead.',
+    '',
+    '## Notes',
+    'Prepared notes placeholder.',
+    '',
+    '## Destination',
+    'Target city.',
+  ].join('\n'), 'utf8');
+  await fs.writeFile(replacementNotesPath, [
+    '- Replaced note from file.',
+    '- Confirmed requirements.',
+  ].join('\n'), 'utf8');
+
+  const createdFromTemplate = JSON.parse(
+    runCli([
+      'cards',
+      'create',
+      '--from-card',
+      'ab123',
+      '--list',
+      'Waiting',
+      '--title',
+      'Prepared lead',
+      '--remove-label',
+      'Template',
+      '--body-file',
+      preparedBodyPath,
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(createdFromTemplate.title, 'Prepared lead');
+  assert.strictEqual(createdFromTemplate.listDisplayName, 'Waiting');
+  assert.ok(createdFromTemplate.body.includes('## Source'));
+  assert.ok(createdFromTemplate.body.includes('Prepared notes placeholder.'));
+  assert.ok(!createdFromTemplate.labels.includes('template'));
+
+  const replacedSection = JSON.parse(
+    runCli([
+      'cards',
+      'edit',
+      '--card',
+      createdFromTemplate.id,
+      '--replace-section',
+      'Notes',
+      '--body-file',
+      replacementNotesPath,
+      '--json',
+    ], env).stdout
+  );
+  assert.ok(replacedSection.body.includes('## Source\nImported lead.'));
+  assert.ok(replacedSection.body.includes('## Notes\n- Replaced note from file.\n- Confirmed requirements.'));
+  assert.ok(!replacedSection.body.includes('Prepared notes placeholder.'));
+  assert.ok(replacedSection.body.includes('## Destination\nTarget city.'));
+
+  const insertedSectionText = JSON.parse(
+    runCli([
+      'cards',
+      'edit',
+      '--card',
+      createdFromTemplate.id,
+      '--insert-after-heading',
+      '## Source',
+      '--text',
+      'Website form.',
+      '--json',
+    ], env).stdout
+  );
+  assert.ok(insertedSectionText.body.includes('## Source\nWebsite form.\nImported lead.'));
+
+  const noteAdded = JSON.parse(
+    runCli([
+      'cards',
+      'notes',
+      'add',
+      '--card',
+      createdFromTemplate.id,
+      '--text',
+      'Emailed follow-up',
+      '--timestamp',
+      '--json',
+    ], env).stdout
+  );
+  assert.ok(noteAdded.body.includes('Emailed follow-up'));
+  assert.match(noteAdded.body, /- [A-Z][a-z]+ \d{1,2}, \d{2}:\d{2} - Emailed follow-up/);
+
+  const clearLabelsPreview = JSON.parse(
+    runCli([
+      'cards',
+      'edit',
+      '--card',
+      duplicatedCard.id,
+      '--clear-labels',
+      '--dry-run',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(clearLabelsPreview.dryRun, true);
+  assert.deepStrictEqual(clearLabelsPreview.labels, []);
+
+  const duplicatedBeforeClear = JSON.parse(
+    runCli([
+      'cards',
+      'read',
+      '--card',
+      duplicatedCard.id,
+    ], env).stdout
+  );
+  assert.ok(duplicatedBeforeClear.labels.includes('urgent'));
+
+  const clearedLabels = JSON.parse(
+    runCli([
+      'cards',
+      'edit',
+      '--card',
+      duplicatedCard.id,
+      '--clear-labels',
+      '--json',
+    ], env).stdout
+  );
+  assert.deepStrictEqual(clearedLabels.labels, []);
 
   const createdCard = JSON.parse(
     runCli([

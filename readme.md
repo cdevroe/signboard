@@ -20,6 +20,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 📅 Calendar and "This Week" views
 - ✅ Progress counters on cards
 - 🔎 Live search
+- 🧲 Drag-and-drop card movement
 - ⚡ Quick board switcher for open boards
 - ⌨️ Keyboard shortcuts
 - 🤖 MCP server
@@ -71,12 +72,15 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 
 You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 
+Editable fields, including the card title and body editor, support the native right-click text editing menu for cut, copy, paste, delete, and select all.
+
 ## 🤖 MCP Server
 
 Signboard includes a built-in MCP server so agents can interact with local boards.
 
 - Dedicated instructions: [MCP_README.md](./MCP_README.md)
 - To copy config: `Help` -> `Copy MCP Config`
+- MCP uses both explicit allowed roots and Signboard's desktop trusted board roots for board lookup.
 - Optional agent skill: `skills/signboard-mcp/SKILL.md`
 
 ## 💻 CLI
@@ -109,6 +113,9 @@ signboard cards "To do"
 signboard cards --label Urgent --search launch
 signboard cards create --list "To do" --title "Ship release notes" --due 2026-03-20
 signboard cards edit --card ab123 --due none --move-to Doing
+signboard cards duplicate --card ab123 --list Leads --remove-label Template --dry-run --json
+signboard cards create --from-card ab123 --list Leads --title "New lead"
+signboard cards notes add --card ab123 --text "Emailed follow-up" --timestamp
 signboard cards read --list Doing --card ab123
 
 # Imports

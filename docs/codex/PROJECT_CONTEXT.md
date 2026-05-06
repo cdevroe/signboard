@@ -18,7 +18,8 @@ File: `main.js`
 - Creates a single `BrowserWindow` and loads `index.html`.
 - Supports a headless MCP server mode when launched with `--mcp-server` (no window created).
 - Supports `--mcp-config` mode to print MCP client config JSON and exit.
-- MCP board-scoped tools require `SIGNBOARD_MCP_ALLOWED_ROOTS`; with no configured allowed roots, only non-board config/listing tools are usable.
+- MCP board-scoped tools use the union of `SIGNBOARD_MCP_ALLOWED_ROOTS` and the desktop app's trusted board roots from `trusted-board-roots.json`; with neither source configured, only non-board config/listing tools are usable.
+- MCP board-name resolution searches within allowed roots and also matches an allowed root directory itself, so a trusted board root can be either a parent folder or the board folder.
 - Registers IPC handler `choose-directory` to open native folder picker.
 - Registers IPC handler `pick-import-sources` to open native file/directory pickers for Trello JSON and Obsidian markdown/vault sources.
 - Registers IPC handler `check-for-updates` for renderer-triggered manual update checks.
@@ -30,11 +31,12 @@ File: `main.js`
 - Shows native update dialogs with release notes, changelog links, remind-later, and install/relaunch actions.
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` as a thin renderer bridge into main-process IPC.
+- Owns renderer right-click text editing context menus through the `webContents` `context-menu` event, covering editable fields such as the card title and OverType notes editor.
 - Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
 - Owns explicit board import operations for Trello, Obsidian, and Tasks.md; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
 - Owns archive browse/read/restore operations through `lib/archive.js`; renderer code never scans or restores archive contents directly.
 - Owns adjacent-card top-of-list moves through `moveCardToTop`, backed by `lib/cardOrdering.js`.
-- In MCP mode, starts `lib/mcpServer.js` and communicates over stdio using MCP JSON-RPC framing.
+- In MCP mode, starts `lib/mcpServer.js`, passes desktop trusted board roots into it, and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
 - Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card/archive management.
 - The packaged Electron executable also routes `lists ...`, `cards ...`, `archive ...`, `settings ...`, and `import ...` CLI invocations through `main.js` without opening the desktop window.
@@ -161,6 +163,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior.
   - Enables card drag-and-drop reorder and cross-list move.
+  - Uses shared Sortable card drag options from `app/utilities/cardDragTilt.js`; the visible ghost placeholder is an empty drop slot rather than a readable duplicate card.
   - Sanitizes list names before filesystem rename.
   - Builds card DOM for a list concurrently to reduce list render time.
   - Records `moved-list` lifecycle events only for real cross-list card moves, not same-list reindexing.
@@ -190,6 +193,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Loads card into OverType editor.
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
+  - Relies on the main-process renderer context menu for native right-click cut/copy/paste/select-all in editable title/body fields.
   - Moves active cards to adjacent lists from the arrow action/keyboard shortcuts by calling the main-process `moveCardToTop` IPC path, which inserts at the top of the destination list.
   - Renders task-line due-date controls at the start of each parsed checklist line in the editor.
   - Uses measured textarea line-start coordinates for control placement so wrapped lines do not drift button positions.
@@ -202,6 +206,9 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/utilities/dueNotifications.js`:
   - Collects due items from both card-level due dates and incomplete task-level due markers.
   - Builds notification body text that includes card title and task summary text for task due items.
+- `app/utilities/cardDragTilt.js`:
+  - Centralizes card Sortable fallback options, drag tilt, and text-selection locking for Kanban and temporal card drag/drop.
+  - Pairs with `static/styles.css` ghost styles so drag placeholders show an empty insertion slot while the dragged fallback clone remains the only readable card.
 - `app/modals/*.js` and `app/modals/closeAllModals.js`:
   - Modal open/close, cleanup, and board rerender.
   - Disables board interaction (click/drag/select) while edit modal is open.
@@ -265,6 +272,10 @@ File: `lib/cardLifecycle.js`
   - temporary archive frontmatter state
   - `moved-list` / `archived` / `restored` card metadata transitions
 
+File: `lib/cardBodyEdits.js`
+
+- Shared card-body helper for Markdown section replacement, insertion below headings, and timestamped note list items used by CLI and MCP card writes.
+
 File: `lib/archive.js`
 
 - Owns archive/archive-list filesystem operations plus archive browsing and restore.
@@ -311,6 +322,12 @@ Files: `lib/importers/*`
   - `signboard archive read --kind card|list --entry <ref> [--board <path>] [--json]`
   - `signboard archive restore-card --card <ref> --to-list <list-ref> [--board <path>] [--json]`
   - `signboard archive restore-list --list <ref> [--as <directory-name>] [--board <path>] [--json]`
+- Card write helpers:
+  - `signboard cards duplicate --card <ref> [--list <target-list>] [--dry-run] [--json]`
+  - `signboard cards create --from-card <ref> --list <target-list> [--title <title>] [--json]`
+  - `signboard cards edit --card <ref> --replace-section <heading> --body-file <path>`
+  - `signboard cards edit --card <ref> --insert-after-heading <heading> --text <text>`
+  - `signboard cards notes add --card <ref> --text <text> [--timestamp]`
 
 ### Run MCP server locally
 - `npm run mcp:server`
@@ -323,9 +340,9 @@ Files: `lib/importers/*`
 - Concatenates module files into `app/signboard.js` in strict order.
 
 ### CLI internals
-- `lib/cliBoard.js` owns CLI board/list/card filesystem operations, including due filtering with `--due-source any|card|task` and `--task-status open|any`.
+- `lib/cliBoard.js` owns CLI board/list/card filesystem operations, including due filtering with `--due-source any|card|task`, `--task-status open|any`, card duplication/template creation, targeted Markdown section edits, timestamped notes, explicit label clearing, and card write dry-run payloads.
 - `lib/taskList.js` exposes shared task parsing and due-date helpers for CLI filtering.
-- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including archive listing/read/restore flows plus path-based Trello/Obsidian/Tasks.md imports.
+- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including archive listing/read/restore flows, card write previews, and path-based Trello/Obsidian/Tasks.md imports.
 - `lib/cliInstall.js` owns user-level CLI shim + shell profile installation.
 - `lib/cliState.js` persists the currently selected board for subsequent CLI commands.
 
@@ -349,12 +366,12 @@ CLI overdue behavior:
 ### MCP smoke test
 - `npm run test:mcp`
 - Script: `scripts/test-mcp-server.js`
-- Asserts card tool outputs include `taskSummary` + `taskDueDates`, verifies archive browse/read/restore tools, and covers Trello/Obsidian/Tasks.md import tools.
+- Asserts card tool outputs include `taskSummary` + `taskDueDates`, verifies trusted-root config and board-name resolution, verifies archive browse/read/restore tools, and covers Trello/Obsidian/Tasks.md import tools.
 
 ### CLI smoke test
 - `npm run test:cli`
 - Script: `scripts/test-cli.js`
-- Covers list creation/rename, card create/edit/read/filter flows, archive list/read/restore flows, and Trello/Obsidian/Tasks.md imports.
+- Covers list creation/rename, card create/edit/read/filter flows, duplicate/template card writes, section edits, timestamped notes, dry-run previews, archive list/read/restore flows, and Trello/Obsidian/Tasks.md imports.
 
 ### Archive tests
 - `node scripts/test-archive.js`

@@ -75,7 +75,7 @@ function readNdjsonFrames(buffer, onFrame) {
 
 async function createFixtureBoard() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-mcp-test-'));
-  const boardName = 'Good-Migrations';
+  const boardName = 'Good Migrations';
   const boardRoot = path.join(root, boardName);
   const leadsList = '000-Leads-stock';
   const workingList = '001-Working-stock';
@@ -1209,6 +1209,175 @@ async function runRequiresAllowedRootsSmoke() {
   }
 }
 
+async function runTrustedRootsSmoke() {
+  const fixture = await createFixtureBoard();
+  const child = spawn(
+    process.execPath,
+    [
+      '-e',
+      [
+        "const { startSignboardMcpServer } = require('./lib/mcpServer');",
+        "const trustedBoardRoots = JSON.parse(process.env.SIGNBOARD_TEST_TRUSTED_ROOTS || '[]');",
+        "startSignboardMcpServer({ appVersion: 'test', trustedBoardRoots });",
+      ].join(' '),
+    ],
+    {
+      cwd: path.resolve(__dirname, '..'),
+      env: {
+        ...process.env,
+        SIGNBOARD_MCP_ALLOWED_ROOTS: path.join(fixture.cleanupRoot, 'unrelated-root'),
+        SIGNBOARD_MCP_READ_ONLY: 'true',
+        SIGNBOARD_TEST_TRUSTED_ROOTS: JSON.stringify([fixture.boardRoot]),
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    },
+  );
+
+  let stderr = '';
+  let stdoutBuffer = Buffer.alloc(0);
+  let streamError = null;
+  const responsesById = new Map();
+
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString('utf8');
+  });
+
+  const waitForExit = new Promise((resolve, reject) => {
+    child.once('exit', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`MCP trusted-roots child exited with code=${code}. stderr=${stderr.trim()}`));
+    });
+
+    child.once('error', reject);
+  });
+
+  child.stdout.on('data', (chunk) => {
+    try {
+      stdoutBuffer = readNdjsonFrames(Buffer.concat([stdoutBuffer, chunk]), (frame) => {
+        if (Object.prototype.hasOwnProperty.call(frame, 'id')) {
+          responsesById.set(frame.id, frame);
+        }
+      });
+    } catch (error) {
+      streamError = error;
+      child.kill('SIGTERM');
+    }
+  });
+
+  const send = (payload) => {
+    child.stdin.write(encodeMessage(payload, NDJSON_TRANSPORT));
+  };
+
+  const waitForResponse = (id, timeoutMs = 3000) => new Promise((resolve, reject) => {
+    const start = Date.now();
+
+    const poll = () => {
+      if (streamError) {
+        reject(streamError);
+        return;
+      }
+
+      if (responsesById.has(id)) {
+        const response = responsesById.get(id);
+        responsesById.delete(id);
+        resolve(response);
+        return;
+      }
+
+      if (Date.now() - start > timeoutMs) {
+        reject(new Error(`Timed out waiting for MCP trusted-roots response id=${id}. stderr=${stderr.trim()}`));
+        return;
+      }
+
+      setTimeout(poll, 10);
+    };
+
+    poll();
+  });
+
+  try {
+    send({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-11-25',
+        capabilities: {},
+        clientInfo: { name: 'signboard-test', version: '0.0.0' },
+      },
+    });
+
+    const initializeResponse = await waitForResponse(1);
+    if (initializeResponse.error) {
+      throw new Error(`Initialize with trusted roots failed: ${JSON.stringify(initializeResponse.error)}`);
+    }
+
+    send({
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: {
+        name: 'signboard_get_config',
+        arguments: {},
+      },
+    });
+
+    const configResponse = await waitForResponse(2);
+    const config = configResponse.result?.structuredContent || {};
+    if (!Array.isArray(config.allowedRoots) || !config.allowedRoots.includes(path.resolve(fixture.boardRoot))) {
+      throw new Error(`Trusted board root missing from get_config: ${JSON.stringify(config)}`);
+    }
+
+    send({
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'tools/call',
+      params: {
+        name: 'signboard_resolve_board_by_name',
+        arguments: {
+          boardName: 'Good Migrations',
+          exact: true,
+        },
+      },
+    });
+
+    const resolveResponse = await waitForResponse(3);
+    if (resolveResponse.error) {
+      throw new Error(`resolve_board_by_name with trusted root failed: ${JSON.stringify(resolveResponse.error)}`);
+    }
+
+    const resolveOutput = resolveResponse.result?.structuredContent || {};
+    if (!Array.isArray(resolveOutput.matches) || !resolveOutput.matches.includes(path.resolve(fixture.boardRoot))) {
+      throw new Error(`Resolver did not match trusted root itself: ${JSON.stringify(resolveOutput)}`);
+    }
+
+    send({
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'tools/call',
+      params: {
+        name: 'signboard_list_lists',
+        arguments: {
+          boardRoot: fixture.boardRoot,
+        },
+      },
+    });
+
+    const listResponse = await waitForResponse(4);
+    if (listResponse.result?.isError) {
+      throw new Error(`Trusted root board access failed: ${JSON.stringify(listResponse.result?.structuredContent)}`);
+    }
+  } finally {
+    child.stdin.end();
+    await waitForExit;
+    await fs.rm(fixture.cleanupRoot, { recursive: true, force: true });
+  }
+}
+
 async function run() {
   const transportModes = [HEADER_TRANSPORT, HEADER_BOM_TRANSPORT, NDJSON_TRANSPORT];
 
@@ -1222,6 +1391,7 @@ async function run() {
   }
 
   await runRequiresAllowedRootsSmoke();
+  await runTrustedRootsSmoke();
 
   console.log('MCP server smoke test passed (header + header-bom + ndjson).');
 }

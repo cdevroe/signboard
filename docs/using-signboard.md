@@ -101,15 +101,21 @@ Click a card to open it. In the card editor you can:
 
 The card body is Markdown, so plain text notes, headings, lists, and checklists all work naturally.
 
+Right-click in editable areas of the card title or body to use the native cut, copy, paste, delete, and select-all context menu.
+
 ### Move cards
 
 Drag a card between lists in kanban view. You can also move it from the card editor by changing its list in the dropdown menu at the top of the card modal.
+
+While dragging, the board shows an empty insertion slot where the card would land; the card is moved only after you drop it.
 
 The arrow action in the card editor moves the card to the adjacent list and places it at the top of that list. The card move keyboard shortcuts use the same top-of-list behavior.
 
 ### Duplicate a card
 
 Use the duplicate action in the card editor when you want a copy of the card, including its content and metadata. You can use this to make it quick and easy to create new cards from templates. That's what I do!
+
+The CLI can also duplicate cards and create cards from templates with `cards duplicate` and `cards create --from-card`, including dry-run previews for automation.
 
 ### Share a card
 

@@ -9,9 +9,11 @@ Start here before opening source files.
 - Tooltip UI is implemented in `app/ui/tooltips.js` and reads existing control labels (`title` / `aria-label` / `alt`) to keep tooltip copy centralized in markup.
 - App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`.
 - `main.js` also supports headless MCP mode via `--mcp-server` for local agent integration over stdio; implementation lives in `lib/mcpServer.js`.
-- MCP board-scoped tools require `SIGNBOARD_MCP_ALLOWED_ROOTS`; empty allowed roots leave only non-board config/listing tools available.
+- MCP board-scoped tools use the union of `SIGNBOARD_MCP_ALLOWED_ROOTS` and the desktop app's trusted board roots from `trusted-board-roots.json`; empty allowed roots leave only non-board config/listing tools available when no trusted roots exist.
+- MCP board-name resolution searches configured/trusted roots and also matches the root directory itself, so trusted board roots can be actual board folders rather than only parent folders.
 - Signboard MCP includes board-name resolution (`signboard_resolve_board_by_name`), archive browse/read/restore tools (`signboard_list_archive_entries`, `signboard_read_archive_entry`, `signboard_restore_archived_card`, `signboard_restore_archived_list`, `signboard_archive_list`), Trello/Obsidian/Tasks.md import tools, and supports both header-framed + newline-delimited stdio JSON-RPC; dotted `signboard.*` names remain accepted as legacy aliases.
 - Main window stability guards are in `main.js` (`unresponsive` dialog + renderer crash recovery window recreate).
+- Renderer right-click text editing context menus are owned by `main.js` via the `webContents` `context-menu` event, so editable fields such as the card title and OverType notes editor keep native cut/copy/paste/select-all behavior.
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
 - `preload.js` is now a thin IPC bridge only; board filesystem access, trusted-board validation, and filesystem watch helpers live in `main.js`, while `app/init.js` still uses the same watch methods to auto-refresh after external board changes.
@@ -19,6 +21,7 @@ Start here before opening source files.
 - Active-card adjacent-list moves use the main-process `moveCardToTop` IPC path backed by `lib/cardOrdering.js`, so renderer shortcuts do not perform multi-step filesystem renames directly.
 - Board view switching (Kanban/Calendar/This Week) is managed in `app/board/boardViews.js`; temporal views include cards by card due date and task-level due markers (`(due: YYYY-MM-DD)`).
 - Calendar and This Week cards also show a subdued source-list label so users can tell which Kanban list a due item currently belongs to without opening it.
+- Shared card drag options and tilt behavior live in `app/utilities/cardDragTilt.js`; the Sortable ghost is styled in `static/styles.css` as an empty drop slot rather than a translucent duplicate card.
 - The header filter popover is owned by `app/board/boardLabels.js`; it supports temporary `Today` / `Overdue` date filters plus multi-select label filters, and those filters apply across Kanban, Calendar, and This Week.
 - The `Overdue` filter intentionally ignores completed task-level due markers; overdue card-level due dates still count, and incomplete task due markers still drive overdue matches across Kanban, Calendar, and This Week.
 - The filter toolbar button is icon-only; when filters are active it gets an accent-tinted active state and exposes the active summary through tooltip/ARIA text rather than visible label text.
@@ -44,6 +47,7 @@ Start here before opening source files.
 - External import pickers are tokenized in `main.js` and surfaced through `window.chooser.pickImportSources(...)`; renderer code never reads arbitrary external files directly.
 - Trello, Obsidian, and Tasks.md importer coverage lives in `scripts/test-import-trello.js`, `scripts/test-import-obsidian.js`, and `scripts/test-import-tasksmd.js`.
 - The terminal CLI now exposes a dedicated `archive` namespace (`archive cards`, `archive lists`, `archive read`, `archive restore-card`, `archive restore-list`) alongside `signboard import trello --file ...`, `signboard import obsidian --source ...`, and `signboard import tasksmd --source ...`; MCP advertises the matching archive tools plus `signboard_import_trello`, `signboard_import_obsidian`, and `signboard_import_tasksmd`, while still accepting dotted `signboard.*` legacy aliases.
+- CLI card writes include template duplication (`cards duplicate`, `cards create --from-card`), section-aware body edits, timestamped note insertion, explicit label clearing, and `--dry-run` previews for card write commands.
 - CLI due filtering in `lib/cliBoard.js` now defaults `--due overdue` to open task items only, with `--task-status any` available when callers want completed task due markers included.
 - `AGENTS.md` is the cross-tool compatibility entrypoint and should stay aligned with this file.
 - Skip heavy/generated content unless explicitly needed: `node_modules/`, `dist/`, `static/vendor/`, and usually `package-lock.json`.

@@ -4,7 +4,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board switcher/settings/theme shortcuts) + archive browse/restore + top-of-list card move IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board switcher/settings/theme shortcuts) + renderer right-click text editing context menu + archive browse/restore + top-of-list card move IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
 - `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
@@ -28,6 +28,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/santizeFileName.js` - Filename sanitization + random suffix helper.
 - `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and task due markers.
+- `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, and drag text-selection lock used by Kanban and temporal card drag/drop.
 - `app/board/boardLabels.js` - Board-label state, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with `Overdue` ignoring completed task due markers), card label popovers, board settings editor, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
 - `app/board/boardViews.js` - Board view state, `Views` menu wiring + shortcut hints, Calendar + This Week rendering/navigation/drag-to-reschedule logic, temporal card placement by card due/task due markers, and source-list labels on temporal cards.
@@ -61,9 +62,10 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/importers/shared.js` - Shared importer helpers for list/card creation, label reuse/creation, metadata section building, and markdown source discovery.
 - `lib/importers/trello.js` - Trello JSON importer.
 - `lib/importers/obsidian.js` - Obsidian importer covering `obsidian-kanban`, generic task scopes, and CardBoard snapshot imports.
-- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings/archive operations inside configured allowed roots, safe board creation, archive browse/read/restore tools, Trello/Obsidian/Tasks.md imports, and task-summary metadata on card tools.
-- `lib/cliApp.js` - CLI command parsing/output for `use`, `lists`, `cards`, `archive`, `settings`, and path-based `import` commands, including `--task-status open|any` for card due filtering.
-- `lib/cliBoard.js` - CLI board/list/card filesystem operations, record loading, and due/search/label filtering; overdue task filtering defaults to incomplete/open task markers unless callers pass `--task-status any`.
+- `lib/cardBodyEdits.js` - Shared Markdown body-edit helpers for replacing heading sections, inserting text below headings, and appending timestamped note list items.
+- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings/archive operations inside configured or desktop-trusted roots, safe board creation, archive browse/read/restore tools, Trello/Obsidian/Tasks.md imports, dry-run card writes, and task-summary metadata on card tools.
+- `lib/cliApp.js` - CLI command parsing/output for `use`, `lists`, `cards`, `archive`, `settings`, and path-based `import` commands, including card duplicate/template commands, section/note card edits, dry-run previews, and `--task-status open|any` for card due filtering.
+- `lib/cliBoard.js` - CLI board/list/card filesystem operations, record loading, card duplication/template creation, section/note body edits, explicit label clearing, and due/search/label filtering; overdue task filtering defaults to incomplete/open task markers unless callers pass `--task-status any`.
 
 ## Scripts (`scripts/`)
 
@@ -78,13 +80,13 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
 - `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux plus curated public-download guidance.
-- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including archive tool coverage, card task metadata assertions, and import-tool coverage.
-- `scripts/test-cli.js` - Node CLI smoke test covering list/card/archive flows plus Trello/Obsidian imports.
+- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including trusted-root config/resolution coverage, archive tool coverage, card task metadata assertions, and import-tool coverage.
+- `scripts/test-cli.js` - Node CLI smoke test covering list/card/archive flows, duplicate/template card commands, section/note edits, dry-run previews, plus Trello/Obsidian imports.
 - `scripts/test-desktop-cli.js` - Electron executable CLI dispatch smoke test, including import command routing.
 
 ## Static assets (`static/`)
 
-- `static/styles.css` - App styling, layout, theme tokens, modal/editor styles.
+- `static/styles.css` - App styling, layout, theme tokens, modal/editor styles, and card drag placeholder visuals.
 - `static/vendor/*.js|*.css` - Vendored third-party libs:
   - Marked
   - Turndown
