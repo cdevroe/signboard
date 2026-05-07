@@ -8,7 +8,10 @@ const {
   updateBoardLabels,
   updateBoardThemeOverrides,
   updateBoardSettings,
+  readLegacyBoardAppSettings,
   cardMatchesLabelFilter,
+  isAutoDetectedCompletedListName,
+  isCompletedListByWorkflow,
 } = require('../lib/boardLabels');
 
 async function run() {
@@ -22,11 +25,17 @@ async function run() {
     assert.strictEqual(defaults.labels.length, 3);
     assert.strictEqual(defaults.labels[0].id, 'label-1');
     assert.deepStrictEqual(defaults.themeOverrides, { light: {}, dark: {} });
-    assert.deepStrictEqual(defaults.notifications, { enabled: false, time: '09:00' });
+    assert.deepStrictEqual(defaults.workflow, {
+      autoDetectCompletedLists: true,
+      completedListNames: [],
+      ignoredCompletedListNames: [],
+    });
 
     const settingsPath = path.join(boardPath, 'board-settings.md');
     const writtenRaw = await fs.readFile(settingsPath, 'utf8');
     assert(writtenRaw.includes('labels:'), 'board-settings.md should contain labels');
+    assert(!writtenRaw.includes('notifications:'), 'board-settings.md should not contain app notification settings');
+    assert(!writtenRaw.includes('tooltipsEnabled:'), 'board-settings.md should not contain app tooltip settings');
 
     // 2) Updating labels should persist and preserve ids.
     const updatedLabels = [
@@ -48,7 +57,6 @@ async function run() {
     const reloaded = await readBoardSettings(boardPath);
     assert.deepStrictEqual(reloaded.labels, updatedLabels);
     assert.deepStrictEqual(reloaded.themeOverrides, { light: {}, dark: {} });
-    assert.deepStrictEqual(reloaded.notifications, { enabled: false, time: '09:00' });
 
     // 3) Theme overrides should persist and normalize values.
     await updateBoardThemeOverrides(boardPath, {
@@ -60,24 +68,49 @@ async function run() {
       light: { boardBackground: '#dfe4f2' },
       dark: { boardBackground: '#0b1220' },
     });
-    assert.deepStrictEqual(withThemeOverrides.notifications, { enabled: false, time: '09:00' });
 
     // 4) Updating full settings can clear overrides and preserve labels.
     await updateBoardSettings(boardPath, {
       labels: updatedLabels,
       themeOverrides: { light: {}, dark: {} },
-      notifications: { enabled: true, time: '08:30' },
+      workflow: {
+        autoDetectCompletedLists: false,
+        completedListNames: ['003-Done-abc12'],
+      },
     });
     const clearedOverrides = await readBoardSettings(boardPath);
     assert.deepStrictEqual(clearedOverrides.themeOverrides, { light: {}, dark: {} });
     assert.deepStrictEqual(clearedOverrides.labels, updatedLabels);
-    assert.deepStrictEqual(clearedOverrides.notifications, { enabled: true, time: '08:30' });
-
-    await updateBoardSettings(boardPath, {
-      notifications: { enabled: true, time: '24:15' },
+    assert.deepStrictEqual(clearedOverrides.workflow, {
+      autoDetectCompletedLists: false,
+      completedListNames: ['003-Done-abc12'],
+      ignoredCompletedListNames: [],
     });
-    const withLateNotifications = await readBoardSettings(boardPath);
-    assert.deepStrictEqual(withLateNotifications.notifications, { enabled: true, time: '24:15' });
+
+    const legacyAppBoardPath = path.join(tmpDir, 'board-app-legacy');
+    await fs.mkdir(legacyAppBoardPath, { recursive: true });
+    await fs.writeFile(path.join(legacyAppBoardPath, 'board-settings.md'), [
+      '---',
+      'labels:',
+      '  - id: "legacy-app"',
+      '    name: "Legacy App"',
+      '    colorLight: "#22c55e"',
+      '    colorDark: "#16a34a"',
+      'notifications:',
+      '  enabled: true',
+      '  time: "08:30"',
+      'tooltipsEnabled: false',
+      '---',
+    ].join('\n'), 'utf8');
+
+    const legacyAppSettings = await readLegacyBoardAppSettings(legacyAppBoardPath);
+    assert.deepStrictEqual(legacyAppSettings.notifications, { enabled: true, time: '08:30' });
+    assert.strictEqual(legacyAppSettings.tooltipsEnabled, false);
+    assert.strictEqual(legacyAppSettings.hasLegacyAppSettings, true);
+    await readBoardSettings(legacyAppBoardPath);
+    const legacyAppRaw = await fs.readFile(path.join(legacyAppBoardPath, 'board-settings.md'), 'utf8');
+    assert(!legacyAppRaw.includes('notifications:'), 'legacy app notification settings should be removed on rewrite');
+    assert(!legacyAppRaw.includes('tooltipsEnabled:'), 'legacy app tooltip settings should be removed on rewrite');
 
     // 5) Legacy labels.md file should be migrated to board-settings.md.
     const legacyBoardPath = path.join(tmpDir, 'board-two');
@@ -103,6 +136,22 @@ async function run() {
     assert.strictEqual(cardMatchesLabelFilter([], ['label-1']), false);
     assert.strictEqual(cardMatchesLabelFilter(['label-2', 'label-9'], ['label-1', 'label-2']), true);
     assert.strictEqual(cardMatchesLabelFilter(['label-3'], ['label-1', 'label-2']), false);
+
+    // 7) Workflow settings detect common completed-list names while preserving manual overrides.
+    assert.strictEqual(isAutoDetectedCompletedListName('004-Done-abc12'), true);
+    assert.strictEqual(isAutoDetectedCompletedListName('003-Completed-stock'), true);
+    assert.strictEqual(isAutoDetectedCompletedListName('002-Doing-abc12'), false);
+    assert.strictEqual(isCompletedListByWorkflow('004-Done-abc12', defaults.workflow), true);
+    assert.strictEqual(isCompletedListByWorkflow('002-Doing-abc12', defaults.workflow), false);
+    assert.strictEqual(isCompletedListByWorkflow('004-Done-abc12', {
+      autoDetectCompletedLists: true,
+      completedListNames: [],
+      ignoredCompletedListNames: ['004-Done-abc12'],
+    }), false);
+    assert.strictEqual(isCompletedListByWorkflow('002-Doing-abc12', {
+      autoDetectCompletedLists: false,
+      completedListNames: ['002-Doing-abc12'],
+    }), true);
 
     console.log('Board label tests passed.');
   } finally {

@@ -97,6 +97,10 @@ async function openBoard( dir ) {
         return false;
     }
 
+    if (typeof migrateAppSettingsFromOpenBoards === 'function') {
+        await migrateAppSettingsFromOpenBoards();
+    }
+
     await normalizeBoardPrefixes(boardPath);
 
     const directories = await window.board.listDirectories( boardPath );
@@ -134,9 +138,9 @@ Here are a few example tasks so you can see how checklists and task due dates wo
 
 ## Things worth trying
 
-- Add a due date to the whole card and then switch to Calendar view.
+- Add a due date to the whole card and open Planner Calendar.
 - Create a few cards and drag them between To do, Doing, and Done.
-- Open Board Settings and customize labels for your own system.
+- Open Settings and customize labels for your own system.
 - Change the board colors and make the space feel like yours.
 
 ## Keyboard shortcuts
@@ -148,9 +152,9 @@ On macOS use Cmd. On Windows and Linux use Ctrl.
 - Cmd/Ctrl + N creates a new card
 - Cmd/Ctrl + Shift + N creates a new list
 - Cmd/Ctrl + 1 opens Kanban view
-- Cmd/Ctrl + 2 opens Calendar view
-- Cmd/Ctrl + 3 opens This Week view
-- Cmd/Ctrl + , opens Board Settings
+- Cmd/Ctrl + 2 opens Planner Calendar
+- Cmd/Ctrl + 3 opens Planner This Week
+- Cmd/Ctrl + , opens Settings
 - Cmd/Ctrl + Shift + D toggles light and dark mode
 - Esc closes open modals
 

@@ -13,6 +13,9 @@ function loadDueNotificationUtilities() {
       }
       return normalized.endsWith('/') ? normalized : `${normalized}/`;
     },
+    isBoardListCompletedByWorkflow: (listName, workflowSettings) => {
+      return Boolean(workflowSettings && workflowSettings.autoDetectCompletedLists !== false && /Done/i.test(String(listName || '')));
+    },
   };
 
   vm.createContext(context);
@@ -37,7 +40,9 @@ async function run() {
   const boardRoot = '/tmp/board/';
   const todayIsoDate = '2026-03-20';
   const listName = '000-To-do-stock';
+  const doneListName = '001-Done-stock';
   const listPath = `${boardRoot}${listName}`;
+  const doneListPath = `${boardRoot}${doneListName}`;
   const cardsByPath = new Map([
     [
       `${listPath}/001-card-due.md`,
@@ -70,14 +75,34 @@ async function run() {
         ].join('\n'),
       },
     ],
+    [
+      `${doneListPath}/005-done-card-due.md`,
+      {
+        frontmatter: { title: 'Done Card Due', due: '2026-03-20' },
+        body: '- [ ] (due: 2026-03-20) Historical task',
+      },
+    ],
   ]);
 
   const boardApi = {
+    readBoardSettings: async (root) => {
+      assert.strictEqual(root, boardRoot);
+      return {
+        workflow: {
+          autoDetectCompletedLists: true,
+          completedListNames: [],
+          ignoredCompletedListNames: [],
+        },
+      };
+    },
     listLists: async (root) => {
       assert.strictEqual(root, boardRoot);
-      return [listName];
+      return [listName, doneListName];
     },
     listCards: async (root) => {
+      if (root === doneListPath) {
+        return ['005-done-card-due.md'];
+      }
       assert.strictEqual(root, listPath);
       return [
         '001-card-due.md',

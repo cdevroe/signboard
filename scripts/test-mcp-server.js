@@ -713,16 +713,12 @@ async function runForTransport(transportMode, fixture) {
 
   const boardViews = viewsResponse.result?.structuredContent?.views || [];
   const viewIds = new Set(boardViews.map((view) => view && view.id).filter(Boolean));
-  if (!viewIds.has('calendar') || !viewIds.has('this-week')) {
-    throw new Error(`list_board_views missing calendar/this-week (${transportMode}): ${JSON.stringify(boardViews)}`);
+  if (!viewIds.has('kanban') || viewIds.has('calendar') || viewIds.has('this-week')) {
+    throw new Error(`list_board_views should expose only Kanban (${transportMode}): ${JSON.stringify(boardViews)}`);
   }
-  const calendarView = boardViews.find((view) => view && view.id === 'calendar');
-  const thisWeekView = boardViews.find((view) => view && view.id === 'this-week');
-  if (!calendarView || !/task due-date markers/i.test(String(calendarView.description || ''))) {
-    throw new Error(`calendar view description missing task due markers (${transportMode}): ${JSON.stringify(calendarView)}`);
-  }
-  if (!thisWeekView || !/task due-date markers/i.test(String(thisWeekView.description || ''))) {
-    throw new Error(`this-week view description missing task due markers (${transportMode}): ${JSON.stringify(thisWeekView)}`);
+  const kanbanView = boardViews.find((view) => view && view.id === 'kanban');
+  if (!kanbanView || !/list-based board view/i.test(String(kanbanView.description || ''))) {
+    throw new Error(`kanban view description missing list-based copy (${transportMode}): ${JSON.stringify(kanbanView)}`);
   }
 
   send({
@@ -855,11 +851,9 @@ async function runForTransport(transportMode, fixture) {
       name: 'signboard_update_board_settings',
       arguments: {
         boardRoot: fixture.boardRoot,
-        notifications: {
-          enabled: true,
-          time: '08:30',
+        themeOverrides: {
+          light: { boardBackground: '#dfe4f2' },
         },
-        tooltipsEnabled: false,
       },
     },
   });
@@ -869,13 +863,9 @@ async function runForTransport(transportMode, fixture) {
     throw new Error(`update_board_settings failed (${transportMode}): ${JSON.stringify(settingsResponse.error)}`);
   }
 
-  const updatedNotifications = settingsResponse.result?.structuredContent?.settings?.notifications || {};
-  if (updatedNotifications.enabled !== true || updatedNotifications.time !== '08:30') {
-    throw new Error(`update_board_settings did not persist notifications (${transportMode}): ${JSON.stringify(updatedNotifications)}`);
-  }
-  const updatedTooltipsEnabled = settingsResponse.result?.structuredContent?.settings?.tooltipsEnabled;
-  if (updatedTooltipsEnabled !== false) {
-    throw new Error(`update_board_settings did not persist tooltipsEnabled (${transportMode}): ${JSON.stringify(settingsResponse.result?.structuredContent)}`);
+  const updatedTheme = settingsResponse.result?.structuredContent?.settings?.themeOverrides || {};
+  if (!updatedTheme.light || updatedTheme.light.boardBackground !== '#dfe4f2') {
+    throw new Error(`update_board_settings did not persist theme overrides (${transportMode}): ${JSON.stringify(updatedTheme)}`);
   }
 
   const boardToRename = path.join(fixture.allowedRoot, `RenameMove-${transportMode}`);

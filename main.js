@@ -24,6 +24,7 @@ const {
   restoreArchivedList,
 } = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
+const appSettings = require('./lib/appSettings');
 const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
@@ -589,7 +590,7 @@ function requireReadablePath(sender, candidatePath) {
   throw new Error('UNAUTHORIZED_PATH');
 }
 
-function requireWritablePath(sender, candidatePath) {
+function requireWritablePath(sender, candidatePath, options = {}) {
   const normalizedPath = normalizeAbsolutePath(candidatePath);
   if (!normalizedPath) {
     throw new Error('INVALID_PATH');
@@ -598,6 +599,15 @@ function requireWritablePath(sender, candidatePath) {
   const senderState = getSenderBoardAccessState(sender);
   if (senderState.activeBoardRoot && isPathInsideRoot(senderState.activeBoardRoot, normalizedPath)) {
     return normalizedPath;
+  }
+
+  if (options.allowTrusted === true) {
+    const trustedRoots = readTrustedBoardRoots();
+    for (const trustedRoot of trustedRoots) {
+      if (isPathInsideRoot(trustedRoot, normalizedPath)) {
+        return normalizedPath;
+      }
+    }
   }
 
   throw new Error('UNAUTHORIZED_PATH');
@@ -1838,7 +1848,7 @@ function buildApplicationMenu() {
     },
   });
   const createBoardSettingsMenuItem = () => ({
-    label: 'Board Settings...',
+    label: 'Settings...',
     accelerator: 'CmdOrCtrl+,',
     click: () => {
       sendToMainWindow('open-board-settings');
@@ -2082,7 +2092,7 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     }
 
     case 'updateFrontmatter': {
-      const filePath = requireWritablePath(event.sender, args[0]);
+      const filePath = requireWritablePath(event.sender, args[0], { allowTrusted: true });
       return cardFrontmatter.updateFrontmatter(filePath, args[1]);
     }
 
@@ -2448,6 +2458,27 @@ ipcMain.handle('get-app-info', async () => ({
   license: APP_LICENSE,
   websiteUrl: APP_WEBSITE_URL,
 }));
+
+ipcMain.handle('read-app-settings', async () => (
+  appSettings.readAppSettings(app.getPath('userData'))
+));
+
+ipcMain.handle('update-app-settings', async (_event, partialSettings = {}) => (
+  appSettings.updateAppSettings(app.getPath('userData'), partialSettings)
+));
+
+ipcMain.handle('migrate-app-settings-from-board', async (event, boardRoot) => {
+  const normalizedBoardRoot = requireReadableBoardRoot(event.sender, boardRoot);
+  const legacySettings = await boardLabels.readLegacyBoardAppSettings(normalizedBoardRoot);
+  const migrationResult = await appSettings.migrateAppSettingsFromBoardSettings(
+    app.getPath('userData'),
+    normalizedBoardRoot,
+    legacySettings,
+  );
+
+  await boardLabels.readBoardSettings(normalizedBoardRoot, { ensureFile: true });
+  return migrationResult;
+});
 
 ipcMain.handle('notify-due-cards', async (_event, payload = {}) => {
   if (typeof Notification.isSupported === 'function' && !Notification.isSupported()) {

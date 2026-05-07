@@ -9,9 +9,11 @@ cat \
   app/utilities/taskList.js \
   app/utilities/dueNotifications.js \
   app/utilities/cardDragTilt.js \
+  app/appSettings.js \
   app/board/boardLabels.js \
   app/board/boardSearch.js \
   app/board/boardViews.js \
+  app/board/plannerView.js \
   app/board/archiveBrowser.js \
   app/cards/createCardElement.js \
   app/cards/processAddNewCard.js \

@@ -354,60 +354,6 @@ async function renderBoard() {
       ? getActiveBoardView()
       : 'kanban';
 
-    if (activeBoardView === 'calendar' && typeof renderCalendarBoard === 'function') {
-      const stagingEl = document.createElement('div');
-      const renderResult = await renderCalendarBoard(stagingEl, boardRoot, lists, {
-        deferSortableInit: true,
-      });
-
-      if (!isCurrentBoardRenderRequest(requestId)) {
-        return;
-      }
-
-      if (boardNameEl) {
-        boardNameEl.textContent = boardName;
-      }
-      renderBoardTabs();
-      syncBoardViewLayout(boardEl, activeBoardView);
-      destroyBoardSortables();
-      boardEl.replaceChildren(...Array.from(stagingEl.childNodes));
-      storeBoardSortables(renderResult && typeof renderResult.initializeSortables === 'function'
-        ? renderResult.initializeSortables()
-        : []);
-
-      if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
-        feather.replace();
-      }
-      return;
-    }
-
-    if (activeBoardView === 'this-week' && typeof renderThisWeekBoard === 'function') {
-      const stagingEl = document.createElement('div');
-      const renderResult = await renderThisWeekBoard(stagingEl, boardRoot, lists, {
-        deferSortableInit: true,
-      });
-
-      if (!isCurrentBoardRenderRequest(requestId)) {
-        return;
-      }
-
-      if (boardNameEl) {
-        boardNameEl.textContent = boardName;
-      }
-      renderBoardTabs();
-      syncBoardViewLayout(boardEl, activeBoardView);
-      destroyBoardSortables();
-      boardEl.replaceChildren(...Array.from(stagingEl.childNodes));
-      storeBoardSortables(renderResult && typeof renderResult.initializeSortables === 'function'
-        ? renderResult.initializeSortables()
-        : []);
-
-      if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
-        feather.replace();
-      }
-      return;
-    }
-
     const listsWithCards = await Promise.all(
       lists.map(async (listName) => {
         const listPath = boardRoot + listName;

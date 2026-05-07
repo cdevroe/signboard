@@ -392,11 +392,11 @@ signboard settings
 signboard settings --json
 ```
 
-This returns the board settings Markdown document, including labels, color scheme data, notifications, and tooltip settings.
+This returns the board settings Markdown document, including labels, color scheme data, and workflow settings for completed lists. App-wide tooltip and notification preferences are desktop app settings, not board settings.
 
 Current CLI editing support is intentionally narrow.
 
-For label editing, color-scheme changes, and notification changes, use the desktop app or edit `board-settings.md` carefully.
+For label editing, color-scheme changes, and completed-list workflow changes, use the desktop app or edit `board-settings.md` carefully.
 
 ### Import from Trello
 

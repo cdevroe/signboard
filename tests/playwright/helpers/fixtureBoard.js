@@ -22,8 +22,6 @@ async function createFixtureBoardAt(root, boardName = 'Playwright Board') {
       { id: 'launch', name: 'Launch', colorLight: '#fb923c', colorDark: '#f97316' },
       { id: 'content', name: 'Content', colorLight: '#22c55e', colorDark: '#16a34a' },
     ],
-    notifications: { enabled: false, time: '09:00' },
-    tooltipsEnabled: true,
   });
 
   await Promise.all([

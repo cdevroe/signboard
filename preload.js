@@ -79,6 +79,9 @@ contextBridge.exposeInMainWorld('chooser', {
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
+  readAppSettings: () => ipcRenderer.invoke('read-app-settings'),
+  updateAppSettings: (partialSettings) => ipcRenderer.invoke('update-app-settings', partialSettings),
+  migrateAppSettingsFromBoard: (boardRoot) => ipcRenderer.invoke('migrate-app-settings-from-board', boardRoot),
   openExternal: (url) => ipcRenderer.invoke('open-external-url', url),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   notifyDueCards: (payload) => ipcRenderer.invoke('notify-due-cards', payload),

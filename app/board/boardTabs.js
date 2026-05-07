@@ -406,6 +406,9 @@ function renderBoardTabs() {
     if (openBoards.length === 0) {
         tabsWrapper.classList.add('hidden');
         initializeBoardTabsSortable(null, false);
+        if (typeof syncPlannerAvailability === 'function') {
+            syncPlannerAvailability();
+        }
         return;
     }
 
@@ -480,4 +483,7 @@ function renderBoardTabs() {
     tabsEl.appendChild(addBoardTab);
 
     initializeBoardTabsSortable(tabsEl, openBoards.length > 1);
+    if (typeof syncPlannerAvailability === 'function') {
+        syncPlannerAvailability();
+    }
 }

@@ -138,6 +138,9 @@ async function closeAllModals(e, options = {}){
             setBoardInteractive(true);
         }
         if ( modalBoardSettings && modalBoardSettings.style.display === 'block' ) {
+            if (typeof flushAppSettingsSave === 'function') {
+                await flushAppSettingsSave();
+            }
             if (typeof flushBoardLabelSettingsSave === 'function') {
                 await flushBoardLabelSettingsSave();
             }
@@ -197,6 +200,9 @@ async function closeAllModals(e, options = {}){
         }
 
         if ( modalBoardSettings && modalBoardSettings.style.display === 'block' && eventTarget && !modalBoardSettings.contains(eventTarget) ) {
+            if (typeof flushAppSettingsSave === 'function') {
+                await flushAppSettingsSave();
+            }
             if (typeof flushBoardLabelSettingsSave === 'function') {
                 await flushBoardLabelSettingsSave();
             }
@@ -244,5 +250,8 @@ async function closeAllModals(e, options = {}){
 
     if (!skipRerender && (shouldRerender || editModalClosed || boardSettingsClosed)) {
         await renderBoard();
+        if (editModalClosed && typeof isPlannerOpen === 'function' && isPlannerOpen() && typeof renderPlannerView === 'function') {
+            await renderPlannerView();
+        }
     }
 }

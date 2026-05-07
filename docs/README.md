@@ -20,11 +20,11 @@ If you want structured tool access from an agent, see [MCP Server](../MCP_README
 
 - Creating and organizing boards, lists, and cards
 - Drag-and-drop movement, including the empty insertion slot shown while dragging cards
-- Due dates, task lists, labels, and board views
+- Due dates, task lists, labels, completed-list workflow settings, Kanban boards, and Planner date views
 - Archiving and restoring cards and lists
-- Board settings including colors, labels, tooltips, notifications, and imports
+- Settings, including app-wide tooltips/notifications and board-specific workflow, colors, labels, and imports
 - Native text editing context menus in editable fields
-- Keyboard shortcuts for creating cards/lists, switching boards/views, cycling colors, moving open cards, archiving, and opening Archive
+- Keyboard shortcuts for creating cards/lists, switching boards, opening Planner views, cycling colors, moving open cards, archiving, and opening Archive
 - CLI setup, command reference, filters, JSON output, card duplication/template workflows, dry-run previews, archive workflows, settings, and imports
 - MCP trusted-root behavior and board-name lookup
 

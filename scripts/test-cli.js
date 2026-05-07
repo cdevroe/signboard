@@ -76,7 +76,6 @@ async function createFixtureBoard() {
       { id: 'client', name: 'Client', colorLight: '#3b82f6', colorDark: '#2563eb' },
       { id: 'template', name: 'Template', colorLight: '#a855f7', colorDark: '#9333ea' },
     ],
-    notifications: { enabled: false, time: '09:00' },
   });
 
   await cardFrontmatter.writeCard(path.join(todoList, '001-launch-plan-ab123.md'), {
@@ -279,12 +278,8 @@ async function main() {
   assert.strictEqual(lists[0].displayName, 'To do');
 
   const defaultSettings = JSON.parse(runCli(['settings', '--json'], env).stdout);
-  assert.strictEqual(defaultSettings.tooltipsEnabled, true);
-
-  const updatedSettings = JSON.parse(
-    runCli(['settings', 'edit', '--tooltips', 'off', '--json'], env).stdout
-  );
-  assert.strictEqual(updatedSettings.tooltipsEnabled, false);
+  assert.ok(Array.isArray(defaultSettings.labels));
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(defaultSettings, 'tooltipsEnabled'), false);
 
   const createdList = JSON.parse(
     runCli(['lists', 'create', 'Blocked', '--json'], env).stdout

@@ -53,29 +53,48 @@ function isEditableShortcutTarget(target) {
     return Boolean(target.closest('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]'));
 }
 
-function handleBoardViewShortcut(e) {
-    if (e.shiftKey || e.altKey || isEditableShortcutTarget(e.target) || typeof setActiveBoardView !== 'function') {
+async function openPlannerViewForShortcut(viewId) {
+    if (typeof setPlannerActiveView === 'function') {
+        setPlannerActiveView(viewId, { render: false });
+    }
+
+    if (typeof openPlannerView === 'function') {
+        return openPlannerView({
+            viewId,
+            scope: 'all',
+        });
+    }
+
+    return false;
+}
+
+async function handleBoardViewShortcut(e) {
+    if (e.shiftKey || e.altKey || isEditableShortcutTarget(e.target)) {
         return false;
     }
 
-    let nextViewId = '';
     switch (e.code) {
-        case 'Digit1':
-            nextViewId = 'kanban';
-            break;
+        case 'Digit1': {
+            e.preventDefault();
+            if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
+                closePlannerView();
+            }
+            if (typeof setActiveBoardView === 'function') {
+                setActiveBoardView('kanban');
+            }
+            return true;
+        }
         case 'Digit2':
-            nextViewId = 'calendar';
-            break;
+            e.preventDefault();
+            await openPlannerViewForShortcut('calendar');
+            return true;
         case 'Digit3':
-            nextViewId = 'this-week';
-            break;
+            e.preventDefault();
+            await openPlannerViewForShortcut('this-week');
+            return true;
         default:
             return false;
     }
-
-    e.preventDefault();
-    setActiveBoardView(nextViewId);
-    return true;
 }
 
 function isKeyboardShortcutsShortcut(event) {
@@ -177,6 +196,15 @@ function isArchiveBrowserShortcut(event) {
 
     const key = String(event.key || '').trim().toLowerCase();
     return event.code === 'KeyA' || key === 'a';
+}
+
+function isPlannerToggleShortcut(event) {
+    if (!hasPrimaryShiftOnly(event)) {
+        return false;
+    }
+
+    const key = String(event.key || '').trim().toLowerCase();
+    return event.code === 'KeyP' || key === 'p';
 }
 
 function isMoveCardLeftShortcut(event) {
@@ -306,6 +334,41 @@ async function openArchiveBrowserFromShortcut() {
     return false;
 }
 
+function isAnyShortcutBlockingModalOpen() {
+    const modalIds = [
+        'modalAddCard',
+        'modalEditCard',
+        'modalAddCardToList',
+        'modalAddList',
+        'modalBoardSettings',
+        'modalArchiveBrowser',
+        'modalAboutSignboard',
+        'modalCommercialLicense',
+    ];
+
+    return modalIds.some((modalId) => {
+        const modal = document.getElementById(modalId);
+        return Boolean(modal && modal.style.display === 'block');
+    });
+}
+
+function isAddCardOrListShortcut(event) {
+    if (!event || !hasPrimaryShortcutModifier(event) || event.altKey) {
+        return false;
+    }
+
+    if (isShortcutMacPlatform() && event.ctrlKey) {
+        return false;
+    }
+
+    if (!isShortcutMacPlatform() && event.metaKey) {
+        return false;
+    }
+
+    const key = String(event.key || '').trim().toLowerCase();
+    return event.code === 'KeyN' || key === 'n';
+}
+
 syncShortcutHelpModifierLabels();
 
 if (window.electronAPI && typeof window.electronAPI.onOpenKeyboardShortcuts === 'function') {
@@ -327,7 +390,7 @@ if (window.electronAPI && typeof window.electronAPI.onOpenBoardSettings === 'fun
     window.electronAPI.onOpenBoardSettings(() => {
         hideShortcutHelpModal();
         openBoardSettingsFromShortcut().catch((error) => {
-            console.error('Unable to open board settings from shortcut.', error);
+            console.error('Unable to open settings from shortcut.', error);
         });
     });
 }
@@ -346,8 +409,18 @@ window.addEventListener('keydown', async (e) => {
                 closeBoardSwitcher();
                 return;
             }
+            if (typeof isPlannerFilterPopoverOpen === 'function' && isPlannerFilterPopoverOpen()) {
+                e.preventDefault();
+                closePlannerFilterPopover();
+                return;
+            }
+            const hadBlockingModal = isAnyShortcutBlockingModalOpen();
             hideShortcutHelpModal();
             await closeAllModals(e);
+            if (!hadBlockingModal && typeof isPlannerOpen === 'function' && isPlannerOpen() && typeof closePlannerView === 'function') {
+                e.preventDefault();
+                closePlannerView();
+            }
             return;
         }
 
@@ -378,6 +451,62 @@ window.addEventListener('keydown', async (e) => {
                 toggleBoardSwitcherFromShortcut();
             }
             return;
+        }
+
+        if (isPlannerToggleShortcut(e)) {
+            e.preventDefault();
+            hideShortcutHelpModal();
+            if (typeof togglePlannerView === 'function') {
+                await togglePlannerView();
+            }
+            return;
+        }
+
+        if (isKeyboardShortcutsShortcut(e)) {
+            e.preventDefault();
+            if (typeof closeBoardSwitcher === 'function') {
+                closeBoardSwitcher();
+            }
+
+            if (shortcutHelpVisible) {
+                hideShortcutHelpModal();
+            } else {
+                showShortcutHelpModal();
+            }
+            return;
+        }
+
+        if (typeof isPlannerOpen === 'function' && isPlannerOpen()) {
+            if (typeof handlePlannerViewShortcut === 'function' && handlePlannerViewShortcut(e)) {
+                hideShortcutHelpModal();
+                if (typeof closeBoardSwitcher === 'function') {
+                    closeBoardSwitcher();
+                }
+                return;
+            }
+
+            if (String(e.key || '').toLowerCase() === 'f' && !e.shiftKey && !e.altKey && !isEditableShortcutTarget(e.target)) {
+                if (typeof focusPlannerSearchInput === 'function' && focusPlannerSearchInput()) {
+                    e.preventDefault();
+                    hideShortcutHelpModal();
+                    if (typeof closeBoardSwitcher === 'function') {
+                        closeBoardSwitcher();
+                    }
+                }
+                return;
+            }
+
+            if (
+                isColorSchemeCycleShortcut(e) ||
+                isArchiveBrowserShortcut(e) ||
+                isMoveCardLeftShortcut(e) ||
+                isMoveCardRightShortcut(e) ||
+                isArchiveCardShortcut(e) ||
+                isAddCardOrListShortcut(e)
+            ) {
+                e.preventDefault();
+                return;
+            }
         }
 
         if (isBoardSettingsShortcut(e)) {
@@ -429,21 +558,7 @@ window.addEventListener('keydown', async (e) => {
             return;
         }
 
-        if (isKeyboardShortcutsShortcut(e)) {
-            e.preventDefault();
-            if (typeof closeBoardSwitcher === 'function') {
-                closeBoardSwitcher();
-            }
-
-            if (shortcutHelpVisible) {
-                hideShortcutHelpModal();
-            } else {
-                showShortcutHelpModal();
-            }
-            return;
-        }
-
-        if (handleBoardViewShortcut(e)) {
+        if (await handleBoardViewShortcut(e)) {
             hideShortcutHelpModal();
             if (typeof closeBoardSwitcher === 'function') {
                 closeBoardSwitcher();

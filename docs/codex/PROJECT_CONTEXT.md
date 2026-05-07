@@ -1,12 +1,13 @@
 # Signboard Project Context
 
 ## What this app is
-Signboard is a local-first board app built with Electron and plain JavaScript. It currently supports Kanban, Calendar, and This Week board views.
+Signboard is a local-first board app built with Electron and plain JavaScript. Boards render as Kanban; Calendar, This Week, Day, and Agenda dated workflows live in the workspace-level Planner overlay.
 
 - A board is a folder on disk.
 - Lists are subdirectories inside that board folder.
 - Cards are Markdown files in each list directory.
-- Board-level settings are stored in `board-settings.md` at the board root.
+- Board-level settings are stored in `board-settings.md` at the board root, including labels, color scheme data, and completed-list workflow rules.
+- App-level tooltip and notification settings are stored in `app-settings.json` under Electron `userData`.
 - Card metadata is stored in YAML frontmatter (with legacy parser support).
 - Task checklist lines in card bodies can store task due markers with `(due: YYYY-MM-DD)`.
 
@@ -50,7 +51,7 @@ File: `main.js`
 File: `preload.js`
 
 - Exposes `window.board`, `window.chooser`, and `window.electronAPI`.
-- `window.electronAPI` includes external-link opening and manual update checks.
+- `window.electronAPI` includes external-link opening, manual update checks, app settings reads/writes, and one-time migration from legacy board-level tooltip/notification settings.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
 - Archive browsing uses preload bridge methods (`listArchiveEntries`, `readArchiveEntry`, `restoreArchivedCard`, `restoreArchivedList`) backed by the same trusted-board gate as normal board operations.
@@ -63,8 +64,9 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 - UI is vanilla HTML/CSS/JS.
 - `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
+- The left-edge Planner rail and overlay markup live in `index.html`; Planner covers the board header/tabs while open and is hidden when no boards are open.
 - `app/signboard.js` is concatenated from source modules by `buildjs.sh`.
-- Board Settings includes an `Import` section for Trello, Obsidian, and Tasks.md imports, with summary/warning rendering in the existing settings modal.
+- Settings includes app-level tooltip/notification controls and board-specific General, Workflow, Labels, Colors, and Import sections, with import summary/warning rendering in the existing settings modal.
 - The Board menu now opens a dedicated Archive browser modal; Archive remains hidden from normal board rendering and is not a fourth board view.
 - The quick board switcher is a top-center renderer overlay opened with `Cmd/Ctrl + K`; it searches currently open board tabs only and switches through the same safe board transition helper as tab clicks.
 
@@ -72,9 +74,9 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 ### Board
 - `window.boardRoot` is the absolute board path with trailing slash.
-- Open board tabs are persisted in `localStorage.boardTabs` (`[{ root, name }]`).
-- Active board root is mirrored in `localStorage.boardPath` for backward compatibility.
-- `board-settings.md` is auto-created with default label definitions when missing.
+- Open board tabs are persisted in `localStorage.openBoardPaths`.
+- Active board root is persisted in `localStorage.activeBoardPath` and mirrored in legacy `localStorage.boardPath` for backward compatibility.
+- `board-settings.md` is auto-created with default label definitions when missing; legacy tooltip/notification keys are read for app-settings migration and removed on rewrite.
 - Imports are additive only: they create new lists/cards in the current board and never modify external source files.
 
 ### List directories
@@ -126,7 +128,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Hooks global click handling and top-level modal triggers.
   - Initializes board label toolbar/settings controls.
   - Initializes board search input for live filtering.
-  - Initializes the board `Views` selector (Kanban default, plus Calendar and This Week options).
+  - Initializes app settings, including one-time migration from the left-most open board's legacy settings values.
+  - Initializes Planner controls for the left rail, overlay, Planner search/filter popover, and Planner view tabs.
   - Runs an external-change sync loop that watches active board files and re-renders after external updates (for example MCP card moves).
   - Calls directory chooser and `openBoard`.
 - `app/board/boardTabs.js`:
@@ -140,8 +143,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 ### Rendering board/lists/cards
 - `app/board/renderBoard.js`:
-  - Reads list metadata and routes rendering to the active board view (Kanban, Calendar, or This Week).
-  - Builds Kanban columns and enables list drag-and-drop reorder when Kanban is active.
+  - Reads list metadata and renders Kanban columns.
+  - Enables list drag-and-drop reorder in Kanban.
   - Fetches each list's card names concurrently for faster initial render.
   - Loads board label definitions and temporary filter state before rendering cards.
 - `app/board/archiveBrowser.js`:
@@ -151,15 +154,20 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Restores cards through an explicit destination-list picker and restores archived lists back into the board root with rename-on-collision handling.
 - `app/board/boardSwitcher.js`:
   - Opens the `Cmd/Ctrl + K` board switcher overlay.
-  - Filters currently open boards by folder name/path, highlights autocomplete results, and delegates switching to the shared board switch helper.
+  - Filters currently open boards by visible board name, highlights autocomplete results, and delegates switching to the shared board switch helper.
 - `app/board/boardViews.js`:
-  - Owns active board view state and the `Views` dropdown behavior.
-  - Renders Calendar month layout (Monday-first week), today highlighting, and month navigation.
-  - Renders This Week layout, week navigation, and current-day highlighting.
-  - Renders due-date cards in temporal views and updates card due dates by drag/drop across days.
-  - Includes cards by both card due date and task due markers, deduped per day per card.
-  - Applies the active header filter state in temporal views before placing cards into the visible month/week buckets.
-  - Shows task progress badges and a subdued source-list label on temporal cards.
+  - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, task due-date placement, and temporal card rendering.
+  - Board-facing view state normalizes to Kanban only.
+  - Shows task progress badges and a subdued source-list/source-board label on temporal cards.
+- `app/board/plannerView.js`:
+  - Owns the workspace Planner overlay opened from the left rail or `Cmd/Ctrl + Shift + P`.
+  - Scopes Planner data to currently open board tabs only and defaults to all open boards.
+  - Offers quick `All Boards` and `Current Board` scope controls plus custom board selection in the filter menu.
+  - Renders Planner Calendar, This Week, Day, and Agenda views from card due dates and task-level due markers.
+  - Uses Planner-local search plus `Today` / `Overdue`, completed-card visibility, and open-board filters; label filters appear only when scoped to the active board.
+  - Hides cards from completed workflow lists by default while preserving their due-date metadata; the Planner filter menu can show completed dated cards when needed.
+  - Opens Planner cards through the normal editor, switching the active board behind the overlay first when the card belongs to a different board.
+  - Keeps Planner on the default Signboard palette for the active light/dark mode instead of inheriting the active board color scheme.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior.
   - Enables card drag-and-drop reorder and cross-list move.
@@ -178,9 +186,10 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Owns board label state in the renderer.
   - Renders the header filter dropdown with mutually exclusive `Today` / `Overdue` date filters plus multi-select OR label filters.
   - Combines date filters, label filters, and board search with AND logic when determining visibility.
+  - Owns board workflow settings for completed-list auto-detection, ignored auto-detected lists, and manual completed-list selection.
   - Keeps filter state temporary only; opening or switching boards resets the active date + label filters.
   - Keeps the filter toolbar button icon-only and applies an accent-tinted active state when any filter is set; active summary text lives in tooltip/ARIA copy.
-  - Handles card label popovers, board settings editors, and the Board Settings import UI/actions.
+  - Handles card label popovers, Settings modal board panels, and the board import UI/actions.
   - Persists board labels through preload APIs.
 - `app/board/boardSearch.js`:
   - Stores the current search query/tokens.
@@ -204,8 +213,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Computes task summary (`total`, `completed`, `remaining`) and task due-date sets.
   - Creates task progress badge elements and updates task-line due markers by line index.
 - `app/utilities/dueNotifications.js`:
-  - Collects due items from both card-level due dates and incomplete task-level due markers.
-  - Builds notification body text that includes card title and task summary text for task due items.
+  - Collects due items from both card-level due dates and incomplete task-level due markers, skipping cards in completed workflow lists.
+  - Builds notification body text that includes board/card title and task summary text for task due items.
 - `app/utilities/cardDragTilt.js`:
   - Centralizes card Sortable fallback options, drag tilt, and text-selection locking for Kanban and temporal card drag/drop.
   - Pairs with `static/styles.css` ghost styles so drag placeholders show an empty insertion slot while the dragged fallback clone remains the only readable card.
@@ -221,10 +230,12 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Esc`: close modals.
   - `Cmd/Ctrl + N`: add card (with list picker modal).
   - `Cmd/Ctrl + Shift + N`: add list.
-  - `Cmd/Ctrl + 1`: switch to Kanban view.
-  - `Cmd/Ctrl + 2`: switch to Calendar view.
-  - `Cmd/Ctrl + 3`: switch to This Week view.
-  - `Cmd/Ctrl + ,`: open Board Settings from renderer key handling and the native menu accelerator.
+  - `Cmd/Ctrl + 1`: return to Kanban and close Planner if it is open.
+  - `Cmd/Ctrl + 2`: open Planner Calendar from the board, or switch to Calendar inside Planner.
+  - `Cmd/Ctrl + 3`: open Planner This Week from the board, or switch to This Week inside Planner.
+  - `Cmd/Ctrl + Shift + P`: open/close Planner.
+  - While Planner is open, `Cmd/Ctrl + 4` switches Planner Day and `Cmd/Ctrl + 5` switches Planner Agenda.
+  - `Cmd/Ctrl + ,`: open Settings from renderer key handling and the native menu accelerator.
   - `Cmd/Ctrl + Shift + D`: toggle light/dark mode through the native menu accelerator.
   - `Cmd + Control + Shift + C` on macOS / `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes without closing the active screen.
   - `Cmd/Ctrl + Shift + [` and `Cmd/Ctrl + Shift + ]`: move the open card to the previous/next list, no-op at board edges.
@@ -232,7 +243,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Cmd/Ctrl + Shift + A`: open the Archive browser modal.
   - Any shortcut changes must update the helper list in `index.html` (`#modalKeyboardShortcuts`) in the same change.
 - View-switcher rows and list-action rows surface the same shortcut hints in subtle monospace text so the app teaches the keyboard path inline.
-- Board date filtering treats overdue task markers as actionable work only: completed task due markers do not keep a card visible in the `Overdue` filter, but overdue card-level due dates still do.
+- Board date filtering treats overdue task markers and completed workflow lists as actionable work only: completed task due markers and completed-list cards do not keep a card visible in date filters, but overdue card-level due dates still do on actionable lists.
 
 ### Theme support
 - `app/ui/theme.js`:
@@ -290,6 +301,7 @@ File: `lib/boardLabels.js`
 - Reads/writes board label definitions in `board-settings.md`.
 - Creates default labels when settings are missing.
 - Migrates legacy `labels.md` reads into `board-settings.md`.
+- Normalizes completed-list workflow settings under `workflow`, defaulting auto-detection on for common list names while preserving manual completed and ignored-list overrides.
 - Exposes OR-based label filtering helper logic.
 
 ## Importers
@@ -396,6 +408,11 @@ CLI overdue behavior:
 - `npm run test:due-notifications`
 - Script: `scripts/test-due-notifications.js`
 - Covers task due-date notification collection and card/task notification body formatting.
+
+### App settings tests
+- `npm run test:app-settings`
+- Script: `scripts/test-app-settings.js`
+- Covers app-wide tooltip/notification settings persistence and one-time migration from legacy board settings.
 
 ### Legacy migration
 - `npm run migrate:legacy-cards -- <board-root> [--dry-run] [--include-plain]`

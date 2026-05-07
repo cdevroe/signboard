@@ -1,7 +1,7 @@
 {
   "name": "signboard",
   "productName": "Signboard",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "license": "MIT",
   "author": "Colin Devroe <colin@cdevroe.com> (https://cdevroe.com)",
   "main": "main.js",
@@ -30,6 +30,7 @@
     "test:frontmatter": "node scripts/test-frontmatter.js",
     "test:card-ordering": "node scripts/test-card-ordering.js",
     "test:board-labels": "node scripts/test-board-labels.js",
+    "test:app-settings": "node scripts/test-app-settings.js",
     "test:mcp": "node scripts/test-mcp-server.js",
     "test:board-card-metadata": "node scripts/test-board-card-metadata.js",
     "test:board-views": "node scripts/test-board-views.js",

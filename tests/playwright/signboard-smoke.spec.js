@@ -4,6 +4,7 @@ const path = require('path');
 const electronBinary = require('electron');
 const { test: base, expect, _electron: electron } = require('@playwright/test');
 const { createFixtureBoard, createFixtureBoardAt } = require('./helpers/fixtureBoard');
+const cardFrontmatter = require('../../lib/cardFrontmatter');
 
 const repoRoot = path.resolve(__dirname, '../..');
 const usesMetaModifier = process.platform === 'darwin';
@@ -24,6 +25,13 @@ function getColorCycleShortcut() {
 
 function getArchiveCardShortcut() {
   return getShortcut('Alt+Shift+Backspace');
+}
+
+function formatLocalIsoDate(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 async function pathExists(targetPath) {
@@ -415,20 +423,134 @@ test('opens the board switcher from the keyboard shortcut and focuses search', a
 });
 
 test('filters the board switcher to currently open boards', async ({ electronApp, boardRoot }) => {
-  const { page } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
+  const { page } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board', 'Roadmap Archive', 'Ideas Board']);
 
   await page.keyboard.press(getShortcut('K'));
-  await page.locator('#boardSwitcherInput').fill('road');
+  await page.keyboard.type('road');
 
-  await expect(page.locator('.board-switcher-option')).toHaveCount(1);
-  await expect(page.locator('.board-switcher-option')).toContainText('Roadmap Board');
-  await expect(page.locator('.board-switcher-option')).not.toContainText('Playwright Board');
+  await expect(page.locator('.board-switcher-option')).toHaveCount(2);
+  await expect(page.locator('.board-switcher-option').nth(0)).toContainText('Roadmap Board');
+  await expect(page.locator('.board-switcher-option').nth(1)).toContainText('Roadmap Archive');
+  await expect(page.locator('.board-switcher-option-title')).toHaveText(['Roadmap Board', 'Roadmap Archive']);
+
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('.board-switcher-option.is-active')).toContainText('Roadmap Archive');
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('.board-switcher-option.is-active')).toContainText('Roadmap Board');
+
+  await page.locator('#boardSwitcherInput').fill(path.basename(path.dirname(boardRoot)));
+  await expect(page.locator('.board-switcher-option')).toHaveCount(0);
+  await expect(page.locator('#boardSwitcherResults')).toContainText('No matching boards');
+});
+
+test('opens Planner across currently open boards', async ({ electronApp, boardRoot }) => {
+  const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
+  const todayIso = formatLocalIsoDate();
+  const targetPlannerDate = new Date();
+  targetPlannerDate.setDate(targetPlannerDate.getDate() + (targetPlannerDate.getDay() === 0 ? -1 : 1));
+  const targetPlannerIso = formatLocalIsoDate(targetPlannerDate);
+
+  await Promise.all([
+    cardFrontmatter.updateFrontmatter(path.join(boardRoots[0], '000-To-do-stock', '000-plan-release-stock.md'), {
+      due: todayIso,
+    }),
+    cardFrontmatter.updateFrontmatter(path.join(boardRoots[1], '001-Doing-stock', '000-polish-copy-stock.md'), {
+      due: todayIso,
+    }),
+    cardFrontmatter.updateFrontmatter(path.join(boardRoots[0], '002-Done-stock', '000-ship-beta-stock.md'), {
+      due: todayIso,
+    }),
+  ]);
+
+  await page.keyboard.press(getShortcut('Shift+P'));
+
+  await expect(page.locator('#plannerOverlay')).toBeVisible();
+  await expect(page.locator('#plannerScopeLabel')).toHaveText('2 boards');
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Plan release notes' })).toContainText('Playwright Board');
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Polish homepage copy' })).toContainText('Roadmap Board');
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Ship beta' })).toHaveCount(0);
+
+  await page.locator('#plannerFilterButton').click();
+  await page.locator('#plannerFilterPopover').getByRole('button', { name: 'Show completed cards' }).click();
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Ship beta' })).toBeVisible();
+  await page.locator('#plannerFilterPopover').getByRole('button', { name: 'Hide completed cards' }).click();
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Ship beta' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#plannerFilterPopover')).toBeHidden();
+
+  await page.locator('.planner-scope-option[data-scope="current"]').click();
+  await expect(page.locator('#plannerScopeLabel')).toHaveText('Playwright Board');
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Plan release notes' })).toBeVisible();
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Polish homepage copy' })).toHaveCount(0);
+
+  await page.locator('#plannerFilterButton').click();
+  await expect(page.locator('#plannerFilterPopover')).toBeVisible();
+  await expect(page.locator('#plannerFilterPopover')).toContainText('Labels');
+  await expect(page.locator('#plannerFilterPopover')).toContainText('Launch');
+  await expect.poll(async () => {
+    return page.evaluate(() => {
+      const popover = document.getElementById('plannerFilterPopover');
+      if (!popover) {
+        return false;
+      }
+      const bounds = popover.getBoundingClientRect();
+      const target = document.elementFromPoint(bounds.left + (bounds.width / 2), bounds.bottom - 12);
+      return Boolean(target && popover.contains(target));
+    });
+  }).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#plannerFilterPopover')).toBeHidden();
+  await expect(page.locator('#plannerOverlay')).toBeVisible();
+
+  await page.locator('.planner-scope-option[data-scope="all"]').click();
+  await expect(page.locator('#plannerScopeLabel')).toHaveText('2 boards');
+
+  await page.keyboard.press(getShortcut('4'));
+  await expect(page.locator('.planner-day')).toBeVisible();
+  await expect(page.locator('.planner-list-card').filter({ hasText: 'Plan release notes' })).toBeVisible();
+
+  await page.keyboard.press(getShortcut('1'));
+  await expect(page.locator('#plannerOverlay')).toBeHidden();
+
+  await page.keyboard.press(getShortcut('2'));
+  await expect(page.locator('#plannerOverlay')).toBeVisible();
+  await expect(page.locator('.planner-calendar')).toBeVisible();
+  await page.keyboard.press(getShortcut('3'));
+  await expect(page.locator('.planner-this-week')).toBeVisible();
+
+  const crossBoardCard = page.locator('.planner-this-week-card').filter({ hasText: 'Polish homepage copy' });
+  const targetDayCards = page.locator(`.planner-this-week .board-this-week-day-cards[data-date="${targetPlannerIso}"]`);
+  await expect(crossBoardCard).toBeVisible();
+  await expect(targetDayCards).toBeVisible();
+
+  await page.evaluate(async ({ cardPath, sourceDate, targetDate }) => {
+    const item = document.createElement('button');
+    item.dataset.path = cardPath;
+    const from = document.createElement('div');
+    from.dataset.date = sourceDate;
+    const to = document.createElement('div');
+    to.dataset.date = targetDate;
+    await handlePlannerCardDrop({ item, from, to }, () => true);
+  }, {
+    cardPath: path.join(boardRoots[1], '001-Doing-stock', '000-polish-copy-stock.md'),
+    sourceDate: todayIso,
+    targetDate: targetPlannerIso,
+  });
+
+  await expect.poll(async () => {
+    const card = await cardFrontmatter.readCard(path.join(boardRoots[1], '001-Doing-stock', '000-polish-copy-stock.md'));
+    return card.frontmatter.due;
+  }).toBe(targetPlannerIso);
+
+  await page.locator('#plannerCloseRail').click();
+  await expect(page.locator('#plannerOverlay')).toBeHidden();
 });
 
 test('switches to the highlighted board from the switcher with arrows and Enter', async ({ electronApp, boardRoot }) => {
   const { page } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board', 'Ideas Board']);
 
   await page.keyboard.press(getShortcut('K'));
+  await expect(page.locator('.board-switcher-option')).toHaveCount(3);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
 
@@ -468,10 +590,12 @@ test('switching boards from an open editor flushes the pending edit and closes t
   }).toContain('Pending switch save.');
 });
 
-test('opens board settings from the renderer keyboard shortcut', async ({ page }) => {
+test('opens settings from the renderer keyboard shortcut', async ({ page }) => {
   await page.keyboard.press(getShortcut('Comma'));
 
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await expect(page.locator('#modalBoardSettings h2')).toHaveText('Settings');
+  await expect(page.locator('#boardSettingsPanelApp')).toBeVisible();
 });
 
 test('cycles board color schemes without closing an active editor', async ({ page }) => {
@@ -635,7 +759,7 @@ test('closes the task due date picker when clearing a task due date', async ({ p
   await expect(datepickerPopup).toBeVisible();
 });
 
-test('persists the board tooltip toggle and suppresses tooltips when disabled', async ({ page }) => {
+test('persists the app tooltip toggle and suppresses tooltips when disabled', async ({ page }) => {
   const supportButton = page.locator('#openCommercialLicenseModal');
   const tooltip = page.locator('#sbTooltip');
 
@@ -657,7 +781,7 @@ test('persists the board tooltip toggle and suppresses tooltips when disabled', 
 
   await expect.poll(async () => {
     return await page.evaluate(async () => {
-      const settings = await window.board.readBoardSettings(window.boardRoot);
+      const settings = await window.electronAPI.readAppSettings();
       return settings.tooltipsEnabled;
     });
   }).toBe(false);
@@ -671,13 +795,13 @@ test('persists the board tooltip toggle and suppresses tooltips when disabled', 
   await page.waitForLoadState('domcontentloaded');
   await expect.poll(async () => {
     return await page.evaluate(async () => {
-      const settings = await window.board.readBoardSettings(window.boardRoot);
+      const settings = await window.electronAPI.readAppSettings();
       return settings.tooltipsEnabled;
     });
   }).toBe(false);
 });
 
-test('persists a label color change committed from the board settings picker', async ({ page }) => {
+test('persists a label color change committed from the settings picker', async ({ page }) => {
   await openBoardMenu(page);
   await page.locator('#openBoardSettings').click();
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
@@ -712,7 +836,43 @@ test('persists a label color change committed from the board settings picker', a
   }).toBe(expectedDarkColor);
 });
 
-test('shows import controls and renders an import summary from the Board Settings import panel', async ({ page }) => {
+test('persists board workflow completed-list settings', async ({ page }) => {
+  await openBoardMenu(page);
+  await page.locator('#openBoardSettings').click();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await page.locator('#boardSettingsNavWorkflow').click();
+  await expect(page.locator('#boardSettingsPanelWorkflow')).toBeVisible();
+
+  const autoDetectToggle = page.locator('#boardSettingsAutoDetectCompletedListsToggle');
+  const doneCheckbox = page
+    .locator('#boardSettingsWorkflowLists .board-workflow-list-row')
+    .filter({ hasText: 'Done' })
+    .locator('input');
+
+  await expect(autoDetectToggle).toBeChecked();
+  await expect(doneCheckbox).toBeChecked();
+
+  await page.locator('label[for="boardSettingsAutoDetectCompletedListsToggle"]').click();
+  await expect(autoDetectToggle).not.toBeChecked();
+  await expect(doneCheckbox).not.toBeChecked();
+
+  await doneCheckbox.check();
+  await page.locator('#boardSettingsClose').click();
+  await expect(page.locator('#modalBoardSettings')).toBeHidden();
+
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      const settings = await window.board.readBoardSettings(window.boardRoot);
+      return settings.workflow;
+    });
+  }).toEqual({
+    autoDetectCompletedLists: false,
+    completedListNames: ['002-Done-stock'],
+    ignoredCompletedListNames: [],
+  });
+});
+
+test('shows import controls and renders an import summary from the Settings import panel', async ({ page }) => {
   await page.evaluate(() => {
     window.__signboardImportOverrides = {
       pickImportSources: async () => ([

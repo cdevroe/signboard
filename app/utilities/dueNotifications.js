@@ -22,6 +22,11 @@ function formatDueNotificationItemSummary(itemValue) {
     item.cardTitle || 'Untitled',
     DUE_NOTIFICATION_MAX_CARD_TITLE_LENGTH,
   );
+  const boardName = normalizeDueNotificationText(
+    item.boardName || '',
+    DUE_NOTIFICATION_MAX_CARD_TITLE_LENGTH,
+  );
+  const scopedCardTitle = boardName ? `${boardName}: ${cardTitle}` : cardTitle;
 
   if (item.kind === 'task') {
     const taskSnippet = normalizeDueNotificationText(
@@ -29,11 +34,11 @@ function formatDueNotificationItemSummary(itemValue) {
       DUE_NOTIFICATION_MAX_TASK_SNIPPET_LENGTH,
     );
     if (taskSnippet) {
-      return `${cardTitle}: ${taskSnippet}`;
+      return `${scopedCardTitle}: ${taskSnippet}`;
     }
   }
 
-  return cardTitle;
+  return scopedCardTitle;
 }
 
 function buildDueNotificationBody(dueItemsValue) {
@@ -67,13 +72,26 @@ async function collectDueTodayItemsForBoard(boardApi, boardRoot, todayIsoDate) {
   }
 
   let lists = [];
+  let workflowSettings = {};
   try {
-    lists = await boardApi.listLists(normalizedBoardRoot);
+    [lists, workflowSettings] = await Promise.all([
+      boardApi.listLists(normalizedBoardRoot),
+      typeof boardApi.readBoardSettings === 'function'
+        ? boardApi.readBoardSettings(normalizedBoardRoot).then((settings) => settings && settings.workflow ? settings.workflow : {}).catch(() => ({}))
+        : Promise.resolve({}),
+    ]);
   } catch {
     return dueItems;
   }
 
   for (const listName of lists) {
+    if (
+      typeof isBoardListCompletedByWorkflow === 'function' &&
+      isBoardListCompletedByWorkflow(listName, workflowSettings)
+    ) {
+      continue;
+    }
+
     const listPath = `${normalizedBoardRoot}${listName}`;
     let cardFiles = [];
 

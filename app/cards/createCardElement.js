@@ -1,5 +1,9 @@
 async function createCardElement(cardPath) {
   const card = await window.board.readCard(cardPath);
+  const listDirectoryName = String(cardPath || '').replace(/\\/g, '/').split('/').slice(-2, -1)[0] || '';
+  const isCompletedList = typeof isBoardListCompletedByWorkflow === 'function'
+    ? isBoardListCompletedByWorkflow(listDirectoryName)
+    : false;
   const titleContent = card.frontmatter.title || '';
   let dueDateValue = String(card.frontmatter.due || '').trim();
   let selectedLabelIds = Array.isArray(card.frontmatter.labels)
@@ -151,7 +155,7 @@ async function createCardElement(cardPath) {
 
     const cardDueDates = getCardFilterDueDates(dueDateValue, taskDueDates);
     const activeFilterDueDates = getActiveBoardFilterDueDates(dueDateValue, taskDueDates, incompleteTaskDueDates);
-    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates, activeFilterDueDates)) {
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates, activeFilterDueDates, { isCompletedList })) {
       await renderBoard();
     }
   }
@@ -167,7 +171,7 @@ async function createCardElement(cardPath) {
 
     const cardDueDates = getCardFilterDueDates(dueDateValue, taskDueDates);
     const activeFilterDueDates = getActiveBoardFilterDueDates(dueDateValue, taskDueDates, incompleteTaskDueDates);
-    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates, activeFilterDueDates)) {
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates, activeFilterDueDates, { isCompletedList })) {
       await renderBoard();
     }
   }
@@ -223,6 +227,7 @@ async function createCardElement(cardPath) {
     selectedLabelIds,
     getCardFilterDueDates(dueDateValue, taskDueDates),
     getActiveBoardFilterDueDates(dueDateValue, taskDueDates, incompleteTaskDueDates),
+    { isCompletedList },
   );
   const matchesSearchFilter = cardMatchesBoardSearch(card.frontmatter.title, card.body);
 

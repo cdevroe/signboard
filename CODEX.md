@@ -19,16 +19,22 @@ Start here before opening source files.
 - `preload.js` is now a thin IPC bridge only; board filesystem access, trusted-board validation, and filesystem watch helpers live in `main.js`, while `app/init.js` still uses the same watch methods to auto-refresh after external board changes.
 - Archive browsing and restore now run through `lib/archive.js` via `main.js` / `preload.js`; the renderer opens a dedicated Archive modal (`app/board/archiveBrowser.js`) instead of treating Archive as a board view.
 - Active-card adjacent-list moves use the main-process `moveCardToTop` IPC path backed by `lib/cardOrdering.js`, so renderer shortcuts do not perform multi-step filesystem renames directly.
-- Board view switching (Kanban/Calendar/This Week) is managed in `app/board/boardViews.js`; temporal views include cards by card due date and task-level due markers (`(due: YYYY-MM-DD)`).
+- Board rendering is Kanban-only; Calendar, This Week, Day, and Agenda dated workflows live in Planner.
+- Planner is managed in `app/board/plannerView.js`; it appears as a left-edge overlay only when at least one board tab is open, defaults to all open boards, has a quick current-board scope toggle, and owns Calendar, This Week, Day, and Agenda views.
+- Planner search/filtering is separate from board search: it searches card title/body plus board/list source text, filters by `Today` / `Overdue`, completed-card visibility, and selected open boards, and exposes label filtering only when scoped to the active board.
+- App-level settings live in `app-settings.json` under Electron `userData` via `lib/appSettings.js`; tooltip and notification preferences migrate once from the left-most open board's legacy `board-settings.md` values and are no longer serialized into board settings.
+- Board-level workflow settings in `board-settings.md` auto-detect completed lists by name (`Done`, `Completed`, `Complete`, `Closed`, `Finished`, `Resolved`, `Shipped`) with manual overrides; Planner, board date filters, and due notifications hide completed-list cards by default while preserving due dates.
+- Planner uses the default Signboard palette for the active light/dark mode instead of inheriting the active board color scheme; Planner cards show `Board · List` source context.
+- Opening a Planner card switches the active board behind the overlay when needed before opening the normal editor so label and list controls remain board-correct.
 - Calendar and This Week cards also show a subdued source-list label so users can tell which Kanban list a due item currently belongs to without opening it.
 - Shared card drag options and tilt behavior live in `app/utilities/cardDragTilt.js`; the Sortable ghost is styled in `static/styles.css` as an empty drop slot rather than a translucent duplicate card.
-- The header filter popover is owned by `app/board/boardLabels.js`; it supports temporary `Today` / `Overdue` date filters plus multi-select label filters, and those filters apply across Kanban, Calendar, and This Week.
-- The `Overdue` filter intentionally ignores completed task-level due markers; overdue card-level due dates still count, and incomplete task due markers still drive overdue matches across Kanban, Calendar, and This Week.
+- The header filter popover is owned by `app/board/boardLabels.js`; it supports temporary `Today` / `Overdue` date filters plus multi-select label filters for Kanban.
+- The `Overdue` filter intentionally ignores completed task-level due markers and completed-list cards by default; overdue card-level due dates still count for actionable lists, and incomplete task due markers still drive overdue matches in Kanban and Planner.
 - The filter toolbar button is icon-only; when filters are active it gets an accent-tinted active state and exposes the active summary through tooltip/ARIA text rather than visible label text.
-- Keyboard shortcut handling is centralized in `app/listeners/window.js`; the helper modal is rendered in `index.html` as `#modalKeyboardShortcuts`, renderer shortcuts cover quick board switching (`Cmd/Ctrl + K`), Board Settings (`Cmd/Ctrl + ,`), color-scheme cycling, archive browsing, and active-card move/archive actions, and native menu accelerators cover board switching, Board Settings, and theme toggling.
+- Keyboard shortcut handling is centralized in `app/listeners/window.js`; the helper modal is rendered in `index.html` as `#modalKeyboardShortcuts`, renderer shortcuts cover quick board switching (`Cmd/Ctrl + K`), Planner toggle/view switching (`Cmd/Ctrl + Shift + P`, `Cmd/Ctrl + 2/3` opens Planner Calendar/This Week, `Cmd/Ctrl + 4/5` switches Planner Day/Agenda, and `Cmd/Ctrl + 1` closes Planner back to Kanban), Settings (`Cmd/Ctrl + ,`), color-scheme cycling, archive browsing, and active-card move/archive actions, and native menu accelerators cover board switching, Settings, and theme toggling.
 - Shortcut label formatting is shared from `app/board/boardLabels.js`, so the keyboard helper modal, board/view menus, and list-action popovers all stay OS-aware and in sync.
 - New cards created through the desktop app, CLI, MCP, and importers now receive `createdAt` plus a compact `activity` trail (`created`, `moved-list`, `archived`, `restored`); active archive state lives in card frontmatter under `archive`, and archived lists persist lightweight sidecar metadata in `.signboard-archive.json`.
-- Task checklist parsing + counters + task due-date helpers live in `app/utilities/taskList.js` and feed Board/Calendar/This Week card badges.
+- Task checklist parsing + counters + task due-date helpers live in `app/utilities/taskList.js` and feed Kanban/Planner card badges.
 - Due notification aggregation/formatting (including task-due item snippets) lives in `app/utilities/dueNotifications.js` and is consumed by `app/init.js`.
 - Task-line due-date controls in the editor are positioned from measured textarea line-start coordinates (not raw line index math) to stay aligned with wrapped content.
 - In dev/unpackaged builds, `Help` includes updater preview dialogs so update UI can be tested without publishing a release.
@@ -36,14 +42,15 @@ Start here before opening source files.
 - Standard public releases now promote a curated download set: macOS universal, one Windows installer, and Linux `x64`/`ARM64` `AppImage` + `deb` packages. Use `docs/release-template.md` for the GitHub release body.
 - The in-app updater strips a `## Downloads` section from GitHub release notes before showing the "what's new" dialog, so curated download links can live in release bodies without cluttering update notes.
 - Task parser coverage tests are in `scripts/test-task-list-parser.js` (`npm run test:task-list`).
+- App settings coverage tests are in `scripts/test-app-settings.js` (`npm run test:app-settings`).
 - Due notification coverage tests are in `scripts/test-due-notifications.js` (`npm run test:due-notifications`).
 - Dedicated user-facing MCP setup docs are in `MCP_README.md`.
 - Release-facing user and agent docs live in `docs/README.md`, `docs/using-signboard.md`, and `docs/signboard-cli.md`.
 - Reusable agent skill for MCP usage lives at `skills/signboard-mcp/SKILL.md`.
 - Skill UI metadata lives at `skills/signboard-mcp/agents/openai.yaml`.
-- Board tabs/session state live in renderer localStorage: `boardTabs` (open tab order) and `boardPath` (active board root fallback).
+- Board tabs/session state live in renderer localStorage: `openBoardPaths` (open tab order), `activeBoardPath` (active board root), and legacy `boardPath` fallback.
 - Board label definitions are managed in `board-settings.md` files inside each board folder (runtime data, not repo source).
-- Board Settings now includes an `Import` panel that launches explicit Trello/Obsidian/Tasks.md imports into the current board; the renderer wiring lives in `app/board/boardLabels.js`, while the actual import filesystem work lives in `lib/importers/*` through `main.js` IPC.
+- Settings includes an app-level panel for tooltips and notifications plus board-specific panels for general board management, workflow, labels, colors, and imports; the renderer wiring lives in `app/board/boardLabels.js`, while the actual import filesystem work lives in `lib/importers/*` through `main.js` IPC.
 - External import pickers are tokenized in `main.js` and surfaced through `window.chooser.pickImportSources(...)`; renderer code never reads arbitrary external files directly.
 - Trello, Obsidian, and Tasks.md importer coverage lives in `scripts/test-import-trello.js`, `scripts/test-import-obsidian.js`, and `scripts/test-import-tasksmd.js`.
 - The terminal CLI now exposes a dedicated `archive` namespace (`archive cards`, `archive lists`, `archive read`, `archive restore-card`, `archive restore-list`) alongside `signboard import trello --file ...`, `signboard import obsidian --source ...`, and `signboard import tasksmd --source ...`; MCP advertises the matching archive tools plus `signboard_import_trello`, `signboard_import_obsidian`, and `signboard_import_tasksmd`, while still accepting dotted `signboard.*` legacy aliases.

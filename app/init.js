@@ -1,7 +1,7 @@
 const EXTERNAL_BOARD_SYNC_INTERVAL_MS = 500;
 const EXTERNAL_BOARD_RENDER_DEBOUNCE_MS = 150;
 const DUE_NOTIFICATION_CHECK_INTERVAL_MS = 60 * 1000;
-const DUE_NOTIFICATION_LAST_RUN_MAP_KEY = 'dueCardsNotificationLastRunByBoard';
+const DUE_NOTIFICATION_LAST_RUN_DATE_KEY = 'dueCardsNotificationLastRunDate';
 const DEFAULT_DUE_NOTIFICATION_TIME = '09:00';
 const SIGNBOARD_COMMERCIAL_LICENSE_PRICE = 49;
 const SIGNBOARD_COMMERCIAL_LICENSE_PAYMENT_URL = 'https://buy.stripe.com/7sY4gAaT14WO3dY2mg8N205';
@@ -68,17 +68,12 @@ function hasReachedDueNotificationTime(now, timeValue) {
     return now.getTime() >= triggerTime.getTime();
 }
 
-function readDueNotificationLastRunByBoard() {
-    try {
-        const parsed = JSON.parse(localStorage.getItem(DUE_NOTIFICATION_LAST_RUN_MAP_KEY) || '{}');
-        return parsed && typeof parsed === 'object' ? { ...parsed } : {};
-    } catch {
-        return {};
-    }
+function readDueNotificationLastRunDate() {
+    return String(localStorage.getItem(DUE_NOTIFICATION_LAST_RUN_DATE_KEY) || '').trim();
 }
 
-function writeDueNotificationLastRunByBoard(lastRunByBoard) {
-    localStorage.setItem(DUE_NOTIFICATION_LAST_RUN_MAP_KEY, JSON.stringify(lastRunByBoard || {}));
+function writeDueNotificationLastRunDate(lastRunDate) {
+    localStorage.setItem(DUE_NOTIFICATION_LAST_RUN_DATE_KEY, String(lastRunDate || '').trim());
 }
 
 async function collectDueTodayCards(boardRoot, todayIsoDate) {
@@ -89,8 +84,7 @@ async function runDueCardNotificationCheck() {
     if (
         !window.electronAPI ||
         typeof window.electronAPI.notifyDueCards !== 'function' ||
-        !window.board ||
-        typeof window.board.readBoardSettings !== 'function'
+        !window.board
     ) {
         return;
     }
@@ -106,49 +100,50 @@ async function runDueCardNotificationCheck() {
         return;
     }
 
-    const lastRunByBoard = readDueNotificationLastRunByBoard();
-    let lastRunUpdated = false;
+    const notificationSettings = typeof getAppNotificationSettings === 'function'
+        ? getAppNotificationSettings()
+        : {};
+
+    if (notificationSettings.enabled !== true) {
+        return;
+    }
+
+    if (!hasReachedDueNotificationTime(now, notificationSettings.time)) {
+        return;
+    }
+
+    if (readDueNotificationLastRunDate() === todayIsoDate) {
+        return;
+    }
+
+    let allDueItems = [];
 
     for (const boardRoot of boardRoots) {
-        let settings = null;
+        let boardName = '';
         try {
-            settings = await window.board.readBoardSettings(boardRoot);
+            boardName = typeof getBoardLabelFromPath === 'function'
+                ? getBoardLabelFromPath(boardRoot)
+                : String(boardRoot || '').replace(/\/+$/, '').split('/').pop();
         } catch {
-            continue;
-        }
-
-        const notifications = settings && settings.notifications && typeof settings.notifications === 'object'
-            ? settings.notifications
-            : {};
-
-        if (notifications.enabled !== true) {
-            continue;
-        }
-
-        if (!hasReachedDueNotificationTime(now, notifications.time)) {
-            continue;
-        }
-
-        if (lastRunByBoard[boardRoot] === todayIsoDate) {
-            continue;
+            boardName = '';
         }
 
         const dueItems = await collectDueTodayCards(boardRoot, todayIsoDate);
-        const notificationBody = buildDueNotificationBody(dueItems);
-        if (notificationBody) {
-            await window.electronAPI.notifyDueCards({
-                title: 'Signboard',
-                body: notificationBody,
-            });
-        }
-
-        lastRunByBoard[boardRoot] = todayIsoDate;
-        lastRunUpdated = true;
+        allDueItems = allDueItems.concat(dueItems.map((item) => ({
+            ...item,
+            boardName,
+        })));
     }
 
-    if (lastRunUpdated) {
-        writeDueNotificationLastRunByBoard(lastRunByBoard);
+    const notificationBody = buildDueNotificationBody(allDueItems);
+    if (notificationBody) {
+        await window.electronAPI.notifyDueCards({
+            title: 'Signboard',
+            body: notificationBody,
+        });
     }
+
+    writeDueNotificationLastRunDate(todayIsoDate);
 }
 
 function startDueCardNotificationSchedule() {
@@ -715,6 +710,12 @@ async function init() {
         }
     }
 
+    if (typeof migrateAppSettingsFromOpenBoards === 'function') {
+        await migrateAppSettingsFromOpenBoards();
+    } else if (typeof loadAppSettings === 'function') {
+        await loadAppSettings();
+    }
+
     const restoredBoard = restoreBoardTabs();
     const initializeHeaderControls = () => {
     initializeAboutSignboardControls();
@@ -723,6 +724,7 @@ async function init() {
         initializeBoardLabelControls();
         initializeBoardSearchControls();
         initializeBoardViewControls();
+        initializePlannerControls();
         initializeArchiveBrowserControls();
         initializeBoardSwitcherControls();
     };
@@ -809,6 +811,9 @@ async function init() {
         }
         if (typeof closeBoardMenuPopoverIfClickOutside === 'function') {
             closeBoardMenuPopoverIfClickOutside(e.target);
+        }
+        if (typeof closePlannerFilterPopoverIfClickOutside === 'function') {
+            closePlannerFilterPopoverIfClickOutside(e.target);
         }
         if (typeof closeListActionsPopoverIfClickOutside === 'function') {
             closeListActionsPopoverIfClickOutside(e.target);

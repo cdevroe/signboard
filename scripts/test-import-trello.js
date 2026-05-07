@@ -29,8 +29,6 @@ async function run() {
       labels: [
         { id: 'quoted-existing', name: 'Quoted', colorLight: '#f59e0b', colorDark: '#d97706' },
       ],
-      notifications: { enabled: false, time: '09:00' },
-      tooltipsEnabled: true,
     });
 
     const sourceData = {

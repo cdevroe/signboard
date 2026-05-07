@@ -10,9 +10,10 @@ This guide covers the desktop app and the core workflow for managing a project i
 - [Work with Cards](#work-with-cards)
 - [Due Dates, Labels, and Checklists](#due-dates-labels-and-checklists)
 - [Search, Filters, and Open Boards](#search-filters-and-open-boards)
-- [Board Views](#board-views)
+- [Kanban and Planner Views](#kanban-and-planner-views)
+- [Planner](#planner)
 - [Archive and Restore](#archive-and-restore)
-- [Board Settings](#board-settings)
+- [Settings](#settings)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [A Few Practical Tips](#a-few-practical-tips)
 
@@ -123,7 +124,7 @@ Use the share action in the card editor to hand the underlying Markdown file to 
 
 ## Due Dates, Labels, and Checklists
 
-These features are what make cards show up in the calendar and this week views and filters.
+These features are what make cards show up in Planner and filters.
 
 ### Card due dates
 
@@ -133,9 +134,8 @@ Once a card has a due date, it becomes visible in:
 
 - due date displays on the card
 - due-date-aware filters
-- Calendar view
-- This Week view
-- daily due notifications if enabled for the board
+- Planner
+- daily due notifications if enabled in app settings
 
 ### Task list items with due dates
 
@@ -149,11 +149,11 @@ Example:
 - [x] Review copy
 ```
 
-Task due dates are separate from the card’s main due date. They are included in CLI filters and calendar and this week views, so a card can surface because one of its checklist items is due even if the card itself has no top-level due date.
+Task due dates are separate from the card’s main due date. They are included in CLI filters and Planner views, so a card can surface because one of its checklist items is due even if the card itself has no top-level due date.
 
 ### Labels
 
-Labels are defined per board. Add them in `Board Settings > Labels`, then assign them to cards from the card editor.
+Labels are defined per board. Add them in `Settings > Labels`, then assign them to cards from the card editor.
 
 Labels are useful for:
 
@@ -179,17 +179,17 @@ Search matches card title and body text.
 
 Use the filter button in the header to narrow the visible cards by due today, overdue, and your board labels.
 
-## Board Views
+## Kanban and Planner Views
 
-Signboard includes three board views.
+Board context is Kanban. Dated planning happens in Planner.
 
 ### Kanban
 
-Kanban is the default view. Use it for day-to-day drag-and-drop organization.
+Kanban is the board view. Use it for day-to-day drag-and-drop organization.
 
-### Calendar
+### Dated Views
 
-Calendar view places cards and due task items on calendar dates so you can see upcoming work by month. The week starts on a Monday. Anything else is a bug.
+Planner Calendar, This Week, Day, and Agenda place cards and due task items on dates across your open boards. Calendar and This Week use Monday-first weeks.
 
 Use it when you want to answer questions like:
 
@@ -198,17 +198,44 @@ Use it when you want to answer questions like:
 - Which cards have dated checklist items?
 - What dates do I have open?
 
-### This Week
-
-Inspired by multiple years coming up with a unique Bullet Journal view in my paper notebook, This Week view focuses on the current week, Monday through Sunday. It lets to sit and plan your week and understand what needs done each day. I love it.
-
 ### Switch views
 
-- `Cmd/Ctrl + 1`: Kanban
+- `Cmd/Ctrl + 1`: Kanban, closing Planner if it is open
+- `Cmd/Ctrl + 2`: Planner Calendar
+- `Cmd/Ctrl + 3`: Planner This Week
+
+## Planner
+
+Planner is a workspace-level view for dated work across your currently open boards. It appears as a narrow rail on the far left when at least one board is open.
+
+Open Planner from the left rail or press `Cmd/Ctrl + Shift + P`. Planner slides over the board tabs and board content, so it is clear you are no longer looking at a single board.
+
+Planner includes:
+
+- Calendar
+- This Week
+- Day
+- Agenda
+
+Planner cards show their source as `Board · List`. Clicking a Planner card opens the normal card editor and switches the active board behind Planner when needed, so labels and list moves stay tied to the card’s real board.
+
+Planner defaults to all open boards. Use the scope toggle to narrow to the current board, or use the filter menu to choose a custom set of open boards.
+
+Planner search matches card title, body, board name, and list name. Planner filters can narrow by date (`Today` or `Overdue`), completed-card visibility, and open board. When Planner is scoped to the current board only, the filter menu also includes that board's labels.
+
+Planner hides cards from completed lists by default. Each board can auto-detect lists named `Done`, `Completed`, `Complete`, `Closed`, `Finished`, `Resolved`, or `Shipped`, and you can override those choices in Settings. Use the Planner filter menu when you want completed dated cards shown for historical review.
+
+Planner uses your light/dark mode but keeps the default Signboard color palette instead of inheriting the active board color scheme.
+
+### Planner shortcuts
+
+- `Cmd/Ctrl + Shift + P`: open or close Planner
 - `Cmd/Ctrl + 2`: Calendar
 - `Cmd/Ctrl + 3`: This Week
+- `Cmd/Ctrl + 4`: Day
+- `Cmd/Ctrl + 5`: Agenda
 
-You can also switch views from the board menu. Like an animal.
+Inside Planner, `Cmd/Ctrl + 1` closes Planner and returns to the Kanban board.
 
 ## Archive and Restore
 
@@ -241,17 +268,33 @@ From the archive browser you can:
 
 This lets you keep the active board clean without losing history.
 
-## Board Settings
+## Settings
 
-Open `Board Settings` from the board menu or press `Cmd/Ctrl + ,`.
+Open `Settings` from the board menu or press `Cmd/Ctrl + ,`.
 
-### General
+### App Settings
 
-The `General` section lets you:
+The `App Settings` section controls settings that apply across Signboard:
+
+- tooltips
+- daily due-date reminders
+
+If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due.
+
+### Board General
+
+The board `General` section lets you:
 
 - rename the board
 - move the board folder to a new location
-- enable or disable tooltips for that board
+
+### Workflow
+
+The `Workflow` section controls which lists count as completed work for the current board.
+
+Completed-list cards keep their due dates, but Planner date views, the Planner `Overdue` filter, board date filters, and daily due reminders hide them by default so finished work does not look actionable.
+
+Auto-detection is enabled by default. You can turn it off, manually choose completed lists, or uncheck an auto-detected list.
 
 ### Labels
 
@@ -269,18 +312,6 @@ Labels are stored with the board so each board can have its own vocabulary.
 The `Colors` section lets you choose a board color scheme. Each scheme includes both light and dark variants.
 
 You can also apply the color scheme to all currently open boards.
-
-### Notifications
-
-The `Notifications` section controls daily due-date reminders.
-
-You can:
-
-- turn reminders on or off
-- choose the local notification time in 24-hour `HH:MM` format
-- apply notification settings to all open boards
-
-If notifications are enabled, Signboard checks the board each day at the configured local time and shows a reminder when cards are due.
 
 ### Import
 
@@ -300,17 +331,20 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + K`: switch between currently open boards
 - `Cmd/Ctrl + N`: create a card
 - `Cmd/Ctrl + Shift + N`: create a list
-- `Cmd/Ctrl + 1`: switch to Kanban view
-- `Cmd/Ctrl + 2`: switch to Calendar view
-- `Cmd/Ctrl + 3`: switch to This Week view
-- `Cmd/Ctrl + ,`: open Board Settings
+- `Cmd/Ctrl + 1`: return to Kanban and close Planner
+- `Cmd/Ctrl + 2`: open Planner Calendar
+- `Cmd/Ctrl + 3`: open Planner This Week
+- `Cmd/Ctrl + Shift + P`: open or close Planner
+- `Cmd/Ctrl + 4`: switch to Planner Day view when Planner is open
+- `Cmd/Ctrl + 5`: switch to Planner Agenda view when Planner is open
+- `Cmd/Ctrl + ,`: open Settings
 - `Cmd/Ctrl + Shift + D`: toggle light and dark mode
 - `Cmd + Control + Shift + C` on macOS, `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes
 - `Cmd/Ctrl + Shift + [`: move the open card to the previous list
 - `Cmd/Ctrl + Shift + ]`: move the open card to the next list
 - `Cmd/Ctrl + Option/Alt + Shift + Backspace`: archive the open card
 - `Cmd/Ctrl + Shift + A`: open Archive
-- `Cmd/Ctrl + F`: focus search
+- `Cmd/Ctrl + F`: focus board search or Planner search
 - `Esc`: close open modals
 
 You can also open the shortcut helper from `Help > Keyboard Shortcuts`.

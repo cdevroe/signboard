@@ -18,6 +18,8 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 🏷 Custom labels per board
 - 🗓 Card due dates and task list item due dates
 - 📅 Calendar and "This Week" views
+- 🗂 Planner overlay for actionable dated work across open boards
+- ✅ Completed-list workflow settings that preserve due-date history
 - ✅ Progress counters on cards
 - 🔎 Live search
 - 🧲 Drag-and-drop card movement
@@ -57,17 +59,20 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + K`: switch between currently open boards
 - `Cmd/Ctrl + N`: create a card
 - `Cmd/Ctrl + Shift + N`: create a list
-- `Cmd/Ctrl + 1`: switch to Kanban view
-- `Cmd/Ctrl + 2`: switch to Calendar view
-- `Cmd/Ctrl + 3`: switch to This Week view
-- `Cmd/Ctrl + ,`: open Board Settings
+- `Cmd/Ctrl + 1`: return to Kanban and close Planner
+- `Cmd/Ctrl + 2`: open Planner Calendar
+- `Cmd/Ctrl + 3`: open Planner This Week
+- `Cmd/Ctrl + Shift + P`: open or close Planner
+- `Cmd/Ctrl + 4`: switch to Planner Day view when Planner is open
+- `Cmd/Ctrl + 5`: switch to Planner Agenda view when Planner is open
+- `Cmd/Ctrl + ,`: open Settings
 - `Cmd/Ctrl + Shift + D`: toggle light and dark mode
 - `Cmd + Control + Shift + C` on macOS, `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes
 - `Cmd/Ctrl + Shift + [`: move the open card to the previous list
 - `Cmd/Ctrl + Shift + ]`: move the open card to the next list
 - `Cmd/Ctrl + Option/Alt + Shift + Backspace`: archive the open card
 - `Cmd/Ctrl + Shift + A`: open Archive
-- `Cmd/Ctrl + F`: focus search
+- `Cmd/Ctrl + F`: focus board search or Planner search
 - `Esc`: close open modals
 
 You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
@@ -180,6 +185,7 @@ npm start
 ```bash
 npm run test:frontmatter
 npm run test:board-labels
+npm run test:app-settings
 npm run test:board-card-metadata
 npm run test:due-notifications
 npm run test:task-list

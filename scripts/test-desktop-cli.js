@@ -20,7 +20,6 @@ async function createFixtureBoard() {
     labels: [
       { id: 'urgent', name: 'Urgent', colorLight: '#ef4444', colorDark: '#dc2626' },
     ],
-    notifications: { enabled: false, time: '09:00' },
   });
 
   await cardFrontmatter.writeCard(path.join(todoList, '001-launch-plan-ab123.md'), {
@@ -179,13 +178,11 @@ async function main() {
 
   const settingsResult = runDesktopCli([
     'settings',
-    'edit',
-    '--tooltips',
-    'off',
     '--json',
   ], env);
   const settings = JSON.parse(settingsResult.stdout);
-  assert.strictEqual(settings.tooltipsEnabled, false);
+  assert.ok(Array.isArray(settings.labels));
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(settings, 'tooltipsEnabled'), false);
 
   const importResult = runDesktopCli([
     'import',

@@ -34,8 +34,6 @@ async function run() {
       labels: [
         { id: 'launch-existing', name: 'launch', colorLight: '#fb923c', colorDark: '#f97316' },
       ],
-      notifications: { enabled: false, time: '09:00' },
-      tooltipsEnabled: true,
     });
 
     await fs.writeFile(kanbanFile, [

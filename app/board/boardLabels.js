@@ -69,6 +69,9 @@ const SHORTCUT_ACTION_DEFINITIONS = Object.freeze({
   kanbanView: Object.freeze({ key: '1', usesPrimaryModifier: true }),
   calendarView: Object.freeze({ key: '2', usesPrimaryModifier: true }),
   thisWeekView: Object.freeze({ key: '3', usesPrimaryModifier: true }),
+  plannerDayView: Object.freeze({ key: '4', usesPrimaryModifier: true }),
+  plannerAgendaView: Object.freeze({ key: '5', usesPrimaryModifier: true }),
+  plannerToggle: Object.freeze({ key: 'P', usesPrimaryModifier: true, shiftKey: true }),
   focusSearch: Object.freeze({ key: 'F', usesPrimaryModifier: true }),
   switchBoard: Object.freeze({ key: 'K', usesPrimaryModifier: true }),
   boardSettings: Object.freeze({ key: ',', usesPrimaryModifier: true }),
@@ -833,6 +836,117 @@ function normalizeBoardTooltipsEnabled(value) {
   return value === false ? false : DEFAULT_BOARD_TOOLTIPS_ENABLED;
 }
 
+const DEFAULT_BOARD_WORKFLOW_SETTINGS = Object.freeze({
+  autoDetectCompletedLists: true,
+  completedListNames: Object.freeze([]),
+  ignoredCompletedListNames: Object.freeze([]),
+});
+const AUTO_COMPLETED_LIST_NAME_KEYS = Object.freeze([
+  'complete',
+  'completed',
+  'closed',
+  'done',
+  'finished',
+  'resolved',
+  'shipped',
+]);
+
+function getBoardWorkflowListDisplayName(listName) {
+  const normalized = String(listName || '').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  const listNameMatch = normalized.match(/^\d{3}-(.*?)(-[^-]{5}|-stock)$/);
+  if (listNameMatch) {
+    return String(listNameMatch[1] || '').trim();
+  }
+
+  return normalized;
+}
+
+function normalizeBoardWorkflowListName(value) {
+  return String(value || '').trim();
+}
+
+function normalizeBoardWorkflowListIdentity(value) {
+  return normalizeBoardWorkflowListName(value).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+}
+
+function normalizeBoardWorkflowDetectionKey(value) {
+  return getBoardWorkflowListDisplayName(value)
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function isAutoDetectedCompletedListName(listName) {
+  const key = normalizeBoardWorkflowDetectionKey(listName);
+  return AUTO_COMPLETED_LIST_NAME_KEYS.includes(key);
+}
+
+function normalizeBoardWorkflowListNames(rawListNames) {
+  const values = Array.isArray(rawListNames) ? rawListNames : [];
+  const seen = new Set();
+  const normalized = [];
+
+  for (const rawName of values) {
+    const name = normalizeBoardWorkflowListName(rawName);
+    const identity = normalizeBoardWorkflowListIdentity(name);
+    if (!name || !identity || seen.has(identity)) {
+      continue;
+    }
+
+    seen.add(identity);
+    normalized.push(name);
+  }
+
+  return normalized;
+}
+
+function normalizeBoardWorkflowSettings(rawWorkflowSettings) {
+  const source = rawWorkflowSettings && typeof rawWorkflowSettings === 'object'
+    ? rawWorkflowSettings
+    : {};
+
+  return {
+    autoDetectCompletedLists: source.autoDetectCompletedLists === false
+      ? false
+      : DEFAULT_BOARD_WORKFLOW_SETTINGS.autoDetectCompletedLists,
+    completedListNames: normalizeBoardWorkflowListNames(source.completedListNames || source.completedLists),
+    ignoredCompletedListNames: normalizeBoardWorkflowListNames(source.ignoredCompletedListNames),
+  };
+}
+
+function isBoardListCompletedByWorkflow(listName, workflowSettings = getBoardWorkflowSettings()) {
+  const normalized = normalizeBoardWorkflowSettings(workflowSettings);
+  const identity = normalizeBoardWorkflowListIdentity(listName);
+  if (!identity) {
+    return false;
+  }
+
+  const completedListNames = new Set(normalized.completedListNames.map(normalizeBoardWorkflowListIdentity));
+  if (completedListNames.has(identity)) {
+    return true;
+  }
+
+  const ignoredCompletedListNames = new Set(normalized.ignoredCompletedListNames.map(normalizeBoardWorkflowListIdentity));
+  if (ignoredCompletedListNames.has(identity)) {
+    return false;
+  }
+
+  return normalized.autoDetectCompletedLists && isAutoDetectedCompletedListName(listName);
+}
+
+function getBoardWorkflowSettings() {
+  return normalizeBoardWorkflowSettings(getBoardLabelState().workflowSettings);
+}
+
+function setBoardWorkflowSettings(workflowSettings) {
+  getBoardLabelState().workflowSettings = normalizeBoardWorkflowSettings(workflowSettings);
+}
+
 function hasThemeModeOverride(themeModeOverrides) {
   return Boolean(themeModeOverrides && typeof themeModeOverrides.boardBackground === 'string' && themeModeOverrides.boardBackground.length > 0);
 }
@@ -858,7 +972,9 @@ function getBoardLabelState() {
       },
       notificationSettings: { ...DEFAULT_BOARD_NOTIFICATION_SETTINGS },
       tooltipsEnabled: DEFAULT_BOARD_TOOLTIPS_ENABLED,
-      activeSettingsPanel: 'general',
+      workflowSettings: normalizeBoardWorkflowSettings({}),
+      workflowRenderRequestId: 0,
+      activeSettingsPanel: 'app',
       importInProgress: '',
       importSummary: null,
       importSummaryBoardRoot: '',
@@ -915,20 +1031,38 @@ function setBoardThemeOverrides(themeOverrides) {
 }
 
 function getBoardNotificationSettings() {
+  if (typeof getAppNotificationSettings === 'function') {
+    return getAppNotificationSettings();
+  }
+
   const state = getBoardLabelState();
   return normalizeBoardNotificationSettings(state.notificationSettings);
 }
 
 function setBoardNotificationSettings(notificationSettings) {
+  if (typeof setAppNotificationSettings === 'function') {
+    setAppNotificationSettings(notificationSettings);
+    return;
+  }
+
   const state = getBoardLabelState();
   state.notificationSettings = normalizeBoardNotificationSettings(notificationSettings);
 }
 
 function getBoardTooltipsEnabled() {
+  if (typeof getAppTooltipsEnabled === 'function') {
+    return getAppTooltipsEnabled();
+  }
+
   return normalizeBoardTooltipsEnabled(getBoardLabelState().tooltipsEnabled);
 }
 
 function setBoardTooltipsEnabled(value) {
+  if (typeof setAppTooltipsEnabled === 'function') {
+    setAppTooltipsEnabled(value);
+    return;
+  }
+
   const state = getBoardLabelState();
   state.tooltipsEnabled = normalizeBoardTooltipsEnabled(value);
 
@@ -1230,13 +1364,17 @@ function isBoardLabelFilterActive() {
   return getActiveBoardLabelFilterIds().length > 0 || isBoardDueDateFilterActive();
 }
 
-function cardMatchesBoardLabelFilter(cardLabelIds, cardDueDates = [], activeFilterDueDates = cardDueDates) {
+function cardMatchesBoardLabelFilter(cardLabelIds, cardDueDates = [], activeFilterDueDates = cardDueDates, options = {}) {
   const selectedFilterIds = getActiveBoardLabelFilterIds();
   const activeDateFilter = getActiveBoardDateFilter();
   const hasLabelFilters = selectedFilterIds.length > 0;
 
   if (!hasLabelFilters && !activeDateFilter) {
     return true;
+  }
+
+  if (activeDateFilter && options && options.isCompletedList === true) {
+    return false;
   }
 
   const normalizedCardLabelIds = Array.isArray(cardLabelIds)
@@ -1756,32 +1894,6 @@ async function applyThemeOverridesToOpenBoards() {
   }
 }
 
-async function applyNotificationSettingsToOpenBoards() {
-  if (!window.boardRoot) {
-    return;
-  }
-
-  const sourceNotifications = getBoardNotificationSettings();
-  const sourceBoard = window.boardRoot;
-  const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [sourceBoard];
-  const targets = Array.isArray(openBoards) ? openBoards : [];
-
-  for (const boardPath of targets) {
-    if (!boardPath) {
-      continue;
-    }
-
-    await window.board.updateBoardSettings(boardPath, {
-      notifications: sourceNotifications,
-    });
-  }
-
-  if (window.boardRoot === sourceBoard) {
-    await ensureBoardLabelsLoaded();
-    await renderBoard();
-  }
-}
-
 function updateBoardLabel(index, key, value) {
   const labels = getBoardLabels();
   if (!labels[index]) {
@@ -1905,6 +2017,9 @@ async function deleteBoardLabelDefinition(labelId) {
     return;
   }
 
+  if (typeof flushAppSettingsSave === 'function') {
+    await flushAppSettingsSave();
+  }
   await flushBoardSettingsSave();
   closeCardLabelPopover();
 
@@ -1959,23 +2074,22 @@ function persistBoardSettings(options = {}) {
         labels: getBoardLabels(),
         colorScheme: getBoardColorScheme(),
         themeOverrides: getBoardThemeOverrides(),
-        notifications: getBoardNotificationSettings(),
-        tooltipsEnabled: getBoardTooltipsEnabled(),
+        workflow: getBoardWorkflowSettings(),
       });
       setBoardLabels(result.labels || []);
+      setBoardWorkflowSettings(result.workflow || {});
       const savedSchemeId = result.colorScheme || '';
       if (savedSchemeId && getColorSchemeById(savedSchemeId)) {
         applyColorSchemeById(savedSchemeId, { renderControls: false });
       } else {
         applyDerivedBoardThemes(result.themeOverrides || {}, { renderControls: false });
       }
-      setBoardNotificationSettings(result.notifications || DEFAULT_BOARD_NOTIFICATION_SETTINGS);
-      setBoardTooltipsEnabled(result.tooltipsEnabled);
       if (shouldRenderControls && !isBoardSettingsModalOpen()) {
         renderBoardSettingsLabels();
         renderBoardThemeSettingsControls();
         renderBoardGeneralSettingsControls();
-        renderNotificationSettingsControls();
+        renderBoardWorkflowSettingsControls();
+        renderAppSettingsControls();
       }
       if (shouldRenderControls) {
         renderBoardLabelFilterButton();
@@ -1983,10 +2097,13 @@ function persistBoardSettings(options = {}) {
       }
       if (shouldRenderBoard) {
         await renderBoard();
+        if (typeof isPlannerOpen === 'function' && isPlannerOpen() && typeof renderPlannerView === 'function') {
+          await renderPlannerView();
+        }
       }
     })
     .catch((error) => {
-      console.error('Unable to save board settings.', error);
+      console.error('Unable to save settings.', error);
     });
 
   return state.settingsSaveInFlight;
@@ -2041,7 +2158,7 @@ function getBoardRootInfo(boardRoot = window.boardRoot) {
 
 function renderBoardSettingsPanelState() {
   const state = getBoardLabelState();
-  const activePanel = String(state.activeSettingsPanel || 'general');
+  const activePanel = String(state.activeSettingsPanel || 'app');
   const navButtons = document.querySelectorAll('.board-settings-nav-button[data-settings-panel]');
   const panels = document.querySelectorAll('.board-settings-panel[data-settings-panel]');
 
@@ -2059,9 +2176,9 @@ function renderBoardSettingsPanelState() {
 }
 
 function setActiveBoardSettingsPanel(panelId) {
-  const normalizedPanelId = ['general', 'labels', 'colors', 'notifications', 'import'].includes(panelId)
+  const normalizedPanelId = ['app', 'general', 'workflow', 'labels', 'colors', 'import'].includes(panelId)
     ? panelId
-    : 'general';
+    : 'app';
   const state = getBoardLabelState();
   state.activeSettingsPanel = normalizedPanelId;
   renderBoardSettingsPanelState();
@@ -2083,6 +2200,155 @@ function renderBoardGeneralSettingsControls() {
 
   if (tooltipsToggle) {
     tooltipsToggle.checked = getBoardTooltipsEnabled();
+  }
+}
+
+function removeWorkflowListName(listNames, listName) {
+  const targetIdentity = normalizeBoardWorkflowListIdentity(listName);
+  return normalizeBoardWorkflowListNames(listNames)
+    .filter((candidate) => normalizeBoardWorkflowListIdentity(candidate) !== targetIdentity);
+}
+
+function addWorkflowListName(listNames, listName) {
+  const next = removeWorkflowListName(listNames, listName);
+  const normalizedName = normalizeBoardWorkflowListName(listName);
+  if (normalizedName) {
+    next.push(normalizedName);
+  }
+  return next;
+}
+
+function updateBoardWorkflowAutoDetection(enabled) {
+  const current = getBoardWorkflowSettings();
+  setBoardWorkflowSettings({
+    ...current,
+    autoDetectCompletedLists: Boolean(enabled),
+  });
+  renderBoardWorkflowSettingsControls();
+  scheduleBoardSettingsSave();
+}
+
+function updateBoardWorkflowCompletedList(listName, enabled) {
+  const current = getBoardWorkflowSettings();
+  const isAutoDetected = current.autoDetectCompletedLists && isAutoDetectedCompletedListName(listName);
+  let completedListNames = removeWorkflowListName(current.completedListNames, listName);
+  let ignoredCompletedListNames = removeWorkflowListName(current.ignoredCompletedListNames, listName);
+
+  if (enabled) {
+    completedListNames = addWorkflowListName(completedListNames, listName);
+  } else if (isAutoDetected) {
+    ignoredCompletedListNames = addWorkflowListName(ignoredCompletedListNames, listName);
+  }
+
+  setBoardWorkflowSettings({
+    ...current,
+    completedListNames,
+    ignoredCompletedListNames,
+  });
+  renderBoardWorkflowSettingsControls();
+  scheduleBoardSettingsSave();
+}
+
+function renderWorkflowListRow(listName, workflowSettings) {
+  const row = document.createElement('label');
+  row.className = 'board-workflow-list-row';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = isBoardListCompletedByWorkflow(listName, workflowSettings);
+  checkbox.addEventListener('change', (event) => {
+    updateBoardWorkflowCompletedList(listName, Boolean(event.target.checked));
+  });
+
+  const content = document.createElement('span');
+  content.className = 'board-workflow-list-content';
+
+  const title = document.createElement('span');
+  title.className = 'board-workflow-list-title';
+  title.textContent = getBoardWorkflowListDisplayName(listName) || listName;
+  content.appendChild(title);
+
+  const metaParts = [];
+  if (workflowSettings.autoDetectCompletedLists && isAutoDetectedCompletedListName(listName)) {
+    metaParts.push('Auto-detected');
+  }
+  metaParts.push(listName);
+
+  const meta = document.createElement('span');
+  meta.className = 'board-workflow-list-meta';
+  meta.textContent = metaParts.join(' · ');
+  content.appendChild(meta);
+
+  row.appendChild(checkbox);
+  row.appendChild(content);
+  return row;
+}
+
+async function renderBoardWorkflowSettingsControls() {
+  const autoDetectToggle = document.getElementById('boardSettingsAutoDetectCompletedListsToggle');
+  const listsContainer = document.getElementById('boardSettingsWorkflowLists');
+  const workflowSettings = getBoardWorkflowSettings();
+
+  if (autoDetectToggle) {
+    autoDetectToggle.checked = workflowSettings.autoDetectCompletedLists;
+  }
+
+  if (!listsContainer) {
+    return;
+  }
+
+  const state = getBoardLabelState();
+  const requestId = state.workflowRenderRequestId + 1;
+  state.workflowRenderRequestId = requestId;
+  listsContainer.replaceChildren();
+
+  if (!window.boardRoot || !window.board || typeof window.board.listLists !== 'function') {
+    const empty = document.createElement('p');
+    empty.className = 'boardSettingsHint';
+    empty.textContent = 'Open a board to configure workflow lists.';
+    listsContainer.appendChild(empty);
+    return;
+  }
+
+  const boardRootAtRequest = normalizeBoardPath(window.boardRoot);
+  const loading = document.createElement('p');
+  loading.className = 'boardSettingsHint';
+  loading.textContent = 'Loading lists...';
+  listsContainer.appendChild(loading);
+
+  try {
+    const listNames = await window.board.listLists(window.boardRoot);
+    if (
+      state.workflowRenderRequestId !== requestId ||
+      normalizeBoardPath(window.boardRoot) !== boardRootAtRequest
+    ) {
+      return;
+    }
+
+    listsContainer.replaceChildren();
+    const visibleLists = Array.isArray(listNames) ? listNames : [];
+    if (visibleLists.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'boardSettingsHint';
+      empty.textContent = 'This board has no lists yet.';
+      listsContainer.appendChild(empty);
+      return;
+    }
+
+    for (const listName of visibleLists) {
+      listsContainer.appendChild(renderWorkflowListRow(listName, workflowSettings));
+    }
+  } catch (error) {
+    console.error('Unable to load board workflow lists.', error);
+    if (state.workflowRenderRequestId !== requestId) {
+      return;
+    }
+
+    listsContainer.replaceChildren();
+    const empty = document.createElement('p');
+    empty.className = 'boardSettingsHint';
+    empty.textContent = 'Unable to load lists for this board.';
+    listsContainer.appendChild(empty);
   }
 }
 
@@ -2340,9 +2606,10 @@ function openBoardSettingsModal() {
   renderBoardSettingsLabels();
   renderBoardThemeSettingsControls();
   renderBoardGeneralSettingsControls();
-  renderNotificationSettingsControls();
+  renderBoardWorkflowSettingsControls();
+  renderAppSettingsControls();
   renderBoardImportControls();
-  setActiveBoardSettingsPanel('general');
+  setActiveBoardSettingsPanel('app');
   modal.style.display = 'block';
 
   if (typeof setBoardInteractive === 'function') {
@@ -2376,8 +2643,8 @@ function renderBoardSettingsActionState() {
   }
 
   const shortcutHint = getShortcutHintText('boardSettings');
-  openSettingsButton.setAttribute('title', `Open board settings (${shortcutHint})`);
-  openSettingsButton.setAttribute('aria-label', 'Open board settings');
+  openSettingsButton.setAttribute('title', `Open settings (${shortcutHint})`);
+  openSettingsButton.setAttribute('aria-label', 'Open settings');
   openSettingsButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts('boardSettings'));
 }
 
@@ -2393,33 +2660,33 @@ async function ensureBoardLabelsLoaded() {
     state.importSummaryBoardRoot = '';
     resetBoardLabelFilter();
     setBoardLabels([]);
+    setBoardWorkflowSettings({});
     applyColorSchemeById('light', { renderControls: false });
-    setBoardNotificationSettings(DEFAULT_BOARD_NOTIFICATION_SETTINGS);
-    setBoardTooltipsEnabled(DEFAULT_BOARD_TOOLTIPS_ENABLED);
     renderBoardLabelFilterButton();
     renderBoardLabelFilterPopover();
     renderBoardThemeSettingsControls();
     renderBoardGeneralSettingsControls();
-    renderNotificationSettingsControls();
+    renderBoardWorkflowSettingsControls();
+    renderAppSettingsControls();
     renderBoardImportControls();
     return;
   }
 
   const settings = await window.board.readBoardSettings(window.boardRoot);
   setBoardLabels(settings.labels || []);
+  setBoardWorkflowSettings(settings.workflow || {});
   const loadedSchemeId = settings.colorScheme || '';
   if (loadedSchemeId && getColorSchemeById(loadedSchemeId)) {
     applyColorSchemeById(loadedSchemeId, { renderControls: false });
   } else {
     applyDerivedBoardThemes(settings.themeOverrides || {}, { renderControls: false });
   }
-  setBoardNotificationSettings(settings.notifications || DEFAULT_BOARD_NOTIFICATION_SETTINGS);
-  setBoardTooltipsEnabled(settings.tooltipsEnabled);
   renderBoardLabelFilterButton();
   renderBoardLabelFilterPopover();
   renderBoardThemeSettingsControls();
   renderBoardGeneralSettingsControls();
-  renderNotificationSettingsControls();
+  renderBoardWorkflowSettingsControls();
+  renderAppSettingsControls();
   renderBoardImportControls();
 }
 
@@ -2451,8 +2718,8 @@ function initializeBoardLabelControls() {
   const applyThemeToOpenBoardsButton = document.getElementById('btnApplyThemeColorsToOpenBoards');
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
-  const applyNotificationsToOpenBoardsButton = document.getElementById('btnApplyNotificationsToOpenBoards');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
+  const autoDetectCompletedListsToggle = document.getElementById('boardSettingsAutoDetectCompletedListsToggle');
   const importFromTrelloButton = document.getElementById('btnImportBoardFromTrello');
   const importFromObsidianButton = document.getElementById('btnImportBoardFromObsidian');
   const importFromTasksMdButton = document.getElementById('btnImportBoardFromTasksMd');
@@ -2633,16 +2900,16 @@ function initializeBoardLabelControls() {
         ...currentSettings,
         enabled: Boolean(event.target.checked),
       });
-      renderNotificationSettingsControls();
-      scheduleBoardSettingsSave();
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
     });
   }
 
   if (tooltipsToggle) {
     tooltipsToggle.addEventListener('change', (event) => {
       setBoardTooltipsEnabled(Boolean(event.target.checked));
-      renderBoardGeneralSettingsControls();
-      scheduleBoardSettingsSave();
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
     });
   }
 
@@ -2653,16 +2920,14 @@ function initializeBoardLabelControls() {
         ...currentSettings,
         time: normalizeNotificationTime(event.target.value),
       });
-      renderNotificationSettingsControls();
-      scheduleBoardSettingsSave();
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
     });
   }
 
-  if (applyNotificationsToOpenBoardsButton) {
-    applyNotificationsToOpenBoardsButton.addEventListener('click', async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      await applyNotificationSettingsToOpenBoards();
+  if (autoDetectCompletedListsToggle) {
+    autoDetectCompletedListsToggle.addEventListener('change', (event) => {
+      updateBoardWorkflowAutoDetection(Boolean(event.target.checked));
     });
   }
 
@@ -2691,5 +2956,6 @@ function initializeBoardLabelControls() {
   }
 
   renderBoardSettingsPanelState();
+  renderBoardWorkflowSettingsControls();
   renderBoardImportControls();
 }

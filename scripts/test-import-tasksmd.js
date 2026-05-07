@@ -34,8 +34,6 @@ async function run() {
   try {
     await boardLabels.writeBoardSettings(boardRoot, {
       labels: [],
-      notifications: { enabled: false, time: '09:00' },
-      tooltipsEnabled: true,
     });
 
     await fs.writeFile(path.join(backlogLane, 'Write docs.md'), [

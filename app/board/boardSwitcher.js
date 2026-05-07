@@ -38,7 +38,7 @@ function getBoardSwitcherOptions() {
       path: normalizedPath,
       label,
       isCurrent: normalizedPath === activeBoard,
-      searchText: `${label} ${normalizedPath}`.toLowerCase(),
+      searchText: label.toLowerCase(),
     };
   });
 }

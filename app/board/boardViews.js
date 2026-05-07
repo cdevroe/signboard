@@ -6,8 +6,6 @@ const BOARD_VIEW_IDS = Object.freeze({
 
 const BOARD_VIEW_OPTIONS = Object.freeze([
   { id: BOARD_VIEW_IDS.KANBAN, label: 'Kanban' },
-  { id: BOARD_VIEW_IDS.CALENDAR, label: 'Calendar' },
-  { id: BOARD_VIEW_IDS.THIS_WEEK, label: 'This Week' },
 ]);
 
 const BOARD_VIEW_ICON_BY_ID = Object.freeze({
@@ -53,14 +51,6 @@ function getBoardViewState() {
 
 function normalizeBoardViewId(viewId) {
   const normalized = String(viewId || '').trim().toLowerCase();
-  if (normalized === BOARD_VIEW_IDS.CALENDAR) {
-    return BOARD_VIEW_IDS.CALENDAR;
-  }
-
-  if (normalized === BOARD_VIEW_IDS.THIS_WEEK) {
-    return BOARD_VIEW_IDS.THIS_WEEK;
-  }
-
   return BOARD_VIEW_IDS.KANBAN;
 }
 
@@ -111,7 +101,7 @@ function setActiveBoardView(viewId, options = {}) {
   }
 
   renderBoard().catch((error) => {
-    console.error('Failed to render board after changing board view.', error);
+    console.error('Failed to render board after changing view.', error);
   });
 }
 
@@ -352,9 +342,13 @@ function createTemporalPlacementForDate(cardEntry, dueDateValue) {
   };
 }
 
-async function collectCardsForCalendar(boardRoot, lists) {
+async function collectCardsForCalendar(boardRoot, lists, options = {}) {
   const listNames = Array.isArray(lists) ? lists : [];
   const cardPaths = [];
+  const boardDisplayName = String(options.boardDisplayName || options.boardName || '').trim();
+  const normalizedBoardRoot = typeof normalizeBoardPath === 'function'
+    ? normalizeBoardPath(boardRoot)
+    : String(boardRoot || '');
 
   const listEntries = await Promise.all(
     listNames.map(async (listName) => {
@@ -365,22 +359,26 @@ async function collectCardsForCalendar(boardRoot, lists) {
         listDisplayName: getBoardListDisplayName(listName),
         listPath,
         cardNames: Array.isArray(cardNames) ? cardNames : [],
+        isCompletedList: typeof isBoardListCompletedByWorkflow === 'function'
+          ? isBoardListCompletedByWorkflow(listName, options.workflowSettings)
+          : false,
       };
     }),
   );
 
-  for (const { listName, listDisplayName, listPath, cardNames } of listEntries) {
+  for (const { listName, listDisplayName, listPath, cardNames, isCompletedList } of listEntries) {
     for (const cardName of cardNames) {
       cardPaths.push({
         listName,
         listDisplayName,
         cardPath: `${listPath}/${cardName}`,
+        isCompletedList,
       });
     }
   }
 
   const cardEntries = await Promise.all(
-    cardPaths.map(async ({ listName, listDisplayName, cardPath }) => {
+    cardPaths.map(async ({ listName, listDisplayName, cardPath, isCompletedList }) => {
       const card = await window.board.readCard(cardPath);
       const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
         ? card.frontmatter
@@ -389,9 +387,12 @@ async function collectCardsForCalendar(boardRoot, lists) {
       const taskItems = parseTaskListItems(body);
 
       return {
+        boardRoot: normalizedBoardRoot,
+        boardDisplayName,
         cardPath,
         listName,
         listDisplayName,
+        isCompletedList: Boolean(isCompletedList),
         title: truncateCalendarCardTitle(frontmatter.title),
         due: String(frontmatter.due || '').trim(),
         labels: Array.isArray(frontmatter.labels)
@@ -717,7 +718,7 @@ async function handleCalendarCardDrop(evt, monthCursor) {
   }
 }
 
-function createTemporalCardElement(cardEntry, isoDate, className) {
+function createTemporalCardElement(cardEntry, isoDate, className, options = {}) {
   const cardButton = document.createElement('button');
   cardButton.type = 'button';
   cardButton.className = className;
@@ -746,13 +747,17 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
   const footer = document.createElement('span');
   footer.className = 'board-temporal-card-footer';
 
+  const boardNameText = String(cardEntry.boardDisplayName || '').trim();
   const listNameText = String(cardEntry.listDisplayName || '').trim();
-  if (listNameText) {
-    const listName = document.createElement('span');
-    listName.className = 'board-temporal-card-list';
-    listName.textContent = listNameText;
-    listName.title = `In ${listNameText}`;
-    footer.appendChild(listName);
+  const sourceText = boardNameText && listNameText
+    ? `${boardNameText} · ${listNameText}`
+    : (listNameText || boardNameText);
+  if (sourceText) {
+    const sourceName = document.createElement('span');
+    sourceName.className = boardNameText ? 'board-temporal-card-list board-temporal-card-source' : 'board-temporal-card-list';
+    sourceName.textContent = sourceText;
+    sourceName.title = boardNameText && listNameText ? `In ${listNameText} on ${boardNameText}` : `In ${sourceText}`;
+    footer.appendChild(sourceName);
   }
 
   const taskProgressBadge = createTaskProgressBadge(
@@ -770,6 +775,10 @@ function createTemporalCardElement(cardEntry, isoDate, className) {
   cardButton.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
+    if (options && typeof options.onOpenCard === 'function') {
+      options.onOpenCard(cardEntry);
+      return;
+    }
     toggleEditCardModal(cardEntry.cardPath);
   });
 
@@ -783,6 +792,7 @@ function createCalendarDayCell({
   isWeekend,
   cardsForDay,
   cardClassName = 'board-calendar-card',
+  cardOptions = {},
 }) {
   const dayCell = document.createElement('section');
   dayCell.className = 'board-calendar-day';
@@ -818,7 +828,7 @@ function createCalendarDayCell({
   cardsWrap.dataset.month = String(monthCursor.getMonth() + 1);
 
   for (const cardEntry of cardsForDay) {
-    cardsWrap.appendChild(createTemporalCardElement(cardEntry, isoDate, cardClassName));
+    cardsWrap.appendChild(createTemporalCardElement(cardEntry, isoDate, cardClassName, cardOptions));
   }
 
   dayCell.appendChild(cardsWrap);
@@ -1008,6 +1018,8 @@ function createThisWeekDayCell({
   isWeekend,
   cardsForDay,
   extraClassName = '',
+  cardClassName = 'board-this-week-card',
+  cardOptions = {},
 }) {
   const dayCell = document.createElement('section');
   dayCell.className = 'board-this-week-day';
@@ -1051,7 +1063,7 @@ function createThisWeekDayCell({
   cardsWrap.dataset.date = isoDate;
 
   for (const cardEntry of cardsForDay) {
-    cardsWrap.appendChild(createTemporalCardElement(cardEntry, isoDate, 'board-this-week-card'));
+    cardsWrap.appendChild(createTemporalCardElement(cardEntry, isoDate, cardClassName, cardOptions));
   }
 
   dayCell.appendChild(cardsWrap);
