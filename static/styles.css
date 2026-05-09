@@ -203,7 +203,7 @@ body:not(.board-empty) header {
   grid-template-areas: "tabs controls";
   align-items: end;
   gap: 8px 12px;
-  padding-left: calc(var(--spacing) + var(--planner-rail-width));
+  /* padding-left: calc(var(--spacing) + var(--planner-rail-width)); */
   padding-top: 8px;
 }
 
@@ -1485,6 +1485,18 @@ body:not(.board-empty) main#board.board-view-week {
   line-height: 1.15;
   letter-spacing: .01em;
   padding: 2px 6px;
+}
+
+.board-temporal-card-source.has-board-source-theme {
+  border-color: var(--board-source-pill-border, color-mix(in oklab, var(--border) 84%, transparent));
+  background: var(--board-source-pill-bg, color-mix(in oklab, var(--bg-card) 76%, var(--border)));
+  color: var(--board-source-pill-text, var(--muted));
+}
+
+:root[data-theme="dark"] .board-temporal-card-source.has-board-source-theme {
+  border-color: var(--board-source-pill-border-dark, var(--board-source-pill-border, color-mix(in oklab, var(--border) 84%, transparent)));
+  background: var(--board-source-pill-bg-dark, var(--board-source-pill-bg, color-mix(in oklab, var(--bg-card) 76%, var(--border))));
+  color: var(--board-source-pill-text-dark, var(--board-source-pill-text, var(--muted)));
 }
 
 .board-temporal-task-progress {

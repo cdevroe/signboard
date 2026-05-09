@@ -346,6 +346,10 @@ async function collectCardsForCalendar(boardRoot, lists, options = {}) {
   const listNames = Array.isArray(lists) ? lists : [];
   const cardPaths = [];
   const boardDisplayName = String(options.boardDisplayName || options.boardName || '').trim();
+  const boardSourceTheme = options.boardSourceTheme && typeof options.boardSourceTheme === 'object'
+    ? options.boardSourceTheme
+    : null;
+  const boardColorScheme = String(options.boardColorScheme || '').trim();
   const normalizedBoardRoot = typeof normalizeBoardPath === 'function'
     ? normalizeBoardPath(boardRoot)
     : String(boardRoot || '');
@@ -389,6 +393,8 @@ async function collectCardsForCalendar(boardRoot, lists, options = {}) {
       return {
         boardRoot: normalizedBoardRoot,
         boardDisplayName,
+        boardSourceTheme,
+        boardColorScheme,
         cardPath,
         listName,
         listDisplayName,
@@ -718,6 +724,39 @@ async function handleCalendarCardDrop(evt, monthCursor) {
   }
 }
 
+function setTemporalSourceThemeVariable(element, variableName, value) {
+  const normalizedValue = String(value || '').trim();
+  if (!element || !normalizedValue) {
+    return;
+  }
+
+  element.style.setProperty(variableName, normalizedValue);
+}
+
+function applyTemporalCardSourceTheme(sourceElement, cardEntry) {
+  const sourceTheme = cardEntry && cardEntry.boardSourceTheme && typeof cardEntry.boardSourceTheme === 'object'
+    ? cardEntry.boardSourceTheme
+    : null;
+  if (!sourceTheme || !sourceElement) {
+    return;
+  }
+
+  const lightTheme = sourceTheme.light || sourceTheme;
+  const darkTheme = sourceTheme.dark || {};
+  setTemporalSourceThemeVariable(sourceElement, '--board-source-pill-bg', lightTheme.background);
+  setTemporalSourceThemeVariable(sourceElement, '--board-source-pill-border', lightTheme.border);
+  setTemporalSourceThemeVariable(sourceElement, '--board-source-pill-text', lightTheme.color);
+  setTemporalSourceThemeVariable(sourceElement, '--board-source-pill-bg-dark', darkTheme.background);
+  setTemporalSourceThemeVariable(sourceElement, '--board-source-pill-border-dark', darkTheme.border);
+  setTemporalSourceThemeVariable(sourceElement, '--board-source-pill-text-dark', darkTheme.color);
+
+  sourceElement.classList.add('has-board-source-theme');
+  const colorScheme = String(cardEntry.boardColorScheme || sourceTheme.colorScheme || '').trim();
+  if (colorScheme) {
+    sourceElement.dataset.boardColorScheme = colorScheme;
+  }
+}
+
 function createTemporalCardElement(cardEntry, isoDate, className, options = {}) {
   const cardButton = document.createElement('button');
   cardButton.type = 'button';
@@ -757,6 +796,9 @@ function createTemporalCardElement(cardEntry, isoDate, className, options = {}) 
     sourceName.className = boardNameText ? 'board-temporal-card-list board-temporal-card-source' : 'board-temporal-card-list';
     sourceName.textContent = sourceText;
     sourceName.title = boardNameText && listNameText ? `In ${listNameText} on ${boardNameText}` : `In ${sourceText}`;
+    if (boardNameText) {
+      applyTemporalCardSourceTheme(sourceName, cardEntry);
+    }
     footer.appendChild(sourceName);
   }
 

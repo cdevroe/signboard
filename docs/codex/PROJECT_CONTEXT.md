@@ -158,7 +158,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/board/boardViews.js`:
   - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, task due-date placement, and temporal card rendering.
   - Board-facing view state normalizes to Kanban only.
-  - Shows task progress badges and a subdued source-list/source-board label on temporal cards.
+  - Shows task progress badges and source-list/source-board pills on temporal cards, tinting source-board pills from each board's color scheme when available.
 - `app/board/plannerView.js`:
   - Owns the workspace Planner overlay opened from the left rail or `Cmd/Ctrl + Shift + P`.
   - Scopes Planner data to currently open board tabs only and defaults to all open boards.
@@ -167,7 +167,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Uses Planner-local search plus `Today` / `Overdue`, completed-card visibility, and open-board filters; label filters appear only when scoped to the active board.
   - Hides cards from completed workflow lists by default while preserving their due-date metadata; the Planner filter menu can show completed dated cards when needed.
   - Opens Planner cards through the normal editor, switching the active board behind the overlay first when the card belongs to a different board.
-  - Keeps Planner on the default Signboard palette for the active light/dark mode instead of inheriting the active board color scheme.
+  - Keeps Planner on the default Signboard palette for the active light/dark mode instead of inheriting the active board color scheme, while tinting card source pills from their source board color schemes.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior.
   - Enables card drag-and-drop reorder and cross-list move.

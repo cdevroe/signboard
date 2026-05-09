@@ -661,9 +661,16 @@ async function collectPlannerCardsForBoard(boardRoot) {
         ? window.board.readBoardSettings(normalizedBoardRoot).catch(() => ({}))
         : Promise.resolve({}),
     ]);
+    const boardSourceTheme = typeof getBoardTemporalSourceTheme === 'function'
+      ? getBoardTemporalSourceTheme(boardSettings || {})
+      : null;
     const cards = await collectCardsForCalendar(normalizedBoardRoot, lists, {
       boardDisplayName: boardDisplayName || fallbackBoardName,
       workflowSettings: boardSettings && boardSettings.workflow,
+      boardSourceTheme,
+      boardColorScheme: boardSettings && typeof boardSettings.colorScheme === 'string'
+        ? boardSettings.colorScheme
+        : '',
     });
     return {
       boardRoot: normalizedBoardRoot,

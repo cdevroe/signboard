@@ -794,6 +794,52 @@ function deriveThemePalette(themeMode, backgroundColor) {
   };
 }
 
+function getBoardThemePaletteFromSettings(boardSettings = {}, themeMode = 'light') {
+  const source = boardSettings && typeof boardSettings === 'object' ? boardSettings : {};
+  const mode = themeMode === 'dark' ? 'dark' : 'light';
+  const savedScheme = typeof source.colorScheme === 'string' ? getColorSchemeById(source.colorScheme) : null;
+  if (savedScheme && savedScheme[mode]) {
+    return { ...savedScheme[mode] };
+  }
+
+  const normalizedOverrides = normalizeThemeOverrides(source.themeOverrides);
+  const modeOverrides = normalizedOverrides[mode] || {};
+  const background = hasThemeModeOverride(modeOverrides)
+    ? modeOverrides.boardBackground
+    : DEFAULT_BOARD_THEME_BACKGROUNDS[mode];
+
+  return deriveThemePalette(mode, background);
+}
+
+function createBoardSourcePillThemeFromPalette(palette, themeMode = 'light') {
+  const mode = themeMode === 'dark' ? 'dark' : 'light';
+  const defaults = DEFAULT_BOARD_THEME_PALETTES[mode] || DEFAULT_BOARD_THEME_PALETTES.light;
+  const source = palette && typeof palette === 'object' ? palette : defaults;
+  const surface = normalizeHexColor(source.surface, defaults.surface);
+  const accent = normalizeHexColor(source.accent, defaults.accent);
+  const background = mixHexColors(accent, surface, mode === 'dark' ? 0.74 : 0.88);
+  const border = mixHexColors(accent, surface, mode === 'dark' ? 0.42 : 0.55);
+  const readableText = ensureMinContrast(accent, background, 4.5).color;
+
+  return {
+    background,
+    border,
+    color: readableText,
+    accent,
+  };
+}
+
+function getBoardTemporalSourceTheme(boardSettings = {}) {
+  const source = boardSettings && typeof boardSettings === 'object' ? boardSettings : {};
+  const colorScheme = typeof source.colorScheme === 'string' ? source.colorScheme : '';
+
+  return {
+    colorScheme,
+    light: createBoardSourcePillThemeFromPalette(getBoardThemePaletteFromSettings(source, 'light'), 'light'),
+    dark: createBoardSourcePillThemeFromPalette(getBoardThemePaletteFromSettings(source, 'dark'), 'dark'),
+  };
+}
+
 function normalizeThemeModeOverrides(rawModeOverrides) {
   const source = rawModeOverrides && typeof rawModeOverrides === 'object' ? rawModeOverrides : {};
   const boardBackground = normalizeHexColor(source.boardBackground, '');

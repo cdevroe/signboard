@@ -19,6 +19,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 🗓 Card due dates and task list item due dates
 - 📅 Calendar and "This Week" views
 - 🗂 Planner overlay for actionable dated work across open boards
+- 🎨 Board-colored source pills in Planner date views
 - ✅ Completed-list workflow settings that preserve due-date history
 - ✅ Progress counters on cards
 - 🔎 Live search

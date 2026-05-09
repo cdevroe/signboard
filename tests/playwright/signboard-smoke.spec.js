@@ -478,6 +478,10 @@ test('opens Planner across currently open boards', async ({ electronApp, boardRo
   targetPlannerDate.setDate(targetPlannerDate.getDate() + (targetPlannerDate.getDay() === 0 ? -1 : 1));
   const targetPlannerIso = formatLocalIsoDate(targetPlannerDate);
 
+  await page.evaluate(async (boardRoot) => {
+    await window.board.updateBoardSettings(boardRoot, { colorScheme: 'harvest' });
+  }, normalizeBoardRoot(boardRoots[1]));
+
   await Promise.all([
     cardFrontmatter.updateFrontmatter(path.join(boardRoots[0], '000-To-do-stock', '000-plan-release-stock.md'), {
       due: todayIso,
@@ -497,6 +501,24 @@ test('opens Planner across currently open boards', async ({ electronApp, boardRo
   await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Plan release notes' })).toContainText('Playwright Board');
   await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Polish homepage copy' })).toContainText('Roadmap Board');
   await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Ship beta' })).toHaveCount(0);
+
+  const roadmapSourcePill = page
+    .locator('.planner-calendar-card')
+    .filter({ hasText: 'Polish homepage copy' })
+    .locator('.board-temporal-card-source');
+  await expect(roadmapSourcePill).toHaveAttribute('data-board-color-scheme', 'harvest');
+
+  const sourcePillTheme = await roadmapSourcePill.evaluate((element) => ({
+    background: element.style.getPropertyValue('--board-source-pill-bg').trim(),
+    border: element.style.getPropertyValue('--board-source-pill-border').trim(),
+    text: element.style.getPropertyValue('--board-source-pill-text').trim(),
+    darkBackground: element.style.getPropertyValue('--board-source-pill-bg-dark').trim(),
+  }));
+  const expectedSourcePillTheme = await page.evaluate(() => getBoardTemporalSourceTheme({ colorScheme: 'harvest' }));
+  expect(sourcePillTheme.background).toBe(expectedSourcePillTheme.light.background);
+  expect(sourcePillTheme.border).toBe(expectedSourcePillTheme.light.border);
+  expect(sourcePillTheme.text).toBe(expectedSourcePillTheme.light.color);
+  expect(sourcePillTheme.darkBackground).toBe(expectedSourcePillTheme.dark.background);
 
   await page.locator('#plannerFilterButton').click();
   await page.locator('#plannerFilterPopover').getByRole('button', { name: 'Show completed cards' }).click();
