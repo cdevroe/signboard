@@ -84,6 +84,8 @@ You can create a card by:
 - Pressing `Cmd/Ctrl + N`
 - Using the `Add new card` button for a specific list
 
+In the new-card modal, press `Shift + Enter` after typing the title to create the card, open it immediately, and focus the notes field.
+
 Card filenames are chosen based on the name or title you first give it, along with a prefix for ordering, and a random card ID suffix (to help with name collisions). Once set, the filename will stay the same even if you rename the card.
 
 ### Open and edit a card
@@ -110,7 +112,7 @@ Drag a card between lists in kanban view. You can also move it from the card edi
 
 While dragging, the board shows an empty insertion slot where the card would land; the card is moved only after you drop it.
 
-The arrow action in the card editor moves the card to the adjacent list and places it at the top of that list. The card move keyboard shortcuts use the same top-of-list behavior.
+The list dropdown, arrow action, and card move keyboard shortcuts in the editor place moved cards at the top of the destination list.
 
 ### Duplicate a card
 
@@ -346,6 +348,8 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + Shift + A`: open Archive
 - `Cmd/Ctrl + F`: focus board search or Planner search
 - `Esc`: close open modals
+
+When a card is open, workspace-level shortcuts such as create, board switcher, Planner/view switching, Settings, Archive, and search close the card first. Card-specific shortcuts such as moving or archiving the open card still act on that card.
 
 You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 

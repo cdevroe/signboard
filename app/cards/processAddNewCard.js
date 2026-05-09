@@ -1,4 +1,4 @@
-async function processAddNewCard( cardName, listPath ){
+async function processAddNewCard( cardName, listPath, options = {} ){
     let countCardsInList = await window.board.countCards(listPath);
     countCardsInList++;
     
@@ -11,7 +11,15 @@ async function processAddNewCard( cardName, listPath ){
 
     const fileName = nextCardNumber + '-' + userCreatedFileName;
 
-    await window.board.createCard( listPath + fileName, cardName);
+    const cardPath = listPath + fileName;
+
+    await window.board.createCard( cardPath, cardName);
     
     await closeAllModals(createCloseAllModalsRequest(), { rerender: true });
+
+    if (options && options.openAfterCreate && typeof toggleEditCardModal === 'function') {
+        await toggleEditCardModal(cardPath, { focusNotes: true });
+    }
+
+    return cardPath;
 }

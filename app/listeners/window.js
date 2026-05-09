@@ -68,8 +68,10 @@ async function openPlannerViewForShortcut(viewId) {
     return false;
 }
 
-async function handleBoardViewShortcut(e) {
-    if (e.shiftKey || e.altKey || isEditableShortcutTarget(e.target)) {
+async function handleBoardViewShortcut(e, options = {}) {
+    const ignoreEditableTarget = Boolean(options.ignoreEditableTarget);
+
+    if (e.shiftKey || e.altKey || (!ignoreEditableTarget && isEditableShortcutTarget(e.target))) {
         return false;
     }
 
@@ -369,6 +371,146 @@ function isAddCardOrListShortcut(event) {
     return event.code === 'KeyN' || key === 'n';
 }
 
+function isBoardSearchShortcut(event) {
+    if (!event || (!event.ctrlKey && !event.metaKey) || event.shiftKey || event.altKey) {
+        return false;
+    }
+
+    const key = String(event.key || '').trim().toLowerCase();
+    return event.code === 'KeyF' || key === 'f';
+}
+
+function isWorkspaceViewShortcut(event) {
+    if (!event || (!event.ctrlKey && !event.metaKey) || event.shiftKey || event.altKey) {
+        return false;
+    }
+
+    switch (event.code) {
+        case 'Digit1':
+        case 'Digit2':
+        case 'Digit3':
+            return true;
+        case 'Digit4':
+        case 'Digit5':
+            return Boolean(typeof isPlannerOpen === 'function' && isPlannerOpen());
+        default:
+            return false;
+    }
+}
+
+function shouldCloseCardEditorForGlobalShortcut(event) {
+    if (typeof isCardEditorActive !== 'function' || !isCardEditorActive()) {
+        return false;
+    }
+
+    if (
+        isMoveCardLeftShortcut(event) ||
+        isMoveCardRightShortcut(event) ||
+        isArchiveCardShortcut(event) ||
+        isColorSchemeCycleShortcut(event) ||
+        isKeyboardShortcutsShortcut(event)
+    ) {
+        return false;
+    }
+
+    return (
+        isBoardSwitcherShortcut(event) ||
+        isPlannerToggleShortcut(event) ||
+        isBoardSettingsShortcut(event) ||
+        isArchiveBrowserShortcut(event) ||
+        isAddCardOrListShortcut(event) ||
+        isBoardSearchShortcut(event) ||
+        isWorkspaceViewShortcut(event)
+    );
+}
+
+async function closeCardEditorForGlobalShortcutIfNeeded(event) {
+    if (!shouldCloseCardEditorForGlobalShortcut(event)) {
+        return false;
+    }
+
+    if (typeof closeAllModals !== 'function') {
+        return false;
+    }
+
+    await closeAllModals({ key: 'Escape' });
+    return true;
+}
+
+function closePlannerBeforeBoardCreationShortcut() {
+    if (typeof isPlannerOpen === 'function' && isPlannerOpen() && typeof closePlannerView === 'function') {
+        closePlannerView();
+    }
+}
+
+async function openAddListFromShortcut() {
+    closePlannerBeforeBoardCreationShortcut();
+
+    const listName = document.getElementById('userInputListName');
+    toggleAddListModal((window.innerWidth / 2) - 200, (window.innerHeight / 2) - 100);
+    listName.focus();
+
+    const btnAddList = document.getElementById('btnAddList');
+
+    btnAddList.onclick = async (e) => {
+        e.stopPropagation();
+
+        const listName = document.getElementById('userInputListName');
+
+        if (listName.value.length < 3) {
+            return;
+        }
+
+        await processAddNewList(listName.value);
+
+        listName.value = '';
+    };
+
+    listName.onkeydown = (key) => {
+        if (key.code != 'Enter') return;
+        const btnAddList = document.getElementById('btnAddList');
+        btnAddList.click();
+    };
+}
+
+async function openAddCardFromShortcut() {
+    closePlannerBeforeBoardCreationShortcut();
+
+    const listsToSelect = await window.board.listLists(window.boardRoot);
+
+    const userInputListPath = document.getElementById('userInputListPath');
+    userInputListPath.innerHTML = '';
+    const cardName = document.getElementById('userInputCardName');
+
+    listsToSelect.forEach((optionText) => {
+        const option = document.createElement("option");
+        option.value = `${window.boardRoot + optionText + '/'}`;
+        option.text = optionText.slice(4, optionText.length - 6);
+        userInputListPath.appendChild(option);
+    });
+
+    document.getElementById('board').style = 'filter: blur(3px)';
+
+    toggleAddCardToListModal((window.innerWidth / 2) - 200, (window.innerHeight / 2) - 100);
+    cardName.focus();
+
+    const btnAddCardToList = document.getElementById('btnAddCardToList');
+
+    btnAddCardToList.onclick = async (e) => {
+        e.stopPropagation();
+
+        const cardName = document.getElementById('userInputCardName');
+        const listPath = document.getElementById('userInputListPath');
+
+        await processAddNewCard(cardName.value, listPath.value, {
+            openAfterCreate: Boolean(e && e.shiftKey),
+        });
+
+        cardName.value = '';
+        listPath.value = '';
+    };
+}
+
 syncShortcutHelpModifierLabels();
 
 if (window.electronAPI && typeof window.electronAPI.onOpenKeyboardShortcuts === 'function') {
@@ -444,6 +586,34 @@ window.addEventListener('keydown', async (e) => {
     
         if (!e.ctrlKey && !e.metaKey) return;
 
+        let closedCardEditorForShortcut = false;
+        if (shouldCloseCardEditorForGlobalShortcut(e)) {
+            closedCardEditorForShortcut = await closeCardEditorForGlobalShortcutIfNeeded(e);
+        }
+
+        if (isMoveCardLeftShortcut(e) || isMoveCardRightShortcut(e)) {
+            if (typeof isCardEditorActive === 'function' && isCardEditorActive()) {
+                e.preventDefault();
+                hideShortcutHelpModal();
+                const direction = isMoveCardLeftShortcut(e) ? 'left' : 'right';
+                if (typeof moveActiveEditorCardToAdjacentList === 'function') {
+                    await moveActiveEditorCardToAdjacentList(direction);
+                }
+                return;
+            }
+        }
+
+        if (isArchiveCardShortcut(e)) {
+            if (typeof isCardEditorActive === 'function' && isCardEditorActive()) {
+                e.preventDefault();
+                hideShortcutHelpModal();
+                if (typeof archiveActiveEditorCard === 'function') {
+                    await archiveActiveEditorCard();
+                }
+                return;
+            }
+        }
+
         if (isBoardSwitcherShortcut(e)) {
             e.preventDefault();
             hideShortcutHelpModal();
@@ -477,7 +647,10 @@ window.addEventListener('keydown', async (e) => {
         }
 
         if (typeof isPlannerOpen === 'function' && isPlannerOpen()) {
-            if (typeof handlePlannerViewShortcut === 'function' && handlePlannerViewShortcut(e)) {
+            if (
+                typeof handlePlannerViewShortcut === 'function' &&
+                handlePlannerViewShortcut(e, { ignoreEditableTarget: closedCardEditorForShortcut })
+            ) {
                 hideShortcutHelpModal();
                 if (typeof closeBoardSwitcher === 'function') {
                     closeBoardSwitcher();
@@ -485,7 +658,7 @@ window.addEventListener('keydown', async (e) => {
                 return;
             }
 
-            if (String(e.key || '').toLowerCase() === 'f' && !e.shiftKey && !e.altKey && !isEditableShortcutTarget(e.target)) {
+            if (isBoardSearchShortcut(e) && (closedCardEditorForShortcut || !isEditableShortcutTarget(e.target))) {
                 if (typeof focusPlannerSearchInput === 'function' && focusPlannerSearchInput()) {
                     e.preventDefault();
                     hideShortcutHelpModal();
@@ -496,13 +669,21 @@ window.addEventListener('keydown', async (e) => {
                 return;
             }
 
-            if (
-                isColorSchemeCycleShortcut(e) ||
+            const shouldAllowAfterClosingEditor = closedCardEditorForShortcut && (
                 isArchiveBrowserShortcut(e) ||
-                isMoveCardLeftShortcut(e) ||
-                isMoveCardRightShortcut(e) ||
-                isArchiveCardShortcut(e) ||
                 isAddCardOrListShortcut(e)
+            );
+
+            if (
+                !shouldAllowAfterClosingEditor &&
+                (
+                    isColorSchemeCycleShortcut(e) ||
+                    isArchiveBrowserShortcut(e) ||
+                    isMoveCardLeftShortcut(e) ||
+                    isMoveCardRightShortcut(e) ||
+                    isArchiveCardShortcut(e) ||
+                    isAddCardOrListShortcut(e)
+                )
             ) {
                 e.preventDefault();
                 return;
@@ -535,30 +716,7 @@ window.addEventListener('keydown', async (e) => {
             return;
         }
 
-        if (isMoveCardLeftShortcut(e) || isMoveCardRightShortcut(e)) {
-            if (typeof isCardEditorActive === 'function' && isCardEditorActive()) {
-                e.preventDefault();
-                hideShortcutHelpModal();
-                const direction = isMoveCardLeftShortcut(e) ? 'left' : 'right';
-                if (typeof moveActiveEditorCardToAdjacentList === 'function') {
-                    await moveActiveEditorCardToAdjacentList(direction);
-                }
-            }
-            return;
-        }
-
-        if (isArchiveCardShortcut(e)) {
-            if (typeof isCardEditorActive === 'function' && isCardEditorActive()) {
-                e.preventDefault();
-                hideShortcutHelpModal();
-                if (typeof archiveActiveEditorCard === 'function') {
-                    await archiveActiveEditorCard();
-                }
-            }
-            return;
-        }
-
-        if (await handleBoardViewShortcut(e)) {
+        if (await handleBoardViewShortcut(e, { ignoreEditableTarget: closedCardEditorForShortcut })) {
             hideShortcutHelpModal();
             if (typeof closeBoardSwitcher === 'function') {
                 closeBoardSwitcher();
@@ -566,7 +724,7 @@ window.addEventListener('keydown', async (e) => {
             return;
         }
 
-        if (String(e.key || '').toLowerCase() === 'f' && !e.shiftKey && !e.altKey) {
+        if (isBoardSearchShortcut(e)) {
             if (focusBoardSearchInput()) {
                 e.preventDefault();
                 hideShortcutHelpModal();
@@ -577,7 +735,7 @@ window.addEventListener('keydown', async (e) => {
             return;
         }
         
-        if ((e.ctrlKey || e.metaKey) && String(e.key || '').toLowerCase() === 'n') {
+        if (isAddCardOrListShortcut(e)) {
             e.preventDefault(); // Prevent default behavior (if any)
             hideShortcutHelpModal();
             if (typeof closeBoardSwitcher === 'function') {
@@ -585,66 +743,9 @@ window.addEventListener('keydown', async (e) => {
             }
             
             if ( e.shiftKey ) { // Add List
-                const listName = document.getElementById('userInputListName');
-                toggleAddListModal( (window.innerWidth / 2)-200, (window.innerHeight / 2)-100 );
-                listName.focus();
-
-                const btnAddList = document.getElementById('btnAddList');
-
-                btnAddList.onclick = async (e) => {
-                    e.stopPropagation();
-                    
-                    const listName = document.getElementById('userInputListName');
-
-                    if ( listName.value.length < 3 ) {
-                        return;
-                    }
-                    
-                    await processAddNewList( listName.value );
-
-                    listName.value = '';
-
-                };
-
-                listName.onkeydown = (key) => {
-                    if (key.code != 'Enter') return;
-                    const btnAddList = document.getElementById('btnAddList');
-                    btnAddList.click();
-                };
-
+                await openAddListFromShortcut();
             } else {
-                const listsToSelect = await window.board.listLists( window.boardRoot );
-
-                const userInputListPath = document.getElementById('userInputListPath');
-                userInputListPath.innerHTML = '';
-                const cardName = document.getElementById('userInputCardName');
-
-                listsToSelect.forEach((optionText, index) => {
-                    const option = document.createElement("option");
-                    option.value = `${window.boardRoot + optionText + '/'}`;
-                    option.text = optionText.slice(4,optionText.length-6);
-                    userInputListPath.appendChild(option);
-                });
-
-                document.getElementById('board').style = 'filter: blur(3px)';
-
-                toggleAddCardToListModal( (window.innerWidth / 2)-200, (window.innerHeight / 2)-100 );
-                cardName.focus();
-
-                const btnAddCardToList = document.getElementById('btnAddCardToList');
-
-                btnAddCardToList.onclick = async (e) => {
-                    e.stopPropagation();
-                    
-                    const cardName = document.getElementById('userInputCardName');
-                    const listPath = document.getElementById('userInputListPath');
-                    
-                    await processAddNewCard( cardName.value, listPath.value );
-
-                    cardName.value = '';
-                    listPath.value = '';
-
-                };
+                await openAddCardFromShortcut();
             }
 
         }

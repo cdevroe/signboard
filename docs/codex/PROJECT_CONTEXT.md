@@ -198,12 +198,13 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 ### Add/edit card and list
 - `app/cards/processAddNewCard.js` and `app/cards/processAddNewList.js`:
   - Generate numbered filenames/directories and create on disk.
+  - New-card modal submissions can request opening the created card immediately with the notes field focused, used by `Shift + Enter` from either add-card modal.
 - `app/modals/toggleEditCardModal.js`:
   - Loads card into OverType editor.
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
   - Relies on the main-process renderer context menu for native right-click cut/copy/paste/select-all in editable title/body fields.
-  - Moves active cards to adjacent lists from the arrow action/keyboard shortcuts by calling the main-process `moveCardToTop` IPC path, which inserts at the top of the destination list.
+  - Moves active cards to selected/adjacent lists from the list dropdown, arrow action, and keyboard shortcuts by calling the main-process `moveCardToTop` IPC path, which inserts at the top of the destination list.
   - Renders task-line due-date controls at the start of each parsed checklist line in the editor.
   - Uses measured textarea line-start coordinates for control placement so wrapped lines do not drift button positions.
   - Handles due date picker, labels picker, duplicate, and archive actions.
@@ -241,6 +242,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Cmd/Ctrl + Shift + [` and `Cmd/Ctrl + Shift + ]`: move the open card to the previous/next list, no-op at board edges.
   - `Cmd/Ctrl + Option/Alt + Shift + Backspace`: archive the open card.
   - `Cmd/Ctrl + Shift + A`: open the Archive browser modal.
+  - Workspace-level shortcuts close the active card editor before changing context; editor-scoped move/archive shortcuts keep acting on the open card.
   - Any shortcut changes must update the helper list in `index.html` (`#modalKeyboardShortcuts`) in the same change.
 - View-switcher rows and list-action rows surface the same shortcut hints in subtle monospace text so the app teaches the keyboard path inline.
 - Board date filtering treats overdue task markers and completed workflow lists as actionable work only: completed task due markers and completed-list cards do not keep a card visible in date filters, but overdue card-level due dates still do on actionable lists.

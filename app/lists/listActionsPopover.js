@@ -62,7 +62,9 @@ function configureAddCardModal(listPath) {
       return;
     }
 
-    await processAddNewCard(userInput.value, activeListPath.value);
+    await processAddNewCard(userInput.value, activeListPath.value, {
+      openAfterCreate: Boolean(event && event.shiftKey),
+    });
     userInput.value = '';
     activeListPath.value = '';
   };

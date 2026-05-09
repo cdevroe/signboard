@@ -773,16 +773,38 @@ async function init() {
     }
 
     const userInput = document.getElementById('userInput');
-    userInput.addEventListener('keydown',(key) => {
+    userInput.addEventListener('keydown', async (key) => {
         if (key.code != 'Enter') return;
-        const btnAddCard = document.getElementById('btnAddCard');
-        btnAddCard.click();
+        key.preventDefault();
+        const activeListPath = document.getElementById('hiddenListPath');
+        if (!key.shiftKey) {
+            const btnAddCard = document.getElementById('btnAddCard');
+            btnAddCard.click();
+            return;
+        }
+        if (!activeListPath) {
+            return;
+        }
+        await processAddNewCard(userInput.value, activeListPath.value, { openAfterCreate: true });
+        userInput.value = '';
+        activeListPath.value = '';
     });
     const userInputCardName = document.getElementById('userInputCardName');
-    userInputCardName.addEventListener('keydown',(key) => {
+    userInputCardName.addEventListener('keydown', async (key) => {
         if (key.code != 'Enter') return;
-        const btnAddCardToList = document.getElementById('btnAddCardToList');
-        btnAddCardToList.click();
+        key.preventDefault();
+        if (!key.shiftKey) {
+            const btnAddCardToList = document.getElementById('btnAddCardToList');
+            btnAddCardToList.click();
+            return;
+        }
+        const listPath = document.getElementById('userInputListPath');
+        if (!listPath) {
+            return;
+        }
+        await processAddNewCard(userInputCardName.value, listPath.value, { openAfterCreate: true });
+        userInputCardName.value = '';
+        listPath.value = '';
     });
     document.addEventListener('click', async (e) => {
         const clickedLink = e.target instanceof Element ? e.target.closest('a[href]') : null;

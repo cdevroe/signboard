@@ -75,6 +75,9 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + F`: focus board search or Planner search
 - `Esc`: close open modals
 
+When a card is open, workspace-level shortcuts such as create, board switcher, Planner/view switching, Settings, Archive, and search close the card first. Card-specific shortcuts such as moving or archiving the open card still act on that card.
+In the new-card modal, `Shift + Enter` creates the card, opens it immediately, and focuses the notes field.
+
 You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 
 Editable fields, including the card title and body editor, support the native right-click text editing menu for cut, copy, paste, delete, and select all.

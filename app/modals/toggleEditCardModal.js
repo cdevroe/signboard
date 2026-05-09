@@ -883,6 +883,7 @@ function setupTaskLineDueDateControls(editor) {
 
 async function toggleEditCardModal(cardPath, options = {}) {
     const shouldOpenDueDatePicker = Boolean(options && options.openDueDatePicker);
+    const shouldFocusNotes = Boolean(options && options.focusNotes);
     const modalEditCard = document.getElementById('modalEditCard');
     destroyTaskLineDueDateControls();
 
@@ -1059,6 +1060,14 @@ async function toggleEditCardModal(cardPath, options = {}) {
                 await handleMetadataSave(value, 'due');
             },
         });
+    } else if (shouldFocusNotes && editor && editor.textarea) {
+        window.requestAnimationFrame(() => {
+            focusTextareaWithoutScrolling(editor.textarea);
+            const endPosition = String(editor.textarea.value || '').length;
+            if (typeof editor.textarea.setSelectionRange === 'function') {
+                editor.textarea.setSelectionRange(endPosition, endPosition);
+            }
+        });
     }
 
     return;
@@ -1229,49 +1238,6 @@ async function resolveCardMoveTarget(cardPath, direction = 'auto') {
     };
 }
 
-async function getNextCardNumber(listPath) {
-    const cards = await window.board.listCards(listPath);
-    let maxNumber = -1;
-
-    for (const name of cards) {
-        const match = name.match(/^(\d{3})/);
-        if (match) {
-            maxNumber = Math.max(maxNumber, Number(match[1]));
-        }
-    }
-
-    const nextNumber = maxNumber + 1;
-    return nextNumber.toLocaleString('en-US', {
-        minimumIntegerDigits: 3,
-        useGrouping: false
-    });
-}
-
-async function moveCardToListPath(cardPath, targetListPath) {
-    if (!cardPath || !targetListPath) {
-        return '';
-    }
-
-    const currentListPath = getCardListPath(cardPath);
-    const fileName = await window.board.getCardFileName(cardPath);
-    const suffix = fileName.replace(/^\d{3}/, '');
-    const nextNumber = await getNextCardNumber(targetListPath);
-    const newFileName = nextNumber + suffix;
-    const newPath = targetListPath + '/' + newFileName;
-
-    await window.board.moveCard(cardPath, newPath);
-    if (
-        currentListPath &&
-        targetListPath &&
-        currentListPath !== targetListPath &&
-        window.board &&
-        typeof window.board.recordCardListMove === 'function'
-    ) {
-        await window.board.recordCardListMove(newPath, currentListPath, targetListPath);
-    }
-    return newPath;
-}
-
 async function moveCardToTopOfListPath(cardPath, targetListPath) {
     if (!cardPath || !targetListPath) {
         return '';
@@ -1429,7 +1395,7 @@ async function handleChangeCardListSelect(e) {
 
     try {
         await flushEditorSaveIfNeeded();
-        const newPath = await moveCardToListPath(cardEditorCardPath.value, targetListPath);
+        const newPath = await moveCardToTopOfListPath(cardEditorCardPath.value, targetListPath);
         if (!newPath) {
             return;
         }

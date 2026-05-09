@@ -1690,12 +1690,14 @@ function focusPlannerSearchInput() {
   return true;
 }
 
-function handlePlannerViewShortcut(event) {
+function handlePlannerViewShortcut(event, options = {}) {
+  const ignoreEditableTarget = Boolean(options.ignoreEditableTarget);
+
   if (
     !isPlannerOpen() ||
     event.shiftKey ||
     event.altKey ||
-    isEditableShortcutTarget(event.target)
+    (!ignoreEditableTarget && isEditableShortcutTarget(event.target))
   ) {
     return false;
   }

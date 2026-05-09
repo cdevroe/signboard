@@ -281,9 +281,24 @@ test('opens the list actions popover and routes Add new card through the existin
   await expect(page.locator('#listActionsPopover')).toBeHidden();
   await expect(page.locator('#modalAddCard')).toBeVisible();
   await expect(page.locator('#hiddenListPath')).toHaveValue(/000-To-do-stock\/$/);
+  await expect(page.locator('#modalAddCard .new-card-modal-helper')).toContainText('Shift');
 
   const gap = await getVerticalGap(page.locator('#userInput'), page.locator('#btnAddCard'));
   expect(gap).toBeGreaterThanOrEqual(6);
+});
+
+test('creates and opens a list-specific new card with Shift+Enter', async ({ page }) => {
+  await page.locator('.list-actions-button').first().click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Add new card' }).click();
+
+  await page.locator('#userInput').fill('Draft launch checklist');
+  await page.keyboard.press('Shift+Enter');
+
+  await expect(page.locator('#modalAddCard')).toBeHidden();
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect(page.locator('#cardEditorTitle')).toHaveText('Draft launch checklist');
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toBeFocused();
+  await expect(page.locator('.list').first().locator('.card').filter({ hasText: 'Draft launch checklist' })).toBeVisible();
 });
 
 test('adds a new list to the right of the invoking list from the list actions popover', async ({ page, boardRoot }) => {
@@ -373,6 +388,7 @@ test('opens the add-card-to-list modal from the keyboard shortcut with a styled 
 
   await expect(page.locator('#modalAddCardToList')).toBeVisible();
   await expect(page.locator('#userInputListPath')).toBeVisible();
+  await expect(page.locator('#modalAddCardToList .new-card-modal-helper')).toContainText('Shift');
 
   const selectStyle = await page.locator('#userInputListPath').evaluate((element) => {
     const style = window.getComputedStyle(element);
@@ -389,6 +405,18 @@ test('opens the add-card-to-list modal from the keyboard shortcut with a styled 
   const inputToButtonGap = await getVerticalGap(page.locator('#userInputCardName'), page.locator('#btnAddCardToList'));
   expect(selectToInputGap).toBeGreaterThanOrEqual(8);
   expect(inputToButtonGap).toBeGreaterThanOrEqual(6);
+});
+
+test('creates and opens a new card from the keyboard modal with Shift+Enter', async ({ page }) => {
+  await page.keyboard.press(getShortcut('N'));
+  await page.locator('#userInputCardName').fill('Write beta announcement');
+  await page.keyboard.press('Shift+Enter');
+
+  await expect(page.locator('#modalAddCardToList')).toBeHidden();
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect(page.locator('#cardEditorTitle')).toHaveText('Write beta announcement');
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toBeFocused();
+  await expect(page.locator('.list').first().locator('.card').filter({ hasText: 'Write beta announcement' })).toBeVisible();
 });
 
 test('opens the add-list modal from the keyboard shortcut', async ({ page }) => {
@@ -590,12 +618,38 @@ test('switching boards from an open editor flushes the pending edit and closes t
   }).toContain('Pending switch save.');
 });
 
+test('opens the new-card modal from an active editor shortcut after closing the editor', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+
+  await openFirstCardInEditor(page);
+  await setEditorBody(page, 'Pending new-card shortcut save.');
+
+  await page.keyboard.press(getShortcut('N'));
+
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+  await expect(page.locator('#modalAddCardToList')).toBeVisible();
+  await expect(page.locator('#userInputCardName')).toBeFocused();
+  await expect.poll(async () => {
+    return await fs.readFile(cardPath, 'utf8');
+  }).toContain('Pending new-card shortcut save.');
+});
+
 test('opens settings from the renderer keyboard shortcut', async ({ page }) => {
   await page.keyboard.press(getShortcut('Comma'));
 
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
   await expect(page.locator('#modalBoardSettings h2')).toHaveText('Settings');
   await expect(page.locator('#boardSettingsPanelApp')).toBeVisible();
+});
+
+test('opens Planner from an active editor view shortcut after closing the editor', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  await page.keyboard.press(getShortcut('2'));
+
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+  await expect(page.locator('#plannerOverlay')).toBeVisible();
+  await expect(page.locator('.planner-calendar')).toBeVisible();
 });
 
 test('cycles board color schemes without closing an active editor', async ({ page }) => {
@@ -646,6 +700,22 @@ test('moves the active card to the top of the previous list from the keyboard sh
     '001-plan-release-stock.md',
   ]);
   await expect(page.locator('.list').first().locator('.card').first()).toContainText('Polish homepage copy');
+});
+
+test('moves the active card to the top of the selected list from the editor dropdown', async ({ page, boardRoot }) => {
+  await openFirstCardInEditor(page);
+
+  await page.locator('#cardEditorListSelect').selectOption({ label: 'Doing' });
+
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect.poll(async () => {
+    const entries = await fs.readdir(path.join(boardRoot, '001-Doing-stock'));
+    return entries.filter((entry) => entry.endsWith('.md')).sort();
+  }).toEqual([
+    '000-plan-release-stock.md',
+    '001-polish-copy-stock.md',
+  ]);
+  await expect(page.locator('.list').nth(1).locator('.card').first()).toContainText('Plan release notes');
 });
 
 test('rejects top-of-list card moves outside the active board', async ({ page, boardRoot }) => {

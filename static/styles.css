@@ -2064,6 +2064,24 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   margin: 0;
 }
 
+.new-card-modal-helper {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.35;
+}
+
+.new-card-modal-helper kbd {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
+  color: var(--text);
+  padding: 1px 5px;
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
 .modal textarea:focus-visible,
 .modal input:focus-visible,
 .modal select:focus-visible {
@@ -2987,6 +3005,10 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 40px rgba(16, 24, 40, .12);
   padding: 16px 16px 50px 10px;
+}
+
+#modalEditCard #cardEditorTitle {
+  padding-left: 16px;
 }
 
 #modalBoardSettings {

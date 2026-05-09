@@ -194,6 +194,11 @@ function openBoardSwitcher() {
   modal.setAttribute('aria-hidden', 'false');
   renderBoardSwitcherResults();
 
+  input.focus();
+  if (typeof input.select === 'function') {
+    input.select();
+  }
+
   window.requestAnimationFrame(() => {
     input.focus();
     if (typeof input.select === 'function') {
