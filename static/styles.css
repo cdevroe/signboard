@@ -2028,7 +2028,6 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .modal h2 {
   margin: 15px 0 10px 0;
   font-size: var(--font-lg);
-  padding-left: 16px;
 }
 .modal textarea,
 .modal input {
@@ -2354,7 +2353,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 .commercial-license-header h2 {
   margin: 0;
-  max-width: 14ch;
+  max-width: 20ch;
 }
 
 .commercial-license-close {
