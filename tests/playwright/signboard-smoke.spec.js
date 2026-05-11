@@ -177,6 +177,17 @@ test('keeps add modals hidden on startup', async ({ page }) => {
   await expect(page.locator('#boardMenuPopover')).toBeHidden();
 });
 
+test('keeps the first board tab clear of the Planner rail', async ({ page }) => {
+  const railBox = await page.locator('#plannerRailButton').boundingBox();
+  const firstTabBox = await page.locator('.board-tab').first().boundingBox();
+
+  if (!railBox || !firstTabBox) {
+    throw new Error('Unable to measure Planner rail or first board tab.');
+  }
+
+  expect(firstTabBox.x).toBeGreaterThanOrEqual(railBox.x + railBox.width);
+});
+
 test('renders card drag ghost as an empty drop slot', async ({ page }) => {
   const card = page.locator('.list').first().locator('.card').first();
   const frame = card.locator('.card-drag-frame');
@@ -567,6 +578,7 @@ test('opens Planner across currently open boards', async ({ electronApp, boardRo
   await expect(page.locator('.planner-calendar')).toBeVisible();
   await page.keyboard.press(getShortcut('3'));
   await expect(page.locator('.planner-this-week')).toBeVisible();
+  await expect(page.locator('.planner-this-week .board-this-week-day-header').first()).toHaveCSS('padding-left', '10px');
 
   const crossBoardCard = page.locator('.planner-this-week-card').filter({ hasText: 'Polish homepage copy' });
   const targetDayCards = page.locator(`.planner-this-week .board-this-week-day-cards[data-date="${targetPlannerIso}"]`);

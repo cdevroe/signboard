@@ -185,7 +185,7 @@ body {
 }
 
 /* 3) App chrome */
-header {
+body > header {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -197,13 +197,13 @@ header {
   backdrop-filter: saturate(1.2) blur(6px);
 }
 
-body:not(.board-empty) header {
+body:not(.board-empty) > header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas: "tabs controls";
   align-items: end;
   gap: 8px 12px;
-  /* padding-left: calc(var(--spacing) + var(--planner-rail-width)); */
+  padding-left: calc(var(--spacing) + var(--planner-rail-width));
   padding-top: 8px;
 }
 
@@ -215,7 +215,7 @@ body:not(.board-empty) header {
   width: 100%;
 }
 
-header h1 {
+body > header h1 {
   color: var(--text);
   font-size: var(--font-lg);
   margin: 0;
@@ -4098,7 +4098,7 @@ select:disabled {
 }
 
 @media (max-width: 1180px) {
-  body:not(.board-empty) header {
+  body:not(.board-empty) > header {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -4154,7 +4154,7 @@ select:disabled {
 /* 10) Small screens */
 @media (max-width: 700px) {
   :root { --list-min: 260px; --planner-rail-width: 36px; }
-  header { position: static; }
+  body > header { position: static; }
   .headerTopRow {
     flex-direction: column;
     align-items: flex-start;
@@ -4173,7 +4173,7 @@ select:disabled {
   main#board.board-view-week {
     padding: 12px;
   }
-  body:not(.board-empty) header {
+  body:not(.board-empty) > header {
     padding-left: calc(var(--spacing) + var(--planner-rail-width));
   }
   body:not(.board-empty) main#board,
@@ -4296,7 +4296,7 @@ select:disabled {
 
 /* 11) Print – simple, text-first */
 @media print {
-  header, #themeToggle, .planner-rail-button, .planner-overlay { display: none !important; }
+  body > header, #themeToggle, .planner-rail-button, .planner-overlay { display: none !important; }
   main#board { overflow: visible; }
   .list { box-shadow: none; border-color: #bbb; }
   .card { box-shadow: none; border-color: #bbb; }
