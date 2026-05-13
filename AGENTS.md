@@ -18,6 +18,7 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Quick board switching uses `Cmd/Ctrl + K`, searches currently open board tabs, and should keep tab switching and switcher switching on the same safe board-switch helper.
 - Planner is the workspace-level home for Calendar, This Week, Day, and Agenda; keep `app/board/plannerView.js`, Kanban-only board rendering, search/filter behavior, and shortcut docs aligned.
 - Workspace-level keyboard shortcuts close the active card editor before changing context; editor-scoped card move/archive shortcuts should keep acting on the open card.
+- External board-change sync should refresh board cards and unchanged open card editors after MCP/card-file edits without overwriting local editor changes.
 - New-card modals support `Shift + Enter` to create, immediately open, and focus the notes field on the new card.
 - Completed-list workflow settings live in board settings; Planner, board date filters, and due notifications treat completed-list cards as non-actionable by default while preserving due dates.
 - Keep agent-facing docs up to date: [CODEX.md](./CODEX.md), [AGENTS.md](./AGENTS.md), [docs/codex/PROJECT_CONTEXT.md](./docs/codex/PROJECT_CONTEXT.md), and [docs/codex/FILE_STRUCTURE.md](./docs/codex/FILE_STRUCTURE.md).

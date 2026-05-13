@@ -246,6 +246,9 @@ async function closeAllModals(e, options = {}){
         if (typeof clearQueuedEditorSave === 'function') {
             clearQueuedEditorSave();
         }
+        if (typeof clearActiveCardEditorState === 'function') {
+            clearActiveCardEditorState();
+        }
     }
 
     if (!skipRerender && (shouldRerender || editModalClosed || boardSettingsClosed)) {

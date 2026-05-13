@@ -598,6 +598,10 @@ async function runExternalBoardRefresh() {
         return;
     }
 
+    if (isModalOpen('modalEditCard') && typeof refreshActiveCardEditorFromDiskIfClean === 'function') {
+        await refreshActiveCardEditorFromDiskIfClean();
+    }
+
     if (isExternalBoardRefreshBlocked() || externalBoardRenderInFlight) {
         externalBoardRefreshPending = true;
         return;

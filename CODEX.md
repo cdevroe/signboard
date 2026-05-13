@@ -16,7 +16,7 @@ Start here before opening source files.
 - Renderer right-click text editing context menus are owned by `main.js` via the `webContents` `context-menu` event, so editable fields such as the card title and OverType notes editor keep native cut/copy/paste/select-all behavior.
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
-- `preload.js` is now a thin IPC bridge only; board filesystem access, trusted-board validation, and filesystem watch helpers live in `main.js`, while `app/init.js` still uses the same watch methods to auto-refresh after external board changes.
+- `preload.js` is now a thin IPC bridge only; board filesystem access, trusted-board validation, and filesystem watch helpers live in `main.js`, while `app/init.js` still uses the same watch methods to auto-refresh after external board changes and refresh an unchanged open card editor after external/MCP card edits.
 - Archive browsing and restore now run through `lib/archive.js` via `main.js` / `preload.js`; the renderer opens a dedicated Archive modal (`app/board/archiveBrowser.js`) instead of treating Archive as a board view.
 - Active-card adjacent-list moves use the main-process `moveCardToTop` IPC path backed by `lib/cardOrdering.js`, so renderer shortcuts do not perform multi-step filesystem renames directly.
 - Board rendering is Kanban-only; Calendar, This Week, Day, and Agenda dated workflows live in Planner.

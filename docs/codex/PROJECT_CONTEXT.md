@@ -130,7 +130,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Initializes board search input for live filtering.
   - Initializes app settings, including one-time migration from the left-most open board's legacy settings values.
   - Initializes Planner controls for the left rail, overlay, Planner search/filter popover, and Planner view tabs.
-  - Runs an external-change sync loop that watches active board files and re-renders after external updates (for example MCP card moves).
+  - Runs an external-change sync loop that watches active board files, re-renders after external updates (for example MCP card moves), and refreshes an unchanged open card editor after external/MCP card edits.
   - Calls directory chooser and `openBoard`.
 - `app/board/boardTabs.js`:
   - Manages board tabs (add/open/close/reorder + active tab persistence).
@@ -203,6 +203,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Loads card into OverType editor.
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
+  - Tracks the clean on-disk editor state so external/MCP updates can reload an open card editor when the user has no local edits in progress.
   - Relies on the main-process renderer context menu for native right-click cut/copy/paste/select-all in editable title/body fields.
   - Moves active cards to selected/adjacent lists from the list dropdown, arrow action, and keyboard shortcuts by calling the main-process `moveCardToTop` IPC path, which inserts at the top of the destination list.
   - Renders task-line due-date controls at the start of each parsed checklist line in the editor.

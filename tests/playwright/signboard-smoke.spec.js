@@ -123,6 +123,18 @@ async function setEditorBody(page, body) {
   }, body);
 }
 
+async function waitForBoardWatch(page) {
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      if (!window.board || typeof window.board.getBoardWatchToken !== 'function') {
+        return 0;
+      }
+
+      return Number(await window.board.getBoardWatchToken()) || 0;
+    });
+  }, { timeout: 5000 }).toBeGreaterThan(0);
+}
+
 const test = base.extend({
   boardRoot: async ({}, use) => {
     const fixture = await createFixtureBoard();
@@ -186,6 +198,33 @@ test('keeps the first board tab clear of the Planner rail', async ({ page }) => 
   }
 
   expect(firstTabBox.x).toBeGreaterThanOrEqual(railBox.x + railBox.width);
+});
+
+test('refreshes board card previews after external markdown edits', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+  const card = await cardFrontmatter.readCard(cardPath);
+
+  await waitForBoardWatch(page);
+  await cardFrontmatter.writeCard(cardPath, {
+    frontmatter: card.frontmatter,
+    body: 'Clean MCP notes.',
+  });
+
+  await expect(page.locator('.list').first().locator('.card').first().locator('.card-body p')).toHaveText('Clean MCP notes.');
+});
+
+test('refreshes an unchanged open card editor after external markdown edits', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+  const card = await cardFrontmatter.readCard(cardPath);
+
+  await waitForBoardWatch(page);
+  await openFirstCardInEditor(page);
+  await cardFrontmatter.writeCard(cardPath, {
+    frontmatter: card.frontmatter,
+    body: 'Cleaned while the editor stayed open.',
+  });
+
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue('Cleaned while the editor stayed open.');
 });
 
 test('renders card drag ghost as an empty drop slot', async ({ page }) => {

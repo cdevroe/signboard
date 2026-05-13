@@ -117,6 +117,10 @@ let pendingEditorBody = '';
 let pendingEditorSaveTimer = null;
 let editorSaveInFlight = Promise.resolve();
 let cardEditorListMoveFeedbackTimer = null;
+let activeCardEditorInstance = null;
+let activeEditorDiskState = null;
+let editorSaveOperationInFlight = false;
+let isApplyingExternalEditorRefresh = false;
 
 function getActiveEditorCardPath() {
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
@@ -139,6 +143,144 @@ function clearQueuedEditorSave() {
     }
 
     pendingEditorBody = '';
+}
+
+function clearActiveCardEditorState() {
+    activeCardEditorInstance = null;
+    activeEditorDiskState = null;
+    editorSaveOperationInFlight = false;
+    isApplyingExternalEditorRefresh = false;
+}
+
+function getEditorBodyValue() {
+    if (activeCardEditorInstance && typeof activeCardEditorInstance.getValue === 'function') {
+        return String(activeCardEditorInstance.getValue() || '');
+    }
+
+    const editorTextarea = document.querySelector('#cardEditorOverType .overtype-input');
+    return editorTextarea ? String(editorTextarea.value || '') : '';
+}
+
+function getEditorTitleValue() {
+    const cardEditorTitle = document.getElementById('cardEditorTitle');
+    return cardEditorTitle ? String(cardEditorTitle.textContent || '').trim() : '';
+}
+
+function createEditorDiskState(cardPath, card) {
+    const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
+        ? card.frontmatter
+        : {};
+
+    return {
+        cardPath: String(cardPath || ''),
+        frontmatterJson: JSON.stringify(frontmatter),
+        title: String(frontmatter.title || '').trim(),
+        body: String(card && typeof card.body === 'string' ? card.body : ''),
+    };
+}
+
+function setActiveEditorDiskState(cardPath, card) {
+    activeEditorDiskState = createEditorDiskState(cardPath, card);
+}
+
+function isActiveEditorUnchangedFromDisk() {
+    if (
+        !isCardEditorActive() ||
+        !activeEditorDiskState ||
+        pendingEditorSaveTimer ||
+        editorSaveOperationInFlight
+    ) {
+        return false;
+    }
+
+    const cardPath = getActiveEditorCardPath();
+    if (!cardPath || cardPath !== activeEditorDiskState.cardPath) {
+        return false;
+    }
+
+    return getEditorBodyValue() === activeEditorDiskState.body
+        && getEditorTitleValue() === activeEditorDiskState.title
+        && JSON.stringify(getEditorFrontmatter()) === activeEditorDiskState.frontmatterJson;
+}
+
+async function renderActiveEditorMetadata(frontmatter = {}) {
+    const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
+    const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
+
+    setEditorLabelDisplay(frontmatter.labels);
+
+    if (!cardEditorCardDueDateDisplay) {
+        return;
+    }
+
+    const dueValue = String(frontmatter.due || '').trim();
+    if (dueValue) {
+        cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(dueValue);
+        setDueDateVisualClass(cardEditorSetDueDateLink, dueValue);
+    } else {
+        cardEditorCardDueDateDisplay.textContent = '';
+        setDueDateVisualClass(cardEditorSetDueDateLink, '');
+    }
+}
+
+async function refreshActiveCardEditorFromDiskIfClean() {
+    if (!isActiveEditorUnchangedFromDisk() || !window.board || typeof window.board.readCard !== 'function') {
+        return false;
+    }
+
+    const cardPath = getActiveEditorCardPath();
+    let card;
+    try {
+        card = await window.board.readCard(cardPath);
+    } catch {
+        return false;
+    }
+
+    if (!isActiveEditorUnchangedFromDisk() || getActiveEditorCardPath() !== cardPath) {
+        return false;
+    }
+
+    const nextState = createEditorDiskState(cardPath, card);
+    if (
+        activeEditorDiskState &&
+        nextState.frontmatterJson === activeEditorDiskState.frontmatterJson &&
+        nextState.body === activeEditorDiskState.body
+    ) {
+        return false;
+    }
+
+    const cardEditorTitle = document.getElementById('cardEditorTitle');
+    const editorTextarea = document.querySelector('#cardEditorOverType .overtype-input');
+
+    isApplyingExternalEditorRefresh = true;
+    try {
+        setEditorFrontmatter(card.frontmatter);
+        if (cardEditorTitle) {
+            cardEditorTitle.textContent = card.frontmatter.title || '';
+        }
+
+        await renderActiveEditorMetadata(card.frontmatter);
+
+        if (activeCardEditorInstance && typeof activeCardEditorInstance.setValue === 'function') {
+            activeCardEditorInstance.setValue(card.body);
+        } else if (editorTextarea) {
+            editorTextarea.value = card.body;
+        }
+
+        const liveTextarea = activeCardEditorInstance && activeCardEditorInstance.textarea
+            ? activeCardEditorInstance.textarea
+            : editorTextarea;
+        if (liveTextarea) {
+            liveTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        setActiveEditorDiskState(cardPath, card);
+        pendingEditorBody = '';
+    } finally {
+        isApplyingExternalEditorRefresh = false;
+    }
+
+    return true;
 }
 
 function enqueueEditorSave(bodyValue) {
@@ -198,18 +340,30 @@ async function saveEditorCard(bodyValue) {
         return;
     }
 
-    const currentFrontmatter = getEditorFrontmatter();
-    const normalizedFrontmatter = await window.board.normalizeFrontmatter({
-        ...currentFrontmatter,
-        title: cardEditorTitle.textContent.trim(),
-    });
+    editorSaveOperationInFlight = true;
 
-    setEditorFrontmatter(normalizedFrontmatter);
+    try {
+        const currentFrontmatter = getEditorFrontmatter();
+        const normalizedFrontmatter = await window.board.normalizeFrontmatter({
+            ...currentFrontmatter,
+            title: cardEditorTitle.textContent.trim(),
+        });
+        const normalizedBody = typeof bodyValue === 'string' ? bodyValue : '';
 
-    await window.board.writeCard(cardPath, {
-        frontmatter: normalizedFrontmatter,
-        body: typeof bodyValue === 'string' ? bodyValue : '',
-    });
+        setEditorFrontmatter(normalizedFrontmatter);
+
+        await window.board.writeCard(cardPath, {
+            frontmatter: normalizedFrontmatter,
+            body: normalizedBody,
+        });
+
+        setActiveEditorDiskState(cardPath, {
+            frontmatter: normalizedFrontmatter,
+            body: normalizedBody,
+        });
+    } finally {
+        editorSaveOperationInFlight = false;
+    }
 }
 
 let activeDueDatePickerInput = null;
@@ -904,6 +1058,7 @@ async function toggleEditCardModal(cardPath, options = {}) {
     const cardEditorSetLabelsLink = document.getElementById('cardEditorSetLabelsLink');
 
     setEditorFrontmatter(card.frontmatter);
+    setActiveEditorDiskState(cardPath, card);
     cardEditorCardPath.value = cardPath;
     cardEditorTitle.textContent = card.frontmatter.title || '';
     cardEditorCardDueDateDisplay.textContent = '';
@@ -925,6 +1080,7 @@ async function toggleEditCardModal(cardPath, options = {}) {
         placeholder: 'Notes...',
         onChange: handleNotesSave
     });
+    activeCardEditorInstance = editor;
 
     if (typeof applyEditorThemeFromActiveMode === 'function') {
         applyEditorThemeFromActiveMode();
@@ -1074,6 +1230,10 @@ async function toggleEditCardModal(cardPath, options = {}) {
 }
 
 async function handleNotesSave(value,instance) {
+    if (isApplyingExternalEditorRefresh) {
+        return;
+    }
+
     if ( value === 'Notes...' ) {
         return;
     }
