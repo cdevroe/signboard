@@ -2,7 +2,7 @@
 
 A local-first kanban desktop app built with HTML, CSS, and JavaScript. Signboard stores your lists as directories and cards as Markdown files on disk.
 
-Signboard is free for personal use. If you are using Signboard for your work it would be appreciated if you purchase a commercial license to support future development. See the app's "support" button.
+Signboard is free for personal use. If you are using Signboard for your work it would be appreciated if you purchase a commercial license to sponsor future development. See the app's "Sponsor" button.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](../../issues)
@@ -279,9 +279,9 @@ Contributions in all forms are welcome!
 
 ---
 
-## 💖 Support the Project
+## 💖 Sponsor the Project
 
-Signboard now includes an in-app support modal with two options:
+Signboard now includes an in-app sponsorship modal with two options:
 
 - Personal use: free, with an optional tip in any amount
 - Commercial use: requested one-time payment
@@ -297,8 +297,8 @@ The source code in this repository is licensed under the [MIT](./LICENSE) licens
 Important clarification:
 
 - The MIT license allows personal and commercial use of the source code.
-- The in-app `$49` commercial-use payment is currently a support request and honor-system purchase model for packaged app users.
-- The optional personal-use tip is also a support mechanism, not a separate software license.
+- The in-app `$49` commercial-use payment is currently a sponsorship request and honor-system purchase model for packaged app users.
+- The optional personal-use tip is also a sponsorship mechanism, not a separate software license.
 
 # Third-Party Notices
 

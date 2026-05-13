@@ -522,22 +522,32 @@ function initializeBoardMenuControls() {
 
 function initializeCommercialLicenseControls() {
     const openButton = document.getElementById('openCommercialLicenseModal');
+    const sponsorPillButton = document.getElementById('openSponsorPillButton');
     const closeButton = document.getElementById('commercialLicenseClose');
     const payButton = document.getElementById('commercialLicensePayButton');
     const tipButton = document.getElementById('commercialLicenseTipButton');
 
     renderCommercialLicenseModalState();
 
-    if (openButton) {
-        openButton.addEventListener('click', async (event) => {
+    const handleOpenCommercialLicenseModal = async (event) => {
+        if (event) {
             event.preventDefault();
             event.stopPropagation();
-            closeBoardMenuPopover();
-            if (typeof closeAllModals === 'function') {
-                await closeAllModals({ key: 'Escape' });
-            }
-            openCommercialLicenseModal();
-        });
+        }
+
+        closeBoardMenuPopover();
+        if (typeof closeAllModals === 'function') {
+            await closeAllModals({ key: 'Escape' });
+        }
+        openCommercialLicenseModal();
+    };
+
+    if (openButton) {
+        openButton.addEventListener('click', handleOpenCommercialLicenseModal);
+    }
+
+    if (sponsorPillButton) {
+        sponsorPillButton.addEventListener('click', handleOpenCommercialLicenseModal);
     }
 
     if (closeButton) {

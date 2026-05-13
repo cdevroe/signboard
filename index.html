@@ -102,13 +102,18 @@
       <span class="board-menu-action-label">Dark Mode</span>
       <span class="menu-shortcut-hint" data-shortcut-action="toggleTheme" data-shortcut-format="menu" aria-hidden="true">⌘⇧D</span>
     </button>
-    <button id="openCommercialLicenseModal" class="board-menu-action" type="button" title="Support Signboard for commercial use" aria-label="Support Signboard for commercial use">
+    <button id="openCommercialLicenseModal" class="board-menu-action" type="button" title="Sponsor Signboard" aria-label="Sponsor Signboard">
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="heart"></i></span>
-      <span class="board-menu-action-label">Support</span>
+      <span class="board-menu-action-label">Sponsor</span>
     </button>
   </div>
 
   <div id="listActionsPopover" class="label-popover list-actions-popover hidden" aria-hidden="true"></div>
+
+  <button id="openSponsorPillButton" class="sponsor-signboard-button" type="button" title="Sponsor Signboard" aria-label="Sponsor Signboard">
+    <i data-feather="heart" aria-hidden="true"></i>
+    <span>Sponsor</span>
+  </button>
 
   <div id="modalBoardSwitcher" class="modal board-switcher-modal hidden" role="dialog" aria-modal="false" aria-label="Switch to board" aria-hidden="true">
     <input id="boardSwitcherInput" type="search" placeholder="Switch to board" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-controls="boardSwitcherResults">
@@ -320,7 +325,7 @@
         <p class="about-signboard-meta">Created by <a href="https://cdevroe.com/" rel="noopener noreferrer">Colin Devroe</a>.</p>
         <div class="about-signboard-actions">
           <a class="about-signboard-link-button" href="https://cdevroe.com/signboard/" rel="noopener noreferrer">Visit Website</a>
-          <button id="aboutSignboardSupportButton" class="about-signboard-support-button" type="button">Support Signboard</button>
+          <button id="aboutSignboardSupportButton" class="about-signboard-support-button" type="button">Sponsor Signboard</button>
         </div>
       </section>
 
@@ -346,18 +351,18 @@
     <div class="commercial-license-header">
       <div>
         <!-- <p class="commercial-license-eyebrow">Free for personal use</p> -->
-        <h2 id="commercialLicenseTitle">Support Signboard when it supports your work</h2>
+        <h2 id="commercialLicenseTitle">Sponsor Signboard when it supports your work</h2>
       </div>
       <button id="commercialLicenseClose" class="commercial-license-close" type="button" title="Close commercial use modal" aria-label="Close commercial use modal"><i data-feather="x"></i></button>
     </div>
     <div class="commercial-license-copy">
       <p>Hi, I’m Colin. 👋</p>
       <p>I want Signboard to stay open source and free for personal use.</p>
-      <p>If you start using Signboard to manage work that earns you money, I’d really appreciate your support with a one-time commercial-use payment.</p>
+      <p>If you start using Signboard to manage work that earns you money, I’d really appreciate your sponsorship with a one-time commercial-use payment.</p>
     </div>
     <div class="commercial-license-card">
       <div class="commercial-license-card-copy">
-        <p class="commercial-license-card-label">Commercial-use support</p>
+        <p class="commercial-license-card-label">Commercial-use sponsorship</p>
         <p class="commercial-license-card-price"><span data-commercial-license-price>$49</span> one-time</p>
         <p class="commercial-license-card-note">No subscription. Pay once and keep using the <applet></applet> for commercial work.</p>
       </div>
@@ -366,7 +371,7 @@
     <div class="commercial-license-tip">
       <div class="commercial-license-tip-copy">
         <p class="commercial-license-tip-title">Tips are appreciated</p>
-        <p class="commercial-license-tip-note">If you want to support development or just want to say thanks, you can leave a tip of any amount.</p>
+        <p class="commercial-license-tip-note">If you want to sponsor development or just want to say thanks, you can leave a tip of any amount.</p>
       </div>
       <button id="commercialLicenseTipButton" class="commercial-license-tip-button" type="button">Leave a Tip</button>
     </div>

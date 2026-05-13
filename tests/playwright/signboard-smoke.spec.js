@@ -927,7 +927,7 @@ test('persists the app tooltip toggle and suppresses tooltips when disabled', as
   await openBoardMenu(page);
   await supportButton.hover();
   await expect(tooltip).toBeVisible();
-  await expect(tooltip).toHaveText(/Support Signboard/i);
+  await expect(tooltip).toHaveText(/Sponsor Signboard/i);
 
   await openBoardMenu(page);
   await page.locator('#openBoardSettings').click();
@@ -960,6 +960,27 @@ test('persists the app tooltip toggle and suppresses tooltips when disabled', as
       return settings.tooltipsEnabled;
     });
   }).toBe(false);
+});
+
+test('opens the sponsorship modal from the fixed pill button', async ({ page }) => {
+  const sponsorButton = page.locator('#openSponsorPillButton');
+
+  await expect(sponsorButton).toBeVisible();
+  await expect(sponsorButton).toHaveText(/Sponsor/);
+
+  await sponsorButton.click();
+
+  await expect(page.locator('#modalCommercialLicense')).toBeVisible();
+  await expect(page.locator('#commercialLicenseTitle')).toHaveText(/Sponsor Signboard/);
+});
+
+test('hides the fixed sponsor pill on compact windows', async ({ page }) => {
+  const sponsorButton = page.locator('#openSponsorPillButton');
+
+  await expect(sponsorButton).toBeVisible();
+  await page.setViewportSize({ width: 970, height: 720 });
+
+  await expect(sponsorButton).toBeHidden();
 });
 
 test('persists a label color change committed from the settings picker', async ({ page }) => {

@@ -272,7 +272,8 @@ body:not(.board-empty) #boardPathWrapper {
   padding: 8px 12px;
 }
 
-.support-signboard-button {
+.support-signboard-button,
+.sponsor-signboard-button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -284,9 +285,29 @@ body:not(.board-empty) #boardPathWrapper {
   font-weight: 600;
 }
 
-.support-signboard-button svg {
+.support-signboard-button svg,
+.sponsor-signboard-button svg {
   width: 16px;
   height: 16px;
+}
+
+.sponsor-signboard-button {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 34;
+  min-height: 38px;
+  padding: 8px 14px;
+  box-shadow: 0 12px 30px color-mix(in oklab, var(--text) 12%, transparent);
+}
+
+.sponsor-signboard-button:hover {
+  background: color-mix(in oklab, var(--accent) 18%, var(--bg-card));
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+}
+
+body.board-empty .sponsor-signboard-button {
+  display: none;
 }
 
 .board-toolbar-group {
@@ -3440,7 +3461,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 @media (max-width: 720px) {
-  .support-signboard-button span {
+  .support-signboard-button span,
+  .sponsor-signboard-button span {
     display: none;
   }
 
@@ -3495,6 +3517,12 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   .board-settings-inline-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+@media (max-width: 980px), (max-height: 700px) {
+  .sponsor-signboard-button {
+    display: none;
   }
 }
 
