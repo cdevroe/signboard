@@ -227,6 +227,24 @@ test('refreshes an unchanged open card editor after external markdown edits', as
   await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue('Cleaned while the editor stayed open.');
 });
 
+test('does not throw when formatting invalid due date values', async ({ page }) => {
+  const values = await page.evaluate(async () => {
+    return {
+      empty: await window.board.formatDueDate(''),
+      invalid: await window.board.formatDueDate('not-a-date'),
+      impossible: await window.board.formatDueDate('2026-02-31'),
+      valid: await window.board.formatDueDate('2026-03-14'),
+    };
+  });
+
+  expect(values).toEqual({
+    empty: '',
+    invalid: 'not-a-date',
+    impossible: '2026-02-31',
+    valid: 'Mar 14',
+  });
+});
+
 test('renders card drag ghost as an empty drop slot', async ({ page }) => {
   const card = page.locator('.list').first().locator('.card').first();
   const frame = card.locator('.card-drag-frame');

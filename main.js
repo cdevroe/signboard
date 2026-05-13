@@ -60,6 +60,34 @@ const dueDateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
 });
 
+function formatDueDateValue(rawDateValue) {
+  const dateString = String(rawDateValue || '').trim();
+  if (!dateString) {
+    return '';
+  }
+
+  const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return dateString;
+  }
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const dateToDisplay = new Date(year, monthIndex, day);
+
+  if (
+    Number.isNaN(dateToDisplay.getTime()) ||
+    dateToDisplay.getFullYear() !== year ||
+    dateToDisplay.getMonth() !== monthIndex ||
+    dateToDisplay.getDate() !== day
+  ) {
+    return dateString;
+  }
+
+  return dueDateFormatter.format(dateToDisplay);
+}
+
 if (SIGNBOARD_USER_DATA_DIR) {
   app.setPath('userData', path.resolve(SIGNBOARD_USER_DATA_DIR));
 }
@@ -2032,10 +2060,7 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     }
 
     case 'formatDueDate': {
-      const dateString = String(args[0] || '');
-      const [year, month, day] = dateString.split('-').map(Number);
-      const dateToDisplay = new Date(year, month - 1, day);
-      return dueDateFormatter.format(dateToDisplay);
+      return formatDueDateValue(args[0]);
     }
 
     case 'getCardFileName': {
