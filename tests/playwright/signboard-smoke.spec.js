@@ -19,6 +19,10 @@ function getShortcut(shortcut) {
   return `${modifier}+${shortcut}`;
 }
 
+function getCurrentBoardPlannerShortcut(shortcut) {
+  return getShortcut(`Alt+${shortcut}`);
+}
+
 function getColorCycleShortcut() {
   return usesMetaModifier ? 'Meta+Control+Shift+C' : 'Control+Alt+Shift+C';
 }
@@ -623,6 +627,16 @@ test('opens Planner across currently open boards', async ({ electronApp, boardRo
   await page.locator('.planner-scope-option[data-scope="all"]').click();
   await expect(page.locator('#plannerScopeLabel')).toHaveText('2 boards');
 
+  await page.keyboard.press(getCurrentBoardPlannerShortcut('2'));
+  await expect(page.locator('.planner-calendar')).toBeVisible();
+  await expect(page.locator('#plannerScopeLabel')).toHaveText('Playwright Board');
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Plan release notes' })).toBeVisible();
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Polish homepage copy' })).toHaveCount(0);
+
+  await page.keyboard.press(getShortcut('2'));
+  await expect(page.locator('#plannerScopeLabel')).toHaveText('2 boards');
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Polish homepage copy' })).toBeVisible();
+
   await page.keyboard.press(getShortcut('4'));
   await expect(page.locator('.planner-day')).toBeVisible();
   await expect(page.locator('.planner-list-card').filter({ hasText: 'Plan release notes' })).toBeVisible();
@@ -630,9 +644,15 @@ test('opens Planner across currently open boards', async ({ electronApp, boardRo
   await page.keyboard.press(getShortcut('1'));
   await expect(page.locator('#plannerOverlay')).toBeHidden();
 
+  await page.keyboard.press(getCurrentBoardPlannerShortcut('4'));
+  await expect(page.locator('#plannerOverlay')).toBeVisible();
+  await expect(page.locator('.planner-day')).toBeVisible();
+  await expect(page.locator('#plannerScopeLabel')).toHaveText('Playwright Board');
+
   await page.keyboard.press(getShortcut('2'));
   await expect(page.locator('#plannerOverlay')).toBeVisible();
   await expect(page.locator('.planner-calendar')).toBeVisible();
+  await expect(page.locator('#plannerScopeLabel')).toHaveText('2 boards');
   await page.keyboard.press(getShortcut('3'));
   await expect(page.locator('.planner-this-week')).toBeVisible();
   await expect(page.locator('.planner-this-week .board-this-week-day-header').first()).toHaveCSS('padding-left', '10px');

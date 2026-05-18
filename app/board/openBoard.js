@@ -152,8 +152,10 @@ On macOS use Cmd. On Windows and Linux use Ctrl.
 - Cmd/Ctrl + N creates a new card
 - Cmd/Ctrl + Shift + N creates a new list
 - Cmd/Ctrl + 1 opens Kanban view
-- Cmd/Ctrl + 2 opens Planner Calendar
-- Cmd/Ctrl + 3 opens Planner This Week
+- Cmd/Ctrl + 2 opens Planner Calendar for all open boards
+- Cmd/Ctrl + 3 opens Planner This Week for all open boards
+- Cmd/Ctrl + Option/Alt + 2 opens Planner Calendar for the current board
+- Cmd/Ctrl + Option/Alt + 3 opens Planner This Week for the current board
 - Cmd/Ctrl + , opens Settings
 - Cmd/Ctrl + Shift + D toggles light and dark mode
 - Esc closes open modals

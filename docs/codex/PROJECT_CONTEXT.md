@@ -234,10 +234,11 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Cmd/Ctrl + N`: add card (with list picker modal).
   - `Cmd/Ctrl + Shift + N`: add list.
   - `Cmd/Ctrl + 1`: return to Kanban and close Planner if it is open.
-  - `Cmd/Ctrl + 2`: open Planner Calendar from the board, or switch to Calendar inside Planner.
-  - `Cmd/Ctrl + 3`: open Planner This Week from the board, or switch to This Week inside Planner.
+  - `Cmd/Ctrl + 2`: open Planner Calendar from the board, or switch to Calendar inside Planner, scoped to all open boards.
+  - `Cmd/Ctrl + 3`: open Planner This Week from the board, or switch to This Week inside Planner, scoped to all open boards.
+  - `Cmd/Ctrl + Option/Alt + 2/3/4/5`: open or switch to the matching Planner date view scoped to the current board.
   - `Cmd/Ctrl + Shift + P`: open/close Planner.
-  - While Planner is open, `Cmd/Ctrl + 4` switches Planner Day and `Cmd/Ctrl + 5` switches Planner Agenda.
+  - While Planner is open, `Cmd/Ctrl + 4` switches Planner Day and `Cmd/Ctrl + 5` switches Planner Agenda, scoped to all open boards.
   - `Cmd/Ctrl + ,`: open Settings from renderer key handling and the native menu accelerator.
   - `Cmd/Ctrl + Shift + D`: toggle light/dark mode through the native menu accelerator.
   - `Cmd + Control + Shift + C` on macOS / `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes without closing the active screen.

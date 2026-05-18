@@ -53,7 +53,7 @@ function isEditableShortcutTarget(target) {
     return Boolean(target.closest('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]'));
 }
 
-async function openPlannerViewForShortcut(viewId) {
+async function openPlannerViewForShortcut(viewId, options = {}) {
     if (typeof setPlannerActiveView === 'function') {
         setPlannerActiveView(viewId, { render: false });
     }
@@ -61,22 +61,43 @@ async function openPlannerViewForShortcut(viewId) {
     if (typeof openPlannerView === 'function') {
         return openPlannerView({
             viewId,
-            scope: 'all',
+            scope: options.scope === 'current' ? 'current' : 'all',
         });
     }
 
     return false;
 }
 
-async function handleBoardViewShortcut(e, options = {}) {
-    const ignoreEditableTarget = Boolean(options.ignoreEditableTarget);
-
-    if (e.shiftKey || e.altKey || (!ignoreEditableTarget && isEditableShortcutTarget(e.target))) {
+function hasPlannerDateViewShortcutModifiers(event) {
+    if (!event || !hasPrimaryShortcutModifier(event) || event.shiftKey) {
         return false;
     }
 
+    if (isShortcutMacPlatform() && event.ctrlKey) {
+        return false;
+    }
+
+    if (!isShortcutMacPlatform() && event.metaKey) {
+        return false;
+    }
+
+    return true;
+}
+
+async function handleBoardViewShortcut(e, options = {}) {
+    const ignoreEditableTarget = Boolean(options.ignoreEditableTarget);
+
+    if (!hasPlannerDateViewShortcutModifiers(e) || (!ignoreEditableTarget && isEditableShortcutTarget(e.target))) {
+        return false;
+    }
+
+    const shortcutScope = e.altKey ? 'current' : 'all';
+
     switch (e.code) {
         case 'Digit1': {
+            if (e.altKey) {
+                return false;
+            }
             e.preventDefault();
             if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
                 closePlannerView();
@@ -88,11 +109,25 @@ async function handleBoardViewShortcut(e, options = {}) {
         }
         case 'Digit2':
             e.preventDefault();
-            await openPlannerViewForShortcut('calendar');
+            await openPlannerViewForShortcut('calendar', { scope: shortcutScope });
             return true;
         case 'Digit3':
             e.preventDefault();
-            await openPlannerViewForShortcut('this-week');
+            await openPlannerViewForShortcut('this-week', { scope: shortcutScope });
+            return true;
+        case 'Digit4':
+            if (!e.altKey) {
+                return false;
+            }
+            e.preventDefault();
+            await openPlannerViewForShortcut('day', { scope: shortcutScope });
+            return true;
+        case 'Digit5':
+            if (!e.altKey) {
+                return false;
+            }
+            e.preventDefault();
+            await openPlannerViewForShortcut('agenda', { scope: shortcutScope });
             return true;
         default:
             return false;
@@ -381,18 +416,19 @@ function isBoardSearchShortcut(event) {
 }
 
 function isWorkspaceViewShortcut(event) {
-    if (!event || (!event.ctrlKey && !event.metaKey) || event.shiftKey || event.altKey) {
+    if (!hasPlannerDateViewShortcutModifiers(event)) {
         return false;
     }
 
     switch (event.code) {
         case 'Digit1':
+            return !event.altKey;
         case 'Digit2':
         case 'Digit3':
             return true;
         case 'Digit4':
         case 'Digit5':
-            return Boolean(typeof isPlannerOpen === 'function' && isPlannerOpen());
+            return event.altKey || Boolean(typeof isPlannerOpen === 'function' && isPlannerOpen());
         default:
             return false;
     }

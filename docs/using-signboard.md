@@ -203,8 +203,12 @@ Use it when you want to answer questions like:
 ### Switch views
 
 - `Cmd/Ctrl + 1`: Kanban, closing Planner if it is open
-- `Cmd/Ctrl + 2`: Planner Calendar
-- `Cmd/Ctrl + 3`: Planner This Week
+- `Cmd/Ctrl + 2`: Planner Calendar for all open boards
+- `Cmd/Ctrl + 3`: Planner This Week for all open boards
+- `Cmd/Ctrl + Option/Alt + 2`: Planner Calendar for the current board
+- `Cmd/Ctrl + Option/Alt + 3`: Planner This Week for the current board
+- `Cmd/Ctrl + Option/Alt + 4`: Planner Day for the current board
+- `Cmd/Ctrl + Option/Alt + 5`: Planner Agenda for the current board
 
 ## Planner
 
@@ -232,10 +236,14 @@ Planner uses your light/dark mode but keeps the default Signboard color palette 
 ### Planner shortcuts
 
 - `Cmd/Ctrl + Shift + P`: open or close Planner
-- `Cmd/Ctrl + 2`: Calendar
-- `Cmd/Ctrl + 3`: This Week
-- `Cmd/Ctrl + 4`: Day
-- `Cmd/Ctrl + 5`: Agenda
+- `Cmd/Ctrl + 2`: Calendar for all open boards
+- `Cmd/Ctrl + 3`: This Week for all open boards
+- `Cmd/Ctrl + 4`: Day for all open boards
+- `Cmd/Ctrl + 5`: Agenda for all open boards
+- `Cmd/Ctrl + Option/Alt + 2`: Calendar for the current board
+- `Cmd/Ctrl + Option/Alt + 3`: This Week for the current board
+- `Cmd/Ctrl + Option/Alt + 4`: Day for the current board
+- `Cmd/Ctrl + Option/Alt + 5`: Agenda for the current board
 
 Inside Planner, `Cmd/Ctrl + 1` closes Planner and returns to the Kanban board.
 
@@ -334,11 +342,15 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + N`: create a card
 - `Cmd/Ctrl + Shift + N`: create a list
 - `Cmd/Ctrl + 1`: return to Kanban and close Planner
-- `Cmd/Ctrl + 2`: open Planner Calendar
-- `Cmd/Ctrl + 3`: open Planner This Week
+- `Cmd/Ctrl + 2`: open Planner Calendar for all open boards
+- `Cmd/Ctrl + 3`: open Planner This Week for all open boards
 - `Cmd/Ctrl + Shift + P`: open or close Planner
-- `Cmd/Ctrl + 4`: switch to Planner Day view when Planner is open
-- `Cmd/Ctrl + 5`: switch to Planner Agenda view when Planner is open
+- `Cmd/Ctrl + 4`: switch to Planner Day view for all open boards when Planner is open
+- `Cmd/Ctrl + 5`: switch to Planner Agenda view for all open boards when Planner is open
+- `Cmd/Ctrl + Option/Alt + 2`: open Planner Calendar for the current board
+- `Cmd/Ctrl + Option/Alt + 3`: open Planner This Week for the current board
+- `Cmd/Ctrl + Option/Alt + 4`: open Planner Day for the current board
+- `Cmd/Ctrl + Option/Alt + 5`: open Planner Agenda for the current board
 - `Cmd/Ctrl + ,`: open Settings
 - `Cmd/Ctrl + Shift + D`: toggle light and dark mode
 - `Cmd + Control + Shift + C` on macOS, `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes

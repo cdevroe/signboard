@@ -133,6 +133,26 @@ function getPlannerScopeMode() {
   return 'custom';
 }
 
+function applyPlannerScope(scopeValue) {
+  const normalizedScope = String(scopeValue || '').trim().toLowerCase();
+  const state = getPlannerState();
+  const openBoards = getPlannerOpenBoardRoots();
+  const currentBoardRoot = getPlannerCurrentBoardRoot();
+
+  if (normalizedScope === 'current' && currentBoardRoot && openBoards.includes(currentBoardRoot)) {
+    state.selectedBoardRoots = new Set([currentBoardRoot]);
+    state.boardFilterTouched = true;
+  } else {
+    state.selectedBoardRoots = new Set(openBoards);
+    state.boardFilterTouched = false;
+    state.selectedLabelIds = [];
+  }
+
+  if (!canUsePlannerLabelFilters()) {
+    state.selectedLabelIds = [];
+  }
+}
+
 function getPlannerActiveView() {
   return normalizePlannerViewId(getPlannerState().activeView);
 }
@@ -426,25 +446,8 @@ function setPlannerBoardSelected(boardRoot, isSelected) {
 }
 
 function setPlannerScope(scopeValue) {
-  const normalizedScope = String(scopeValue || '').trim().toLowerCase();
   const state = getPlannerState();
-  const openBoards = getPlannerOpenBoardRoots();
-
-  if (normalizedScope === 'current') {
-    const currentBoardRoot = getPlannerCurrentBoardRoot();
-    if (currentBoardRoot && openBoards.includes(currentBoardRoot)) {
-      state.selectedBoardRoots = new Set([currentBoardRoot]);
-      state.boardFilterTouched = true;
-    }
-  } else {
-    state.selectedBoardRoots = new Set(openBoards);
-    state.boardFilterTouched = false;
-    state.selectedLabelIds = [];
-  }
-
-  if (!canUsePlannerLabelFilters()) {
-    state.selectedLabelIds = [];
-  }
+  applyPlannerScope(scopeValue);
 
   renderPlannerViewControls();
   renderPlannerFilterPopover();
@@ -1624,10 +1627,10 @@ async function openPlannerView(options = {}) {
   if (requestedView) {
     state.activeView = normalizePlannerViewId(requestedView);
   }
-  if (!state.isOpen || options.scope === 'all') {
-    state.boardFilterTouched = false;
-    state.selectedBoardRoots = new Set(getPlannerOpenBoardRoots());
-    state.selectedLabelIds = [];
+
+  const requestedScope = String((options && options.scope) || '').trim().toLowerCase();
+  if (!state.isOpen || requestedScope) {
+    applyPlannerScope(requestedScope === 'current' ? 'current' : 'all');
   }
   state.isOpen = true;
   overlay.classList.remove('hidden', 'is-closing');
@@ -1703,7 +1706,7 @@ function handlePlannerViewShortcut(event, options = {}) {
   if (
     !isPlannerOpen() ||
     event.shiftKey ||
-    event.altKey ||
+    (typeof hasPlannerDateViewShortcutModifiers === 'function' && !hasPlannerDateViewShortcutModifiers(event)) ||
     (!ignoreEditableTarget && isEditableShortcutTarget(event.target))
   ) {
     return false;
@@ -1712,6 +1715,9 @@ function handlePlannerViewShortcut(event, options = {}) {
   let nextViewId = '';
   switch (event.code) {
     case 'Digit1':
+      if (event.altKey) {
+        return false;
+      }
       event.preventDefault();
       closePlannerView();
       return true;
@@ -1732,7 +1738,13 @@ function handlePlannerViewShortcut(event, options = {}) {
   }
 
   event.preventDefault();
-  setPlannerActiveView(nextViewId);
+  setPlannerActiveView(nextViewId, { render: false });
+  applyPlannerScope(event.altKey ? 'current' : 'all');
+  renderPlannerViewControls();
+  closePlannerFilterPopover();
+  renderPlannerView().catch((error) => {
+    console.error('Failed to render Planner after shortcut view change.', error);
+  });
   return true;
 }
 
