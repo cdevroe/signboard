@@ -24,7 +24,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - ✅ Progress counters on cards
 - 🔎 Live search
 - 🧲 Drag-and-drop card movement
-- ⚡ Quick board switcher for open boards
+- ⚡ Unlimited open boards with overflow tabs and a quick switcher
 - ⌨️ Keyboard shortcuts
 - 🤖 MCP server
 - 💻 CLI

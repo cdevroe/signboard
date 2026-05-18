@@ -69,13 +69,13 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - Settings includes app-level tooltip/notification controls and board-specific General, Workflow, Labels, Colors, and Import sections, with import summary/warning rendering in the existing settings modal.
 - The sponsorship modal is available from the Board menu "Sponsor" item, About modal, and a fixed bottom-right "Sponsor" pill that hides on compact windows so it does not cover lists.
 - The Board menu now opens a dedicated Archive browser modal; Archive remains hidden from normal board rendering and is not a fourth board view.
-- The quick board switcher is a top-center renderer overlay opened with `Cmd/Ctrl + K`; it searches currently open board tabs only and switches through the same safe board transition helper as tab clicks.
+- The quick board switcher is a top-center renderer overlay opened with `Cmd/Ctrl + K`; it searches all currently open boards, supports closing boards, and switches through the same safe board transition helper as tab and overflow-tab clicks.
 
 ## Data Model and Naming Conventions
 
 ### Board
 - `window.boardRoot` is the absolute board path with trailing slash.
-- Open board tabs are persisted in `localStorage.openBoardPaths`.
+- Open board tabs are persisted in `localStorage.openBoardPaths` without a hard count limit; the visible tab strip collapses excess tabs behind an `N more` control.
 - Active board root is persisted in `localStorage.activeBoardPath` and mirrored in legacy `localStorage.boardPath` for backward compatibility.
 - `board-settings.md` is auto-created with default label definitions when missing; legacy tooltip/notification keys are read for app-settings migration and removed on rewrite.
 - Imports are additive only: they create new lists/cards in the current board and never modify external source files.
@@ -134,7 +134,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Runs an external-change sync loop that watches active board files, re-renders after external updates (for example MCP card moves), and refreshes an unchanged open card editor after external/MCP card edits.
   - Calls directory chooser and `openBoard`.
 - `app/board/boardTabs.js`:
-  - Manages board tabs (add/open/close/reorder + active tab persistence).
+  - Manages board tabs (add/open/close/reorder + active tab persistence) with responsive overflow into an `N more` switcher entry.
   - Provides the shared safe board-switch helper used by both board tabs and the quick switcher.
 - `app/board/openBoard.js`:
   - Creates starter lists/cards when board folder is empty.
@@ -155,7 +155,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Restores cards through an explicit destination-list picker and restores archived lists back into the board root with rename-on-collision handling.
 - `app/board/boardSwitcher.js`:
   - Opens the `Cmd/Ctrl + K` board switcher overlay.
-  - Filters currently open boards by visible board name, highlights autocomplete results, and delegates switching to the shared board switch helper.
+  - Filters currently open boards by visible board name, highlights autocomplete results, closes open boards from result rows, and delegates switching to the shared board switch helper.
 - `app/board/boardViews.js`:
   - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, task due-date placement, and temporal card rendering.
   - Board-facing view state normalizes to Kanban only.

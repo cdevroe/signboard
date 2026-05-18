@@ -49,6 +49,7 @@ Start here before opening source files.
 - Reusable agent skill for MCP usage lives at `skills/signboard-mcp/SKILL.md`.
 - Skill UI metadata lives at `skills/signboard-mcp/agents/openai.yaml`.
 - Board tabs/session state live in renderer localStorage: `openBoardPaths` (open tab order), `activeBoardPath` (active board root), and legacy `boardPath` fallback.
+- Open board count is unbounded in session state; the tab strip keeps visible tabs compact, collapses overflow behind an `N more` tab that opens the board switcher, and the switcher can close open boards.
 - Board label definitions are managed in `board-settings.md` files inside each board folder (runtime data, not repo source).
 - Settings includes an app-level panel for tooltips and notifications plus board-specific panels for general board management, workflow, labels, colors, and imports; the renderer wiring lives in `app/board/boardLabels.js`, while the actual import filesystem work lives in `lib/importers/*` through `main.js` IPC.
 - The sponsorship modal is opened from the Board menu "Sponsor" action, About modal action, and fixed bottom-right "Sponsor" pill; the pill hides on compact windows to avoid covering board lists.

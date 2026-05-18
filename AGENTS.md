@@ -15,7 +15,7 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Keep right-click text editing context menu behavior in `main.js` in sync with editable renderer fields.
 - Keep card drag/drop clone and placeholder behavior in sync with `app/utilities/cardDragTilt.js` and `static/styles.css`.
 - MCP allowed roots include both explicit MCP roots and desktop trusted board roots; keep root loading, `get_config`, and board-name resolution tests aligned.
-- Quick board switching uses `Cmd/Ctrl + K`, searches currently open board tabs, and should keep tab switching and switcher switching on the same safe board-switch helper.
+- Quick board switching uses `Cmd/Ctrl + K`, searches all currently open boards, and should keep tab switching, overflow tab switching, and switcher switching on the same safe board-switch helper.
 - Planner is the workspace-level home for Calendar, This Week, Day, and Agenda, including all-open-board and current-board shortcut scopes; keep `app/board/plannerView.js`, Kanban-only board rendering, search/filter behavior, and shortcut docs aligned.
 - Workspace-level keyboard shortcuts close the active card editor before changing context; editor-scoped card move/archive shortcuts should keep acting on the open card.
 - External board-change sync should refresh board cards and unchanged open card editors after MCP/card-file edits without overwriting local editor changes.

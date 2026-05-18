@@ -88,14 +88,7 @@ async function openBoard( dir ) {
         await flushBoardLabelSettingsSave();
     }
 
-    const tabResult = ensureBoardInTabs(boardPath);
-    if (tabResult && tabResult.limitReached) {
-        if (typeof alertBoardTabLimit === 'function') {
-            alertBoardTabLimit();
-        }
-        renderBoardTabs();
-        return false;
-    }
+    ensureBoardInTabs(boardPath);
 
     if (typeof migrateAppSettingsFromOpenBoards === 'function') {
         await migrateAppSettingsFromOpenBoards();

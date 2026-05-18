@@ -332,7 +332,9 @@ body.board-empty #boardMenuButton {
 }
 
 #boardSearchInput {
+  flex: 0 1 220px;
   width: 220px;
+  min-width: 140px;
   max-width: 45vw;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -350,7 +352,7 @@ body.board-empty #boardMenuButton {
 #boardTabsWrapper {
   width: 100%;
   margin-bottom: 0;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
 }
 
@@ -365,7 +367,9 @@ body:not(.board-empty) #boardTabsWrapper {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  min-width: max-content;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 0 2px;
 }
 
@@ -378,6 +382,9 @@ body:not(.board-empty) #boardTabs {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: 0 0 auto;
+  max-width: 180px;
+  min-width: 0;
   border: 1px solid color-mix(in oklab, var(--border) 85%, var(--bg));
   border-bottom-color: color-mix(in oklab, var(--border) 60%, var(--bg));
   border-radius: 10px 10px 0 0;
@@ -399,6 +406,9 @@ body:not(.board-empty) #boardTabs {
   background: transparent;
   color: inherit;
   font: inherit;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   padding: 6px 0 8px;
   cursor: pointer;
@@ -482,8 +492,23 @@ body:not(.board-empty) #boardTabs {
   cursor: grabbing;
 }
 
+.board-tab.is-overflow-hidden {
+  display: none;
+}
+
+.board-tab-more {
+  cursor: default;
+  max-width: none;
+  padding-right: 12px;
+}
+
+.board-tab-more .board-tab-label {
+  font-weight: 600;
+}
+
 .board-tab-add {
   cursor: default;
+  max-width: none;
   opacity: 1;
   transform: translateY(1px);
   padding-right: 12px;
@@ -2176,22 +2201,39 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .board-switcher-option {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
+  align-items: stretch;
+  gap: 4px;
   width: 100%;
   min-height: 58px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
   color: var(--text);
-  padding: 8px 10px;
-  text-align: left;
+  overflow: hidden;
 }
 
 .board-switcher-option:hover,
 .board-switcher-option.is-active {
   border-color: color-mix(in oklab, var(--accent) 34%, var(--border));
   background: color-mix(in oklab, var(--accent) 10%, var(--bg-card));
+}
+
+.board-switcher-select {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.board-switcher-option-copy {
+  min-width: 0;
 }
 
 .board-switcher-option-title {
@@ -2212,6 +2254,32 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   white-space: nowrap;
   color: var(--muted);
   font-size: var(--font-xs);
+}
+
+.board-switcher-close {
+  align-self: center;
+  justify-self: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: color-mix(in oklab, var(--muted) 82%, var(--text));
+  font-size: 16px;
+  line-height: 1;
+  opacity: .78;
+}
+
+.board-switcher-close:hover {
+  background: color-mix(in oklab, var(--bg-card) 72%, var(--border));
+  opacity: 1;
+}
+
+.board-switcher-select:focus-visible,
+.board-switcher-close:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 55%, var(--bg-card));
+  outline-offset: -2px;
 }
 
 .board-switcher-current {
@@ -4126,29 +4194,6 @@ select:disabled {
 }
 
 @media (max-width: 1180px) {
-  body:not(.board-empty) > header {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  body:not(.board-empty) .headerTopRow {
-    width: 100%;
-    justify-self: stretch;
-  }
-
-  body:not(.board-empty) .headerControls {
-    width: 100%;
-  }
-
-  body:not(.board-empty) #boardControls {
-    flex-wrap: wrap;
-  }
-
-  body:not(.board-empty) #boardTabsWrapper {
-    width: 100%;
-  }
-
   body:not(.board-empty) #boardTabs {
     padding: 0 2px;
   }
@@ -4203,6 +4248,23 @@ select:disabled {
   }
   body:not(.board-empty) > header {
     padding-left: calc(var(--spacing) + var(--planner-rail-width));
+  }
+  body:not(.board-empty) .headerTopRow {
+    align-items: center;
+    flex-direction: row;
+    justify-content: flex-end;
+    width: auto;
+  }
+  body:not(.board-empty) .headerControls {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    width: auto;
+  }
+  body:not(.board-empty) #boardControls {
+    flex-wrap: nowrap;
+  }
+  body:not(.board-empty) #boardSearchInput {
+    min-width: 108px;
   }
   body:not(.board-empty) main#board,
   body:not(.board-empty) main#board.board-view-calendar,

@@ -543,6 +543,61 @@ test('filters the board switcher to currently open boards', async ({ electronApp
   await expect(page.locator('#boardSwitcherResults')).toContainText('No matching boards');
 });
 
+test('keeps more than six boards open and routes overflow through the switcher', async ({ electronApp, boardRoot }) => {
+  const boardNames = [
+    'Long Project Alpha',
+    'Long Project Beta',
+    'Long Project Gamma',
+    'Long Project Delta',
+    'Long Project Epsilon',
+    'Long Project Zeta',
+    'Long Project Eta',
+  ];
+  const { page } = await prepareOpenBoardsPage(electronApp, boardRoot, boardNames);
+
+  await page.setViewportSize({ width: 760, height: 720 });
+  await expect(page.locator('#boardTabs .board-tab-more')).toBeVisible();
+  await expect(page.locator('#boardTabs .board-tab-add')).toBeVisible();
+  await expect(page.locator('#boardTabs .board-tab.is-active .board-tab-label')).toHaveText('Playwright Board');
+  await expect.poll(async () => page.evaluate(() => {
+    const searchInput = document.getElementById('boardSearchInput');
+    const visibleTabs = [...document.querySelectorAll('#boardTabs .board-tab')]
+      .filter((tab) => !tab.classList.contains('hidden') && !tab.classList.contains('is-overflow-hidden'));
+
+    if (!searchInput || visibleTabs.length === 0) {
+      return false;
+    }
+
+    const searchRect = searchInput.getBoundingClientRect();
+    const tabRects = visibleTabs.map((tab) => tab.getBoundingClientRect());
+    const maxTabRight = Math.max(...tabRects.map((rect) => rect.right));
+    const minTabTop = Math.min(...tabRects.map((rect) => rect.top));
+    const maxTabBottom = Math.max(...tabRects.map((rect) => rect.bottom));
+    const tabsShareSearchRow = maxTabBottom > searchRect.top && searchRect.bottom > minTabTop;
+
+    return tabsShareSearchRow && maxTabRight <= searchRect.left - 1;
+  })).toBe(true);
+  await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem('openBoardPaths') || '[]').length)).toBe(8);
+
+  await page.locator('#boardTabs .board-tab-more .board-tab-label').click();
+  await expect(page.locator('#modalBoardSwitcher')).toBeVisible();
+  await expect(page.locator('.board-switcher-option')).toHaveCount(8);
+  await expect(page.locator('.board-switcher-option-title')).toContainText([
+    'Playwright Board',
+    ...boardNames,
+  ]);
+
+  await page
+    .locator('.board-switcher-option')
+    .filter({ hasText: 'Long Project Eta' })
+    .locator('.board-switcher-close')
+    .click();
+
+  await expect(page.locator('.board-switcher-option')).toHaveCount(7);
+  await expect(page.locator('#boardSwitcherResults')).not.toContainText('Long Project Eta');
+  await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem('openBoardPaths') || '[]').length)).toBe(7);
+});
+
 test('opens Planner across currently open boards', async ({ electronApp, boardRoot }) => {
   const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
   const todayIso = formatLocalIsoDate();

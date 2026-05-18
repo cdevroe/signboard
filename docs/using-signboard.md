@@ -42,7 +42,9 @@ If the directory is empty, Signboard creates a starter board with:
 
 It also creates a starter card that explains the basics. 👋
 
-You can switch between multiple projects using the board tabs across the top of the window. Press `Cmd/Ctrl + K` from any screen to open the quick board switcher, then type an open board name and press `Enter`.
+You can switch between multiple projects using the board tabs across the top of the window. Signboard does not cap the number of open boards; when they no longer fit, the tab strip shows an `N more` control that opens the quick board switcher.
+
+Press `Cmd/Ctrl + K` from any screen to open the quick board switcher, then type an open board name and press `Enter`. You can also close open boards from the switcher result list.
 
 ## Work with Lists
 

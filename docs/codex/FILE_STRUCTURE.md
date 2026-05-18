@@ -35,8 +35,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban-only board view state, Calendar/This Week layout helpers, temporal card placement by card due/task due markers, and source-list/source-board pills on temporal cards.
 - `app/board/plannerView.js` - Workspace-level Planner overlay with Calendar, This Week, Day, and Agenda views across currently open boards, all/current/custom board scope controls, Planner-local search/date/completed-card/board/active-board-label filters, left-rail open/close behavior, and Planner card opening that switches the active board when needed.
 - `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing, detail-pane rendering, incremental result loading, and restore flows.
-- `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder) plus the shared safe board-switch helper used by tab clicks and the switcher.
-- `app/board/boardSwitcher.js` - Quick board switcher overlay for `Cmd/Ctrl + K`, filtering currently open board tabs and delegating selected board changes to the shared switch helper.
+- `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder), responsive `N more` overflow for unbounded open boards, plus the shared safe board-switch helper used by tab clicks and the switcher.
+- `app/board/boardSwitcher.js` - Quick board switcher overlay for `Cmd/Ctrl + K`, filtering and closing currently open boards and delegating selected board changes to the shared switch helper.
 - `app/cards/createCardElement.js` - Card DOM rendering, task progress badge display, and click behavior.
 - `app/cards/processAddNewCard.js` - New card creation flow, including optional create-and-open behavior.
 - `app/cards/processAddNewList.js` - New list creation flow.
