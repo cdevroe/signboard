@@ -4,12 +4,12 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board switcher/settings/theme shortcuts) + optional Quick Add global shortcut registration + renderer right-click text editing context menu + archive browse/restore + top-of-list card move IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + opt-in localhost External Published Calendar server + native menu/accelerators (including board switcher/settings/theme shortcuts) + optional Quick Add global shortcut registration + renderer right-click text editing context menu + archive browse/restore + top-of-list card move IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
 - `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
-- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and main-process-triggered renderer events, including board switcher/view/settings/Quick Add events, archive browse/read/restore, and top-of-list card move calls.
+- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and main-process-triggered renderer events, including board switcher/view/settings/Quick Add events, clipboard text copy, archive browse/read/restore, and top-of-list card move calls.
 - `index.html` - App shell, header board tab strip, left-edge Planner rail/overlay markup, fixed Sponsor pill, board-menu view/archive/switcher modal markup (including `#boardViewButton`, `#modalKeyboardShortcuts`, `#modalBoardSwitcher`, and `#modalArchiveBrowser`), and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `docs/release-template.md` - Curated GitHub release-body template for public download links.
@@ -29,7 +29,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, all/open task due-date sets, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and incomplete task due markers, skipping completed workflow lists.
 - `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, and drag text-selection lock used by Kanban and temporal card drag/drop.
-- `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification/Quick Add global shortcut controls, persistence scheduling, and one-time migration from legacy board settings.
+- `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification/Quick Add global shortcut/External Published Calendar controls, persistence scheduling, and one-time migration from legacy board settings.
 - `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with date filters ignoring completed task due markers and completed workflow lists), card label popovers, Settings modal board panels, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
 - `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card due/open task due markers, and source-list/source-board pills on temporal cards.
@@ -60,8 +60,9 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/cardLifecycle.js` - Shared card lifecycle metadata helper for `createdAt`, compact `activity` trails, archive frontmatter state, and moved/restored transitions.
 - `lib/cardOrdering.js` - Shared list-card ordering helper used by main-process/MCP restore and move flows to insert a card at the top while renumbering existing files.
 - `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
-- `lib/boardLabels.js` - Board-level label/theme/workflow settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
-- `lib/appSettings.js` - App-wide tooltip/notification/Quick Add global shortcut settings normalization and JSON persistence under Electron `userData`.
+- `lib/boardLabels.js` - Board-level label/theme/workflow/External Published Calendar inclusion settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
+- `lib/appSettings.js` - App-wide tooltip/notification/Quick Add global shortcut/External Published Calendar settings normalization and JSON persistence under Electron `userData`.
+- `lib/externalPublishedCalendar.js` - External Published Calendar event collection and iCalendar feed generation for card due dates and incomplete task due markers.
 - `lib/importers/index.js` - Export surface for board importers.
 - `lib/importers/shared.js` - Shared importer helpers for list/card creation, label reuse/creation, metadata section building, and markdown source discovery.
 - `lib/importers/trello.js` - Trello JSON importer.
@@ -80,6 +81,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-board-views.js` - Kanban/Table/Planner rendering and filter helper assertions.
 - `scripts/test-archive.js` - Archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.
 - `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
+- `scripts/test-external-published-calendar.js` - External Published Calendar assertions for ICS generation, completed-list skipping, checked-task skipping, and board opt-out.
 - `scripts/test-import-trello.js` - Trello importer assertions for order, label reuse, archive routing, and metadata preservation.
 - `scripts/test-import-obsidian.js` - Obsidian importer assertions for kanban/task/CardBoard cases, due conversion, and source-prefix naming.
 - `scripts/test-task-list-parser.js` - Task checklist parser assertions (`completed/total` and task due-date extraction).
@@ -110,8 +112,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `build/entitlements.mac.plist` - macOS hardened runtime entitlements.
 - `dist/` - Build outputs and unpacked platform artifacts (generated).
-- `board-settings.md` (runtime, per board folder) - Board settings frontmatter file for labels/color scheme/workflow data; legacy tooltip/notification fields are migrated to app settings and removed on rewrite.
-- `app-settings.json` (runtime, Electron `userData`) - App-wide tooltip, notification, and Quick Add global shortcut preferences.
+- `board-settings.md` (runtime, per board folder) - Board settings frontmatter file for labels/color scheme/workflow/External Published Calendar inclusion data; legacy tooltip/notification fields are migrated to app settings and removed on rewrite.
+- `app-settings.json` (runtime, Electron `userData`) - App-wide tooltip, notification, Quick Add global shortcut, and External Published Calendar preferences.
 
 ## Usually ignored for code tasks
 

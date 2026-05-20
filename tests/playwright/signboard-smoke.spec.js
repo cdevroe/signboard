@@ -887,6 +887,30 @@ test('opens settings from the renderer keyboard shortcut', async ({ page }) => {
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
   await expect(page.locator('#modalBoardSettings h2')).toHaveText('Settings');
   await expect(page.locator('#boardSettingsPanelApp')).toBeVisible();
+
+  const switchLabelStyles = await page.locator('label[for="boardSettingsTooltipsToggle"]').evaluate((element) => {
+    const styles = window.getComputedStyle(element);
+    return {
+      display: styles.display,
+      marginBottom: styles.marginBottom,
+      textTransform: styles.textTransform,
+    };
+  });
+  expect(switchLabelStyles.display).toContain('flex');
+  expect(switchLabelStyles.marginBottom).toBe('0px');
+  expect(switchLabelStyles.textTransform).toBe('none');
+
+  const notificationsDetails = page.locator('#boardSettingsNotificationsDetails');
+  await expect(notificationsDetails).toBeHidden();
+  await expect(notificationsDetails).toHaveAttribute('aria-hidden', 'true');
+
+  await page.locator('label[for="boardSettingsNotificationsToggle"]').click();
+  await expect(notificationsDetails).toBeVisible();
+  await expect(notificationsDetails).toHaveAttribute('aria-hidden', 'false');
+
+  await page.locator('label[for="boardSettingsNotificationsToggle"]').click();
+  await expect(notificationsDetails).toBeHidden();
+  await expect(notificationsDetails).toHaveAttribute('aria-hidden', 'true');
 });
 
 test('opens Planner from an active editor view shortcut after closing the editor', async ({ page }) => {
@@ -1139,6 +1163,80 @@ test('persists the global quick add shortcut setting', async ({ page }) => {
     });
   }).toBe('CommandOrControl+Shift+Space');
   await expect(shortcutInput).toHaveValue('CommandOrControl+Shift+Space');
+});
+
+test('publishes the External Published Calendar and respects board opt-out', async ({ page, boardRoot, request }) => {
+  await cardFrontmatter.updateFrontmatter(
+    path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md'),
+    { due: '2026-04-05' },
+  );
+
+  await openBoardMenu(page);
+  await page.locator('#openBoardSettings').click();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+
+  const calendarToggle = page.locator('#boardSettingsExternalCalendarToggle');
+  const calendarStatus = page.locator('#boardSettingsExternalCalendarStatus');
+  const calendarPortGroup = page.locator('#boardSettingsExternalCalendarPortGroup');
+  const calendarUrlGroup = page.locator('#boardSettingsExternalCalendarUrlGroup');
+  const calendarUrlInput = page.locator('#boardSettingsExternalCalendarUrl');
+
+  await expect(calendarToggle).not.toBeChecked();
+  await expect(calendarPortGroup).toBeHidden();
+  await expect(calendarPortGroup).toHaveAttribute('aria-hidden', 'true');
+  await expect(calendarUrlGroup).toBeHidden();
+  await expect(calendarUrlGroup).toHaveAttribute('aria-hidden', 'true');
+
+  await page.locator('label[for="boardSettingsExternalCalendarToggle"]').click();
+  await expect(calendarToggle).toBeChecked();
+  await expect(calendarPortGroup).toBeVisible();
+  await expect(calendarPortGroup).toHaveAttribute('aria-hidden', 'false');
+  await expect(calendarUrlGroup).toBeVisible();
+  await expect(calendarUrlGroup).toHaveAttribute('aria-hidden', 'false');
+
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      const settings = await window.electronAPI.readAppSettings();
+      return {
+        enabled: settings.externalPublishedCalendar.enabled,
+        running: settings.externalPublishedCalendarStatus.running,
+        url: settings.externalPublishedCalendarStatus.url,
+      };
+    });
+  }).toMatchObject({
+    enabled: true,
+    running: true,
+  });
+
+  await expect(calendarStatus).toContainText('Publishing');
+  await expect(calendarUrlInput).toHaveValue(/http:\/\/127\.0\.0\.1:48273\/external-published-calendar\/.+\.ics/);
+
+  const calendarUrl = await calendarUrlInput.inputValue();
+  const response = await request.get(calendarUrl);
+  expect(response.ok()).toBe(true);
+  const feed = await response.text();
+  expect(feed).toContain('BEGIN:VCALENDAR');
+  expect(feed).toContain('SUMMARY:Plan release notes');
+
+  await page.locator('#boardSettingsNavWorkflow').click();
+  const includeToggle = page.locator('#boardSettingsExternalCalendarIncludeToggle');
+  await expect(includeToggle).toBeChecked();
+  await page.locator('label[for="boardSettingsExternalCalendarIncludeToggle"]').click();
+  await expect(includeToggle).not.toBeChecked();
+  await page.locator('#boardSettingsClose').click();
+  await expect(page.locator('#modalBoardSettings')).toBeHidden();
+
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      const settings = await window.board.readBoardSettings(window.boardRoot);
+      return settings.externalPublishedCalendar.include;
+    });
+  }).toBe(false);
+
+  const optedOutResponse = await request.get(calendarUrl);
+  expect(optedOutResponse.ok()).toBe(true);
+  const optedOutFeed = await optedOutResponse.text();
+  expect(optedOutFeed).not.toContain('SUMMARY:Plan release notes');
 });
 
 test('opens the sponsorship modal from the fixed pill button', async ({ page }) => {

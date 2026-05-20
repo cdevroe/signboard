@@ -6,8 +6,8 @@ Signboard is a local-first board app built with Electron and plain JavaScript. B
 - A board is a folder on disk.
 - Lists are subdirectories inside that board folder.
 - Cards are Markdown files in each list directory.
-- Board-level settings are stored in `board-settings.md` at the board root, including labels, color scheme data, and completed-list workflow rules.
-- App-level tooltip, notification, and Quick Add global shortcut settings are stored in `app-settings.json` under Electron `userData`.
+- Board-level settings are stored in `board-settings.md` at the board root, including labels, color scheme data, completed-list workflow rules, and whether the board participates in External Published Calendar.
+- App-level tooltip, notification, Quick Add global shortcut, and External Published Calendar settings are stored in `app-settings.json` under Electron `userData`.
 - Card metadata is stored in YAML frontmatter (with legacy parser support).
 - Task checklist lines in card bodies can store task due markers with `(due: YYYY-MM-DD)`.
 
@@ -26,6 +26,7 @@ File: `main.js`
 - Registers IPC handler `check-for-updates` for renderer-triggered manual update checks.
 - Builds a native app menu with board view, Settings, theme, and `Check for Updates...` actions.
 - Registers the optional app-level Quick Add global shortcut with Electron `globalShortcut` while Signboard is running; the shortcut focuses the main window and opens the same renderer Quick Add card modal as `Cmd/Ctrl + N`.
+- Runs the opt-in External Published Calendar HTTP server on `127.0.0.1:<port>` while enabled, protected by a stable per-install token in the subscription URL.
 - Help menu includes `Copy MCP Config` to copy a ready-to-paste Signboard MCP JSON snippet.
 - In unpackaged/dev mode, Help menu includes `Preview Update Available...` and `Preview Update Ready...` to test updater dialogs without downloading/installing.
 - Uses `electron-updater` against GitHub Releases for automatic and manual update checks.
@@ -52,7 +53,7 @@ File: `main.js`
 File: `preload.js`
 
 - Exposes `window.board`, `window.chooser`, and `window.electronAPI`.
-- `window.electronAPI` includes external-link opening, manual update checks, app settings reads/writes, Quick Add global shortcut status, one-time migration from legacy board-level tooltip/notification settings, and main-process-triggered renderer events such as board view switching and Quick Add.
+- `window.electronAPI` includes external-link opening, clipboard text copying, manual update checks, app settings reads/writes, Quick Add global shortcut status, one-time migration from legacy board-level tooltip/notification settings, and main-process-triggered renderer events such as board view switching and Quick Add.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
 - Archive browsing uses preload bridge methods (`listArchiveEntries`, `readArchiveEntry`, `restoreArchivedCard`, `restoreArchivedList`) backed by the same trusted-board gate as normal board operations.
@@ -67,7 +68,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
 - The left-edge Planner rail and overlay markup live in `index.html`; Planner covers the board header/tabs while open and is hidden when no boards are open.
 - `app/signboard.js` is concatenated from source modules by `buildjs.sh`.
-- Settings includes app-level tooltip/notification/Quick Add global shortcut controls and board-specific General, Workflow, Labels, Colors, and Import sections, with import summary/warning rendering in the existing settings modal.
+- Settings includes app-level tooltip/notification/Quick Add global shortcut/External Published Calendar controls and board-specific General, Workflow, Labels, Colors, and Import sections, with import summary/warning rendering in the existing settings modal.
 - The sponsorship modal is available from the Board menu "Sponsor" item, About modal, and a fixed bottom-right "Sponsor" pill that hides on compact windows so it does not cover lists.
 - The Board menu now opens a dedicated Archive browser modal; Archive remains hidden from normal board rendering and is not a fourth board view.
 - The quick board switcher is a top-center renderer overlay opened with `Cmd/Ctrl + K`; it searches all currently open boards, supports closing boards, and switches through the same safe board transition helper as tab and overflow-tab clicks.
@@ -78,7 +79,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `window.boardRoot` is the absolute board path with trailing slash.
 - Open board tabs are persisted in `localStorage.openBoardPaths` without a hard count limit; the visible tab strip collapses excess tabs behind an `N more` control.
 - Active board root is persisted in `localStorage.activeBoardPath` and mirrored in legacy `localStorage.boardPath` for backward compatibility.
-- `board-settings.md` is auto-created with default label definitions when missing; legacy tooltip/notification keys are read for app-settings migration and removed on rewrite.
+- `board-settings.md` is auto-created with default label definitions when missing; legacy tooltip/notification keys are read for app-settings migration and removed on rewrite; board-level External Published Calendar inclusion defaults on and only serializes when disabled.
 - Imports are additive only: they create new lists/cards in the current board and never modify external source files.
 
 ### List directories
@@ -317,7 +318,14 @@ File: `lib/boardLabels.js`
 - Creates default labels when settings are missing.
 - Migrates legacy `labels.md` reads into `board-settings.md`.
 - Normalizes completed-list workflow settings under `workflow`, defaulting auto-detection on for common list names while preserving manual completed and ignored-list overrides.
+- Normalizes board-level External Published Calendar inclusion under `externalPublishedCalendar`.
 - Exposes OR-based label filtering helper logic.
+
+File: `lib/externalPublishedCalendar.js`
+
+- Collects External Published Calendar events from trusted board roots that have not opted out.
+- Emits iCalendar all-day events for card due dates and incomplete task due markers.
+- Skips completed-list cards and checked task due markers so the feed matches actionable Planner/date-filter behavior.
 
 ## Importers
 Files: `lib/importers/*`
@@ -427,7 +435,12 @@ CLI overdue behavior:
 ### App settings tests
 - `npm run test:app-settings`
 - Script: `scripts/test-app-settings.js`
-- Covers app-wide tooltip/notification/Quick Add shortcut settings persistence and one-time migration from legacy board settings.
+- Covers app-wide tooltip/notification/Quick Add shortcut/External Published Calendar settings persistence and one-time migration from legacy board settings.
+
+### External Published Calendar tests
+- `npm run test:external-calendar`
+- Script: `scripts/test-external-published-calendar.js`
+- Covers iCalendar generation, incomplete-task filtering, completed-list filtering, and board-level opt-out behavior.
 
 ### Legacy migration
 - `npm run migrate:legacy-cards -- <board-root> [--dry-run] [--include-plain]`

@@ -30,6 +30,7 @@ async function run() {
       completedListNames: [],
       ignoredCompletedListNames: [],
     });
+    assert.deepStrictEqual(defaults.externalPublishedCalendar, { include: true });
 
     const settingsPath = path.join(boardPath, 'board-settings.md');
     const writtenRaw = await fs.readFile(settingsPath, 'utf8');
@@ -77,6 +78,9 @@ async function run() {
         autoDetectCompletedLists: false,
         completedListNames: ['003-Done-abc12'],
       },
+      externalPublishedCalendar: {
+        include: false,
+      },
     });
     const clearedOverrides = await readBoardSettings(boardPath);
     assert.deepStrictEqual(clearedOverrides.themeOverrides, { light: {}, dark: {} });
@@ -86,6 +90,9 @@ async function run() {
       completedListNames: ['003-Done-abc12'],
       ignoredCompletedListNames: [],
     });
+    assert.deepStrictEqual(clearedOverrides.externalPublishedCalendar, { include: false });
+    const clearedRaw = await fs.readFile(settingsPath, 'utf8');
+    assert(clearedRaw.includes('externalPublishedCalendar:'), 'board calendar publishing opt-out should be persisted');
 
     const legacyAppBoardPath = path.join(tmpDir, 'board-app-legacy');
     await fs.mkdir(legacyAppBoardPath, { recursive: true });

@@ -9,6 +9,7 @@ const { autoUpdater } = require('electron-updater');
 const { randomUUID } = require('crypto');
 const fs = require('fs');
 const fsPromises = fs.promises;
+const http = require('http');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
@@ -25,6 +26,7 @@ const {
 } = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
 const appSettings = require('./lib/appSettings');
+const { buildExternalPublishedCalendarFeed } = require('./lib/externalPublishedCalendar');
 const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
@@ -137,6 +139,15 @@ let quickAddGlobalShortcutStatus = {
   accelerator: '',
   registered: false,
   message: '',
+};
+let externalPublishedCalendarServer = null;
+let externalPublishedCalendarSettings = appSettings.DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS();
+let externalPublishedCalendarStatus = {
+  enabled: false,
+  running: false,
+  port: externalPublishedCalendarSettings.port,
+  url: '',
+  message: 'Disabled',
 };
 
 function isMcpPowerSaveBlockerActive() {
@@ -741,6 +752,18 @@ async function listBoardDirectories(boardRoot, options = {}) {
     .filter((entryName) => includeArchive || entryName !== 'XXX-Archive');
 }
 
+async function listMarkdownCardFileNames(listPath) {
+  const entries = await fsPromises.readdir(listPath, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+    .map((entry) => entry.name)
+    .sort((left, right) => left.localeCompare(right, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+      ignorePunctuation: true,
+    }));
+}
+
 function sanitizeImportedName(value) {
   return String(value || '').replace(/[<>:"/\\|?*\x00-\x1F]/g, '').trim() || 'untitled';
 }
@@ -1255,13 +1278,6 @@ function getQuickAddGlobalShortcutStatus() {
   return { ...quickAddGlobalShortcutStatus };
 }
 
-function withRuntimeAppSettings(settings) {
-  return {
-    ...settings,
-    globalShortcutStatus: getQuickAddGlobalShortcutStatus(),
-  };
-}
-
 function unregisterQuickAddGlobalShortcut() {
   if (!registeredQuickAddGlobalShortcut || !globalShortcut) {
     registeredQuickAddGlobalShortcut = '';
@@ -1335,20 +1351,209 @@ function applyQuickAddGlobalShortcut(settings = {}) {
   return getQuickAddGlobalShortcutStatus();
 }
 
+function getExternalPublishedCalendarUrl(settings = externalPublishedCalendarSettings) {
+  const normalizedSettings = appSettings.normalizeExternalPublishedCalendarSettings(settings);
+  if (!normalizedSettings.enabled || !normalizedSettings.token) {
+    return '';
+  }
+
+  return `http://127.0.0.1:${normalizedSettings.port}/external-published-calendar/${encodeURIComponent(normalizedSettings.token)}.ics`;
+}
+
+function getExternalPublishedCalendarStatus() {
+  return {
+    ...externalPublishedCalendarStatus,
+    url: getExternalPublishedCalendarUrl(externalPublishedCalendarSettings),
+  };
+}
+
+function withRuntimeAppSettings(settings) {
+  return {
+    ...settings,
+    globalShortcutStatus: getQuickAddGlobalShortcutStatus(),
+    externalPublishedCalendarStatus: getExternalPublishedCalendarStatus(),
+  };
+}
+
+async function stopExternalPublishedCalendarServer() {
+  if (!externalPublishedCalendarServer) {
+    return;
+  }
+
+  const server = externalPublishedCalendarServer;
+  externalPublishedCalendarServer = null;
+
+  await new Promise((resolve) => {
+    server.close(() => resolve());
+  });
+}
+
+async function createExternalPublishedCalendarFeed() {
+  const boardRoots = Array.from(readTrustedBoardRoots());
+  return buildExternalPublishedCalendarFeed({
+    boardRoots,
+    readBoardSettings: (boardRoot) => boardLabels.readBoardSettings(boardRoot, { ensureFile: false }),
+    listLists: (boardRoot) => listBoardDirectories(boardRoot),
+    listCards: (listPath) => listMarkdownCardFileNames(listPath),
+    readCard: (cardPath) => cardFrontmatter.readCard(cardPath),
+    getBoardName: (boardRoot) => path.basename(String(boardRoot || '').replace(/[\\/]+$/, '')),
+  });
+}
+
+async function handleExternalPublishedCalendarRequest(request, response) {
+  const settings = appSettings.normalizeExternalPublishedCalendarSettings(externalPublishedCalendarSettings);
+  const expectedPath = settings.token
+    ? `/external-published-calendar/${encodeURIComponent(settings.token)}.ics`
+    : '';
+
+  try {
+    const requestUrl = new URL(request.url || '/', `http://127.0.0.1:${settings.port}`);
+    if (requestUrl.pathname !== expectedPath) {
+      response.writeHead(requestUrl.pathname.startsWith('/external-published-calendar/') ? 403 : 404, {
+        'Content-Type': 'text/plain; charset=utf-8',
+      });
+      response.end('Not found');
+      return;
+    }
+
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      response.writeHead(405, {
+        Allow: 'GET, HEAD',
+        'Content-Type': 'text/plain; charset=utf-8',
+      });
+      response.end('Method not allowed');
+      return;
+    }
+
+    const feed = request.method === 'HEAD' ? '' : await createExternalPublishedCalendarFeed();
+    response.writeHead(200, {
+      'Cache-Control': 'no-store',
+      'Content-Disposition': 'inline; filename="signboard-external-published-calendar.ics"',
+      'Content-Type': 'text/calendar; charset=utf-8',
+    });
+    response.end(feed);
+  } catch (error) {
+    console.error('Failed to serve External Published Calendar feed.', error);
+    response.writeHead(500, {
+      'Content-Type': 'text/plain; charset=utf-8',
+    });
+    response.end('Unable to build calendar feed');
+  }
+}
+
+async function startExternalPublishedCalendarServer(settings) {
+  const normalizedSettings = appSettings.normalizeExternalPublishedCalendarSettings(settings);
+  if (
+    externalPublishedCalendarServer &&
+    externalPublishedCalendarStatus.running &&
+    externalPublishedCalendarSettings.port === normalizedSettings.port &&
+    externalPublishedCalendarSettings.token === normalizedSettings.token
+  ) {
+    externalPublishedCalendarSettings = normalizedSettings;
+    externalPublishedCalendarStatus = {
+      enabled: true,
+      running: true,
+      port: normalizedSettings.port,
+      url: getExternalPublishedCalendarUrl(normalizedSettings),
+      message: 'Publishing',
+    };
+    return;
+  }
+
+  await stopExternalPublishedCalendarServer();
+  externalPublishedCalendarSettings = normalizedSettings;
+
+  await new Promise((resolve) => {
+    const server = http.createServer((request, response) => {
+      handleExternalPublishedCalendarRequest(request, response);
+    });
+
+    server.on('error', (error) => {
+      if (externalPublishedCalendarServer === server) {
+        externalPublishedCalendarServer = null;
+      }
+      externalPublishedCalendarStatus = {
+        enabled: true,
+        running: false,
+        port: normalizedSettings.port,
+        url: getExternalPublishedCalendarUrl(normalizedSettings),
+        message: error && error.code === 'EADDRINUSE'
+          ? 'Port unavailable'
+          : 'Unable to publish',
+      };
+      console.error('Failed to start External Published Calendar server.', error);
+      resolve();
+    });
+
+    server.listen(normalizedSettings.port, '127.0.0.1', () => {
+      externalPublishedCalendarServer = server;
+      externalPublishedCalendarStatus = {
+        enabled: true,
+        running: true,
+        port: normalizedSettings.port,
+        url: getExternalPublishedCalendarUrl(normalizedSettings),
+        message: 'Publishing',
+      };
+      resolve();
+    });
+  });
+}
+
+async function applyExternalPublishedCalendarSettings(settings = {}) {
+  const normalizedSettings = appSettings.normalizeAppSettings(settings).externalPublishedCalendar;
+  externalPublishedCalendarSettings = normalizedSettings;
+
+  if (!normalizedSettings.enabled) {
+    await stopExternalPublishedCalendarServer();
+    externalPublishedCalendarStatus = {
+      enabled: false,
+      running: false,
+      port: normalizedSettings.port,
+      url: '',
+      message: 'Disabled',
+    };
+    return;
+  }
+
+  await startExternalPublishedCalendarServer(normalizedSettings);
+}
+
+async function ensureExternalPublishedCalendarToken(settings = {}) {
+  const normalizedSettings = appSettings.normalizeAppSettings(settings);
+  if (
+    !normalizedSettings.externalPublishedCalendar.enabled ||
+    normalizedSettings.externalPublishedCalendar.token
+  ) {
+    return normalizedSettings;
+  }
+
+  return appSettings.updateAppSettings(app.getPath('userData'), {
+    externalPublishedCalendar: {
+      ...normalizedSettings.externalPublishedCalendar,
+      token: randomUUID(),
+    },
+  });
+}
+
 async function readAppSettingsWithRuntimeStatus() {
-  const settings = await appSettings.readAppSettings(app.getPath('userData'));
+  const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
+  const settings = await ensureExternalPublishedCalendarToken(rawSettings);
   return withRuntimeAppSettings(settings);
 }
 
 async function updateAppSettingsWithRuntimeStatus(partialSettings = {}) {
-  const settings = await appSettings.updateAppSettings(app.getPath('userData'), partialSettings);
+  const rawSettings = await appSettings.updateAppSettings(app.getPath('userData'), partialSettings);
+  const settings = await ensureExternalPublishedCalendarToken(rawSettings);
   applyQuickAddGlobalShortcut(settings);
+  await applyExternalPublishedCalendarSettings(settings);
   return withRuntimeAppSettings(settings);
 }
 
-async function initializeGlobalShortcuts() {
-  const settings = await appSettings.readAppSettings(app.getPath('userData'));
+async function initializeAppRuntimeSettings() {
+  const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
+  const settings = await ensureExternalPublishedCalendarToken(rawSettings);
   applyQuickAddGlobalShortcut(settings);
+  await applyExternalPublishedCalendarSettings(settings);
 }
 
 function buildMcpConfigTemplate() {
@@ -2152,15 +2357,7 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
 
     case 'listCards': {
       const listPath = requireReadablePath(event.sender, args[0]);
-      const entries = await fsPromises.readdir(listPath, { withFileTypes: true });
-      return entries
-        .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
-        .map((entry) => entry.name)
-        .sort((left, right) => left.localeCompare(right, undefined, {
-          numeric: true,
-          sensitivity: 'base',
-          ignorePunctuation: true,
-        }));
+      return listMarkdownCardFileNames(listPath);
     }
 
     case 'countCards': {
@@ -2621,6 +2818,11 @@ ipcMain.handle('update-app-settings', async (_event, partialSettings = {}) => (
 
 ipcMain.handle('get-global-shortcut-status', async () => getQuickAddGlobalShortcutStatus());
 
+ipcMain.handle('copy-text-to-clipboard', async (_event, text = '') => {
+  clipboard.writeText(String(text || ''));
+  return { ok: true };
+});
+
 ipcMain.handle('migrate-app-settings-from-board', async (event, boardRoot) => {
   const normalizedBoardRoot = requireReadableBoardRoot(event.sender, boardRoot);
   const legacySettings = await boardLabels.readLegacyBoardAppSettings(normalizedBoardRoot);
@@ -2723,7 +2925,7 @@ app.whenReady().then(async () => {
   }
 
   await loadUpdatePreferences();
-  await initializeGlobalShortcuts();
+  await initializeAppRuntimeSettings();
   createWindow();
   buildApplicationMenu();
   setupAutoUpdater();
@@ -2751,6 +2953,11 @@ app.on('before-quit', () => {
   if (updateState.checkIntervalId) {
     clearInterval(updateState.checkIntervalId);
     updateState.checkIntervalId = null;
+  }
+
+  if (externalPublishedCalendarServer) {
+    externalPublishedCalendarServer.close();
+    externalPublishedCalendarServer = null;
   }
 });
 

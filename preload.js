@@ -83,6 +83,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateAppSettings: (partialSettings) => ipcRenderer.invoke('update-app-settings', partialSettings),
   getGlobalShortcutStatus: () => ipcRenderer.invoke('get-global-shortcut-status'),
   migrateAppSettingsFromBoard: (boardRoot) => ipcRenderer.invoke('migrate-app-settings-from-board', boardRoot),
+  copyTextToClipboard: (text) => ipcRenderer.invoke('copy-text-to-clipboard', text),
   openExternal: (url) => ipcRenderer.invoke('open-external-url', url),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   notifyDueCards: (payload) => ipcRenderer.invoke('notify-due-cards', payload),

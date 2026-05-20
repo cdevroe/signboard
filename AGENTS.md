@@ -21,6 +21,7 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - External board-change sync should refresh board cards and unchanged open card editors after MCP/card-file edits without overwriting local editor changes.
 - The sponsorship modal opens from the Board menu "Sponsor" action, About modal action, and fixed bottom-right "Sponsor" pill; the pill hides on compact windows to avoid covering board lists.
 - Quick Add card creation supports board/list selection across open boards, an optional app-level global shortcut while Signboard is running, and `Shift + Enter` to create, immediately open, and focus the notes field on the new card.
+- External Published Calendar is opt-in in App Settings, served only on `127.0.0.1`, and board inclusion is controlled in each board's Workflow settings.
 - Completed-list workflow settings live in board settings; Planner, board date filters, and due notifications treat completed-list cards as non-actionable by default while preserving due dates.
 - Completed task-list item due markers should not keep cards in Planner/date-filter views; only incomplete task due markers should place cards there.
 - Keep agent-facing docs up to date: [CODEX.md](./CODEX.md), [AGENTS.md](./AGENTS.md), [docs/codex/PROJECT_CONTEXT.md](./docs/codex/PROJECT_CONTEXT.md), and [docs/codex/FILE_STRUCTURE.md](./docs/codex/FILE_STRUCTURE.md).

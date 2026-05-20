@@ -450,7 +450,7 @@
               </label>
             </div>
           </div>
-          <div class="board-settings-group">
+          <div id="boardSettingsNotificationsDetails" class="board-settings-group hidden" aria-hidden="true">
             <label for="boardSettingsNotificationsTime">Notification time (local)</label>
             <input id="boardSettingsNotificationsTime" type="text" value="09:00" placeholder="HH:MM" inputmode="numeric" maxlength="5" width="10" pattern="(?:0[1-9]|1[0-9]|2[0-4]):[0-5][0-9]">
             <p class="boardSettingsHint">Use HH:MM in 24-hour format. Hours can be 01 through 24 (example: 21:30).</p>
@@ -462,6 +462,32 @@
               <span id="boardSettingsQuickAddShortcutStatus" class="board-settings-status">Disabled</span>
             </div>
             <p class="boardSettingsHint">Leave blank to disable. Signboard must be open.</p>
+          </div>
+          <div class="board-settings-group">
+            <div class="board-settings-toggle-row">
+              <div>
+                <p class="boardSettingsHint boardSettingsHintTight">External Published Calendar</p>
+                <p class="boardSettingsHint">Publish a read-only local iCalendar feed while Signboard is open.</p>
+              </div>
+              <label class="board-settings-switch" for="boardSettingsExternalCalendarToggle" title="Enable External Published Calendar">
+                <input id="boardSettingsExternalCalendarToggle" type="checkbox" role="switch" aria-label="Enable External Published Calendar">
+                <span class="board-settings-switch-track" aria-hidden="true"></span>
+              </label>
+            </div>
+          </div>
+          <div id="boardSettingsExternalCalendarPortGroup" class="board-settings-group hidden" aria-hidden="true">
+            <label for="boardSettingsExternalCalendarPort">Calendar feed port</label>
+            <input id="boardSettingsExternalCalendarPort" type="number" min="1024" max="65535" step="1" value="48273" inputmode="numeric">
+            <p class="boardSettingsHint">Use another port only if the default local URL is unavailable.</p>
+          </div>
+          <div id="boardSettingsExternalCalendarUrlGroup" class="board-settings-group hidden" aria-hidden="true">
+            <label for="boardSettingsExternalCalendarUrl">Calendar subscription URL</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsExternalCalendarUrl" type="text" readonly spellcheck="false" autocomplete="off">
+              <button id="btnCopyExternalCalendarUrl" type="button" title="Copy calendar subscription URL">Copy URL</button>
+              <span id="boardSettingsExternalCalendarStatus" class="board-settings-status">Disabled</span>
+            </div>
+            <p class="boardSettingsHint">Subscribe from your calendar app using this URL. It works only while Signboard is open.</p>
           </div>
         </section>
 
@@ -504,6 +530,18 @@
             <h4 class="board-settings-subheading">Completed lists</h4>
             <p class="boardSettingsHint">Check any list that should count as finished work. Auto-detected lists can be unchecked here.</p>
             <div id="boardSettingsWorkflowLists" class="board-workflow-list-settings" aria-live="polite"></div>
+          </div>
+          <div class="board-settings-group">
+            <div class="board-settings-toggle-row">
+              <div>
+                <p class="boardSettingsHint boardSettingsHintTight">Include in External Published Calendar</p>
+                <p class="boardSettingsHint">When app-level publishing is enabled, include this board's actionable due items in the local calendar feed.</p>
+              </div>
+              <label class="board-settings-switch" for="boardSettingsExternalCalendarIncludeToggle" title="Include this board in External Published Calendar">
+                <input id="boardSettingsExternalCalendarIncludeToggle" type="checkbox" role="switch" aria-label="Include this board in External Published Calendar">
+                <span class="board-settings-switch-track" aria-hidden="true"></span>
+              </label>
+            </div>
           </div>
         </section>
 

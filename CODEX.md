@@ -8,6 +8,7 @@ Start here before opening source files.
 - Treat `app/signboard.js` as generated output; edit the source modules in `app/**` and then run `./buildjs.sh`.
 - Tooltip UI is implemented in `app/ui/tooltips.js` and reads existing control labels (`title` / `aria-label` / `alt`) to keep tooltip copy centralized in markup.
 - App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`.
+- External Published Calendar is an opt-in app setting served by a main-process HTTP server bound to `127.0.0.1`; it publishes an iCalendar feed of trusted-board card due dates and incomplete task due markers, excluding completed workflow lists and board-level opt-outs.
 - `main.js` also supports headless MCP mode via `--mcp-server` for local agent integration over stdio; implementation lives in `lib/mcpServer.js`.
 - MCP board-scoped tools use the union of `SIGNBOARD_MCP_ALLOWED_ROOTS` and the desktop app's trusted board roots from `trusted-board-roots.json`; empty allowed roots leave only non-board config/listing tools available when no trusted roots exist.
 - MCP board-name resolution searches configured/trusted roots and also matches the root directory itself, so trusted board roots can be actual board folders rather than only parent folders.
@@ -22,7 +23,7 @@ Start here before opening source files.
 - Board rendering supports Kanban by default plus a board-scoped Table view for scanning cards; Calendar, This Week, Day, and Agenda dated workflows live in Planner.
 - Planner is managed in `app/board/plannerView.js`; it appears as a left-edge overlay only when at least one board tab is open, defaults to all open boards, has a quick current-board scope toggle, and owns Calendar, This Week, Day, and Agenda views.
 - Planner search/filtering is separate from board search: it searches card title/body plus board/list source text, filters by `Today` / `Overdue`, completed-card visibility, and selected open boards, and exposes label filtering only when scoped to the active board.
-- App-level settings live in `app-settings.json` under Electron `userData` via `lib/appSettings.js`; tooltip and notification preferences migrate once from the left-most open board's legacy `board-settings.md` values and are no longer serialized into board settings, while the optional Quick Add global shortcut is stored only in app settings.
+- App-level settings live in `app-settings.json` under Electron `userData` via `lib/appSettings.js`; tooltip and notification preferences migrate once from the left-most open board's legacy `board-settings.md` values and are no longer serialized into board settings, while the optional Quick Add global shortcut and External Published Calendar settings are stored only in app settings.
 - Board-level workflow settings in `board-settings.md` auto-detect completed lists by name (`Done`, `Completed`, `Complete`, `Closed`, `Finished`, `Resolved`, `Shipped`) with manual overrides; Planner, board date filters, and due notifications hide completed-list cards by default while preserving due dates.
 - Planner uses the default Signboard palette for the active light/dark mode instead of inheriting the active board color scheme; Planner cards show `Board · List` source context with source pills tinted from each card's board color scheme.
 - Opening a Planner card switches the active board behind the overlay when needed before opening the normal editor so label and list controls remain board-correct.
@@ -36,6 +37,7 @@ Start here before opening source files.
 - New cards created through the desktop app, CLI, MCP, and importers now receive `createdAt` plus a compact `activity` trail (`created`, `moved-list`, `archived`, `restored`); active archive state lives in card frontmatter under `archive`, and archived lists persist lightweight sidecar metadata in `.signboard-archive.json`. The desktop Quick Add modal supports board/list selection across open boards and `Shift + Enter` to create, immediately open, and focus the notes field on the new card.
 - Task checklist parsing + counters + task due-date helpers live in `app/utilities/taskList.js` and feed Kanban/Table/Planner card badges.
 - Due notification aggregation/formatting (including task-due item snippets) lives in `app/utilities/dueNotifications.js` and is consumed by `app/init.js`.
+- External Published Calendar feed collection/ICS generation lives in `lib/externalPublishedCalendar.js`; keep it aligned with Planner/date-filter completed-list and checked-task behavior.
 - Task-line due-date controls in the editor are positioned from measured textarea line-start coordinates (not raw line index math) to stay aligned with wrapped content.
 - In dev/unpackaged builds, `Help` includes updater preview dialogs so update UI can be tested without publishing a release.
 - Release assets for updater compatibility are validated by `scripts/verify-release-assets.js` (`npm run release:verify`).
@@ -43,6 +45,7 @@ Start here before opening source files.
 - The in-app updater strips a `## Downloads` section from GitHub release notes before showing the "what's new" dialog, so curated download links can live in release bodies without cluttering update notes.
 - Task parser coverage tests are in `scripts/test-task-list-parser.js` (`npm run test:task-list`).
 - App settings coverage tests are in `scripts/test-app-settings.js` (`npm run test:app-settings`).
+- External Published Calendar coverage is in `scripts/test-external-published-calendar.js` (`npm run test:external-calendar`).
 - Due notification coverage tests are in `scripts/test-due-notifications.js` (`npm run test:due-notifications`).
 - Dedicated user-facing MCP setup docs are in `MCP_README.md`.
 - Release-facing user and agent docs live in `docs/README.md`, `docs/using-signboard.md`, and `docs/signboard-cli.md`.

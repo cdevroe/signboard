@@ -17,16 +17,31 @@ async function run() {
     assert.deepStrictEqual(defaults.notifications, { enabled: false, time: '09:00' });
     assert.strictEqual(defaults.tooltipsEnabled, true);
     assert.deepStrictEqual(defaults.quickAdd, { globalShortcut: '' });
+    assert.deepStrictEqual(defaults.externalPublishedCalendar, {
+      enabled: false,
+      port: 48273,
+      token: '',
+    });
     assert.strictEqual(defaults.migration.boardSettingsMigrated, false);
 
     const updated = await updateAppSettings(tmpDir, {
       notifications: { enabled: true, time: '08:30' },
       tooltipsEnabled: false,
       quickAdd: { globalShortcut: ' CommandOrControl + Shift + Space ' },
+      externalPublishedCalendar: {
+        enabled: true,
+        port: '49152',
+        token: 'calendar-token_123',
+      },
     });
     assert.deepStrictEqual(updated.notifications, { enabled: true, time: '08:30' });
     assert.strictEqual(updated.tooltipsEnabled, false);
     assert.deepStrictEqual(updated.quickAdd, { globalShortcut: 'CommandOrControl+Shift+Space' });
+    assert.deepStrictEqual(updated.externalPublishedCalendar, {
+      enabled: true,
+      port: 49152,
+      token: 'calendar-token_123',
+    });
 
     const secondTmpDir = path.join(tmpDir, 'migration');
     await fs.mkdir(secondTmpDir);
@@ -38,6 +53,11 @@ async function run() {
     assert.deepStrictEqual(migrated.settings.notifications, { enabled: true, time: '24:15' });
     assert.strictEqual(migrated.settings.tooltipsEnabled, false);
     assert.deepStrictEqual(migrated.settings.quickAdd, { globalShortcut: '' });
+    assert.deepStrictEqual(migrated.settings.externalPublishedCalendar, {
+      enabled: false,
+      port: 48273,
+      token: '',
+    });
     assert.strictEqual(migrated.settings.migration.boardSettingsMigrated, true);
     assert.strictEqual(migrated.settings.migration.sourceBoardRoot, '/tmp/first-board');
 

@@ -3427,7 +3427,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   font-size: var(--font-md);
 }
 
-.board-settings-group label {
+.board-settings-group > label:not(.board-settings-switch) {
   display: block;
   margin-bottom: 6px;
   color: var(--muted);
@@ -3508,6 +3508,11 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   min-width: 8ch;
 }
 
+#boardSettingsExternalCalendarPort {
+  width: 10ch;
+  min-width: 10ch;
+}
+
 .board-settings-toggle-row {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -3523,6 +3528,12 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  color: inherit;
+  font-size: inherit;
+  text-transform: none;
+  letter-spacing: 0;
   cursor: pointer;
 }
 

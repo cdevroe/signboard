@@ -892,6 +892,9 @@ const DEFAULT_BOARD_WORKFLOW_SETTINGS = Object.freeze({
   completedListNames: Object.freeze([]),
   ignoredCompletedListNames: Object.freeze([]),
 });
+const DEFAULT_BOARD_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS = Object.freeze({
+  include: true,
+});
 const AUTO_COMPLETED_LIST_NAME_KEYS = Object.freeze([
   'complete',
   'completed',
@@ -970,6 +973,16 @@ function normalizeBoardWorkflowSettings(rawWorkflowSettings) {
   };
 }
 
+function normalizeBoardExternalPublishedCalendarSettings(rawCalendarSettings) {
+  const source = rawCalendarSettings && typeof rawCalendarSettings === 'object'
+    ? rawCalendarSettings
+    : {};
+
+  return {
+    include: source.include === false ? false : DEFAULT_BOARD_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS.include,
+  };
+}
+
 function isBoardListCompletedByWorkflow(listName, workflowSettings = getBoardWorkflowSettings()) {
   const normalized = normalizeBoardWorkflowSettings(workflowSettings);
   const identity = normalizeBoardWorkflowListIdentity(listName);
@@ -998,6 +1011,14 @@ function setBoardWorkflowSettings(workflowSettings) {
   getBoardLabelState().workflowSettings = normalizeBoardWorkflowSettings(workflowSettings);
 }
 
+function getBoardExternalPublishedCalendarSettings() {
+  return normalizeBoardExternalPublishedCalendarSettings(getBoardLabelState().externalPublishedCalendarSettings);
+}
+
+function setBoardExternalPublishedCalendarSettings(calendarSettings) {
+  getBoardLabelState().externalPublishedCalendarSettings = normalizeBoardExternalPublishedCalendarSettings(calendarSettings);
+}
+
 function hasThemeModeOverride(themeModeOverrides) {
   return Boolean(themeModeOverrides && typeof themeModeOverrides.boardBackground === 'string' && themeModeOverrides.boardBackground.length > 0);
 }
@@ -1024,6 +1045,7 @@ function getBoardLabelState() {
       notificationSettings: { ...DEFAULT_BOARD_NOTIFICATION_SETTINGS },
       tooltipsEnabled: DEFAULT_BOARD_TOOLTIPS_ENABLED,
       workflowSettings: normalizeBoardWorkflowSettings({}),
+      externalPublishedCalendarSettings: normalizeBoardExternalPublishedCalendarSettings({}),
       workflowRenderRequestId: 0,
       activeSettingsPanel: 'app',
       importInProgress: '',
@@ -2126,9 +2148,11 @@ function persistBoardSettings(options = {}) {
         colorScheme: getBoardColorScheme(),
         themeOverrides: getBoardThemeOverrides(),
         workflow: getBoardWorkflowSettings(),
+        externalPublishedCalendar: getBoardExternalPublishedCalendarSettings(),
       });
       setBoardLabels(result.labels || []);
       setBoardWorkflowSettings(result.workflow || {});
+      setBoardExternalPublishedCalendarSettings(result.externalPublishedCalendar || {});
       const savedSchemeId = result.colorScheme || '';
       if (savedSchemeId && getColorSchemeById(savedSchemeId)) {
         applyColorSchemeById(savedSchemeId, { renderControls: false });
@@ -2140,6 +2164,7 @@ function persistBoardSettings(options = {}) {
         renderBoardThemeSettingsControls();
         renderBoardGeneralSettingsControls();
         renderBoardWorkflowSettingsControls();
+        renderBoardExternalPublishedCalendarSettingsControls();
         renderAppSettingsControls();
       }
       if (shouldRenderControls) {
@@ -2300,6 +2325,14 @@ function updateBoardWorkflowCompletedList(listName, enabled) {
   scheduleBoardSettingsSave();
 }
 
+function updateBoardExternalPublishedCalendarInclude(enabled) {
+  setBoardExternalPublishedCalendarSettings({
+    include: Boolean(enabled),
+  });
+  renderBoardExternalPublishedCalendarSettingsControls();
+  scheduleBoardSettingsSave();
+}
+
 function renderWorkflowListRow(listName, workflowSettings) {
   const row = document.createElement('label');
   row.className = 'board-workflow-list-row';
@@ -2333,6 +2366,16 @@ function renderWorkflowListRow(listName, workflowSettings) {
   row.appendChild(checkbox);
   row.appendChild(content);
   return row;
+}
+
+function renderBoardExternalPublishedCalendarSettingsControls() {
+  const includeToggle = document.getElementById('boardSettingsExternalCalendarIncludeToggle');
+  if (!includeToggle) {
+    return;
+  }
+
+  const settings = getBoardExternalPublishedCalendarSettings();
+  includeToggle.checked = settings.include;
 }
 
 async function renderBoardWorkflowSettingsControls() {
@@ -2658,6 +2701,7 @@ function openBoardSettingsModal() {
   renderBoardThemeSettingsControls();
   renderBoardGeneralSettingsControls();
   renderBoardWorkflowSettingsControls();
+  renderBoardExternalPublishedCalendarSettingsControls();
   renderAppSettingsControls();
   renderBoardImportControls();
   setActiveBoardSettingsPanel('app');
@@ -2712,12 +2756,14 @@ async function ensureBoardLabelsLoaded() {
     resetBoardLabelFilter();
     setBoardLabels([]);
     setBoardWorkflowSettings({});
+    setBoardExternalPublishedCalendarSettings({});
     applyColorSchemeById('light', { renderControls: false });
     renderBoardLabelFilterButton();
     renderBoardLabelFilterPopover();
     renderBoardThemeSettingsControls();
     renderBoardGeneralSettingsControls();
     renderBoardWorkflowSettingsControls();
+    renderBoardExternalPublishedCalendarSettingsControls();
     renderAppSettingsControls();
     renderBoardImportControls();
     return;
@@ -2726,6 +2772,7 @@ async function ensureBoardLabelsLoaded() {
   const settings = await window.board.readBoardSettings(window.boardRoot);
   setBoardLabels(settings.labels || []);
   setBoardWorkflowSettings(settings.workflow || {});
+  setBoardExternalPublishedCalendarSettings(settings.externalPublishedCalendar || {});
   const loadedSchemeId = settings.colorScheme || '';
   if (loadedSchemeId && getColorSchemeById(loadedSchemeId)) {
     applyColorSchemeById(loadedSchemeId, { renderControls: false });
@@ -2737,6 +2784,7 @@ async function ensureBoardLabelsLoaded() {
   renderBoardThemeSettingsControls();
   renderBoardGeneralSettingsControls();
   renderBoardWorkflowSettingsControls();
+  renderBoardExternalPublishedCalendarSettingsControls();
   renderAppSettingsControls();
   renderBoardImportControls();
 }
@@ -2771,6 +2819,10 @@ function initializeBoardLabelControls() {
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
   const quickAddShortcutInput = document.getElementById('boardSettingsQuickAddShortcut');
+  const externalCalendarToggle = document.getElementById('boardSettingsExternalCalendarToggle');
+  const externalCalendarPortInput = document.getElementById('boardSettingsExternalCalendarPort');
+  const externalCalendarCopyButton = document.getElementById('btnCopyExternalCalendarUrl');
+  const externalCalendarIncludeToggle = document.getElementById('boardSettingsExternalCalendarIncludeToggle');
   const autoDetectCompletedListsToggle = document.getElementById('boardSettingsAutoDetectCompletedListsToggle');
   const importFromTrelloButton = document.getElementById('btnImportBoardFromTrello');
   const importFromObsidianButton = document.getElementById('btnImportBoardFromObsidian');
@@ -2997,6 +3049,78 @@ function initializeBoardLabelControls() {
 
       event.preventDefault();
       quickAddShortcutInput.blur();
+    });
+  }
+
+  if (externalCalendarToggle) {
+    externalCalendarToggle.addEventListener('change', (event) => {
+      if (typeof setAppExternalPublishedCalendarSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppExternalPublishedCalendarSettings();
+      setAppExternalPublishedCalendarSettings({
+        ...currentSettings,
+        enabled: Boolean(event.target.checked),
+      });
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+    });
+  }
+
+  if (externalCalendarPortInput) {
+    externalCalendarPortInput.addEventListener('change', (event) => {
+      if (typeof setAppExternalPublishedCalendarSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppExternalPublishedCalendarSettings();
+      setAppExternalPublishedCalendarSettings({
+        ...currentSettings,
+        port: event.target.value,
+      });
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+    });
+
+    externalCalendarPortInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      externalCalendarPortInput.blur();
+    });
+  }
+
+  if (externalCalendarCopyButton) {
+    externalCalendarCopyButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const status = typeof getAppExternalPublishedCalendarStatus === 'function'
+        ? getAppExternalPublishedCalendarStatus()
+        : {};
+      const url = String(status.url || '').trim();
+      if (!url) {
+        return;
+      }
+
+      try {
+        if (window.electronAPI && typeof window.electronAPI.copyTextToClipboard === 'function') {
+          await window.electronAPI.copyTextToClipboard(url);
+        } else if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          await navigator.clipboard.writeText(url);
+        }
+      } catch (error) {
+        console.error('Unable to copy External Published Calendar URL.', error);
+      }
+    });
+  }
+
+  if (externalCalendarIncludeToggle) {
+    externalCalendarIncludeToggle.addEventListener('change', (event) => {
+      updateBoardExternalPublishedCalendarInclude(Boolean(event.target.checked));
     });
   }
 

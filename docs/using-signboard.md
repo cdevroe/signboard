@@ -299,8 +299,28 @@ The `App Settings` section controls settings that apply across Signboard:
 - tooltips
 - daily due-date reminders
 - an optional global Quick Add shortcut while Signboard is open
+- External Published Calendar
 
-If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due.
+If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due. The notification time field is shown only while reminders are enabled.
+
+### External Published Calendar
+
+External Published Calendar is an optional read-only iCalendar feed for local calendar apps.
+
+When enabled in App Settings, Signboard serves a local subscription URL on `127.0.0.1` while Signboard is open. The port and subscription URL settings are shown only while publishing is enabled. Copy the URL from Settings and subscribe to it from your calendar app. The feed is built from boards Signboard has opened and trusted, unless a board is toggled off.
+
+The feed includes:
+
+- card due dates
+- unchecked task-list item due dates
+
+The feed hides:
+
+- checked-off task-list item due dates
+- cards in completed lists
+- boards that are toggled off in that board's Workflow settings
+
+Due items are published as all-day events because Signboard due dates are date-only. The port can be changed in App Settings if the default local port is unavailable.
 
 ### Board General
 
@@ -316,6 +336,8 @@ The `Workflow` section controls which lists count as completed work for the curr
 Completed-list cards and checked-off task due markers keep their due dates, but Planner date views, Planner date filters, board date filters, and daily due reminders hide them by default so finished work does not look actionable.
 
 Auto-detection is enabled by default. You can turn it off, manually choose completed lists, or uncheck an auto-detected list.
+
+Workflow also includes the board-level External Published Calendar inclusion toggle. Leave it on to include this board in the app-wide local calendar feed, or turn it off to keep the board out of subscribed calendar apps.
 
 ### Labels
 

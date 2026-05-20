@@ -115,7 +115,7 @@ The server currently exposes these tools:
 `tools/list` advertises underscore tool names. Dotted `signboard.*` names are still accepted as legacy aliases for backward compatibility.
 
 Board-scoped tools take absolute `boardRoot` paths, `signboard_create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
-Board settings tools include labels, theme overrides, and completed-list workflow settings. App tooltip and notification preferences are desktop app settings.
+Board settings tools include labels, theme overrides, completed-list workflow settings, and board-level External Published Calendar inclusion. App tooltip, notification, Quick Add, and External Published Calendar server preferences are desktop app settings.
 Import tools also take absolute external source paths, and those paths must resolve inside configured or trusted roots.
 
 ## Task Metadata in Card Tool Responses
