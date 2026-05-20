@@ -9,8 +9,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
-- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and menu-triggered renderer events, including board switcher/settings events, archive browse/read/restore, and top-of-list card move calls.
-- `index.html` - App shell, header board tab strip, left-edge Planner rail/overlay markup, fixed Sponsor pill, board-menu/archive/switcher modal markup (including `#modalKeyboardShortcuts`, `#modalBoardSwitcher`, and `#modalArchiveBrowser`), and deferred script/style includes.
+- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and menu-triggered renderer events, including board switcher/view/settings events, archive browse/read/restore, and top-of-list card move calls.
+- `index.html` - App shell, header board tab strip, left-edge Planner rail/overlay markup, fixed Sponsor pill, board-menu view/archive/switcher modal markup (including `#boardViewButton`, `#modalKeyboardShortcuts`, `#modalBoardSwitcher`, and `#modalArchiveBrowser`), and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `docs/release-template.md` - Curated GitHub release-body template for public download links.
 - `package.json` - Runtime/build scripts and dependencies.
@@ -32,7 +32,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification controls, persistence scheduling, and one-time migration from legacy board settings.
 - `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with date filters ignoring completed task due markers and completed workflow lists), card label popovers, Settings modal board panels, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
-- `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban-only board view state, Calendar/This Week layout helpers, temporal card placement by card due/task due markers, and source-list/source-board pills on temporal cards.
+- `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card due/task due markers, and source-list/source-board pills on temporal cards.
+- `app/board/tableView.js` - Board-scoped Table view rendering, dense row metadata, board filter/search reuse, and list-column card moves through the top-of-list move IPC path.
 - `app/board/plannerView.js` - Workspace-level Planner overlay with Calendar, This Week, Day, and Agenda views across currently open boards, all/current/custom board scope controls, Planner-local search/date/completed-card/board/active-board-label filters, left-rail open/close behavior, and Planner card opening that switches the active board when needed.
 - `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing, detail-pane rendering, incremental result loading, and restore flows.
 - `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder), responsive `N more` overflow for unbounded open boards, plus the shared safe board-switch helper used by tab clicks and the switcher.
@@ -41,14 +42,14 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/cards/processAddNewCard.js` - New card creation flow, including optional create-and-open behavior.
 - `app/cards/processAddNewList.js` - New list creation flow.
 - `app/lists/createListElement.js` - List DOM rendering, sanitized rename, card DnD handling, and cross-list move lifecycle logging.
-- `app/board/renderBoard.js` - Whole-board render (with concurrent card-list reads) and list DnD handling.
+- `app/board/renderBoard.js` - Whole-board render (with concurrent card-list reads), active Kanban/Table view dispatch, and Kanban list DnD handling.
 - `app/board/openBoard.js` - Board open/init logic and starter content.
 - `app/modals/closeAllModals.js` - Modal close logic + editor cleanup + conditional rerender + board interaction lock/unlock.
 - `app/modals/toggleAddCardModal.js` - Add-card modal position/toggle.
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
 - `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, active-card top-of-list moves from the dropdown/directional controls, debounced + serialized saves, clean-editor reloads after external/MCP card edits, fresh duplicate lifecycle metadata, and task-line due-date controls aligned from measured line coordinates.
-- `app/listeners/window.js` - Keyboard shortcuts, menu-command listeners, Planner toggle/view shortcut handling including all-open-board and current-board date-view scopes, Settings fallback handling, quick board switcher shortcut handling, color cycling, active-card move/archive shortcuts, active-editor closing for workspace-level shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
+- `app/listeners/window.js` - Keyboard shortcuts, menu-command listeners, board view switching, Planner toggle/view shortcut handling including all-open-board and current-board date-view scopes, Settings fallback handling, quick board switcher shortcut handling, color cycling, active-card move/archive shortcuts, active-editor closing for workspace-level shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, sponsorship modal triggers, and external board-change auto-refresh sync loop, including clean open-editor refreshes.
 - `app/ui/theme.js` - Theme toggle + OverType theme integration, including the theme shortcut hint/state in the board menu.
 - `app/ui/tooltips.js` - Lightweight custom tooltip engine (event delegation + mutation observer) using existing element label attributes.
@@ -76,7 +77,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-board-labels.js` - Node assertions for board label settings defaults/migration/filter logic.
 - `scripts/test-app-settings.js` - Node assertions for app-wide settings persistence and one-time board-settings migration.
 - `scripts/test-board-card-metadata.js` - Board card metadata rendering assertions (due/labels/task badge behavior).
-- `scripts/test-board-views.js` - Kanban/Planner rendering and filter helper assertions.
+- `scripts/test-board-views.js` - Kanban/Table/Planner rendering and filter helper assertions.
 - `scripts/test-archive.js` - Archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.
 - `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
 - `scripts/test-import-trello.js` - Trello importer assertions for order, label reuse, archive routing, and metadata preservation.

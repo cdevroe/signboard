@@ -53,6 +53,7 @@ function syncBoardViewLayout(boardEl, activeBoardView) {
     return;
   }
 
+  boardEl.classList.toggle('board-view-table', activeBoardView === 'table');
   boardEl.classList.toggle('board-view-calendar', activeBoardView === 'calendar');
   boardEl.classList.toggle('board-view-week', activeBoardView === 'this-week');
 }
@@ -361,6 +362,28 @@ async function renderBoard() {
         return { listName, listPath, cards };
       })
     );
+
+    if (activeBoardView === 'table' && typeof renderTableBoard === 'function') {
+      const tableBuild = await renderTableBoard(boardRoot, listsWithCards);
+
+      if (!isCurrentBoardRenderRequest(requestId)) {
+        return;
+      }
+
+      if (boardNameEl) {
+        boardNameEl.textContent = boardName;
+      }
+      renderBoardTabs();
+      syncBoardViewLayout(boardEl, activeBoardView);
+      destroyBoardSortables();
+      boardEl.replaceChildren(tableBuild.root);
+      storeBoardSortables([]);
+
+      if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
+        feather.replace();
+      }
+      return;
+    }
 
     const listBuilds = await Promise.all(
       listsWithCards.map(({ listName, listPath, cards }) => createListElement(listName, listPath, cards, {

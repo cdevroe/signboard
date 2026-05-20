@@ -155,4 +155,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('toggle-theme-mode', listener);
     };
   },
+  onSwitchBoardView: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = (_event, viewId) => {
+      callback(viewId);
+    };
+
+    ipcRenderer.on('switch-board-view', listener);
+    return () => {
+      ipcRenderer.removeListener('switch-board-view', listener);
+    };
+  },
 });

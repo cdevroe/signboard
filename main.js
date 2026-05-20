@@ -1223,7 +1223,7 @@ function ensureMainWindowVisible() {
   return win;
 }
 
-function sendToMainWindow(channel) {
+function sendToMainWindow(channel, ...args) {
   const win = ensureMainWindowVisible();
   if (!win || win.isDestroyed()) {
     return;
@@ -1232,13 +1232,13 @@ function sendToMainWindow(channel) {
   if (win.webContents.isLoadingMainFrame()) {
     win.webContents.once('did-finish-load', () => {
       if (!win.isDestroyed()) {
-        win.webContents.send(channel);
+        win.webContents.send(channel, ...args);
       }
     });
     return;
   }
 
-  win.webContents.send(channel);
+  win.webContents.send(channel, ...args);
 }
 
 function buildMcpConfigTemplate() {
@@ -1889,6 +1889,20 @@ function buildApplicationMenu() {
       sendToMainWindow('toggle-theme-mode');
     },
   });
+  const createKanbanViewMenuItem = () => ({
+    label: 'Kanban View',
+    accelerator: 'CmdOrCtrl+1',
+    click: () => {
+      sendToMainWindow('switch-board-view', 'kanban');
+    },
+  });
+  const createTableViewMenuItem = () => ({
+    label: 'Table View',
+    accelerator: 'CmdOrCtrl+Alt+1',
+    click: () => {
+      sendToMainWindow('switch-board-view', 'table');
+    },
+  });
   const createAboutSignboardMenuItem = () => ({
     label: 'About Signboard',
     click: () => {
@@ -1942,6 +1956,9 @@ function buildApplicationMenu() {
   template.push({
     label: 'View',
     submenu: [
+      createKanbanViewMenuItem(),
+      createTableViewMenuItem(),
+      { type: 'separator' },
       createToggleThemeMenuItem(),
       { type: 'separator' },
       { role: 'reload' },

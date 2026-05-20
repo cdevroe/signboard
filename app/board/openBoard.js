@@ -133,6 +133,7 @@ Here are a few example tasks so you can see how checklists and task due dates wo
 
 - Add a due date to the whole card and open Planner Calendar.
 - Create a few cards and drag them between To do, Doing, and Done.
+- Switch Board menu > View to Table and scan cards across lists.
 - Open Settings and customize labels for your own system.
 - Change the board colors and make the space feel like yours.
 
@@ -145,6 +146,7 @@ On macOS use Cmd. On Windows and Linux use Ctrl.
 - Cmd/Ctrl + N creates a new card
 - Cmd/Ctrl + Shift + N creates a new list
 - Cmd/Ctrl + 1 opens Kanban view
+- Cmd/Ctrl + Option/Alt + 1 opens Table view
 - Cmd/Ctrl + 2 opens Planner Calendar for all open boards
 - Cmd/Ctrl + 3 opens Planner This Week for all open boards
 - Cmd/Ctrl + Option/Alt + 2 opens Planner Calendar for the current board

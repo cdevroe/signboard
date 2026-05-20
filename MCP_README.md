@@ -198,7 +198,7 @@ If neither `SIGNBOARD_MCP_ALLOWED_ROOTS` nor desktop trusted board roots are ava
 - In MCP mode, Signboard starts headless, but activating the app can still reveal the desktop window.
 - The process communicates over stdio (MCP JSON-RPC framing).
 - The stdio parser accepts both header-framed MCP and newline-delimited JSON-RPC payloads.
-- `signboard_list_board_views` currently reports Kanban as the board view; dated Calendar/This Week planning is handled by the desktop Planner overlay.
+- `signboard_list_board_views` reports the board-scoped Kanban and Table views; dated Calendar/This Week/Day/Agenda planning is handled by the desktop Planner overlay.
 - Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`).
 - `signboard_create_card` and `signboard_update_card` normalize literal `\n` / `\N` escape sequences in body input into real line breaks.
 - `signboard_update_card` can replace a Markdown heading section (`replaceSection` + `body`), insert text after a heading (`insertAfterHeading` + `insertText`), append a note under `## Notes` (`addNote`), and clear/add/remove labels without replacing the full body.

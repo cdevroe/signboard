@@ -1,6 +1,6 @@
 # Signboard Documentation
 
-Signboard is a local-first kanban app that stores lists as folders and cards as Markdown files.
+Signboard is a local-first board app that stores lists as folders and cards as Markdown files.
 
 ## Table of Contents
 
@@ -20,7 +20,7 @@ If you want structured tool access from an agent, see [MCP Server](../MCP_README
 
 - Creating and organizing boards, lists, and cards
 - Drag-and-drop movement, including the empty insertion slot shown while dragging cards
-- Due dates, task lists, labels, completed-list workflow settings, Kanban boards, and Planner date views
+- Due dates, task lists, labels, completed-list workflow settings, Kanban/Table board views, and Planner date views
 - Archiving and restoring cards and lists
 - Settings, including app-wide tooltips/notifications and board-specific workflow, colors, labels, and imports
 - Native text editing context menus in editable fields

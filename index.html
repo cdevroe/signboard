@@ -93,6 +93,13 @@
       <span class="board-menu-action-label">Settings</span>
       <span class="menu-shortcut-hint" data-shortcut-action="boardSettings" data-shortcut-format="menu" aria-hidden="true">⌘,</span>
     </button>
+    <div class="board-menu-view-group">
+      <button id="boardViewButton" class="board-menu-action" type="button" title="Current view: Kanban. Change view." aria-label="Current view: Kanban. Change view.">
+        <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="columns"></i></span>
+        <span class="board-menu-action-label">View: Kanban</span>
+      </button>
+      <div id="boardViewPopover" class="label-popover hidden" aria-hidden="true"></div>
+    </div>
     <button id="openArchiveBrowser" class="board-menu-action" type="button" title="Browse archived cards and lists" aria-label="Browse archived cards and lists">
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="archive"></i></span>
       <span class="board-menu-action-label">Archive</span>
@@ -204,6 +211,10 @@
           <li>
             <span>Kanban board</span>
             <kbd data-shortcut-action="kanbanView">⌘ + 1</kbd>
+          </li>
+          <li>
+            <span>Table board</span>
+            <kbd data-shortcut-action="tableView">⌘ + ⌥ + 1</kbd>
           </li>
           <li>
             <span>Planner Calendar, all boards</span>
@@ -326,7 +337,7 @@
   <div id="modalAboutSignboard" class="modal about-signboard-modal hidden" role="dialog" aria-modal="true" aria-labelledby="aboutSignboardTitle" aria-hidden="true">
     <div class="about-signboard-header">
       <div>
-        <p class="about-signboard-eyebrow">Local-first Kanban</p>
+        <p class="about-signboard-eyebrow">Local-first boards</p>
         <h2 id="aboutSignboardTitle">About Signboard</h2>
       </div>
       <button id="aboutSignboardClose" class="commercial-license-close" type="button" title="Close About Signboard" aria-label="Close About Signboard"><i data-feather="x"></i></button>
@@ -337,7 +348,7 @@
           <span class="about-signboard-badge" data-about-app-version>Version</span>
           <span class="about-signboard-badge"><span data-about-license>MIT</span> License</span>
         </div>
-        <p>Signboard is a kanban app that writes Markdown files.</p>
+        <p>Signboard writes Markdown files for Kanban and Table board views.</p>
         <p class="about-signboard-meta">Created by <a href="https://cdevroe.com/" rel="noopener noreferrer">Colin Devroe</a>.</p>
         <div class="about-signboard-actions">
           <a class="about-signboard-link-button" href="https://cdevroe.com/signboard/" rel="noopener noreferrer">Visit Website</a>

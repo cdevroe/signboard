@@ -713,12 +713,16 @@ async function runForTransport(transportMode, fixture) {
 
   const boardViews = viewsResponse.result?.structuredContent?.views || [];
   const viewIds = new Set(boardViews.map((view) => view && view.id).filter(Boolean));
-  if (!viewIds.has('kanban') || viewIds.has('calendar') || viewIds.has('this-week')) {
-    throw new Error(`list_board_views should expose only Kanban (${transportMode}): ${JSON.stringify(boardViews)}`);
+  if (!viewIds.has('kanban') || !viewIds.has('table') || viewIds.has('calendar') || viewIds.has('this-week')) {
+    throw new Error(`list_board_views should expose board-scoped Kanban and Table only (${transportMode}): ${JSON.stringify(boardViews)}`);
   }
   const kanbanView = boardViews.find((view) => view && view.id === 'kanban');
   if (!kanbanView || !/list-based board view/i.test(String(kanbanView.description || ''))) {
     throw new Error(`kanban view description missing list-based copy (${transportMode}): ${JSON.stringify(kanbanView)}`);
+  }
+  const tableView = boardViews.find((view) => view && view.id === 'table');
+  if (!tableView || !/table view/i.test(String(tableView.description || ''))) {
+    throw new Error(`table view description missing table copy (${transportMode}): ${JSON.stringify(tableView)}`);
   }
 
   send({

@@ -1,6 +1,6 @@
 # Signboard
 
-A local-first kanban desktop app built with HTML, CSS, and JavaScript. Signboard stores your lists as directories and cards as Markdown files on disk.
+A local-first board desktop app built with HTML, CSS, and JavaScript. Signboard stores your lists as directories and cards as Markdown files on disk.
 
 Signboard is free for personal use. If you are using Signboard for your work it would be appreciated if you purchase a commercial license to sponsor future development. See the app's "Sponsor" button.
 
@@ -17,7 +17,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 🌙 Light and dark mode variants for all color schemes
 - 🏷 Custom labels per board
 - 🗓 Card due dates and task list item due dates
-- 📅 Calendar and "This Week" views
+- 📋 Kanban and Table board views
 - 🗂 Planner overlay for actionable dated work across open boards
 - 🎨 Board-colored source pills in Planner date views
 - ✅ Completed-list workflow settings that preserve due-date history
@@ -61,6 +61,7 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + N`: create a card
 - `Cmd/Ctrl + Shift + N`: create a list
 - `Cmd/Ctrl + 1`: return to Kanban and close Planner
+- `Cmd/Ctrl + Option/Alt + 1`: switch to Table and close Planner
 - `Cmd/Ctrl + 2`: open Planner Calendar for all open boards
 - `Cmd/Ctrl + 3`: open Planner This Week for all open boards
 - `Cmd/Ctrl + Shift + P`: open or close Planner

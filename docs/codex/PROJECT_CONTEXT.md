@@ -1,7 +1,7 @@
 # Signboard Project Context
 
 ## What this app is
-Signboard is a local-first board app built with Electron and plain JavaScript. Boards render as Kanban; Calendar, This Week, Day, and Agenda dated workflows live in the workspace-level Planner overlay.
+Signboard is a local-first board app built with Electron and plain JavaScript. Boards render as Kanban by default and can switch to a board-scoped Table view; Calendar, This Week, Day, and Agenda dated workflows live in the workspace-level Planner overlay.
 
 - A board is a folder on disk.
 - Lists are subdirectories inside that board folder.
@@ -24,7 +24,7 @@ File: `main.js`
 - Registers IPC handler `choose-directory` to open native folder picker.
 - Registers IPC handler `pick-import-sources` to open native file/directory pickers for Trello JSON and Obsidian markdown/vault sources.
 - Registers IPC handler `check-for-updates` for renderer-triggered manual update checks.
-- Builds a native app menu with a `Check for Updates...` action.
+- Builds a native app menu with board view, Settings, theme, and `Check for Updates...` actions.
 - Help menu includes `Copy MCP Config` to copy a ready-to-paste Signboard MCP JSON snippet.
 - In unpackaged/dev mode, Help menu includes `Preview Update Available...` and `Preview Update Ready...` to test updater dialogs without downloading/installing.
 - Uses `electron-updater` against GitHub Releases for automatic and manual update checks.
@@ -51,7 +51,7 @@ File: `main.js`
 File: `preload.js`
 
 - Exposes `window.board`, `window.chooser`, and `window.electronAPI`.
-- `window.electronAPI` includes external-link opening, manual update checks, app settings reads/writes, and one-time migration from legacy board-level tooltip/notification settings.
+- `window.electronAPI` includes external-link opening, manual update checks, app settings reads/writes, one-time migration from legacy board-level tooltip/notification settings, and menu-triggered renderer events such as board view switching.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
 - Archive browsing uses preload bridge methods (`listArchiveEntries`, `readArchiveEntry`, `restoreArchivedCard`, `restoreArchivedList`) backed by the same trusted-board gate as normal board operations.
@@ -144,10 +144,16 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 ### Rendering board/lists/cards
 - `app/board/renderBoard.js`:
-  - Reads list metadata and renders Kanban columns.
+  - Reads list metadata and renders the active board view.
+  - Renders Kanban columns by default.
+  - Renders the board-scoped Table view for dense card scanning.
   - Enables list drag-and-drop reorder in Kanban.
   - Fetches each list's card names concurrently for faster initial render.
   - Loads board label definitions and temporary filter state before rendering cards.
+- `app/board/tableView.js`:
+  - Renders active-board cards in board/list order as a dense table.
+  - Reuses board search, label filters, Today/Overdue date filters, task progress badges, and completed-list workflow handling.
+  - Moves a card to another list through the row list dropdown by calling the same top-of-list move IPC path as the card editor.
 - `app/board/archiveBrowser.js`:
   - Opens the dedicated Archive modal from the Board menu.
   - Lists archived cards and archived lists with search-first filtering, incremental result rendering, and a detail pane.
@@ -158,7 +164,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Filters currently open boards by visible board name, highlights autocomplete results, closes open boards from result rows, and delegates switching to the shared board switch helper.
 - `app/board/boardViews.js`:
   - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, task due-date placement, and temporal card rendering.
-  - Board-facing view state normalizes to Kanban only.
+  - Owns board-facing Kanban/Table view state and the Board menu view popover.
   - Shows task progress badges and source-list/source-board pills on temporal cards, tinting source-board pills from each board's color scheme when available.
 - `app/board/plannerView.js`:
   - Owns the workspace Planner overlay opened from the left rail or `Cmd/Ctrl + Shift + P`.
@@ -234,6 +240,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Cmd/Ctrl + N`: add card (with list picker modal).
   - `Cmd/Ctrl + Shift + N`: add list.
   - `Cmd/Ctrl + 1`: return to Kanban and close Planner if it is open.
+  - `Cmd/Ctrl + Option/Alt + 1`: switch to Table and close Planner if it is open.
   - `Cmd/Ctrl + 2`: open Planner Calendar from the board, or switch to Calendar inside Planner, scoped to all open boards.
   - `Cmd/Ctrl + 3`: open Planner This Week from the board, or switch to This Week inside Planner, scoped to all open boards.
   - `Cmd/Ctrl + Option/Alt + 2/3/4/5`: open or switch to the matching Planner date view scoped to the current board.

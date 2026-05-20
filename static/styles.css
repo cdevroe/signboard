@@ -1111,6 +1111,11 @@ body.planner-open .planner-overlay {
   width: 100%;
 }
 
+.board-menu-view-group {
+  position: relative;
+  width: 100%;
+}
+
 .board-menu-action {
   width: 100%;
   display: inline-flex;
@@ -1188,6 +1193,7 @@ main#board {
   -webkit-overflow-scrolling: touch;
 }
 
+main#board.board-view-table,
 main#board.board-view-calendar,
 main#board.board-view-week {
   display: block;
@@ -1198,9 +1204,193 @@ body:not(.board-empty) main#board {
   padding-left: calc(16px + var(--planner-rail-width));
 }
 
+body:not(.board-empty) main#board.board-view-table,
 body:not(.board-empty) main#board.board-view-calendar,
 body:not(.board-empty) main#board.board-view-week {
   padding-left: calc(16px + var(--planner-rail-width));
+}
+
+.board-table-view {
+  width: 100%;
+  min-width: 760px;
+}
+
+.board-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 8px;
+  min-height: 24px;
+}
+
+.board-table-summary {
+  margin: 0;
+  color: var(--muted);
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+.board-table-scroll {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+.board-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--text);
+  font-size: var(--font-sm);
+}
+
+.board-table-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 12px;
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--bg));
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  line-height: 1.2;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.board-table-row {
+  cursor: pointer;
+}
+
+.board-table-cell {
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 78%, var(--bg-card));
+  vertical-align: middle;
+  transition: background .12s ease;
+}
+
+.board-table-row:last-child .board-table-cell {
+  border-bottom: 0;
+}
+
+.board-table-row:hover .board-table-cell {
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--bg));
+}
+
+.board-table-cell-title {
+  width: 38%;
+  min-width: 260px;
+}
+
+.board-table-cell-list {
+  width: 210px;
+}
+
+.board-table-cell-due,
+.board-table-cell-tasks {
+  width: 130px;
+}
+
+.board-table-cell-labels {
+  min-width: 180px;
+}
+
+.board-table-card-title-button {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font-size: var(--font-md);
+  font-weight: 400;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  padding: 2px 0;
+  text-align: left;
+}
+
+.board-table-card-title-button:hover {
+  color: color-mix(in oklab, var(--accent) 70%, var(--text));
+}
+
+.board-table-card-title-button:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 2px;
+}
+
+.board-table-list-select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: var(--font-sm);
+  padding: 6px 30px 6px 9px;
+}
+
+.board-table-list-select:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 1px;
+}
+
+.board-table-due {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.board-table-due.due-date-today {
+  color: var(--due-date-today-color);
+}
+
+.board-table-due.due-date-tomorrow {
+  color: var(--due-date-tomorrow-color);
+}
+
+.board-table-task-progress {
+  font-size: var(--font-xs);
+}
+
+.board-table-labels {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.board-table-empty-value {
+  color: color-mix(in oklab, var(--muted) 84%, var(--bg-card));
+  font-size: var(--font-xs);
+}
+
+.board-table-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  border: 1px dashed color-mix(in oklab, var(--border) 82%, var(--bg));
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--bg-card) 86%, var(--bg));
+  color: var(--muted);
+  font-size: var(--font-sm);
+  text-align: center;
 }
 
 .board-calendar {
@@ -4240,6 +4430,9 @@ select:disabled {
   main#board {
     padding: 12px;
   }
+  main#board.board-view-table {
+    padding: 12px;
+  }
   main#board.board-view-calendar {
     padding: 12px;
   }
@@ -4267,6 +4460,7 @@ select:disabled {
     min-width: 108px;
   }
   body:not(.board-empty) main#board,
+  body:not(.board-empty) main#board.board-view-table,
   body:not(.board-empty) main#board.board-view-calendar,
   body:not(.board-empty) main#board.board-view-week {
     padding-left: calc(12px + var(--planner-rail-width));

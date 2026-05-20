@@ -1,15 +1,18 @@
 const BOARD_VIEW_IDS = Object.freeze({
   KANBAN: 'kanban',
+  TABLE: 'table',
   CALENDAR: 'calendar',
   THIS_WEEK: 'this-week',
 });
 
 const BOARD_VIEW_OPTIONS = Object.freeze([
-  { id: BOARD_VIEW_IDS.KANBAN, label: 'Kanban' },
+  { id: BOARD_VIEW_IDS.KANBAN, label: 'Kanban', shortcutActionId: 'kanbanView' },
+  { id: BOARD_VIEW_IDS.TABLE, label: 'Table', shortcutActionId: 'tableView' },
 ]);
 
 const BOARD_VIEW_ICON_BY_ID = Object.freeze({
   [BOARD_VIEW_IDS.KANBAN]: 'columns',
+  [BOARD_VIEW_IDS.TABLE]: 'list',
   [BOARD_VIEW_IDS.CALENDAR]: 'calendar',
   [BOARD_VIEW_IDS.THIS_WEEK]: 'clock',
 });
@@ -51,6 +54,10 @@ function getBoardViewState() {
 
 function normalizeBoardViewId(viewId) {
   const normalized = String(viewId || '').trim().toLowerCase();
+  if (normalized === BOARD_VIEW_IDS.TABLE) {
+    return BOARD_VIEW_IDS.TABLE;
+  }
+
   return BOARD_VIEW_IDS.KANBAN;
 }
 
@@ -598,6 +605,7 @@ function closeBoardViewPopover() {
   }
 
   popover.classList.add('hidden');
+  popover.setAttribute('aria-hidden', 'true');
 }
 
 function closeBoardViewPopoverIfClickOutside(target) {
@@ -624,20 +632,22 @@ function renderBoardViewPopover() {
   popover.innerHTML = '';
 
   for (const option of BOARD_VIEW_OPTIONS) {
-    const shortcutActionId = option.id === BOARD_VIEW_IDS.KANBAN
-      ? 'kanbanView'
-      : (option.id === BOARD_VIEW_IDS.CALENDAR ? 'calendarView' : 'thisWeekView');
+    const shortcutActionId = option.shortcutActionId || '';
     const optionButton = document.createElement('button');
     optionButton.type = 'button';
     optionButton.className = 'board-view-option';
     optionButton.dataset.viewId = option.id;
     optionButton.setAttribute('aria-pressed', String(option.id === activeView));
-    optionButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(shortcutActionId));
+    if (shortcutActionId) {
+      optionButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(shortcutActionId));
+    } else {
+      optionButton.removeAttribute('aria-keyshortcuts');
+    }
     optionButton.innerHTML = `
       <span class="board-view-option-check">${option.id === activeView ? '✓' : ''}</span>
       <span class="board-view-option-icon" aria-hidden="true">${getBoardViewIconMarkup(option.id)}</span>
       <span class="board-view-option-label">${option.label}</span>
-      <span class="menu-shortcut-hint board-view-option-shortcut" aria-hidden="true">${getShortcutHintText(shortcutActionId)}</span>
+      <span class="menu-shortcut-hint board-view-option-shortcut" aria-hidden="true">${shortcutActionId ? getShortcutHintText(shortcutActionId) : ''}</span>
     `;
     optionButton.addEventListener('click', (event) => {
       event.preventDefault();
@@ -667,6 +677,7 @@ function toggleBoardViewPopover() {
   renderBoardViewPopover();
   const isHidden = popover.classList.contains('hidden');
   popover.classList.toggle('hidden', !isHidden);
+  popover.setAttribute('aria-hidden', isHidden ? 'false' : 'true');
 }
 
 function initializeBoardViewControls() {

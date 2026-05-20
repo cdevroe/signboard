@@ -373,6 +373,49 @@ test('creates and opens a list-specific new card with Shift+Enter', async ({ pag
   await expect(page.locator('.list').first().locator('.card').filter({ hasText: 'Draft launch checklist' })).toBeVisible();
 });
 
+test('switches to table view and moves a card through the list column', async ({ page, boardRoot }) => {
+  await page.locator('#boardSearchInput').focus();
+  await page.keyboard.press(getCurrentBoardPlannerShortcut('1'));
+  await expect(page.locator('main#board')).toHaveClass(/board-view-table/);
+  await expect(page.locator('.board-table-row')).toHaveCount(3);
+
+  await page.keyboard.press(getShortcut('1'));
+  await expect(page.locator('main#board')).not.toHaveClass(/board-view-table/);
+  await expect(page.locator('.list')).toHaveCount(3);
+
+  await openBoardMenu(page);
+  await page.locator('#boardViewButton').click();
+  await expect(page.locator('#boardViewPopover')).toBeVisible();
+  await expect(page.locator('#boardViewPopover')).toContainText(usesMetaModifier ? '⌘⌥1' : 'Ctrl+Alt+1');
+  await page.locator('#boardViewPopover').getByRole('button', { name: /Table/ }).click();
+
+  await expect(page.locator('main#board')).toHaveClass(/board-view-table/);
+  await expect(page.locator('.board-table-row')).toHaveCount(3);
+
+  const planRow = page.locator('.board-table-row').filter({ hasText: 'Plan release notes' });
+  await expect(planRow).toBeVisible();
+  await planRow.locator('.board-table-list-select').selectOption({ label: 'Doing' });
+
+  const movedPlanRow = page.locator('.board-table-row').filter({ hasText: 'Plan release notes' });
+  await expect(movedPlanRow.locator('.board-table-list-select')).toHaveValue(/001-Doing-stock$/);
+
+  await expect.poll(async () => {
+    const toDoEntries = await fs.readdir(path.join(boardRoot, '000-To-do-stock'));
+    const doingEntries = await fs.readdir(path.join(boardRoot, '001-Doing-stock'));
+    return {
+      inToDo: toDoEntries.some((entry) => entry.includes('plan-release')),
+      inDoing: doingEntries.some((entry) => entry.includes('plan-release')),
+    };
+  }).toEqual({
+    inToDo: false,
+    inDoing: true,
+  });
+
+  await movedPlanRow.locator('.board-table-card-title-button').click();
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect(page.locator('#cardEditorTitle')).toHaveText('Plan release notes');
+});
+
 test('adds a new list to the right of the invoking list from the list actions popover', async ({ page, boardRoot }) => {
   await page.locator('.list-actions-button').first().click();
   await page.locator('#listActionsPopover').getByRole('button', { name: 'Add new list' }).click();

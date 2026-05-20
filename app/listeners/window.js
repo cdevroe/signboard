@@ -84,10 +84,20 @@ function hasPlannerDateViewShortcutModifiers(event) {
     return true;
 }
 
+function isDigit1ShortcutEvent(event) {
+    const key = String(event && event.key ? event.key : '').trim();
+    return event && (event.code === 'Digit1' || key === '1' || key === '¡');
+}
+
 async function handleBoardViewShortcut(e, options = {}) {
     const ignoreEditableTarget = Boolean(options.ignoreEditableTarget);
 
-    if (!hasPlannerDateViewShortcutModifiers(e) || (!ignoreEditableTarget && isEditableShortcutTarget(e.target))) {
+    if (!hasPlannerDateViewShortcutModifiers(e)) {
+        return false;
+    }
+
+    const isBoardViewDigitShortcut = isDigit1ShortcutEvent(e);
+    if (!ignoreEditableTarget && isEditableShortcutTarget(e.target) && !isBoardViewDigitShortcut) {
         return false;
     }
 
@@ -95,15 +105,12 @@ async function handleBoardViewShortcut(e, options = {}) {
 
     switch (e.code) {
         case 'Digit1': {
-            if (e.altKey) {
-                return false;
-            }
             e.preventDefault();
             if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
                 closePlannerView();
             }
             if (typeof setActiveBoardView === 'function') {
-                setActiveBoardView('kanban');
+                setActiveBoardView(e.altKey ? 'table' : 'kanban');
             }
             return true;
         }
@@ -130,6 +137,16 @@ async function handleBoardViewShortcut(e, options = {}) {
             await openPlannerViewForShortcut('agenda', { scope: shortcutScope });
             return true;
         default:
+            if (isDigit1ShortcutEvent(e)) {
+                e.preventDefault();
+                if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
+                    closePlannerView();
+                }
+                if (typeof setActiveBoardView === 'function') {
+                    setActiveBoardView(e.altKey ? 'table' : 'kanban');
+                }
+                return true;
+            }
             return false;
     }
 }
@@ -338,6 +355,33 @@ function toggleThemeModeFromShortcut() {
     return true;
 }
 
+async function switchBoardViewFromCommand(viewId) {
+    const normalizedViewId = String(viewId || '').trim().toLowerCase() === 'table'
+        ? 'table'
+        : 'kanban';
+
+    if (typeof closeBoardSwitcher === 'function') {
+        closeBoardSwitcher();
+    }
+
+    hideShortcutHelpModal();
+
+    if (typeof closeAllModals === 'function') {
+        await closeAllModals({ key: 'Escape' });
+    }
+
+    if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
+        closePlannerView();
+    }
+
+    if (typeof setActiveBoardView === 'function') {
+        setActiveBoardView(normalizedViewId);
+        return true;
+    }
+
+    return false;
+}
+
 async function openArchiveBrowserFromShortcut() {
     if (!window.boardRoot) {
         return false;
@@ -422,7 +466,7 @@ function isWorkspaceViewShortcut(event) {
 
     switch (event.code) {
         case 'Digit1':
-            return !event.altKey;
+            return true;
         case 'Digit2':
         case 'Digit3':
             return true;
@@ -430,7 +474,7 @@ function isWorkspaceViewShortcut(event) {
         case 'Digit5':
             return event.altKey || Boolean(typeof isPlannerOpen === 'function' && isPlannerOpen());
         default:
-            return false;
+            return isDigit1ShortcutEvent(event);
     }
 }
 
@@ -577,6 +621,14 @@ if (window.electronAPI && typeof window.electronAPI.onToggleThemeMode === 'funct
     window.electronAPI.onToggleThemeMode(() => {
         hideShortcutHelpModal();
         toggleThemeModeFromShortcut();
+    });
+}
+
+if (window.electronAPI && typeof window.electronAPI.onSwitchBoardView === 'function') {
+    window.electronAPI.onSwitchBoardView((viewId) => {
+        switchBoardViewFromCommand(viewId).catch((error) => {
+            console.error('Unable to switch board view from menu command.', error);
+        });
     });
 }
 

@@ -67,6 +67,7 @@ const SHORTCUT_ACTION_DEFINITIONS = Object.freeze({
   addCard: Object.freeze({ key: 'N', usesPrimaryModifier: true }),
   addList: Object.freeze({ key: 'N', usesPrimaryModifier: true, shiftKey: true }),
   kanbanView: Object.freeze({ key: '1', usesPrimaryModifier: true }),
+  tableView: Object.freeze({ key: '1', usesPrimaryModifier: true, altKey: true }),
   calendarView: Object.freeze({ key: '2', usesPrimaryModifier: true }),
   thisWeekView: Object.freeze({ key: '3', usesPrimaryModifier: true }),
   plannerDayView: Object.freeze({ key: '4', usesPrimaryModifier: true }),

@@ -13,6 +13,7 @@ cat \
   app/board/boardLabels.js \
   app/board/boardSearch.js \
   app/board/boardViews.js \
+  app/board/tableView.js \
   app/board/plannerView.js \
   app/board/archiveBrowser.js \
   app/cards/createCardElement.js \

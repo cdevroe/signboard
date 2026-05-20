@@ -10,7 +10,7 @@ This guide covers the desktop app and the core workflow for managing a project i
 - [Work with Cards](#work-with-cards)
 - [Due Dates, Labels, and Checklists](#due-dates-labels-and-checklists)
 - [Search, Filters, and Open Boards](#search-filters-and-open-boards)
-- [Kanban and Planner Views](#kanban-and-planner-views)
+- [Board and Planner Views](#board-and-planner-views)
 - [Planner](#planner)
 - [Archive and Restore](#archive-and-restore)
 - [Settings](#settings)
@@ -110,7 +110,7 @@ Right-click in editable areas of the card title or body to use the native cut, c
 
 ### Move cards
 
-Drag a card between lists in kanban view. You can also move it from the card editor by changing its list in the dropdown menu at the top of the card modal.
+Drag a card between lists in Kanban view. You can also move it from the card editor by changing its list in the dropdown menu at the top of the card modal, or from Table view by changing the row's list dropdown.
 
 While dragging, the board shows an empty insertion slot where the card would land; the card is moved only after you drop it.
 
@@ -183,13 +183,19 @@ Search matches card title and body text.
 
 Use the filter button in the header to narrow the visible cards by due today, overdue, and your board labels.
 
-## Kanban and Planner Views
+## Board and Planner Views
 
-Board context is Kanban. Dated planning happens in Planner.
+Board context can be Kanban or Table. Dated planning happens in Planner.
 
 ### Kanban
 
 Kanban is the board view. Use it for day-to-day drag-and-drop organization.
+
+### Table
+
+Table is an active-board view for scanning cards in board/list order. It uses the same board search, label filters, Today/Overdue date filters, task progress badges, and completed-list workflow rules as Kanban.
+
+Open `Board menu > View > Table`. Click a card title or row to open the normal card editor. Use the row's list dropdown to move a card to another list; moved cards land at the top of the destination list.
 
 ### Dated Views
 
@@ -204,7 +210,9 @@ Use it when you want to answer questions like:
 
 ### Switch views
 
+- Use `Board menu > View` to switch the current board between Kanban and Table.
 - `Cmd/Ctrl + 1`: Kanban, closing Planner if it is open
+- `Cmd/Ctrl + Option/Alt + 1`: Table, closing Planner if it is open
 - `Cmd/Ctrl + 2`: Planner Calendar for all open boards
 - `Cmd/Ctrl + 3`: Planner This Week for all open boards
 - `Cmd/Ctrl + Option/Alt + 2`: Planner Calendar for the current board
@@ -247,7 +255,7 @@ Planner uses your light/dark mode but keeps the default Signboard color palette 
 - `Cmd/Ctrl + Option/Alt + 4`: Day for the current board
 - `Cmd/Ctrl + Option/Alt + 5`: Agenda for the current board
 
-Inside Planner, `Cmd/Ctrl + 1` closes Planner and returns to the Kanban board.
+Inside Planner, `Cmd/Ctrl + 1` closes Planner and returns to Kanban. `Cmd/Ctrl + Option/Alt + 1` closes Planner and returns to Table.
 
 ## Archive and Restore
 
@@ -344,6 +352,7 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + N`: create a card
 - `Cmd/Ctrl + Shift + N`: create a list
 - `Cmd/Ctrl + 1`: return to Kanban and close Planner
+- `Cmd/Ctrl + Option/Alt + 1`: switch to Table and close Planner
 - `Cmd/Ctrl + 2`: open Planner Calendar for all open boards
 - `Cmd/Ctrl + 3`: open Planner This Week for all open boards
 - `Cmd/Ctrl + Shift + P`: open or close Planner
