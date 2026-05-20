@@ -4,12 +4,12 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board switcher/settings/theme shortcuts) + renderer right-click text editing context menu + archive browse/restore + top-of-list card move IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + native menu/accelerators (including board switcher/settings/theme shortcuts) + optional Quick Add global shortcut registration + renderer right-click text editing context menu + archive browse/restore + top-of-list card move IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
 - `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
-- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and menu-triggered renderer events, including board switcher/view/settings events, archive browse/read/restore, and top-of-list card move calls.
+- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and main-process-triggered renderer events, including board switcher/view/settings/Quick Add events, archive browse/read/restore, and top-of-list card move calls.
 - `index.html` - App shell, header board tab strip, left-edge Planner rail/overlay markup, fixed Sponsor pill, board-menu view/archive/switcher modal markup (including `#boardViewButton`, `#modalKeyboardShortcuts`, `#modalBoardSwitcher`, and `#modalArchiveBrowser`), and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `docs/release-template.md` - Curated GitHub release-body template for public download links.
@@ -29,7 +29,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and task due markers, skipping completed workflow lists.
 - `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, and drag text-selection lock used by Kanban and temporal card drag/drop.
-- `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification controls, persistence scheduling, and one-time migration from legacy board settings.
+- `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification/Quick Add global shortcut controls, persistence scheduling, and one-time migration from legacy board settings.
 - `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with date filters ignoring completed task due markers and completed workflow lists), card label popovers, Settings modal board panels, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
 - `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card due/task due markers, and source-list/source-board pills on temporal cards.
@@ -39,7 +39,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder), responsive `N more` overflow for unbounded open boards, plus the shared safe board-switch helper used by tab clicks and the switcher.
 - `app/board/boardSwitcher.js` - Quick board switcher overlay for `Cmd/Ctrl + K`, filtering and closing currently open boards and delegating selected board changes to the shared switch helper.
 - `app/cards/createCardElement.js` - Card DOM rendering, task progress badge display, and click behavior.
-- `app/cards/processAddNewCard.js` - New card creation flow, including optional create-and-open behavior.
+- `app/cards/processAddNewCard.js` - New card creation flow, including open-board targeting and optional create-and-open behavior.
 - `app/cards/processAddNewList.js` - New list creation flow.
 - `app/lists/createListElement.js` - List DOM rendering, sanitized rename, card DnD handling, and cross-list move lifecycle logging.
 - `app/board/renderBoard.js` - Whole-board render (with concurrent card-list reads), active Kanban/Table view dispatch, and Kanban list DnD handling.
@@ -49,7 +49,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
 - `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, active-card top-of-list moves from the dropdown/directional controls, debounced + serialized saves, clean-editor reloads after external/MCP card edits, fresh duplicate lifecycle metadata, and task-line due-date controls aligned from measured line coordinates.
-- `app/listeners/window.js` - Keyboard shortcuts, menu-command listeners, board view switching, Planner toggle/view shortcut handling including all-open-board and current-board date-view scopes, Settings fallback handling, quick board switcher shortcut handling, color cycling, active-card move/archive shortcuts, active-editor closing for workspace-level shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
+- `app/listeners/window.js` - Keyboard shortcuts, menu/global-command listeners, Quick Add card modal wiring with board/list selection across open boards, board view switching, Planner toggle/view shortcut handling including all-open-board and current-board date-view scopes, Settings fallback handling, quick board switcher shortcut handling, color cycling, active-card move/archive shortcuts, active-editor closing for workspace-level shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, sponsorship modal triggers, and external board-change auto-refresh sync loop, including clean open-editor refreshes.
 - `app/ui/theme.js` - Theme toggle + OverType theme integration, including the theme shortcut hint/state in the board menu.
 - `app/ui/tooltips.js` - Lightweight custom tooltip engine (event delegation + mutation observer) using existing element label attributes.
@@ -61,7 +61,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/cardOrdering.js` - Shared list-card ordering helper used by main-process/MCP restore and move flows to insert a card at the top while renumbering existing files.
 - `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
 - `lib/boardLabels.js` - Board-level label/theme/workflow settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
-- `lib/appSettings.js` - App-wide tooltip/notification settings normalization and JSON persistence under Electron `userData`.
+- `lib/appSettings.js` - App-wide tooltip/notification/Quick Add global shortcut settings normalization and JSON persistence under Electron `userData`.
 - `lib/importers/index.js` - Export surface for board importers.
 - `lib/importers/shared.js` - Shared importer helpers for list/card creation, label reuse/creation, metadata section building, and markdown source discovery.
 - `lib/importers/trello.js` - Trello JSON importer.
@@ -111,7 +111,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `build/entitlements.mac.plist` - macOS hardened runtime entitlements.
 - `dist/` - Build outputs and unpacked platform artifacts (generated).
 - `board-settings.md` (runtime, per board folder) - Board settings frontmatter file for labels/color scheme/workflow data; legacy tooltip/notification fields are migrated to app settings and removed on rewrite.
-- `app-settings.json` (runtime, Electron `userData`) - App-wide tooltip and notification preferences.
+- `app-settings.json` (runtime, Electron `userData`) - App-wide tooltip, notification, and Quick Add global shortcut preferences.
 
 ## Usually ignored for code tasks
 

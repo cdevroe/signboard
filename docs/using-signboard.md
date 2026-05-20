@@ -83,10 +83,10 @@ Cards are Markdown files, so every card is portable and readable outside the app
 
 You can create a card by:
 
-- Pressing `Cmd/Ctrl + N`
+- Pressing `Cmd/Ctrl + N` to open Quick Add for any currently open board
 - Using the `Add new card` button for a specific list
 
-In the new-card modal, press `Shift + Enter` after typing the title to create the card, open it immediately, and focus the notes field.
+In the Quick Add card modal, choose the board and list before creating the card. Press `Shift + Enter` after typing the title to create the card, open it immediately, and focus the notes field.
 
 Card filenames are chosen based on the name or title you first give it, along with a prefix for ordering, and a random card ID suffix (to help with name collisions). Once set, the filename will stay the same even if you rename the card.
 
@@ -298,6 +298,7 @@ The `App Settings` section controls settings that apply across Signboard:
 
 - tooltips
 - daily due-date reminders
+- an optional global Quick Add shortcut while Signboard is open
 
 If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due.
 
@@ -349,7 +350,7 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 
 - `Cmd/Ctrl + /`: open keyboard shortcuts
 - `Cmd/Ctrl + K`: switch between currently open boards
-- `Cmd/Ctrl + N`: create a card
+- `Cmd/Ctrl + N`: quick add a card to any open board
 - `Cmd/Ctrl + Shift + N`: create a list
 - `Cmd/Ctrl + 1`: return to Kanban and close Planner
 - `Cmd/Ctrl + Option/Alt + 1`: switch to Table and close Planner

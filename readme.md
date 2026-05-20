@@ -58,7 +58,7 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 
 - `Cmd/Ctrl + /`: open keyboard shortcuts
 - `Cmd/Ctrl + K`: switch between currently open boards
-- `Cmd/Ctrl + N`: create a card
+- `Cmd/Ctrl + N`: quick add a card to any open board
 - `Cmd/Ctrl + Shift + N`: create a list
 - `Cmd/Ctrl + 1`: return to Kanban and close Planner
 - `Cmd/Ctrl + Option/Alt + 1`: switch to Table and close Planner
@@ -82,7 +82,7 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Esc`: close open modals
 
 When a card is open, workspace-level shortcuts such as create, board switcher, Planner/view switching, Settings, Archive, and search close the card first. Card-specific shortcuts such as moving or archiving the open card still act on that card.
-In the new-card modal, `Shift + Enter` creates the card, opens it immediately, and focuses the notes field.
+In the Quick Add card modal, choose the board and list before creating the card. `Shift + Enter` creates the card, opens it immediately, and focuses the notes field. App Settings can also register an optional global Quick Add shortcut that works while Signboard is open.
 
 You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 

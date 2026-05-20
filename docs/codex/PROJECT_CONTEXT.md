@@ -7,7 +7,7 @@ Signboard is a local-first board app built with Electron and plain JavaScript. B
 - Lists are subdirectories inside that board folder.
 - Cards are Markdown files in each list directory.
 - Board-level settings are stored in `board-settings.md` at the board root, including labels, color scheme data, and completed-list workflow rules.
-- App-level tooltip and notification settings are stored in `app-settings.json` under Electron `userData`.
+- App-level tooltip, notification, and Quick Add global shortcut settings are stored in `app-settings.json` under Electron `userData`.
 - Card metadata is stored in YAML frontmatter (with legacy parser support).
 - Task checklist lines in card bodies can store task due markers with `(due: YYYY-MM-DD)`.
 
@@ -25,6 +25,7 @@ File: `main.js`
 - Registers IPC handler `pick-import-sources` to open native file/directory pickers for Trello JSON and Obsidian markdown/vault sources.
 - Registers IPC handler `check-for-updates` for renderer-triggered manual update checks.
 - Builds a native app menu with board view, Settings, theme, and `Check for Updates...` actions.
+- Registers the optional app-level Quick Add global shortcut with Electron `globalShortcut` while Signboard is running; the shortcut focuses the main window and opens the same renderer Quick Add card modal as `Cmd/Ctrl + N`.
 - Help menu includes `Copy MCP Config` to copy a ready-to-paste Signboard MCP JSON snippet.
 - In unpackaged/dev mode, Help menu includes `Preview Update Available...` and `Preview Update Ready...` to test updater dialogs without downloading/installing.
 - Uses `electron-updater` against GitHub Releases for automatic and manual update checks.
@@ -51,7 +52,7 @@ File: `main.js`
 File: `preload.js`
 
 - Exposes `window.board`, `window.chooser`, and `window.electronAPI`.
-- `window.electronAPI` includes external-link opening, manual update checks, app settings reads/writes, one-time migration from legacy board-level tooltip/notification settings, and menu-triggered renderer events such as board view switching.
+- `window.electronAPI` includes external-link opening, manual update checks, app settings reads/writes, Quick Add global shortcut status, one-time migration from legacy board-level tooltip/notification settings, and main-process-triggered renderer events such as board view switching and Quick Add.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
 - Archive browsing uses preload bridge methods (`listArchiveEntries`, `readArchiveEntry`, `restoreArchivedCard`, `restoreArchivedList`) backed by the same trusted-board gate as normal board operations.
@@ -66,7 +67,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
 - The left-edge Planner rail and overlay markup live in `index.html`; Planner covers the board header/tabs while open and is hidden when no boards are open.
 - `app/signboard.js` is concatenated from source modules by `buildjs.sh`.
-- Settings includes app-level tooltip/notification controls and board-specific General, Workflow, Labels, Colors, and Import sections, with import summary/warning rendering in the existing settings modal.
+- Settings includes app-level tooltip/notification/Quick Add global shortcut controls and board-specific General, Workflow, Labels, Colors, and Import sections, with import summary/warning rendering in the existing settings modal.
 - The sponsorship modal is available from the Board menu "Sponsor" item, About modal, and a fixed bottom-right "Sponsor" pill that hides on compact windows so it does not cover lists.
 - The Board menu now opens a dedicated Archive browser modal; Archive remains hidden from normal board rendering and is not a fourth board view.
 - The quick board switcher is a top-center renderer overlay opened with `Cmd/Ctrl + K`; it searches all currently open boards, supports closing boards, and switches through the same safe board transition helper as tab and overflow-tab clicks.
@@ -205,7 +206,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 ### Add/edit card and list
 - `app/cards/processAddNewCard.js` and `app/cards/processAddNewList.js`:
   - Generate numbered filenames/directories and create on disk.
-  - New-card modal submissions can request opening the created card immediately with the notes field focused, used by `Shift + Enter` from either add-card modal.
+  - Quick Add card submissions can target any currently open/trusted board, request opening the created card immediately with the notes field focused, and switch to the target board first when `Shift + Enter` creates a card outside the active board.
 - `app/modals/toggleEditCardModal.js`:
   - Loads card into OverType editor.
   - Saves title/body/frontmatter through `window.board.writeCard`.
@@ -235,9 +236,9 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 ### Keyboard shortcuts
 - `app/listeners/window.js`:
   - `Cmd/Ctrl + /`: open the keyboard shortcuts helper modal.
+  - `Cmd/Ctrl + N`: open Quick Add card with board and list selectors for currently open boards.
   - `Cmd/Ctrl + K`: open/toggle the quick board switcher from any screen.
   - `Esc`: close modals.
-  - `Cmd/Ctrl + N`: add card (with list picker modal).
   - `Cmd/Ctrl + Shift + N`: add list.
   - `Cmd/Ctrl + 1`: return to Kanban and close Planner if it is open.
   - `Cmd/Ctrl + Option/Alt + 1`: switch to Table and close Planner if it is open.
@@ -252,6 +253,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Cmd/Ctrl + Shift + [` and `Cmd/Ctrl + Shift + ]`: move the open card to the previous/next list, no-op at board edges.
   - `Cmd/Ctrl + Option/Alt + Shift + Backspace`: archive the open card.
   - `Cmd/Ctrl + Shift + A`: open the Archive browser modal.
+  - The optional global Quick Add shortcut is configured in App Settings and handled in `main.js`; when registered, it focuses Signboard and sends the same Quick Add command.
   - Workspace-level shortcuts close the active card editor before changing context; editor-scoped move/archive shortcuts keep acting on the open card.
   - Any shortcut changes must update the helper list in `index.html` (`#modalKeyboardShortcuts`) in the same change.
 - View-switcher rows and list-action rows surface the same shortcut hints in subtle monospace text so the app teaches the keyboard path inline.
@@ -424,7 +426,7 @@ CLI overdue behavior:
 ### App settings tests
 - `npm run test:app-settings`
 - Script: `scripts/test-app-settings.js`
-- Covers app-wide tooltip/notification settings persistence and one-time migration from legacy board settings.
+- Covers app-wide tooltip/notification/Quick Add shortcut settings persistence and one-time migration from legacy board settings.
 
 ### Legacy migration
 - `npm run migrate:legacy-cards -- <board-root> [--dry-run] [--include-plain]`

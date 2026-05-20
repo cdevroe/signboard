@@ -2770,6 +2770,7 @@ function initializeBoardLabelControls() {
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
+  const quickAddShortcutInput = document.getElementById('boardSettingsQuickAddShortcut');
   const autoDetectCompletedListsToggle = document.getElementById('boardSettingsAutoDetectCompletedListsToggle');
   const importFromTrelloButton = document.getElementById('btnImportBoardFromTrello');
   const importFromObsidianButton = document.getElementById('btnImportBoardFromObsidian');
@@ -2973,6 +2974,29 @@ function initializeBoardLabelControls() {
       });
       renderAppSettingsControls();
       scheduleAppSettingsSave();
+    });
+  }
+
+  if (quickAddShortcutInput) {
+    quickAddShortcutInput.addEventListener('change', (event) => {
+      if (typeof setAppQuickAddSettings !== 'function') {
+        return;
+      }
+
+      setAppQuickAddSettings({
+        globalShortcut: event.target.value,
+      });
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+    });
+
+    quickAddShortcutInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      quickAddShortcutInput.blur();
     });
   }
 

@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker, nativeImage, screen } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker, nativeImage, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { randomUUID } = require('crypto');
 const fs = require('fs');
@@ -59,6 +59,10 @@ const dueDateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
 });
+
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal');
+}
 
 function formatDueDateValue(rawDateValue) {
   const dateString = String(rawDateValue || '').trim();
@@ -128,6 +132,12 @@ let mainWindow = null;
 let isAppQuitting = false;
 let mcpPowerSaveBlockerId = null;
 let unresponsiveDialogVisible = false;
+let registeredQuickAddGlobalShortcut = '';
+let quickAddGlobalShortcutStatus = {
+  accelerator: '',
+  registered: false,
+  message: '',
+};
 
 function isMcpPowerSaveBlockerActive() {
   return Number.isInteger(mcpPowerSaveBlockerId) && powerSaveBlocker.isStarted(mcpPowerSaveBlockerId);
@@ -1241,6 +1251,106 @@ function sendToMainWindow(channel, ...args) {
   win.webContents.send(channel, ...args);
 }
 
+function getQuickAddGlobalShortcutStatus() {
+  return { ...quickAddGlobalShortcutStatus };
+}
+
+function withRuntimeAppSettings(settings) {
+  return {
+    ...settings,
+    globalShortcutStatus: getQuickAddGlobalShortcutStatus(),
+  };
+}
+
+function unregisterQuickAddGlobalShortcut() {
+  if (!registeredQuickAddGlobalShortcut || !globalShortcut) {
+    registeredQuickAddGlobalShortcut = '';
+    return;
+  }
+
+  try {
+    globalShortcut.unregister(registeredQuickAddGlobalShortcut);
+  } catch (error) {
+    console.error('Failed to unregister quick add global shortcut.', error);
+  } finally {
+    registeredQuickAddGlobalShortcut = '';
+  }
+}
+
+function applyQuickAddGlobalShortcut(settings = {}) {
+  const normalizedSettings = appSettings.normalizeAppSettings(settings);
+  const accelerator = normalizedSettings.quickAdd.globalShortcut;
+
+  if (
+    accelerator &&
+    registeredQuickAddGlobalShortcut === accelerator &&
+    quickAddGlobalShortcutStatus.registered
+  ) {
+    return getQuickAddGlobalShortcutStatus();
+  }
+
+  if (registeredQuickAddGlobalShortcut) {
+    unregisterQuickAddGlobalShortcut();
+  }
+
+  quickAddGlobalShortcutStatus = {
+    accelerator,
+    registered: false,
+    message: '',
+  };
+
+  if (!accelerator || isMcpServerMode || isMcpConfigMode || isCliMode) {
+    return getQuickAddGlobalShortcutStatus();
+  }
+
+  try {
+    const registered = globalShortcut.register(accelerator, () => {
+      sendToMainWindow('open-quick-add-card');
+    });
+
+    if (!registered) {
+      quickAddGlobalShortcutStatus = {
+        accelerator,
+        registered: false,
+        message: 'Shortcut unavailable',
+      };
+      return getQuickAddGlobalShortcutStatus();
+    }
+
+    registeredQuickAddGlobalShortcut = accelerator;
+    quickAddGlobalShortcutStatus = {
+      accelerator,
+      registered: true,
+      message: '',
+    };
+  } catch (error) {
+    quickAddGlobalShortcutStatus = {
+      accelerator,
+      registered: false,
+      message: 'Shortcut unavailable',
+    };
+    console.error('Failed to register quick add global shortcut.', error);
+  }
+
+  return getQuickAddGlobalShortcutStatus();
+}
+
+async function readAppSettingsWithRuntimeStatus() {
+  const settings = await appSettings.readAppSettings(app.getPath('userData'));
+  return withRuntimeAppSettings(settings);
+}
+
+async function updateAppSettingsWithRuntimeStatus(partialSettings = {}) {
+  const settings = await appSettings.updateAppSettings(app.getPath('userData'), partialSettings);
+  applyQuickAddGlobalShortcut(settings);
+  return withRuntimeAppSettings(settings);
+}
+
+async function initializeGlobalShortcuts() {
+  const settings = await appSettings.readAppSettings(app.getPath('userData'));
+  applyQuickAddGlobalShortcut(settings);
+}
+
 function buildMcpConfigTemplate() {
   const command = process.execPath;
   const args = app.isPackaged ? [MCP_SERVER_ARG] : [app.getAppPath(), MCP_SERVER_ARG];
@@ -2162,7 +2272,7 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     }
 
     case 'createCard': {
-      const filePath = requireWritablePath(event.sender, args[0]);
+      const filePath = requireWritablePath(event.sender, args[0], { allowTrusted: true });
       const content = String(args[1] || '');
       const lines = content.split(/\r?\n/);
       const title = (lines.shift() || '').trim();
@@ -2502,12 +2612,14 @@ ipcMain.handle('get-app-info', async () => ({
 }));
 
 ipcMain.handle('read-app-settings', async () => (
-  appSettings.readAppSettings(app.getPath('userData'))
+  readAppSettingsWithRuntimeStatus()
 ));
 
 ipcMain.handle('update-app-settings', async (_event, partialSettings = {}) => (
-  appSettings.updateAppSettings(app.getPath('userData'), partialSettings)
+  updateAppSettingsWithRuntimeStatus(partialSettings)
 ));
+
+ipcMain.handle('get-global-shortcut-status', async () => getQuickAddGlobalShortcutStatus());
 
 ipcMain.handle('migrate-app-settings-from-board', async (event, boardRoot) => {
   const normalizedBoardRoot = requireReadableBoardRoot(event.sender, boardRoot);
@@ -2519,7 +2631,10 @@ ipcMain.handle('migrate-app-settings-from-board', async (event, boardRoot) => {
   );
 
   await boardLabels.readBoardSettings(normalizedBoardRoot, { ensureFile: true });
-  return migrationResult;
+  return {
+    ...migrationResult,
+    settings: withRuntimeAppSettings(migrationResult.settings),
+  };
 });
 
 ipcMain.handle('notify-due-cards', async (_event, payload = {}) => {
@@ -2608,6 +2723,7 @@ app.whenReady().then(async () => {
   }
 
   await loadUpdatePreferences();
+  await initializeGlobalShortcuts();
   createWindow();
   buildApplicationMenu();
   setupAutoUpdater();
@@ -2636,6 +2752,10 @@ app.on('before-quit', () => {
     clearInterval(updateState.checkIntervalId);
     updateState.checkIntervalId = null;
   }
+});
+
+app.on('will-quit', () => {
+  unregisterQuickAddGlobalShortcut();
 });
 
 app.on('window-all-closed', () => {

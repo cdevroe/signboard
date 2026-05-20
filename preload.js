@@ -81,6 +81,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
   readAppSettings: () => ipcRenderer.invoke('read-app-settings'),
   updateAppSettings: (partialSettings) => ipcRenderer.invoke('update-app-settings', partialSettings),
+  getGlobalShortcutStatus: () => ipcRenderer.invoke('get-global-shortcut-status'),
   migrateAppSettingsFromBoard: (boardRoot) => ipcRenderer.invoke('migrate-app-settings-from-board', boardRoot),
   openExternal: (url) => ipcRenderer.invoke('open-external-url', url),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
@@ -139,6 +140,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('open-board-settings', listener);
     return () => {
       ipcRenderer.removeListener('open-board-settings', listener);
+    };
+  },
+  onOpenQuickAddCard: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = () => {
+      callback();
+    };
+
+    ipcRenderer.on('open-quick-add-card', listener);
+    return () => {
+      ipcRenderer.removeListener('open-quick-add-card', listener);
     };
   },
   onToggleThemeMode: (callback) => {

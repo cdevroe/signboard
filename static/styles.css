@@ -3487,6 +3487,22 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   justify-content: flex-end;
 }
 
+.board-settings-status {
+  flex: 0 0 auto;
+  min-width: 96px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  text-align: right;
+}
+
+.board-settings-status.is-success {
+  color: var(--task-progress-complete-color);
+}
+
+.board-settings-status.is-warning {
+  color: var(--due-date-today-color);
+}
+
 #boardSettingsNotificationsTime {
   width: 8ch;
   min-width: 8ch;

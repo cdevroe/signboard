@@ -392,7 +392,7 @@ signboard settings
 signboard settings --json
 ```
 
-This returns the board settings Markdown document, including labels, color scheme data, and workflow settings for completed lists. App-wide tooltip and notification preferences are desktop app settings, not board settings.
+This returns the board settings Markdown document, including labels, color scheme data, and workflow settings for completed lists. App-wide tooltip, notification, and Quick Add global shortcut preferences are desktop app settings, not board settings.
 
 Current CLI editing support is intentionally narrow.
 

@@ -502,10 +502,12 @@ test('opens the add-card-to-list modal from the keyboard shortcut with a styled 
   await page.keyboard.press(getShortcut('N'));
 
   await expect(page.locator('#modalAddCardToList')).toBeVisible();
+  await expect(page.locator('#userInputBoardPath')).toBeVisible();
   await expect(page.locator('#userInputListPath')).toBeVisible();
+  await expect(page.locator('#userInputBoardPath option')).toHaveText(['Playwright Board']);
   await expect(page.locator('#modalAddCardToList .new-card-modal-helper')).toContainText('Shift');
 
-  const selectStyle = await page.locator('#userInputListPath').evaluate((element) => {
+  const selectStyle = await page.locator('#userInputBoardPath').evaluate((element) => {
     const style = window.getComputedStyle(element);
     return {
       backgroundImage: style.backgroundImage,
@@ -516,10 +518,46 @@ test('opens the add-card-to-list modal from the keyboard shortcut with a styled 
   expect(selectStyle.backgroundImage).toContain('data:image/svg+xml');
   expect(selectStyle.appearance).toBe('none');
 
+  const boardToListGap = await getVerticalGap(page.locator('#userInputBoardPath'), page.locator('#userInputListPath'));
   const selectToInputGap = await getVerticalGap(page.locator('#userInputListPath'), page.locator('#userInputCardName'));
   const inputToButtonGap = await getVerticalGap(page.locator('#userInputCardName'), page.locator('#btnAddCardToList'));
+  expect(boardToListGap).toBeGreaterThanOrEqual(8);
   expect(selectToInputGap).toBeGreaterThanOrEqual(8);
   expect(inputToButtonGap).toBeGreaterThanOrEqual(6);
+});
+
+test('quick add can target another open board', async ({ electronApp, boardRoot }) => {
+  const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
+
+  await page.keyboard.press(getShortcut('N'));
+  await expect(page.locator('#modalAddCardToList')).toBeVisible();
+  await expect(page.locator('#userInputBoardPath option')).toHaveText(['Playwright Board', 'Roadmap Board']);
+
+  await page.locator('#userInputBoardPath').selectOption({ label: 'Roadmap Board' });
+  await expect.poll(async () => page.locator('#userInputListPath').inputValue()).toContain('/Roadmap Board/000-To-do-stock/');
+
+  await page.locator('#userInputCardName').fill('Capture roadmap note');
+  await page.locator('#btnAddCardToList').click();
+
+  await expect(page.locator('#modalAddCardToList')).toBeHidden();
+  await expect(page.locator('#boardName')).toHaveText('Playwright Board');
+  await expect.poll(async () => {
+    const entries = await fs.readdir(path.join(boardRoots[1], '000-To-do-stock'));
+    return entries.some((entry) => entry.includes('capture-roadmap-note'));
+  }).toBe(true);
+
+  await page.keyboard.press(getShortcut('N'));
+  await page.locator('#userInputBoardPath').selectOption({ label: 'Roadmap Board' });
+  await expect.poll(async () => page.locator('#userInputListPath').inputValue()).toContain('/Roadmap Board/000-To-do-stock/');
+
+  await page.locator('#userInputCardName').fill('Open roadmap note');
+  await page.keyboard.press('Shift+Enter');
+
+  await expect(page.locator('#modalAddCardToList')).toBeHidden();
+  await expect(page.locator('#boardName')).toHaveText('Roadmap Board');
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect(page.locator('#cardEditorTitle')).toHaveText('Open roadmap note');
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toBeFocused();
 });
 
 test('creates and opens a new card from the keyboard modal with Shift+Enter', async ({ page }) => {
@@ -1078,6 +1116,29 @@ test('persists the app tooltip toggle and suppresses tooltips when disabled', as
       return settings.tooltipsEnabled;
     });
   }).toBe(false);
+});
+
+test('persists the global quick add shortcut setting', async ({ page }) => {
+  await openBoardMenu(page);
+  await page.locator('#openBoardSettings').click();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+
+  const shortcutInput = page.locator('#boardSettingsQuickAddShortcut');
+  const shortcutStatus = page.locator('#boardSettingsQuickAddShortcutStatus');
+
+  await expect(shortcutInput).toHaveValue('');
+  await expect(shortcutStatus).toContainText('Disabled');
+
+  await shortcutInput.fill(' CommandOrControl + Shift + Space ');
+  await shortcutInput.blur();
+
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      const settings = await window.electronAPI.readAppSettings();
+      return settings.quickAdd.globalShortcut;
+    });
+  }).toBe('CommandOrControl+Shift+Space');
+  await expect(shortcutInput).toHaveValue('CommandOrControl+Shift+Space');
 });
 
 test('opens the sponsorship modal from the fixed pill button', async ({ page }) => {

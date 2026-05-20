@@ -180,7 +180,8 @@
   </div>
 
   <div id="modalAddCardToList" class="modal hidden">
-     <p><select id="userInputListPath"></select></p>
+    <p><select id="userInputBoardPath" aria-label="Board"></select></p>
+    <p><select id="userInputListPath" aria-label="List"></select></p>
     <p class="modalAddCardToListInputRow"><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"></p>
     <p class="new-card-modal-helper"><kbd>Shift</kbd> + <kbd>Enter</kbd> to create and open</p>
     <button id="btnAddCardToList" title="Add card to selected list">Add</button>
@@ -196,7 +197,7 @@
         <h3 id="keyboard-shortcuts-section-create">Create</h3>
         <ul class="keyboard-shortcuts-list">
           <li>
-            <span>Add card</span>
+            <span>Quick add card</span>
             <kbd data-shortcut-action="addCard">⌘ + N</kbd>
           </li>
           <li>
@@ -453,6 +454,14 @@
             <label for="boardSettingsNotificationsTime">Notification time (local)</label>
             <input id="boardSettingsNotificationsTime" type="text" value="09:00" placeholder="HH:MM" inputmode="numeric" maxlength="5" width="10" pattern="(?:0[1-9]|1[0-9]|2[0-4]):[0-5][0-9]">
             <p class="boardSettingsHint">Use HH:MM in 24-hour format. Hours can be 01 through 24 (example: 21:30).</p>
+          </div>
+          <div class="board-settings-group">
+            <label for="boardSettingsQuickAddShortcut">Global Quick Add shortcut</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsQuickAddShortcut" type="text" placeholder="CommandOrControl+Shift+Space" spellcheck="false" autocomplete="off">
+              <span id="boardSettingsQuickAddShortcutStatus" class="board-settings-status">Disabled</span>
+            </div>
+            <p class="boardSettingsHint">Leave blank to disable. Signboard must be open.</p>
           </div>
         </section>
 

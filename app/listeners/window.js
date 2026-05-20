@@ -553,42 +553,223 @@ async function openAddListFromShortcut() {
     };
 }
 
-async function openAddCardFromShortcut() {
+let quickAddListLoadRequestId = 0;
+
+function getQuickAddOpenBoardRoots() {
+    const openBoards = typeof getStoredOpenBoards === 'function' ? getStoredOpenBoards() : [];
+    const activeBoard = typeof normalizeBoardPath === 'function'
+        ? normalizeBoardPath(window.boardRoot || (typeof getStoredActiveBoard === 'function' ? getStoredActiveBoard() : ''))
+        : String(window.boardRoot || '').trim();
+
+    const boardRoots = [];
+    if (activeBoard) {
+        boardRoots.push(activeBoard);
+    }
+
+    for (const boardRoot of openBoards) {
+        const normalizedBoardRoot = typeof normalizeBoardPath === 'function'
+            ? normalizeBoardPath(boardRoot)
+            : String(boardRoot || '').trim();
+
+        if (normalizedBoardRoot && !boardRoots.includes(normalizedBoardRoot)) {
+            boardRoots.push(normalizedBoardRoot);
+        }
+    }
+
+    return boardRoots;
+}
+
+function renderQuickAddBoardOptions(selectedBoardRoot = '') {
+    const boardSelect = document.getElementById('userInputBoardPath');
+    if (!boardSelect) {
+        return '';
+    }
+
+    const boardRoots = getQuickAddOpenBoardRoots();
+    const normalizedSelectedBoardRoot = typeof normalizeBoardPath === 'function'
+        ? normalizeBoardPath(selectedBoardRoot)
+        : String(selectedBoardRoot || '').trim();
+    const selectedBoard = boardRoots.includes(normalizedSelectedBoardRoot)
+        ? normalizedSelectedBoardRoot
+        : boardRoots[0] || '';
+
+    boardSelect.replaceChildren();
+
+    for (const boardRoot of boardRoots) {
+        const option = document.createElement('option');
+        option.value = boardRoot;
+        option.textContent = typeof getBoardLabelFromPath === 'function'
+            ? getBoardLabelFromPath(boardRoot)
+            : boardRoot.replace(/\/+$/, '').split('/').pop();
+        boardSelect.appendChild(option);
+    }
+
+    boardSelect.disabled = boardRoots.length === 0;
+    if (selectedBoard) {
+        boardSelect.value = selectedBoard;
+    }
+
+    return selectedBoard;
+}
+
+function setQuickAddSubmitEnabled(isEnabled) {
+    const submitButton = document.getElementById('btnAddCardToList');
+    if (submitButton) {
+        submitButton.disabled = !isEnabled;
+    }
+}
+
+async function renderQuickAddListOptions(boardRoot, selectedListPath = '') {
+    const listSelect = document.getElementById('userInputListPath');
+    if (!listSelect) {
+        return '';
+    }
+
+    const normalizedBoardRoot = typeof normalizeBoardPath === 'function'
+        ? normalizeBoardPath(boardRoot)
+        : String(boardRoot || '').trim();
+    const requestId = ++quickAddListLoadRequestId;
+
+    listSelect.disabled = true;
+    setQuickAddSubmitEnabled(false);
+    listSelect.replaceChildren();
+
+    const loadingOption = document.createElement('option');
+    loadingOption.value = '';
+    loadingOption.textContent = normalizedBoardRoot ? 'Loading lists...' : 'No open boards';
+    listSelect.appendChild(loadingOption);
+
+    if (!normalizedBoardRoot || !window.board || typeof window.board.listLists !== 'function') {
+        return '';
+    }
+
+    try {
+        const listsToSelect = await window.board.listLists(normalizedBoardRoot);
+        if (requestId !== quickAddListLoadRequestId) {
+            return '';
+        }
+
+        listSelect.replaceChildren();
+
+        const listNames = Array.isArray(listsToSelect) ? listsToSelect : [];
+        for (const listName of listNames) {
+            const option = document.createElement('option');
+            option.value = `${normalizedBoardRoot}${listName}/`;
+            option.textContent = typeof getBoardListDisplayName === 'function'
+                ? getBoardListDisplayName(listName)
+                : String(listName || '').trim();
+            listSelect.appendChild(option);
+        }
+
+        const normalizedSelectedListPath = typeof normalizeBoardPath === 'function'
+            ? normalizeBoardPath(selectedListPath)
+            : String(selectedListPath || '').trim();
+        const optionValues = Array.from(listSelect.options).map((option) => option.value);
+        const selectedList = optionValues.includes(normalizedSelectedListPath)
+            ? normalizedSelectedListPath
+            : optionValues[0] || '';
+
+        if (selectedList) {
+            listSelect.value = selectedList;
+        }
+
+        listSelect.disabled = listNames.length === 0;
+        setQuickAddSubmitEnabled(listNames.length > 0);
+        return selectedList;
+    } catch (error) {
+        if (requestId !== quickAddListLoadRequestId) {
+            return '';
+        }
+
+        console.error('Unable to load lists for quick add.', error);
+        listSelect.replaceChildren();
+        const errorOption = document.createElement('option');
+        errorOption.value = '';
+        errorOption.textContent = 'Unable to load lists';
+        listSelect.appendChild(errorOption);
+        listSelect.disabled = true;
+        setQuickAddSubmitEnabled(false);
+        return '';
+    }
+}
+
+async function submitQuickAddCardModal(options = {}) {
+    const cardName = document.getElementById('userInputCardName');
+    const listPath = document.getElementById('userInputListPath');
+    const boardPath = document.getElementById('userInputBoardPath');
+    const submitButton = document.getElementById('btnAddCardToList');
+
+    if (!cardName || !listPath || !listPath.value) {
+        return '';
+    }
+
+    if (submitButton) {
+        submitButton.disabled = true;
+    }
+
+    try {
+        const cardPath = await processAddNewCard(cardName.value, listPath.value, {
+            boardRoot: boardPath ? boardPath.value : '',
+            openAfterCreate: Boolean(options.openAfterCreate),
+        });
+
+        cardName.value = '';
+        return cardPath;
+    } finally {
+        if (submitButton) {
+            submitButton.disabled = false;
+        }
+    }
+}
+
+async function openAddCardFromShortcut(options = {}) {
     closePlannerBeforeBoardCreationShortcut();
 
-    const listsToSelect = await window.board.listLists(window.boardRoot);
-
-    const userInputListPath = document.getElementById('userInputListPath');
-    userInputListPath.innerHTML = '';
+    const userInputBoardPath = document.getElementById('userInputBoardPath');
     const cardName = document.getElementById('userInputCardName');
+    const selectedBoardRoot = renderQuickAddBoardOptions(options.boardRoot || window.boardRoot);
 
-    listsToSelect.forEach((optionText) => {
-        const option = document.createElement("option");
-        option.value = `${window.boardRoot + optionText + '/'}`;
-        option.text = optionText.slice(4, optionText.length - 6);
-        userInputListPath.appendChild(option);
-    });
+    if (userInputBoardPath) {
+        userInputBoardPath.onchange = async () => {
+            await renderQuickAddListOptions(userInputBoardPath.value);
+        };
+    }
 
-    document.getElementById('board').style = 'filter: blur(3px)';
+    await renderQuickAddListOptions(selectedBoardRoot);
+
+    if (typeof setBoardInteractive === 'function') {
+        setBoardInteractive(false);
+    } else {
+        document.getElementById('board').style = 'filter: blur(3px)';
+    }
 
     toggleAddCardToListModal((window.innerWidth / 2) - 200, (window.innerHeight / 2) - 100);
-    cardName.focus();
+    if (cardName) {
+        cardName.focus();
+    }
 
     const btnAddCardToList = document.getElementById('btnAddCardToList');
 
     btnAddCardToList.onclick = async (e) => {
         e.stopPropagation();
-
-        const cardName = document.getElementById('userInputCardName');
-        const listPath = document.getElementById('userInputListPath');
-
-        await processAddNewCard(cardName.value, listPath.value, {
+        await submitQuickAddCardModal({
             openAfterCreate: Boolean(e && e.shiftKey),
         });
-
-        cardName.value = '';
-        listPath.value = '';
     };
+}
+
+async function openQuickAddCardFromCommand() {
+    hideShortcutHelpModal();
+
+    if (typeof closeBoardSwitcher === 'function') {
+        closeBoardSwitcher();
+    }
+
+    if (typeof closeAllModals === 'function') {
+        await closeAllModals({ key: 'Escape' }, { skipRerender: true });
+    }
+
+    await openAddCardFromShortcut();
 }
 
 syncShortcutHelpModifierLabels();
@@ -613,6 +794,14 @@ if (window.electronAPI && typeof window.electronAPI.onOpenBoardSettings === 'fun
         hideShortcutHelpModal();
         openBoardSettingsFromShortcut().catch((error) => {
             console.error('Unable to open settings from shortcut.', error);
+        });
+    });
+}
+
+if (window.electronAPI && typeof window.electronAPI.onOpenQuickAddCard === 'function') {
+    window.electronAPI.onOpenQuickAddCard(() => {
+        openQuickAddCardFromCommand().catch((error) => {
+            console.error('Unable to open quick add from global shortcut.', error);
         });
     });
 }
@@ -833,7 +1022,7 @@ window.addEventListener('keydown', async (e) => {
             if ( e.shiftKey ) { // Add List
                 await openAddListFromShortcut();
             } else {
-                await openAddCardFromShortcut();
+                await openQuickAddCardFromCommand();
             }
 
         }

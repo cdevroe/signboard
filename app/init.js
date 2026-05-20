@@ -812,13 +812,10 @@ async function init() {
             btnAddCardToList.click();
             return;
         }
-        const listPath = document.getElementById('userInputListPath');
-        if (!listPath) {
+        if (typeof submitQuickAddCardModal !== 'function') {
             return;
         }
-        await processAddNewCard(userInputCardName.value, listPath.value, { openAfterCreate: true });
-        userInputCardName.value = '';
-        listPath.value = '';
+        await submitQuickAddCardModal({ openAfterCreate: true });
     });
     document.addEventListener('click', async (e) => {
         const clickedLink = e.target instanceof Element ? e.target.closest('a[href]') : null;
