@@ -164,14 +164,14 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Opens the `Cmd/Ctrl + K` board switcher overlay.
   - Filters currently open boards by visible board name, highlights autocomplete results, closes open boards from result rows, and delegates switching to the shared board switch helper.
 - `app/board/boardViews.js`:
-  - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, task due-date placement, and temporal card rendering.
+  - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, open task due-date placement, and temporal card rendering.
   - Owns board-facing Kanban/Table view state and the Board menu view popover.
   - Shows task progress badges and source-list/source-board pills on temporal cards, tinting source-board pills from each board's color scheme when available.
 - `app/board/plannerView.js`:
   - Owns the workspace Planner overlay opened from the left rail or `Cmd/Ctrl + Shift + P`.
   - Scopes Planner data to currently open board tabs only and defaults to all open boards.
   - Offers quick `All Boards` and `Current Board` scope controls plus custom board selection in the filter menu.
-  - Renders Planner Calendar, This Week, Day, and Agenda views from card due dates and task-level due markers.
+  - Renders Planner Calendar, This Week, Day, and Agenda views from card due dates and incomplete task-level due markers.
   - Uses Planner-local search plus `Today` / `Overdue`, completed-card visibility, and open-board filters; label filters appear only when scoped to the active board.
   - Hides cards from completed workflow lists by default while preserving their due-date metadata; the Planner filter menu can show completed dated cards when needed.
   - Opens Planner cards through the normal editor, switching the active board behind the overlay first when the card belongs to a different board.
@@ -193,6 +193,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/board/boardLabels.js`:
   - Owns board label state in the renderer.
   - Renders the header filter dropdown with mutually exclusive `Today` / `Overdue` date filters plus multi-select OR label filters.
+  - Evaluates date filters from card due dates and incomplete task due markers, ignoring completed task due markers.
   - Combines date filters, label filters, and board search with AND logic when determining visibility.
   - Owns board workflow settings for completed-list auto-detection, ignored auto-detected lists, and manual completed-list selection.
   - Keeps filter state temporary only; opening or switching boards resets the active date + label filters.
@@ -257,7 +258,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Workspace-level shortcuts close the active card editor before changing context; editor-scoped move/archive shortcuts keep acting on the open card.
   - Any shortcut changes must update the helper list in `index.html` (`#modalKeyboardShortcuts`) in the same change.
 - View-switcher rows and list-action rows surface the same shortcut hints in subtle monospace text so the app teaches the keyboard path inline.
-- Board date filtering treats overdue task markers and completed workflow lists as actionable work only: completed task due markers and completed-list cards do not keep a card visible in date filters, but overdue card-level due dates still do on actionable lists.
+- Date filtering and Planner date views treat only card due dates and incomplete task due markers as actionable work: completed task due markers and completed-list cards do not keep a card visible by default, but card-level due dates still do on actionable lists.
 
 ### Theme support
 - `app/ui/theme.js`:

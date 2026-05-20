@@ -153,7 +153,7 @@ Example:
 - [x] Review copy
 ```
 
-Task due dates are separate from the card’s main due date. They are included in CLI filters and Planner views, so a card can surface because one of its checklist items is due even if the card itself has no top-level due date.
+Task due dates are separate from the card’s main due date. Open checklist item due dates are included in Planner and board date filters, so a card can surface because one of its unchecked checklist items is due even if the card itself has no top-level due date. Once that checklist item is checked off, its due date stays in the Markdown but no longer keeps the card in date-based views. CLI due filters expose `--task-status open|any` when you need to choose whether checked task due markers count.
 
 ### Labels
 
@@ -313,7 +313,7 @@ The board `General` section lets you:
 
 The `Workflow` section controls which lists count as completed work for the current board.
 
-Completed-list cards keep their due dates, but Planner date views, the Planner `Overdue` filter, board date filters, and daily due reminders hide them by default so finished work does not look actionable.
+Completed-list cards and checked-off task due markers keep their due dates, but Planner date views, Planner date filters, board date filters, and daily due reminders hide them by default so finished work does not look actionable.
 
 Auto-detection is enabled by default. You can turn it off, manually choose completed lists, or uncheck an auto-detected list.
 

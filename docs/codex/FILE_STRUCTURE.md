@@ -26,13 +26,13 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `app/signboard.js` - Generated concatenated renderer file loaded by `index.html`.
 - `app/utilities/santizeFileName.js` - Filename sanitization + random suffix helper.
-- `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, task-summary counters, and task progress badge creation.
-- `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and task due markers, skipping completed workflow lists.
+- `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, all/open task due-date sets, task-summary counters, and task progress badge creation.
+- `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and incomplete task due markers, skipping completed workflow lists.
 - `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, and drag text-selection lock used by Kanban and temporal card drag/drop.
 - `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification/Quick Add global shortcut controls, persistence scheduling, and one-time migration from legacy board settings.
 - `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with date filters ignoring completed task due markers and completed workflow lists), card label popovers, Settings modal board panels, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
-- `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card due/task due markers, and source-list/source-board pills on temporal cards.
+- `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card due/open task due markers, and source-list/source-board pills on temporal cards.
 - `app/board/tableView.js` - Board-scoped Table view rendering, dense row metadata, board filter/search reuse, and list-column card moves through the top-of-list move IPC path.
 - `app/board/plannerView.js` - Workspace-level Planner overlay with Calendar, This Week, Day, and Agenda views across currently open boards, all/current/custom board scope controls, Planner-local search/date/completed-card/board/active-board-label filters, left-rail open/close behavior, and Planner card opening that switches the active board when needed.
 - `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing, detail-pane rendering, incremental result loading, and restore flows.

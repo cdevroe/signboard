@@ -524,14 +524,7 @@ function getPlannerVisibleDueDatesForEntry(cardEntry) {
   }
 
   const activeFilter = getPlannerActiveDateFilter();
-  const activeFilterDueDates = getActiveBoardFilterDueDates(
-    cardEntry.due,
-    cardEntry.taskDueDates,
-    cardEntry.incompleteTaskDueDates,
-    activeFilter,
-  );
-
-  return activeFilterDueDates
+  return getTemporalDueDatesForEntry(cardEntry)
     .filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue, activeFilter))
     .sort();
 }

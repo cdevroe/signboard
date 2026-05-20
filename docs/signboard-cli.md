@@ -452,4 +452,4 @@ Checklist items may also contain due dates in the body:
 - [x] (due: 2026-04-01) Draft release notes
 ```
 
-These task due dates participate in due-date filtering and temporal views.
+Task due dates participate in CLI due-date filtering. Use `--task-status open` to limit task matches to unchecked items, or `--task-status any` to include checked task due markers when you want historical matches.

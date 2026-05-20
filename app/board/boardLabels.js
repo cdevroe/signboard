@@ -1401,7 +1401,7 @@ function getActiveBoardFilterDueDates(
   incompleteTaskDueDateValues = taskDueDateValues,
   activeFilter = getActiveBoardDateFilter(),
 ) {
-  if (activeFilter === BOARD_DATE_FILTER_OVERDUE) {
+  if (activeFilter === BOARD_DATE_FILTER_TODAY || activeFilter === BOARD_DATE_FILTER_OVERDUE) {
     return getCardFilterDueDates(
       cardDueDateValue,
       Array.isArray(incompleteTaskDueDateValues) ? incompleteTaskDueDateValues : taskDueDateValues,

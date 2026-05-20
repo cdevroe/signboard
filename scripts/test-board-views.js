@@ -386,6 +386,40 @@ async function run() {
   assert.strictEqual(cardPlacement.temporalDisplaySubtitle, '');
   assert.strictEqual(cardPlacement.listDisplayName, 'Backlog');
 
+  const completedTaskOnCardDuePlacement = context.createTemporalPlacementForDate({
+    cardPath: '/tmp/card-due-completed-task.md',
+    listName: '001-Backlog-abc12',
+    listDisplayName: 'Backlog',
+    title: 'Card due with finished task',
+    due: '2026-03-10',
+    labels: [],
+    body: '- [x] (due: 2026-03-10) Finished prep',
+    taskSummary: { total: 1, completed: 1, remaining: 0 },
+    taskItems: context.parseTaskListItems('- [x] (due: 2026-03-10) Finished prep'),
+    taskDueDates: ['2026-03-10'],
+    incompleteTaskDueDates: [],
+  }, '2026-03-10');
+
+  assert(completedTaskOnCardDuePlacement, 'expected card placement when the card due date matches');
+  assert.strictEqual(completedTaskOnCardDuePlacement.temporalReason, 'card');
+  assert.strictEqual(completedTaskOnCardDuePlacement.temporalDisplayTitle, 'Card due with finished task');
+
+  const completedTaskOnlyPlacement = context.createTemporalPlacementForDate({
+    cardPath: '/tmp/completed-task-only.md',
+    listName: '001-Backlog-abc12',
+    listDisplayName: 'Backlog',
+    title: 'Finished task only',
+    due: '',
+    labels: [],
+    body: '- [x] (due: 2026-03-10) Finished prep',
+    taskSummary: { total: 1, completed: 1, remaining: 0 },
+    taskItems: context.parseTaskListItems('- [x] (due: 2026-03-10) Finished prep'),
+    taskDueDates: ['2026-03-10'],
+    incompleteTaskDueDates: [],
+  }, '2026-03-10');
+
+  assert.strictEqual(completedTaskOnlyPlacement, null, 'expected completed task due markers not to create temporal placements');
+
   const labels = [
     createLabel(1, 'Urgent'),
     createLabel(2, 'Bug'),
@@ -451,6 +485,12 @@ async function run() {
     toPlain(context.getActiveBoardFilterDueDates('2026-03-08', ['2026-03-09'], [])),
     ['2026-03-08'],
     'expected overdue active-filter due dates to keep overdue card due dates',
+  );
+  filterState.activeDateFilter = 'today';
+  assert.deepStrictEqual(
+    toPlain(context.getActiveBoardFilterDueDates('', ['2026-03-10'], [])),
+    [],
+    'expected today active-filter due dates to ignore completed task dates',
   );
   assert.strictEqual(context.getShortcutHintText('boardSettings'), 'Ctrl+,');
   assert.strictEqual(context.getShortcutHintText('switchBoard'), 'Ctrl+K');
@@ -519,6 +559,7 @@ async function run() {
       taskSummary: { total: 1, completed: 0, remaining: 1 },
       taskItems: todayTaskItems,
       taskDueDates: context.getTaskListDueDates(todayTaskBody),
+      incompleteTaskDueDates: context.getIncompleteTaskListDueDates(todayTaskBody),
     },
     {
       cardPath: '/tmp/card-overdue.md',
@@ -557,6 +598,19 @@ async function run() {
       taskSummary: { total: 1, completed: 1, remaining: 0 },
       taskItems: context.parseTaskListItems('- [x] (due: 2026-03-09) Finished prep'),
       taskDueDates: ['2026-03-09'],
+      incompleteTaskDueDates: [],
+    },
+    {
+      cardPath: '/tmp/completed-today-task.md',
+      listName: '002-Doing-abc12',
+      listDisplayName: 'Doing',
+      title: 'Completed today task',
+      due: '',
+      labels: ['label-1'],
+      body: '- [x] (due: 2026-03-10) Finished today',
+      taskSummary: { total: 1, completed: 1, remaining: 0 },
+      taskItems: context.parseTaskListItems('- [x] (due: 2026-03-10) Finished today'),
+      taskDueDates: ['2026-03-10'],
       incompleteTaskDueDates: [],
     },
   ];
@@ -678,6 +732,22 @@ async function run() {
       incompleteTaskDueDates: ['2026-03-10'],
     },
     {
+      cardPath: '/tmp/client-a/task-finished-today.md',
+      boardRoot: '/tmp/client-a/',
+      boardDisplayName: 'Client A',
+      listName: '001-Next-abc12',
+      listDisplayName: 'Next',
+      isCompletedList: false,
+      title: 'Finished client task',
+      due: '',
+      labels: [],
+      body: '- [x] (due: 2026-03-10) Send signed proposal',
+      taskSummary: { total: 1, completed: 1, remaining: 0 },
+      taskItems: context.parseTaskListItems('- [x] (due: 2026-03-10) Send signed proposal'),
+      taskDueDates: ['2026-03-10'],
+      incompleteTaskDueDates: [],
+    },
+    {
       cardPath: '/tmp/home/card-overdue.md',
       boardRoot: '/tmp/home/',
       boardDisplayName: 'Home',
@@ -740,7 +810,7 @@ async function run() {
   plannerState.showCompletedCards = true;
   plannerState.dateFilter = '';
   const plannerCompletedBuckets = context.buildPlannerCalendarCardBuckets(plannerEntries, new context.Date(2026, 2, 1));
-  assert.strictEqual((plannerCompletedBuckets.get('2026-03-09') || []).length, 3, 'expected Planner to show completed-list dated cards when requested');
+  assert.strictEqual((plannerCompletedBuckets.get('2026-03-09') || []).length, 2, 'expected Planner to show completed-list card due dates when requested without showing completed task due markers');
   plannerState.dateFilter = 'overdue';
   const plannerCompletedOverdueBuckets = context.buildPlannerCalendarCardBuckets(plannerEntries, new context.Date(2026, 2, 1));
   assert.strictEqual((plannerCompletedOverdueBuckets.get('2026-03-09') || []).length, 2, 'expected Planner to include completed-list card due dates when completed cards are shown');

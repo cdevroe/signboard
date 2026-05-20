@@ -298,13 +298,38 @@ function getBoardListDisplayName(listName) {
   return normalized;
 }
 
-function getTaskItemsDueOnDate(taskItems, dueDateValue) {
+function getOpenTaskDueDatesForEntry(cardEntry) {
+  if (cardEntry && Array.isArray(cardEntry.incompleteTaskDueDates)) {
+    return cardEntry.incompleteTaskDueDates;
+  }
+
+  return cardEntry && Array.isArray(cardEntry.taskDueDates)
+    ? cardEntry.taskDueDates
+    : [];
+}
+
+function getTemporalDueDatesForEntry(cardEntry) {
+  if (!cardEntry) {
+    return [];
+  }
+
+  return getCardFilterDueDates(cardEntry.due, getOpenTaskDueDatesForEntry(cardEntry));
+}
+
+function getTaskItemsDueOnDate(taskItems, dueDateValue, options = {}) {
   const normalizedDueDate = normalizeTaskDueDateValue(dueDateValue);
   if (!normalizedDueDate || !Array.isArray(taskItems)) {
     return [];
   }
 
-  return taskItems.filter((taskItem) => normalizeTaskDueDateValue(taskItem && taskItem.due) === normalizedDueDate);
+  const includeCompleted = options && options.includeCompleted === true;
+  return taskItems.filter((taskItem) => {
+    if (!includeCompleted && taskItem && taskItem.isCompleted) {
+      return false;
+    }
+
+    return normalizeTaskDueDateValue(taskItem && taskItem.due) === normalizedDueDate;
+  });
 }
 
 function formatTemporalTaskTitle(taskItems) {
@@ -338,6 +363,10 @@ function createTemporalPlacementForDate(cardEntry, dueDateValue) {
       temporalReason: 'task',
       temporalTaskCount: taskItemsDueOnDate.length,
     };
+  }
+
+  if (normalizeTaskDueDateValue(cardEntry && cardEntry.due) !== normalizedDueDate) {
+    return null;
   }
 
   return {
@@ -428,14 +457,11 @@ function buildCalendarCardBuckets(cardEntries, monthCursor) {
   const buckets = new Map();
 
   for (const entry of entries) {
-    const dueDates = getCardFilterDueDates(entry.due, entry.taskDueDates);
-    const activeFilterDueDates = getActiveBoardFilterDueDates(
-      entry.due,
-      entry.taskDueDates,
-      entry.incompleteTaskDueDates,
-    );
-    const visibleDueDates = activeFilterDueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
-    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, activeFilterDueDates);
+    const dueDates = getTemporalDueDatesForEntry(entry);
+    const visibleDueDates = dueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, visibleDueDates, {
+      isCompletedList: Boolean(entry.isCompletedList),
+    });
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
 
     if (visibleDueDates.length === 0 || !matchesLabelFilter || !matchesSearchFilter) {
@@ -481,14 +507,11 @@ function buildWeekCardBuckets(cardEntries, weekStartDate) {
   const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
 
   for (const entry of entries) {
-    const dueDates = getCardFilterDueDates(entry.due, entry.taskDueDates);
-    const activeFilterDueDates = getActiveBoardFilterDueDates(
-      entry.due,
-      entry.taskDueDates,
-      entry.incompleteTaskDueDates,
-    );
-    const visibleDueDates = activeFilterDueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
-    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, activeFilterDueDates);
+    const dueDates = getTemporalDueDatesForEntry(entry);
+    const visibleDueDates = dueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, visibleDueDates, {
+      isCompletedList: Boolean(entry.isCompletedList),
+    });
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
     if (visibleDueDates.length === 0 || !matchesLabelFilter || !matchesSearchFilter) {
       continue;
