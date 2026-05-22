@@ -12,9 +12,16 @@ function showShortcutHelpModal() {
         return;
     }
 
-    modal.style.display = 'block';
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
+    if (typeof setAccessibleModalVisible === 'function') {
+        setAccessibleModalVisible(modal, true, {
+            display: 'block',
+            labelledBy: 'keyboardShortcutsTitle',
+        });
+    } else {
+        modal.style.display = 'block';
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+    }
     shortcutHelpVisible = true;
 }
 
@@ -25,9 +32,13 @@ function hideShortcutHelpModal() {
         return;
     }
 
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
+    if (typeof setAccessibleModalVisible === 'function') {
+        setAccessibleModalVisible(modal, false);
+    } else {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+    }
     shortcutHelpVisible = false;
 }
 
@@ -429,7 +440,7 @@ function isAnyShortcutBlockingModalOpen() {
 
     return modalIds.some((modalId) => {
         const modal = document.getElementById(modalId);
-        return Boolean(modal && modal.style.display === 'block');
+        return Boolean(modal && (modal.style.display === 'block' || modal.style.display === 'flex' || modal.style.display === 'grid'));
     });
 }
 

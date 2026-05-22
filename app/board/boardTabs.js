@@ -214,6 +214,9 @@ async function switchToBoardPath(boardPath) {
     if (normalizeBoardPath(window.boardRoot) === normalizedPath) {
         setStoredActiveBoard(normalizedPath);
         renderBoardTabs();
+        if (typeof announceSignboardStatus === 'function') {
+            announceSignboardStatus(`Current board: ${getBoardLabelFromPath(normalizedPath)}.`);
+        }
         return true;
     }
 
@@ -233,6 +236,9 @@ async function switchToBoardPath(boardPath) {
         resetBoardSearch();
     }
     await renderBoard();
+    if (typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus(`Switched to ${getBoardLabelFromPath(authorizedBoardPath)}.`);
+    }
     return true;
 }
 
@@ -313,7 +319,7 @@ function initializeBoardTabsSortable(tabsEl, canSortTabs = true) {
     }
 
     boardTabsSortable = new Sortable(tabsEl, {
-        animation: 150,
+        animation: (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) ? 0 : 150,
         draggable: '.board-tab[data-board-path]',
         filter: '.board-tab-close',
         preventOnFilter: false,
@@ -370,6 +376,145 @@ async function promptAndOpenBoardFromTabs() {
     }
 }
 
+function isBoardTabElementVisible(tabElement) {
+    if (!(tabElement instanceof HTMLElement)) {
+        return false;
+    }
+
+    if (
+        tabElement.classList.contains('hidden') ||
+        tabElement.classList.contains('is-overflow-hidden') ||
+        tabElement.getAttribute('aria-hidden') === 'true'
+    ) {
+        return false;
+    }
+
+    const style = window.getComputedStyle(tabElement);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+}
+
+function getVisibleBoardTabLabelButtons() {
+    const tabsEl = document.getElementById('boardTabs');
+    if (!tabsEl) {
+        return [];
+    }
+
+    return Array.from(tabsEl.querySelectorAll('.board-tab-label'))
+        .filter((button) => button instanceof HTMLButtonElement)
+        .filter((button) => !button.disabled)
+        .filter((button) => isBoardTabElementVisible(button.closest('.board-tab')));
+}
+
+function focusBoardTabLabelByIndex(index) {
+    const buttons = getVisibleBoardTabLabelButtons();
+    if (buttons.length === 0) {
+        return false;
+    }
+
+    const safeIndex = ((index % buttons.length) + buttons.length) % buttons.length;
+    buttons[safeIndex].focus();
+    return true;
+}
+
+function focusBoardTabLabelByPath(boardPath) {
+    const normalizedPath = normalizeBoardPath(boardPath);
+    if (!normalizedPath) {
+        return false;
+    }
+
+    const button = getVisibleBoardTabLabelButtons()
+        .find((candidate) => {
+            const tabElement = candidate.closest('.board-tab[data-board-path]');
+            return tabElement && normalizeBoardPath(tabElement.getAttribute('data-board-path')) === normalizedPath;
+        });
+
+    if (!button) {
+        return false;
+    }
+
+    button.focus();
+    return true;
+}
+
+function moveBoardTabLabelFocus(button, offset) {
+    const buttons = getVisibleBoardTabLabelButtons();
+    if (buttons.length === 0) {
+        return false;
+    }
+
+    const currentIndex = buttons.indexOf(button);
+    const fallbackIndex = Number(offset) < 0 ? buttons.length - 1 : 0;
+    const nextIndex = currentIndex >= 0 ? currentIndex + Number(offset || 0) : fallbackIndex;
+    return focusBoardTabLabelByIndex(nextIndex);
+}
+
+async function closeBoardTabFromKeyboard(button) {
+    if (!(button instanceof HTMLButtonElement)) {
+        return false;
+    }
+
+    const tabElement = button.closest('.board-tab[data-board-path]');
+    const boardPath = tabElement ? normalizeBoardPath(tabElement.getAttribute('data-board-path')) : '';
+    if (!boardPath) {
+        return false;
+    }
+
+    const buttonsBeforeClose = getVisibleBoardTabLabelButtons();
+    const currentIndex = Math.max(0, buttonsBeforeClose.indexOf(button));
+    await closeBoardTab(boardPath);
+    focusBoardTabLabelByIndex(Math.min(currentIndex, getVisibleBoardTabLabelButtons().length - 1));
+    return true;
+}
+
+function handleBoardTabLabelKeydown(event) {
+    if (!event || !(event.currentTarget instanceof HTMLButtonElement)) {
+        return;
+    }
+
+    const button = event.currentTarget;
+
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        event.stopPropagation();
+        moveBoardTabLabelFocus(button, 1);
+        return;
+    }
+
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        event.stopPropagation();
+        moveBoardTabLabelFocus(button, -1);
+        return;
+    }
+
+    if (event.key === 'Home') {
+        event.preventDefault();
+        event.stopPropagation();
+        focusBoardTabLabelByIndex(0);
+        return;
+    }
+
+    if (event.key === 'End') {
+        event.preventDefault();
+        event.stopPropagation();
+        focusBoardTabLabelByIndex(getVisibleBoardTabLabelButtons().length - 1);
+        return;
+    }
+
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+        const tabElement = button.closest('.board-tab[data-board-path]');
+        if (!tabElement) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        closeBoardTabFromKeyboard(button).catch((error) => {
+            console.error('Failed to close board tab from keyboard.', error);
+        });
+    }
+}
+
 function createBoardTabElement(boardPath, activeBoard) {
     const boardLabel = getBoardLabelFromPath(boardPath);
     const boardTab = document.createElement('div');
@@ -390,9 +535,14 @@ function createBoardTabElement(boardPath, activeBoard) {
         boardTab.classList.add('is-active');
     }
 
-    tabButton.addEventListener('click', async () => {
+    tabButton.addEventListener('click', async (event) => {
+        const restoreFocus = event.detail === 0;
         await switchToBoardPath(boardPath);
+        if (restoreFocus) {
+            focusBoardTabLabelByPath(boardPath);
+        }
     });
+    tabButton.addEventListener('keydown', handleBoardTabLabelKeydown);
 
     const closeButton = document.createElement('button');
     closeButton.type = 'button';
@@ -430,6 +580,7 @@ function createBoardOverflowTabElement() {
             openBoardSwitcher();
         }
     });
+    overflowButton.addEventListener('keydown', handleBoardTabLabelKeydown);
 
     overflowTab.appendChild(overflowButton);
     return overflowTab;
@@ -451,6 +602,7 @@ function createAddBoardTabElement() {
         event.stopPropagation();
         await promptAndOpenBoardFromTabs();
     });
+    addBoardButton.addEventListener('keydown', handleBoardTabLabelKeydown);
 
     addBoardTab.appendChild(addBoardButton);
     return addBoardTab;

@@ -220,6 +220,7 @@ function openBoardSwitcher() {
   modal.style.display = 'block';
   modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden', 'false');
+  input.setAttribute('aria-expanded', 'true');
   renderBoardSwitcherResults();
 
   input.focus();
@@ -251,6 +252,7 @@ function closeBoardSwitcher() {
   if (input) {
     input.value = '';
     input.removeAttribute('aria-activedescendant');
+    input.setAttribute('aria-expanded', 'false');
   }
 }
 

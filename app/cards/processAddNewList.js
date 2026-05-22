@@ -165,5 +165,8 @@ async function processAddNewList(listName, options = {}){
     }
     
     await closeAllModals(createCloseAllModalsRequest(), { rerender: true });
+    if (typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus(`Created list "${listName}".`);
+    }
     return;
 }

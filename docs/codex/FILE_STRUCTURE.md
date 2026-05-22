@@ -28,20 +28,22 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/santizeFileName.js` - Filename sanitization + random suffix helper.
 - `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, all/open task due-date sets, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and incomplete task due markers, skipping completed workflow lists.
-- `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, and drag text-selection lock used by Kanban and temporal card drag/drop.
+- `app/utilities/accessibility.js` - Shared renderer accessibility helpers for modal focus restoration/trapping, background inert state, live status announcements, stable DOM IDs, and reduced-motion checks.
+- `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, reduced-motion handling, and drag text-selection lock used by Kanban and temporal card drag/drop.
 - `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification/Quick Add global shortcut/External Published Calendar controls, persistence scheduling, and one-time migration from legacy board settings.
-- `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with date filters ignoring completed task due markers and completed workflow lists), card label popovers, Settings modal board panels, and Trello/Obsidian import panel wiring + summary rendering.
-- `app/board/boardSearch.js` - Board search state and input handling for filtering cards by title/body.
+- `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with date filters ignoring completed task due markers and completed workflow lists), keyboard-operable card label popovers, Settings modal board panels/nav, and Trello/Obsidian import panel wiring + summary rendering.
+- `app/board/boardSearch.js` - Board search state, input handling for title/body filtering, and keyboard navigation from the search field through visible card results.
 - `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card due/open task due markers, and source-list/source-board pills on temporal cards.
 - `app/board/tableView.js` - Board-scoped Table view rendering, dense row metadata, board filter/search reuse, and list-column card moves through the top-of-list move IPC path.
-- `app/board/plannerView.js` - Workspace-level Planner overlay with Calendar, This Week, Day, and Agenda views across currently open boards, all/current/custom board scope controls, Planner-local search/date/completed-card/board/active-board-label filters, left-rail open/close behavior, and Planner card opening that switches the active board when needed.
-- `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing, detail-pane rendering, incremental result loading, and restore flows.
-- `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder), responsive `N more` overflow for unbounded open boards, plus the shared safe board-switch helper used by tab clicks and the switcher.
+- `app/board/plannerView.js` - Workspace-level Planner overlay with Calendar, This Week, Day, and Agenda views across currently open boards, all/current/custom board scope controls, Planner-local search/date/completed-card/board/active-board-label filters, keyboard navigation for Planner search/filter controls, left-rail open/close behavior, and Planner card opening that switches the active board when needed.
+- `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing with keyboard result navigation, detail-pane rendering, incremental result loading, and restore flows.
+- `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder), keyboard navigation/close behavior for visible tabs, responsive `N more` overflow for unbounded open boards, plus the shared safe board-switch helper used by tab clicks and the switcher.
 - `app/board/boardSwitcher.js` - Quick board switcher overlay for `Cmd/Ctrl + K`, filtering and closing currently open boards and delegating selected board changes to the shared switch helper.
-- `app/cards/createCardElement.js` - Card DOM rendering, task progress badge display, and click behavior.
+- `app/cards/createCardElement.js` - Card DOM rendering, task progress badge display, list-item/card-title button semantics, and click behavior.
 - `app/cards/processAddNewCard.js` - New card creation flow, including open-board targeting and optional create-and-open behavior.
 - `app/cards/processAddNewList.js` - New list creation flow.
-- `app/lists/createListElement.js` - List DOM rendering, sanitized rename, card DnD handling, and cross-list move lifecycle logging.
+- `app/lists/listActionsPopover.js` - List action popover rendering for adding cards/lists, moving lists left/right, archiving cards/lists, keyboard option navigation, shortcut hints, and status announcements.
+- `app/lists/createListElement.js` - List DOM rendering with labelled section/list semantics, sanitized rename, card DnD handling, and cross-list move lifecycle logging.
 - `app/board/renderBoard.js` - Whole-board render (with concurrent card-list reads), active Kanban/Table view dispatch, and Kanban list DnD handling.
 - `app/board/openBoard.js` - Board open/init logic and starter content.
 - `app/modals/closeAllModals.js` - Modal close logic + editor cleanup + conditional rerender + board interaction lock/unlock.
@@ -99,7 +101,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Static assets (`static/`)
 
-- `static/styles.css` - App styling, layout, theme tokens, modal/editor styles, and card drag placeholder visuals.
+- `static/styles.css` - App styling, layout, theme tokens, modal/editor styles, keyboard-only focus affordances, reduced-motion/forced-colors rules, and card drag placeholder visuals.
 - `static/vendor/*.js|*.css` - Vendored third-party libs:
   - Marked
   - Turndown

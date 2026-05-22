@@ -431,7 +431,7 @@ async function renderBoard() {
 
       activeSortables.push(new Sortable(boardEl, {
         group: 'lists',
-        animation: 150,
+        animation: (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) ? 0 : 150,
         onEnd: async (evt) => {
           const finalOrder = [...evt.to.querySelectorAll('.list')].map((list) =>
             list.getAttribute('data-path')

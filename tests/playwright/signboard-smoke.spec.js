@@ -249,6 +249,81 @@ test('does not throw when formatting invalid due date values', async ({ page }) 
   });
 });
 
+test('navigates board search results from the keyboard', async ({ page }) => {
+  const searchInput = page.locator('#boardSearchInput');
+  const planCardButton = page.locator('.card-title-button').filter({ hasText: 'Plan release notes' });
+  const polishCardButton = page.locator('.card-title-button').filter({ hasText: 'Polish homepage copy' });
+
+  await searchInput.focus();
+  await searchInput.fill('the');
+  await page.keyboard.press('Enter');
+  await expect(planCardButton).toBeFocused();
+
+  await page.keyboard.press('ArrowDown');
+  await expect(polishCardButton).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await expect(searchInput).toBeFocused();
+  await expect(searchInput).toHaveValue('the');
+
+  await page.keyboard.press('Escape');
+  await expect(searchInput).toHaveValue('');
+
+  await searchInput.fill('copy');
+  await page.keyboard.press('Enter');
+  await expect(polishCardButton).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect(page.locator('#cardEditorTitle')).toHaveText('Polish homepage copy');
+});
+
+test('navigates board popovers and settings sections from the keyboard', async ({ page }) => {
+  const listActionsButton = page.locator('.list-actions-button').first();
+  await listActionsButton.click();
+  await expect(page.locator('.list-actions-option').filter({ hasText: 'Add new card' })).toBeFocused();
+
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('.list-actions-option').filter({ hasText: 'Add new list' })).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(page.locator('.list-actions-option').filter({ hasText: 'Archive this list' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#listActionsPopover')).toBeHidden();
+  await expect(listActionsButton).toBeFocused();
+
+  const filterButton = page.locator('#labelFilterButton');
+  await filterButton.click();
+  await expect(page.locator('#labelFilterPopover input').nth(0)).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#labelFilterPopover input').nth(1)).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(page.locator('#labelFilterPopover input').nth(3)).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#labelFilterPopover')).toBeHidden();
+  await expect(filterButton).toBeFocused();
+
+  const cardLabelButton = page.locator('.card-label-button').first();
+  await cardLabelButton.click();
+  await expect(page.locator('.card-label-popover input').first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('.card-label-popover input').nth(1)).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.card-label-popover')).toHaveCount(0);
+  await expect(cardLabelButton).toBeFocused();
+
+  await page.keyboard.press(getShortcut(','));
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await expect(page.locator('#boardSettingsNavApp')).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#boardSettingsNavGeneral')).toBeFocused();
+  await expect(page.locator('#boardSettingsPanelGeneral')).toHaveAttribute('aria-hidden', 'false');
+  await page.keyboard.press('End');
+  await expect(page.locator('#boardSettingsNavImport')).toBeFocused();
+  await expect(page.locator('#boardSettingsPanelImport')).toHaveAttribute('aria-hidden', 'false');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modalBoardSettings')).toBeHidden();
+});
+
 test('renders card drag ghost as an empty drop slot', async ({ page }) => {
   const card = page.locator('.list').first().locator('.card').first();
   const frame = card.locator('.card-drag-frame');
@@ -679,6 +754,26 @@ test('keeps more than six boards open and routes overflow through the switcher',
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem('openBoardPaths') || '[]').length)).toBe(7);
 });
 
+test('navigates and closes board tabs from the keyboard', async ({ electronApp, boardRoot }) => {
+  const { page } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board', 'Ideas Board']);
+  const playwrightTab = page.locator('#boardTabs .board-tab-label').filter({ hasText: 'Playwright Board' });
+  const roadmapTab = page.locator('#boardTabs .board-tab-label').filter({ hasText: 'Roadmap Board' });
+  const ideasTab = page.locator('#boardTabs .board-tab-label').filter({ hasText: 'Ideas Board' });
+
+  await playwrightTab.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(roadmapTab).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#boardName')).toHaveText('Roadmap Board');
+  await expect(page.locator('#boardTabs .board-tab.is-active .board-tab-label')).toHaveText('Roadmap Board');
+
+  await page.keyboard.press('ArrowRight');
+  await expect(ideasTab).toBeFocused();
+  await page.keyboard.press('Backspace');
+  await expect(page.locator('#boardTabs')).not.toContainText('Ideas Board');
+  await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem('openBoardPaths') || '[]').length)).toBe(2);
+});
+
 test('opens Planner across currently open boards', async ({ electronApp, boardRoot }) => {
   const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
   const todayIso = formatLocalIsoDate();
@@ -728,7 +823,22 @@ test('opens Planner across currently open boards', async ({ electronApp, boardRo
   expect(sourcePillTheme.text).toBe(expectedSourcePillTheme.light.color);
   expect(sourcePillTheme.darkBackground).toBe(expectedSourcePillTheme.dark.background);
 
+  const plannerSearchInput = page.locator('#plannerSearchInput');
+  const plannerPolishCard = page.locator('.planner-calendar-card').filter({ hasText: 'Polish homepage copy' });
+  await plannerSearchInput.focus();
+  await plannerSearchInput.fill('polish');
+  await page.keyboard.press('Enter');
+  await expect(plannerPolishCard).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(plannerSearchInput).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(plannerSearchInput).toHaveValue('');
+  await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Plan release notes' })).toBeVisible();
+
   await page.locator('#plannerFilterButton').click();
+  await expect(page.locator('#plannerFilterPopover').getByRole('button', { name: 'All dated cards' })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#plannerFilterPopover').getByRole('button', { name: 'Today' })).toBeFocused();
   await page.locator('#plannerFilterPopover').getByRole('button', { name: 'Show completed cards' }).click();
   await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Ship beta' })).toBeVisible();
   await page.locator('#plannerFilterPopover').getByRole('button', { name: 'Hide completed cards' }).click();
@@ -1052,6 +1162,29 @@ test('opens the archive browser from the keyboard shortcut', async ({ page }) =>
 
   await expect(page.locator('#modalArchiveBrowser')).toBeVisible();
   await expect(page.locator('#archiveBrowserSearchInput')).toBeFocused();
+});
+
+test('navigates archive browser results from search with the keyboard', async ({ page, boardRoot }) => {
+  await openFirstCardInEditor(page);
+  await page.keyboard.press(getArchiveCardShortcut());
+  await expect.poll(async () => {
+    return await pathExists(path.join(boardRoot, 'XXX-Archive', '000-plan-release-stock.md'));
+  }).toBe(true);
+
+  await page.keyboard.press(getShortcut('Shift+A'));
+  const searchInput = page.locator('#archiveBrowserSearchInput');
+  const archiveRow = page.locator('.archive-browser-row').filter({ hasText: 'Plan release notes' });
+
+  await expect(searchInput).toBeFocused();
+  await searchInput.fill('release');
+  await page.keyboard.press('Enter');
+  await expect(archiveRow).toBeFocused();
+  await expect(page.locator('#archiveBrowserDetail')).toContainText('Plan release notes');
+
+  await page.keyboard.press('Escape');
+  await expect(searchInput).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(searchInput).toHaveValue('');
 });
 
 test('keeps the editor scroll position when toggling a task checkbox control', async ({ page }) => {

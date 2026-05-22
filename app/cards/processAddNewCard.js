@@ -31,5 +31,9 @@ async function processAddNewCard( cardName, listPath, options = {} ){
         await toggleEditCardModal(cardPath, { focusNotes: true });
     }
 
+    if (typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus(`Created card "${cardName}".`);
+    }
+
     return cardPath;
 }

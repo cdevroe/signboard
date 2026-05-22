@@ -102,6 +102,10 @@ function setActiveBoardView(viewId, options = {}) {
   if (typeof closeBoardMenuPopover === 'function') {
     closeBoardMenuPopover();
   }
+  if (typeof announceSignboardStatus === 'function') {
+    const activeOption = BOARD_VIEW_OPTIONS.find((option) => option.id === normalizedView);
+    announceSignboardStatus(`Switched to ${activeOption ? activeOption.label : normalizedView} view.`);
+  }
 
   if (options.render === false) {
     return;

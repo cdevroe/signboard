@@ -20,13 +20,29 @@ async function createCardElement(cardPath) {
   const cardEl = document.createElement('div');
   cardEl.className = 'card';
   cardEl.dataset.path = cardPath;
+  cardEl.setAttribute('role', 'listitem');
 
   const cardFrame = document.createElement('div');
   cardFrame.className = 'card-drag-frame';
   cardEl.appendChild(cardFrame);
 
   const title = document.createElement('h3');
-  title.textContent = titleContent.replace('# ', '');
+  const visibleTitle = titleContent.replace('# ', '') || 'Untitled';
+  const titleId = typeof createStableDomId === 'function'
+    ? createStableDomId('card-title', cardPath)
+    : '';
+  if (titleId) {
+    title.id = titleId;
+    cardEl.setAttribute('aria-labelledby', titleId);
+  }
+
+  const titleButton = document.createElement('button');
+  titleButton.type = 'button';
+  titleButton.className = 'card-title-button';
+  titleButton.textContent = visibleTitle;
+  titleButton.setAttribute('aria-label', `Open card: ${visibleTitle}`);
+  titleButton.setAttribute('data-sb-tooltip-disabled', 'true');
+  title.appendChild(titleButton);
   cardFrame.appendChild(title);
 
   const body = document.createElement('div');
@@ -235,14 +251,28 @@ async function createCardElement(cardPath) {
     cardEl.classList.add('card-filtered-out');
   }
 
-  cardEl.addEventListener('click', async () => {
-
+  const openCardEditor = async () => {
     let modalEditCard = document.getElementById('modalEditCard');
     if ( modalEditCard.style.display == 'block' ) {
       return;
     }
 
     toggleEditCardModal( cardPath );
+  };
+
+  titleButton.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await openCardEditor();
+  });
+
+  cardEl.addEventListener('click', async (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target && typeof target.closest === 'function' && target.closest('button, a, input, select, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]')) {
+      return;
+    }
+
+    await openCardEditor();
   });
 
   // Not used yet! Drop zone for attachments

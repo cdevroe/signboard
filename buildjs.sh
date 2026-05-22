@@ -8,6 +8,7 @@ cat \
   app/utilities/dueDateStatus.js \
   app/utilities/taskList.js \
   app/utilities/dueNotifications.js \
+  app/utilities/accessibility.js \
   app/utilities/cardDragTilt.js \
   app/appSettings.js \
   app/board/boardLabels.js \

@@ -14,6 +14,7 @@ This guide covers the desktop app and the core workflow for managing a project i
 - [Planner](#planner)
 - [Archive and Restore](#archive-and-restore)
 - [Settings](#settings)
+- [Accessibility](#accessibility)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [A Few Practical Tips](#a-few-practical-tips)
 
@@ -40,7 +41,7 @@ If the directory is empty, Signboard creates a starter board with:
 - `Done`
 - `Archive`
 
-It also creates a starter card that explains the basics. 👋
+It also creates a starter card that explains the basics and includes a few upcoming checklist due-date examples. 👋
 
 You can switch between multiple projects using the board tabs across the top of the window. Signboard does not cap the number of open boards; when they no longer fit, the tab strip shows an `N more` control that opens the quick board switcher.
 
@@ -68,6 +69,8 @@ Under the hood, Signboard updates the folder name while preserving its ordering 
 ### Move lists
 
 Lists can be reordered visually in the board. Since list order is stored in the folder naming scheme, Signboard updates the underlying directory names.
+
+You can also open a list's actions menu and choose `Move list left` or `Move list right`.
 
 ### Archive a list
 
@@ -179,9 +182,13 @@ Use the search field in the header. Reminder: `Cmd/Ctrl + F` to focus the search
 
 Search matches card title and body text.
 
+From the search field, press `Enter` or `Arrow Down` to focus the first visible matching card. While a card title is focused, use arrow keys to move between visible matches, `Enter` or `Space` to open the card, and `Esc` to return to the search field. Press `Esc` again from the search field to clear the search.
+
 ### Date and Label filters
 
 Use the filter button in the header to narrow the visible cards by due today, overdue, and your board labels.
+
+When a filter popover is open, use arrow keys, `Home`, and `End` to move through its controls. Press `Esc` to close the popover and return focus to the button that opened it.
 
 ## Board and Planner Views
 
@@ -239,6 +246,8 @@ Planner defaults to all open boards. Use the scope toggle to narrow to the curre
 
 Planner search matches card title, body, board name, and list name. Planner filters can narrow by date (`Today` or `Overdue`), completed-card visibility, and open board. When Planner is scoped to the current board only, the filter menu also includes that board's labels.
 
+From Planner search, press `Enter` or `Arrow Down` to focus the first visible Planner card. Arrow keys move through the visible Planner cards, `Enter` or `Space` opens the focused card, and `Esc` returns focus to Planner search.
+
 Planner hides cards from completed lists by default. Each board can auto-detect lists named `Done`, `Completed`, `Complete`, `Closed`, `Finished`, `Resolved`, or `Shipped`, and you can override those choices in Settings. Use the Planner filter menu when you want completed dated cards shown for historical review.
 
 Planner uses your light/dark mode but keeps the default Signboard color palette instead of inheriting the active board color scheme.
@@ -285,6 +294,8 @@ From the archive browser you can:
 - inspect details before restoring
 - restore a card into a destination list
 - restore an archived list back into the board
+
+From archive search, press `Enter` or `Arrow Down` to focus the first result. Arrow keys move through archived results, `Enter` or `Space` selects the focused result, and `Esc` returns to archive search.
 
 This lets you keep the active board clean without losing history.
 
@@ -366,6 +377,14 @@ The `Import` section can bring content into the current board from:
 
 Imports copy data into Signboard and leave the original source files where they are.
 
+## Accessibility
+
+Signboard keeps common board work available from the keyboard. Card titles are native buttons, list titles are editable textboxes, list actions are native buttons, and modals move focus into the active dialog and restore focus when closed.
+
+Status changes such as creating, moving, archiving, restoring, and switching views are announced through a polite status region for screen readers. The app also respects reduced-motion and forced-colors preferences.
+
+Focus styling is keyboard-only where possible, including the card editor title and list names, so mouse users do not get a persistent editor outline while keyboard users still get a visible focus target.
+
 ## Keyboard Shortcuts
 
 On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
@@ -394,6 +413,12 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + Shift + A`: open Archive
 - `Cmd/Ctrl + F`: focus board search or Planner search
 - `Esc`: close open modals
+
+In board search, Planner search, and archive search, `Enter` or `Arrow Down` moves from the search field to the first visible result, arrow keys move between visible results, and `Enter` or `Space` opens or selects the focused result.
+
+In board tabs, use arrow keys, `Home`, and `End` to move across visible tabs. Press `Enter` or `Space` to switch boards, or `Delete` / `Backspace` to close the focused board tab.
+
+In list actions, label/filter popovers, and Settings sections, use arrow keys, `Home`, and `End` to move through options. `Esc` closes popovers and restores focus to the opener.
 
 When a card is open, workspace-level shortcuts such as create, board switcher, Planner/view switching, Settings, Archive, and search close the card first. Card-specific shortcuts such as moving or archiving the open card still act on that card.
 

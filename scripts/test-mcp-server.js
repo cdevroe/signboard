@@ -462,6 +462,13 @@ async function runForTransport(transportMode, fixture) {
   if (createdBoardCard.frontmatter?.title !== '👋 Start Here') {
     throw new Error(`create_board starter card title mismatch (${transportMode}): ${JSON.stringify(createdBoardCard)}`);
   }
+  const starterBody = String(createdBoardCard.body || '');
+  if (!starterBody.includes('Quick Add') || !starterBody.includes('Cmd/Ctrl + K')) {
+    throw new Error(`create_board starter card copy missing current workflow hints (${transportMode}): ${starterBody}`);
+  }
+  if (starterBody.includes('with the + button') || starterBody.includes('2026-03-11')) {
+    throw new Error(`create_board starter card copy still contains stale guidance (${transportMode}): ${starterBody}`);
+  }
 
   send({
     jsonrpc: '2.0',

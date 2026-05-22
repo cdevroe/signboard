@@ -1634,6 +1634,95 @@ function renderBoardLabelFilterPopover() {
   }
 }
 
+function getLabelPopoverFocusableControls(popover) {
+  if (!(popover instanceof Element)) {
+    return [];
+  }
+
+  return Array.from(popover.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])'))
+    .filter((control) => control instanceof HTMLElement)
+    .filter((control) => {
+      const style = window.getComputedStyle(control);
+      return style.display !== 'none' && style.visibility !== 'hidden';
+    });
+}
+
+function focusLabelPopoverControl(popover, index) {
+  const controls = getLabelPopoverFocusableControls(popover);
+  if (controls.length === 0) {
+    return false;
+  }
+
+  const safeIndex = ((index % controls.length) + controls.length) % controls.length;
+  controls[safeIndex].focus();
+  return true;
+}
+
+function focusFirstLabelPopoverControl(popover) {
+  return focusLabelPopoverControl(popover, 0);
+}
+
+function moveLabelPopoverFocus(popover, offset) {
+  const controls = getLabelPopoverFocusableControls(popover);
+  if (controls.length === 0) {
+    return false;
+  }
+
+  const currentIndex = controls.indexOf(document.activeElement);
+  const fallbackIndex = Number(offset) < 0 ? controls.length - 1 : 0;
+  const nextIndex = currentIndex >= 0 ? currentIndex + Number(offset || 0) : fallbackIndex;
+  return focusLabelPopoverControl(popover, nextIndex);
+}
+
+function handleLabelPopoverKeyboard(event, options = {}) {
+  const popover = options.popover instanceof Element
+    ? options.popover
+    : (event && event.currentTarget instanceof Element ? event.currentTarget : null);
+  if (!event || !popover) {
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof options.close === 'function') {
+      options.close();
+    }
+    const restoreFocusElement = options.restoreFocusElement;
+    if (restoreFocusElement && typeof restoreFocusElement.focus === 'function') {
+      restoreFocusElement.focus();
+    }
+    return;
+  }
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    event.stopPropagation();
+    moveLabelPopoverFocus(popover, 1);
+    return;
+  }
+
+  if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+    event.preventDefault();
+    event.stopPropagation();
+    moveLabelPopoverFocus(popover, -1);
+    return;
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusLabelPopoverControl(popover, 0);
+    return;
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusLabelPopoverControl(popover, getLabelPopoverFocusableControls(popover).length - 1);
+  }
+}
+
 function closeBoardLabelFilterPopover() {
   const popover = document.getElementById('labelFilterPopover');
   if (!popover) {
@@ -1641,6 +1730,7 @@ function closeBoardLabelFilterPopover() {
   }
 
   popover.classList.add('hidden');
+  popover.setAttribute('aria-hidden', 'true');
 }
 
 function positionBoardLabelFilterPopover(anchorElement, popover) {
@@ -1799,6 +1889,9 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
 
   const menu = document.createElement('div');
   menu.className = 'label-popover card-label-popover';
+  menu.setAttribute('role', 'group');
+  menu.setAttribute('aria-label', 'Card labels');
+  menu.setAttribute('aria-hidden', 'false');
   menu.__anchorElement = anchorElement;
   menu.__cardPath = cardPath;
 
@@ -1811,9 +1904,17 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
   menu.addEventListener('click', (event) => {
     event.stopPropagation();
   });
+  menu.addEventListener('keydown', (event) => {
+    handleLabelPopoverKeyboard(event, {
+      popover: menu,
+      close: closeCardLabelPopover,
+      restoreFocusElement: anchorElement,
+    });
+  });
 
   document.body.appendChild(menu);
   positionCardLabelPopover(menu, anchorElement);
+  focusFirstLabelPopoverControl(menu);
 
   state.activeCardLabelPopover = menu;
 }
@@ -2243,11 +2344,17 @@ function renderBoardSettingsPanelState() {
     const isActive = panelId === activePanel;
     button.classList.toggle('is-active', isActive);
     button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    const panel = document.querySelector(`.board-settings-panel[data-settings-panel="${panelId}"]`);
+    if (panel && panel.id) {
+      button.setAttribute('aria-controls', panel.id);
+    }
   }
 
   for (const panel of panels) {
     const panelId = String(panel.getAttribute('data-settings-panel') || '');
-    panel.classList.toggle('is-active', panelId === activePanel);
+    const isActive = panelId === activePanel;
+    panel.classList.toggle('is-active', isActive);
+    panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
   }
 }
 
@@ -2258,6 +2365,84 @@ function setActiveBoardSettingsPanel(panelId) {
   const state = getBoardLabelState();
   state.activeSettingsPanel = normalizedPanelId;
   renderBoardSettingsPanelState();
+}
+
+function getBoardSettingsNavButtons() {
+  return Array.from(document.querySelectorAll('.board-settings-nav-button[data-settings-panel]'))
+    .filter((button) => button instanceof HTMLButtonElement)
+    .filter((button) => !button.disabled);
+}
+
+function focusBoardSettingsNavButton(button) {
+  if (!(button instanceof HTMLButtonElement)) {
+    return false;
+  }
+
+  const panelId = String(button.getAttribute('data-settings-panel') || '');
+  if (!panelId) {
+    return false;
+  }
+
+  button.focus();
+  setActiveBoardSettingsPanel(panelId);
+  return true;
+}
+
+function focusBoardSettingsNavButtonByIndex(index) {
+  const buttons = getBoardSettingsNavButtons();
+  if (buttons.length === 0) {
+    return false;
+  }
+
+  const safeIndex = ((index % buttons.length) + buttons.length) % buttons.length;
+  return focusBoardSettingsNavButton(buttons[safeIndex]);
+}
+
+function moveBoardSettingsNavFocus(button, offset) {
+  const buttons = getBoardSettingsNavButtons();
+  if (buttons.length === 0) {
+    return false;
+  }
+
+  const currentIndex = buttons.indexOf(button);
+  const fallbackIndex = Number(offset) < 0 ? buttons.length - 1 : 0;
+  const nextIndex = currentIndex >= 0 ? currentIndex + Number(offset || 0) : fallbackIndex;
+  return focusBoardSettingsNavButtonByIndex(nextIndex);
+}
+
+function handleBoardSettingsNavKeydown(event) {
+  if (!event || !(event.currentTarget instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const button = event.currentTarget;
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    event.stopPropagation();
+    moveBoardSettingsNavFocus(button, 1);
+    return;
+  }
+
+  if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+    event.preventDefault();
+    event.stopPropagation();
+    moveBoardSettingsNavFocus(button, -1);
+    return;
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusBoardSettingsNavButtonByIndex(0);
+    return;
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusBoardSettingsNavButtonByIndex(getBoardSettingsNavButtons().length - 1);
+  }
 }
 
 function renderBoardGeneralSettingsControls() {
@@ -2705,7 +2890,17 @@ function openBoardSettingsModal() {
   renderAppSettingsControls();
   renderBoardImportControls();
   setActiveBoardSettingsPanel('app');
-  modal.style.display = 'block';
+  if (typeof setAccessibleModalVisible === 'function') {
+    setAccessibleModalVisible(modal, true, {
+      display: 'block',
+      initialFocus: '#boardSettingsNavApp',
+      labelledBy: 'boardSettingsTitle',
+    });
+  } else {
+    modal.style.display = 'block';
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
 
   if (typeof setBoardInteractive === 'function') {
     setBoardInteractive(false);
@@ -2719,7 +2914,13 @@ async function closeBoardSettingsModal() {
   }
 
   await flushBoardSettingsSave();
-  modal.style.display = 'none';
+  if (typeof setAccessibleModalVisible === 'function') {
+    setAccessibleModalVisible(modal, false);
+  } else {
+    modal.style.display = 'none';
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
 
   if (typeof setBoardInteractive === 'function') {
     setBoardInteractive(true);
@@ -2847,18 +3048,29 @@ function initializeBoardLabelControls() {
       renderBoardLabelFilterPopover();
       const isHidden = filterPopover.classList.contains('hidden');
       if (!isHidden) {
-        filterPopover.classList.add('hidden');
+        closeBoardLabelFilterPopover();
         return;
       }
 
+      filterPopover.setAttribute('role', 'group');
+      filterPopover.setAttribute('aria-label', 'Card filters');
       filterPopover.classList.remove('hidden');
+      filterPopover.setAttribute('aria-hidden', 'false');
       positionBoardLabelFilterPopover(filterButton, filterPopover);
+      focusFirstLabelPopoverControl(filterPopover);
     });
   }
 
   if (filterPopover) {
     filterPopover.addEventListener('click', (event) => {
       event.stopPropagation();
+    });
+    filterPopover.addEventListener('keydown', (event) => {
+      handleLabelPopoverKeyboard(event, {
+        popover: filterPopover,
+        close: closeBoardLabelFilterPopover,
+        restoreFocusElement: filterButton,
+      });
     });
   }
 
@@ -2881,12 +3093,14 @@ function initializeBoardLabelControls() {
   }
 
   for (const navButton of settingsNavButtons) {
+    navButton.setAttribute('role', 'tab');
     navButton.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
       const panelId = String(navButton.getAttribute('data-settings-panel') || '');
       setActiveBoardSettingsPanel(panelId);
     });
+    navButton.addEventListener('keydown', handleBoardSettingsNavKeydown);
   }
 
   if (closeSettingsButton) {

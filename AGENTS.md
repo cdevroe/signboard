@@ -12,6 +12,7 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Read [DESIGN.md](./DESIGN.md) before changing the default theme, visual system, or UI component styling.
 - Treat `app/signboard.js` as generated output; edit source modules in `app/**` and then run `./buildjs.sh`.
 - Keep keyboard shortcut behavior, `index.html` shortcut help, and user-facing shortcut docs in sync.
+- Keep modal focus handling, live status announcements, reduced-motion behavior, forced-colors behavior, and keyboard-only focus styling in sync with `app/utilities/accessibility.js` and `static/styles.css`.
 - Keep right-click text editing context menu behavior in `main.js` in sync with editable renderer fields.
 - Keep card drag/drop clone and placeholder behavior in sync with `app/utilities/cardDragTilt.js` and `static/styles.css`.
 - MCP allowed roots include both explicit MCP roots and desktop trusted board roots; keep root loading, `get_config`, and board-name resolution tests aligned.

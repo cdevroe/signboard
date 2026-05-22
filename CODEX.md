@@ -7,6 +7,7 @@ Start here before opening source files.
 - Read `DESIGN.md` before changing the default theme, visual system, or UI component styling.
 - Treat `app/signboard.js` as generated output; edit the source modules in `app/**` and then run `./buildjs.sh`.
 - Tooltip UI is implemented in `app/ui/tooltips.js` and reads existing control labels (`title` / `aria-label` / `alt`) to keep tooltip copy centralized in markup.
+- Accessibility helpers live in `app/utilities/accessibility.js`; keep modal focus restoration/trapping, live status announcements, keyboard-only `:focus-visible` styling, reduced-motion behavior, and forced-colors support aligned with UI changes.
 - App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`.
 - External Published Calendar is an opt-in app setting served by a main-process HTTP server bound to `127.0.0.1`; it publishes an iCalendar feed of trusted-board card due dates and incomplete task due markers, excluding completed workflow lists and board-level opt-outs.
 - `main.js` also supports headless MCP mode via `--mcp-server` for local agent integration over stdio; implementation lives in `lib/mcpServer.js`.
@@ -29,6 +30,8 @@ Start here before opening source files.
 - Opening a Planner card switches the active board behind the overlay when needed before opening the normal editor so label and list controls remain board-correct.
 - Calendar and This Week cards also show a subdued source-list label so users can tell which Kanban list a due item currently belongs to without opening it.
 - Shared card drag options and tilt behavior live in `app/utilities/cardDragTilt.js`; the Sortable ghost is styled in `static/styles.css` as an empty drop slot rather than a translucent duplicate card.
+- Card and list rendering should preserve native keyboard controls and screen-reader structure: cards expose a button title inside each list item, lists expose labelled sections, and editable list/card titles use subtle keyboard-only focus affordances rather than persistent editor outlines.
+- Board, Planner, and Archive search support keyboard result navigation: `Enter` / arrows from the search field move into visible results, arrows move between results, `Esc` returns to search, and `Esc` from search clears the query where applicable. Board tabs, list actions, label/filter popovers, and Settings sections also support arrow-key movement plus `Home` / `End`; popovers restore focus to their opener on `Esc`, and focused board tabs close with `Delete` / `Backspace`.
 - The header filter popover is owned by `app/board/boardLabels.js`; it supports temporary `Today` / `Overdue` date filters plus multi-select label filters for Kanban and Table.
 - Date filters and Planner date views intentionally ignore completed task-level due markers and completed-list cards by default; card-level due dates still count for actionable lists, and incomplete task due markers still drive matches in Kanban, Table, and Planner.
 - The filter toolbar button is icon-only; when filters are active it gets an accent-tinted active state and exposes the active summary through tooltip/ARIA text rather than visible label text.

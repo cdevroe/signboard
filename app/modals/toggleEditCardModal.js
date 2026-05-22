@@ -1047,6 +1047,7 @@ async function toggleEditCardModal(cardPath, options = {}) {
     const cardID = await window.board.getCardID(cardPath);
     const cardEditorCardID = document.getElementById('cardEditorCardID');
     cardEditorCardID.textContent = cardID;
+    cardEditorCardID.setAttribute('aria-label', `Open card file ${cardID}`);
     cardEditorCardID.onclick = (e) => {
         e.preventDefault();
         window.board.openCard(cardEditorCardPath.value);
@@ -1190,7 +1191,19 @@ async function toggleEditCardModal(cardPath, options = {}) {
     cardEditorClose.removeEventListener('click', handleClickCloseCard, { once: true });
     cardEditorClose.addEventListener('click', handleClickCloseCard, {once:true});
 
-    modalEditCard.style.display = 'block'; // Display after everything is loaded
+    if (typeof setAccessibleModalVisible === 'function') {
+        setAccessibleModalVisible(modalEditCard, true, {
+            display: 'block',
+            initialFocus: shouldOpenDueDatePicker
+                ? '#cardEditorSetDueDateLink'
+                : (shouldFocusNotes ? '#cardEditorOverType .overtype-input' : '#cardEditorTitle'),
+            labelledBy: 'cardEditorTitle',
+        });
+    } else {
+        modalEditCard.style.display = 'block';
+        modalEditCard.classList.remove('hidden');
+        modalEditCard.setAttribute('aria-hidden', 'false');
+    }
     if (editor && editor.textarea) {
         editor.textarea.dispatchEvent(new Event('scroll', { bubbles: true }));
     }
@@ -1445,12 +1458,18 @@ async function refreshCardEditorAfterMove(newPath) {
 
     const cardEditorCardID = document.getElementById('cardEditorCardID');
     if (cardEditorCardID) {
-        cardEditorCardID.textContent = await window.board.getCardID(newPath);
+        const cardID = await window.board.getCardID(newPath);
+        cardEditorCardID.textContent = cardID;
+        cardEditorCardID.setAttribute('aria-label', `Open card file ${cardID}`);
     }
 
     await renderBoard();
     await updateCardEditorMoveLink(newPath);
     await updateCardEditorListDropdown(newPath);
+    if (typeof announceSignboardStatus === 'function') {
+        const targetListName = getCardEditorListDisplayName(getPathDirectoryName(getCardListPath(newPath)));
+        announceSignboardStatus(`Moved card to ${targetListName}.`);
+    }
 }
 
 function setCardEditorMoveIcon(moveLink, iconName) {
@@ -1459,6 +1478,11 @@ function setCardEditorMoveIcon(moveLink, iconName) {
     }
 
     moveLink.innerHTML = window.feather.icons[iconName].toSvg();
+    const svgIcon = moveLink.querySelector('svg');
+    if (svgIcon) {
+        svgIcon.setAttribute('aria-hidden', 'true');
+        svgIcon.setAttribute('focusable', 'false');
+    }
 }
 
 async function updateCardEditorMoveLink(cardPath) {
@@ -1579,7 +1603,12 @@ async function archiveActiveEditorCard() {
 
     await flushEditorSaveIfNeeded();
     await window.board.archiveCard(cardPath);
+    clearQueuedEditorSave();
+    cardEditorCardPath.value = '';
     await closeAllModals(createCloseAllModalsRequest());
+    if (typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus('Archived card.');
+    }
     return true;
 }
 
@@ -1613,6 +1642,7 @@ async function handleClickShareCard(e) {
 }
 
 async function handleClickDuplicateCard( e ) {
+    e.preventDefault();
     e.stopPropagation();
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
 
@@ -1648,10 +1678,11 @@ async function handleClickDuplicateCard( e ) {
         body: card.body,
     });
 
-    e.preventDefault();
-    e.stopPropagation();
     await closeAllModals(createCloseAllModalsRequest(), { rerender: true });
     await toggleEditCardModal(newCardPath);
+    if (typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus(`Duplicated card "${copiedFrontmatter.title || 'Untitled'}".`);
+    }
 
     return;
 }

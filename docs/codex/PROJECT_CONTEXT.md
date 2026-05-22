@@ -86,6 +86,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - Pattern: `NNN-<list-name>-<suffix>`
 - Default starter lists use suffix `-stock`.
 - Archive list is always `XXX-Archive` and hidden from normal board rendering.
+- Empty desktop-created and MCP-created boards seed the same `👋 Start Here` card, including current workflow hints and generated upcoming checklist due-date examples.
 
 ### Card files
 - Pattern: `NNN-<slug>-<rand5>.md`
@@ -137,6 +138,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Calls directory chooser and `openBoard`.
 - `app/board/boardTabs.js`:
   - Manages board tabs (add/open/close/reorder + active tab persistence) with responsive overflow into an `N more` switcher entry.
+  - Supports keyboard movement across visible board tabs with arrows, `Home`, and `End`; focused board tabs close with `Delete` / `Backspace`.
   - Provides the shared safe board-switch helper used by both board tabs and the quick switcher.
 - `app/board/openBoard.js`:
   - Creates starter lists/cards when board folder is empty.
@@ -159,6 +161,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/board/archiveBrowser.js`:
   - Opens the dedicated Archive modal from the Board menu.
   - Lists archived cards and archived lists with search-first filtering, incremental result rendering, and a detail pane.
+  - Lets keyboard users move from archive search into results, move between results with arrows, return to search with `Esc`, and clear archive search with `Esc` from the search field.
   - Reads archive entry detail lazily over preload IPC.
   - Restores cards through an explicit destination-list picker and restores archived lists back into the board root with rename-on-collision handling.
 - `app/board/boardSwitcher.js`:
@@ -174,26 +177,31 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Offers quick `All Boards` and `Current Board` scope controls plus custom board selection in the filter menu.
   - Renders Planner Calendar, This Week, Day, and Agenda views from card due dates and incomplete task-level due markers.
   - Uses Planner-local search plus `Today` / `Overdue`, completed-card visibility, and open-board filters; label filters appear only when scoped to the active board.
+  - Lets keyboard users move from Planner search into visible Planner cards, move between cards with arrows, return to search with `Esc`, and traverse the Planner filter popover with arrows.
   - Hides cards from completed workflow lists by default while preserving their due-date metadata; the Planner filter menu can show completed dated cards when needed.
   - Opens Planner cards through the normal editor, switching the active board behind the overlay first when the card belongs to a different board.
   - Keeps Planner on the default Signboard palette for the active light/dark mode instead of inheriting the active board color scheme, while tinting card source pills from their source board color schemes.
 - `app/lists/createListElement.js`:
-  - Builds list UI, add-card button, list rename behavior.
+  - Builds list UI, add-card button, list rename behavior, and labelled section/list semantics for assistive technology.
   - Enables card drag-and-drop reorder and cross-list move.
   - Uses shared Sortable card drag options from `app/utilities/cardDragTilt.js`; the visible ghost placeholder is an empty drop slot rather than a readable duplicate card.
   - Sanitizes list names before filesystem rename.
   - Builds card DOM for a list concurrently to reduce list render time.
   - Records `moved-list` lifecycle events only for real cross-list card moves, not same-list reindexing.
+- `app/lists/listActionsPopover.js`:
+  - Renders native button actions for adding cards/lists, moving lists left/right, and archiving cards/lists.
+  - Keeps the popover labelled, focuses the first enabled action on open, supports arrow-key / `Home` / `End` / `Esc` option navigation, and announces completed list actions through the shared live status helper.
 - `app/cards/createCardElement.js`:
   - Reads card frontmatter/body preview.
   - Computes task summary + task due dates from card body checklist lines.
   - Shows task progress badge on board cards.
   - Shows label chips and a tag-icon picker on each card.
   - Hides cards that do not match the active label filter or search query.
-  - Opens edit modal on click.
+  - Renders each card as a list item with a native button title so cards can be opened by keyboard and announced with stable labels.
 - `app/board/boardLabels.js`:
   - Owns board label state in the renderer.
   - Renders the header filter dropdown with mutually exclusive `Today` / `Overdue` date filters plus multi-select OR label filters.
+  - Keeps the header filter popover, card label popover, and Settings section nav keyboard-operable with arrow keys, `Home`, `End`, and opener focus restoration on popover `Esc`.
   - Evaluates date filters from card due dates and incomplete task due markers, ignoring completed task due markers.
   - Combines date filters, label filters, and board search with AND logic when determining visibility.
   - Owns board workflow settings for completed-list auto-detection, ignored auto-detected lists, and manual completed-list selection.
@@ -204,6 +212,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/board/boardSearch.js`:
   - Stores the current search query/tokens.
   - Debounces live search renders for title/body filtering.
+  - Lets keyboard users move from the search field into visible card result buttons with `Enter` / arrow keys, move between results with arrows, return to search with `Esc`, and clear search with `Esc` from the search field.
 
 ### Add/edit card and list
 - `app/cards/processAddNewCard.js` and `app/cards/processAddNewList.js`:
@@ -227,13 +236,18 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/utilities/dueNotifications.js`:
   - Collects due items from both card-level due dates and incomplete task-level due markers, skipping cards in completed workflow lists.
   - Builds notification body text that includes board/card title and task summary text for task due items.
+- `app/utilities/accessibility.js`:
+  - Owns shared modal show/hide accessibility behavior, including `aria-hidden`, focus restoration, focus trapping, and temporary background inert state.
+  - Provides the global polite status region used for nonvisual confirmations after card/list/view actions.
+  - Provides stable DOM ID helpers and reduced-motion checks used by card/list rendering and drag behavior.
 - `app/utilities/cardDragTilt.js`:
-  - Centralizes card Sortable fallback options, drag tilt, and text-selection locking for Kanban and temporal card drag/drop.
+  - Centralizes card Sortable fallback options, drag tilt, reduced-motion checks, and text-selection locking for Kanban and temporal card drag/drop.
   - Pairs with `static/styles.css` ghost styles so drag placeholders show an empty insertion slot while the dragged fallback clone remains the only readable card.
 - `app/modals/*.js` and `app/modals/closeAllModals.js`:
-  - Modal open/close, cleanup, and board rerender.
+  - Modal open/close, accessible visibility state, cleanup, and board rerender.
   - Disables board interaction (click/drag/select) while edit modal is open.
   - Re-renders board only when needed (instead of every modal close).
+  - Editor focus uses subtle `:focus-visible` styling for keyboard users rather than always-visible outlines for pointer users.
 
 ### Keyboard shortcuts
 - `app/listeners/window.js`:
@@ -259,6 +273,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Workspace-level shortcuts close the active card editor before changing context; editor-scoped move/archive shortcuts keep acting on the open card.
   - Any shortcut changes must update the helper list in `index.html` (`#modalKeyboardShortcuts`) in the same change.
 - View-switcher rows and list-action rows surface the same shortcut hints in subtle monospace text so the app teaches the keyboard path inline.
+- Search surfaces, board tabs, list actions, label/filter popovers, and Settings sections are expected to keep keyboard navigation behavior in sync with user-facing docs.
 - Date filtering and Planner date views treat only card due dates and incomplete task due markers as actionable work: completed task due markers and completed-list cards do not keep a card visible by default, but card-level due dates still do on actionable lists.
 
 ### Theme support

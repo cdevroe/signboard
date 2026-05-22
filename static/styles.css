@@ -3,6 +3,18 @@
 *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 @font-face {
   font-family: "JetBrains Mono Local";
   src:
@@ -2052,6 +2064,29 @@ body.board-card-drag-active * {
   font-weight: 400;
   line-height: 1.3;
 }
+.card-title-button {
+  display: inline;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  text-align: left;
+  font: inherit;
+  line-height: inherit;
+}
+.card-title-button:hover {
+  background: transparent;
+}
+.card-title-button:active {
+  transform: none;
+}
+.card-title-button:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 42%, var(--bg-card));
+  outline-offset: 2px;
+}
 .card-body {
   font-size: var(--font-sm);
   color: var(--muted);
@@ -2248,6 +2283,15 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+
   .sb-tooltip,
   .planner-overlay,
   .planner-rail-button,
@@ -2255,11 +2299,37 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   .planner-close-rail svg {
     transition: none;
   }
+
+  .card:hover > .card-drag-frame,
+  .board-calendar-card:hover .board-temporal-card-frame,
+  .board-this-week-card:hover .board-temporal-card-frame,
+  .planner-calendar-card:hover .board-temporal-card-frame,
+  .planner-this-week-card:hover .board-temporal-card-frame,
+  .card-sortable--dragging > .card-drag-frame,
+  .card-sortable--fallback > .card-drag-frame {
+    transform: none !important;
+  }
 }
 
 @media (hover: none) and (pointer: coarse) {
   .sb-tooltip {
     display: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText !important;
+    outline-offset: 2px !important;
+    box-shadow: none !important;
+  }
+
+  .card > .card-drag-frame,
+  .list,
+  .modal,
+  .label-popover {
+    border: 1px solid CanvasText;
+    box-shadow: none;
   }
 }
 
@@ -3329,8 +3399,22 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   margin: 0;
 }
 
-.boardSettingsHeader a {
+.boardSettingsHeader a,
+.boardSettingsHeader button {
   color: var(--muted);
+}
+
+.boardSettingsHeader button {
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  line-height: 1;
+}
+
+.boardSettingsHeader button:hover {
+  color: var(--text);
+  background: transparent;
 }
 
 .board-settings-layout {
@@ -4024,6 +4108,28 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 #modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
+#modalEditCard #cardEditorCardID,
+#modalEditCard .cardEditorHeaderActions button,
+#modalEditCard .cardEditorMetadataButtons button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font: inherit;
+  line-height: 1;
+}
+#modalEditCard #cardEditorCardID:hover,
+#modalEditCard .cardEditorHeaderActions button:hover,
+#modalEditCard .cardEditorMetadataButtons button:hover {
+  background: transparent;
+  color: var(--text);
+}
+#modalEditCard #cardEditorCardID:active,
+#modalEditCard .cardEditorHeaderActions button:active,
+#modalEditCard .cardEditorMetadataButtons button:active {
+  transform: none;
+}
 #modalEditCard #cardEditorCardDueDateDisplay { font-size: var(--font-sm); color: var(--muted); }
 #modalEditCard #cardEditorSetDueDateLink,
 #modalEditCard #cardEditorSetLabelsLink { text-decoration: none; }
@@ -4051,8 +4157,10 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   align-items: center;
   flex-shrink: 0;
 }
-#modalEditCard .cardEditorHeaderActions a { color: var(--muted); }
-#modalEditCard .cardEditorHeaderActions a + a { margin-left: 20px; }
+#modalEditCard .cardEditorHeaderActions a,
+#modalEditCard .cardEditorHeaderActions button { color: var(--muted); }
+#modalEditCard .cardEditorHeaderActions a + a,
+#modalEditCard .cardEditorHeaderActions button + button { margin-left: 20px; }
 #modalEditCard #cardEditorListSelect {
   width: 100%;
   max-width: 280px;
@@ -4091,7 +4199,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   gap: 14px;
   padding-left: 16px;
 }
-#modalEditCard .cardEditorMetadataButtons a {
+#modalEditCard .cardEditorMetadataButtons a,
+#modalEditCard .cardEditorMetadataButtons button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -4109,7 +4218,10 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #modalEditCard #cardEditorCardLabels.card-editor-labels .card-label-chip {
   cursor: inherit;
 }
-#modalEditCard .cardEditorHeader a svg, #modalEditCard .cardEditorMetadataButtons a svg { height: 18px; }
+#modalEditCard .cardEditorHeader a svg,
+#modalEditCard .cardEditorHeader button svg,
+#modalEditCard .cardEditorMetadataButtons a svg,
+#modalEditCard .cardEditorMetadataButtons button svg { height: 18px; }
 
 @keyframes card-editor-list-move-check-pop {
   0% { transform: translateX(-4px) scale(0.9); }
@@ -4274,6 +4386,20 @@ select:disabled {
 
 [contenteditable] {
   outline: none;
+}
+
+[contenteditable]:focus-visible {
+  outline: none;
+}
+
+:root.sb-keyboard-focus-active [contenteditable]:focus-visible {
+  box-shadow: 0 2px 0 color-mix(in oklab, var(--accent) 60%, var(--bg-card));
+}
+
+:root.sb-keyboard-focus-active #modalEditCard #cardEditorTitle:focus-visible,
+:root.sb-keyboard-focus-active .list-header [contenteditable]:focus-visible {
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--accent) 5%, transparent);
 }
 
 #cardEditorOverType {

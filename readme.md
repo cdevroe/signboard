@@ -27,6 +27,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 🧲 Drag-and-drop card movement
 - ⚡ Unlimited open boards with overflow tabs and a quick switcher
 - ⌨️ Keyboard shortcuts
+- ♿ Keyboard, screen reader, reduced-motion, and forced-colors improvements
 - 🤖 MCP server
 - 💻 CLI
 
@@ -82,12 +83,18 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + F`: focus board search or Planner search
 - `Esc`: close open modals
 
+In board search, Planner search, and archive search, `Enter` or `Arrow Down` moves from the search field to the first visible result, arrow keys move between visible results, and `Enter` or `Space` opens or selects the focused result.
+
+Board tabs, list actions, label/filter popovers, and Settings sections support arrow-key navigation. `Home` and `End` jump to the edges, `Esc` closes popovers, and `Delete` / `Backspace` closes a focused board tab.
+
 When a card is open, workspace-level shortcuts such as create, board switcher, Planner/view switching, Settings, Archive, and search close the card first. Card-specific shortcuts such as moving or archiving the open card still act on that card.
 In the Quick Add card modal, choose the board and list before creating the card. `Shift + Enter` creates the card, opens it immediately, and focuses the notes field. App Settings can also register an optional global Quick Add shortcut that works while Signboard is open.
 
 You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 
 Editable fields, including the card title and body editor, support the native right-click text editing menu for cut, copy, paste, delete, and select all.
+
+Cards, list actions, and dialogs are keyboard-operable, with screen-reader status announcements for common actions. Focus indicators appear for keyboard navigation without adding persistent outlines to the card editor for pointer users.
 
 ## 🤖 MCP Server
 

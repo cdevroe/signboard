@@ -168,6 +168,10 @@ function addBoardCardDragTiltListeners() {
 function beginBoardCardDragTilt(evt) {
   endBoardCardDragTilt();
 
+  if (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) {
+    return;
+  }
+
   const item = evt && evt.item;
   if (!isBoardCardDragTiltElement(item)) {
     return;
@@ -204,6 +208,7 @@ function endBoardCardDragTilt(evt) {
 }
 
 function createBoardCardSortableOptions(options = {}) {
+  const shouldReduceMotion = typeof prefersReducedMotion === 'function' && prefersReducedMotion();
   const mergedOptions = {
     forceFallback: true,
     fallbackOnBody: true,
@@ -211,8 +216,12 @@ function createBoardCardSortableOptions(options = {}) {
     chosenClass: 'card-sortable--chosen',
     ghostClass: 'card-sortable--ghost',
     dragClass: 'card-sortable--dragging',
+    animation: shouldReduceMotion ? 0 : options.animation,
     ...options,
   };
+  if (shouldReduceMotion) {
+    mergedOptions.animation = 0;
+  }
   const baseOnChoose = mergedOptions.onChoose;
   const baseOnUnchoose = mergedOptions.onUnchoose;
   const baseOnStart = mergedOptions.onStart;

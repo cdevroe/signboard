@@ -323,9 +323,17 @@ async function openAboutSignboardModal() {
         await closeAllModals({ key: 'Escape' });
     }
 
-    modal.style.display = 'block';
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
+    if (typeof setAccessibleModalVisible === 'function') {
+        setAccessibleModalVisible(modal, true, {
+            display: 'block',
+            initialFocus: '#aboutSignboardClose',
+            labelledBy: 'aboutSignboardTitle',
+        });
+    } else {
+        modal.style.display = 'block';
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+    }
 
     if (typeof setBoardInteractive === 'function') {
         setBoardInteractive(false);
@@ -338,9 +346,13 @@ function closeAboutSignboardModal() {
         return;
     }
 
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
+    if (typeof setAccessibleModalVisible === 'function') {
+        setAccessibleModalVisible(modal, false);
+    } else {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+    }
 
     if (typeof setBoardInteractive === 'function') {
         setBoardInteractive(true);
@@ -388,9 +400,17 @@ function openCommercialLicenseModal() {
     }
 
     renderCommercialLicenseModalState();
-    modal.style.display = 'block';
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
+    if (typeof setAccessibleModalVisible === 'function') {
+        setAccessibleModalVisible(modal, true, {
+            display: 'block',
+            initialFocus: '#commercialLicenseClose',
+            labelledBy: 'commercialLicenseTitle',
+        });
+    } else {
+        modal.style.display = 'block';
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+    }
 
     if (typeof setBoardInteractive === 'function') {
         setBoardInteractive(false);
@@ -403,9 +423,13 @@ function closeCommercialLicenseModal() {
         return;
     }
 
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
+    if (typeof setAccessibleModalVisible === 'function') {
+        setAccessibleModalVisible(modal, false);
+    } else {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+    }
 
     if (typeof setBoardInteractive === 'function') {
         setBoardInteractive(true);
@@ -714,6 +738,9 @@ function startExternalBoardSync() {
 }
 
 async function init() {
+    if (typeof initializeAccessibilityHelpers === 'function') {
+        initializeAccessibilityHelpers();
+    }
     initializeTooltips();
 
     if (window.board && typeof window.board.adoptLegacyBoardRoots === 'function' && typeof getStoredOpenBoards === 'function') {

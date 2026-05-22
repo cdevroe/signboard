@@ -96,6 +96,46 @@ async function run() {
   });
   assert.strictEqual(optedOutEvents.length, 0, 'expected board-level opt-out to suppress calendar entries');
 
+  const missingBoardRoot = path.join('/tmp', 'signboard-calendar-missing-board');
+  const consoleErrors = [];
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    consoleErrors.push(args);
+  };
+
+  try {
+    const eventsWithMissingBoard = await collectExternalPublishedCalendarEvents({
+      boardRoots: [missingBoardRoot, boardRoot],
+      readBoardSettings: async (root) => ({
+        externalPublishedCalendar: { include: true },
+        workflow: root === boardRoot
+          ? {
+              autoDetectCompletedLists: true,
+              completedListNames: [],
+              ignoredCompletedListNames: [],
+            }
+          : {},
+      }),
+      listLists: async (root) => {
+        if (root === missingBoardRoot) {
+          const error = new Error('Missing board root');
+          error.code = 'ENOENT';
+          throw error;
+        }
+
+        return [includedList];
+      },
+      listCards: async (listPath) => listPath === includedListPath ? ['001-card-due.md'] : [],
+      readCard: async (cardPath) => cardsByPath.get(cardPath),
+      getBoardName: (root) => root === boardRoot ? 'Calendar Board' : 'Missing Board',
+    });
+
+    assert.strictEqual(eventsWithMissingBoard.length, 1, 'expected missing board roots to be skipped');
+    assert.strictEqual(consoleErrors.length, 0, 'expected missing board roots to be skipped without console errors');
+  } finally {
+    console.error = originalConsoleError;
+  }
+
   console.log('External Published Calendar tests passed.');
 }
 
