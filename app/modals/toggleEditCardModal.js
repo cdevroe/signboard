@@ -1575,11 +1575,24 @@ async function handleChangeCardListSelect(e) {
         return;
     }
 
+    if (typeof waitForNativeMenuTrackingToSettle === 'function') {
+        await waitForNativeMenuTrackingToSettle();
+    }
+
+    if (!listSelect.isConnected || listSelect.value !== targetListPath || !isCardEditorActive()) {
+        return;
+    }
+
+    const latestCardPath = document.getElementById('cardEditorCardPath')?.value || cardEditorCardPath.value;
+    if (!latestCardPath || targetListPath === getCardListPath(latestCardPath)) {
+        return;
+    }
+
     listSelect.disabled = true;
 
     try {
         await flushEditorSaveIfNeeded();
-        const newPath = await moveCardToTopOfListPath(cardEditorCardPath.value, targetListPath);
+        const newPath = await moveCardToTopOfListPath(latestCardPath, targetListPath);
         if (!newPath) {
             return;
         }

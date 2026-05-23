@@ -1432,7 +1432,15 @@ function initializeArchiveBrowserControls() {
 
   if (sortSelect) {
     sortSelect.addEventListener('change', async (event) => {
-      state.sortKeyByTab[state.activeTab] = String(event.currentTarget.value || 'archived-desc');
+      const nextSortKey = String(event.currentTarget.value || 'archived-desc');
+      if (typeof waitForNativeMenuTrackingToSettle === 'function') {
+        await waitForNativeMenuTrackingToSettle();
+      }
+      if (!sortSelect.isConnected || sortSelect.value !== nextSortKey) {
+        return;
+      }
+
+      state.sortKeyByTab[state.activeTab] = nextSortKey;
       resetArchiveBrowserPagination(state.activeTab);
       state.selectedEntryPath = '';
       renderArchiveBrowserModal();

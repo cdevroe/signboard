@@ -4,7 +4,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + opt-in localhost External Published Calendar server + native menu/accelerators (including board switcher/settings/theme shortcuts) + optional Quick Add global shortcut registration + renderer right-click text editing context menu + archive browse/restore + top-of-list card move IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + opt-in localhost External Published Calendar server + native menu/accelerators (including board switcher/settings/theme shortcuts) + optional Quick Add global shortcut registration + renderer right-click text editing context menu with deferred native popup handling + archive browse/restore + top-of-list card move IPC + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
 - `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
@@ -28,7 +28,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/santizeFileName.js` - Filename sanitization + random suffix helper.
 - `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, all/open task due-date sets, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and incomplete task due markers, skipping completed workflow lists.
-- `app/utilities/accessibility.js` - Shared renderer accessibility helpers for modal focus restoration/trapping, background inert state, live status announcements, stable DOM IDs, and reduced-motion checks.
+- `app/utilities/accessibility.js` - Shared renderer accessibility helpers for modal focus restoration/trapping, background inert state, live status announcements, stable DOM IDs, reduced-motion checks, and deferring DOM mutations until native menu/select popup tracking settles on macOS.
 - `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, reduced-motion handling, and drag text-selection lock used by Kanban and temporal card drag/drop.
 - `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification/Quick Add global shortcut/External Published Calendar controls, persistence scheduling, and one-time migration from legacy board settings.
 - `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with date filters ignoring completed task due markers and completed workflow lists), keyboard-operable card label popovers, Settings modal board panels/nav, and Trello/Obsidian import panel wiring + summary rendering.

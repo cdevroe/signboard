@@ -34,7 +34,7 @@ File: `main.js`
 - Shows native update dialogs with release notes, changelog links, remind-later, and install/relaunch actions.
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` as a thin renderer bridge into main-process IPC.
-- Owns renderer right-click text editing context menus through the `webContents` `context-menu` event, covering editable fields such as the card title and OverType notes editor.
+- Owns renderer right-click text editing context menus through the `webContents` `context-menu` event, covering editable fields such as the card title and OverType notes editor; context-menu popup creation is deferred one tick so AppKit can finish native menu tracking before window layout changes.
 - Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
 - Owns explicit board import operations for Trello, Obsidian, and Tasks.md; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
 - Owns archive browse/read/restore operations through `lib/archive.js`; renderer code never scans or restores archive contents directly.
@@ -158,6 +158,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Renders active-board cards in board/list order as a dense table.
   - Reuses board search, label filters, Today/Overdue date filters, task progress badges, and completed-list workflow handling.
   - Moves a card to another list through the row list dropdown by calling the same top-of-list move IPC path as the card editor.
+  - Defers row list dropdown DOM updates until macOS native menu tracking has settled.
 - `app/board/archiveBrowser.js`:
   - Opens the dedicated Archive modal from the Board menu.
   - Lists archived cards and archived lists with search-first filtering, incremental result rendering, and a detail pane.
@@ -225,6 +226,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Tracks the clean on-disk editor state so external/MCP updates can reload an open card editor when the user has no local edits in progress.
   - Relies on the main-process renderer context menu for native right-click cut/copy/paste/select-all in editable title/body fields.
   - Moves active cards to selected/adjacent lists from the list dropdown, arrow action, and keyboard shortcuts by calling the main-process `moveCardToTop` IPC path, which inserts at the top of the destination list.
+  - Defers list-dropdown moves until macOS native menu tracking has settled before disabling controls or refreshing editor state.
   - Renders task-line due-date controls at the start of each parsed checklist line in the editor.
   - Uses measured textarea line-start coordinates for control placement so wrapped lines do not drift button positions.
   - Handles due date picker, labels picker, duplicate, and archive actions.

@@ -742,7 +742,15 @@ async function openAddCardFromShortcut(options = {}) {
 
     if (userInputBoardPath) {
         userInputBoardPath.onchange = async () => {
-            await renderQuickAddListOptions(userInputBoardPath.value);
+            const selectedBoardRoot = userInputBoardPath.value;
+            if (typeof waitForNativeMenuTrackingToSettle === 'function') {
+                await waitForNativeMenuTrackingToSettle();
+            }
+            if (!userInputBoardPath.isConnected || userInputBoardPath.value !== selectedBoardRoot) {
+                return;
+            }
+
+            await renderQuickAddListOptions(selectedBoardRoot);
         };
     }
 

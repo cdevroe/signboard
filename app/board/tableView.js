@@ -190,6 +190,14 @@ function createBoardTableListCell(entry, listOptions) {
       return;
     }
 
+    if (typeof waitForNativeMenuTrackingToSettle === 'function') {
+      await waitForNativeMenuTrackingToSettle();
+    }
+
+    if (!select.isConnected || select.value !== nextListPath) {
+      return;
+    }
+
     select.disabled = true;
     try {
       const newCardPath = await moveBoardTableCardToList(entry, nextListPath);

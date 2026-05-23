@@ -3196,8 +3196,15 @@ function initializeBoardLabelControls() {
   }
 
   if (colorSchemeSelect) {
-    colorSchemeSelect.addEventListener('change', (event) => {
+    colorSchemeSelect.addEventListener('change', async (event) => {
       const schemeId = event.target.value;
+      if (typeof waitForNativeMenuTrackingToSettle === 'function') {
+        await waitForNativeMenuTrackingToSettle();
+      }
+      if (!colorSchemeSelect.isConnected || colorSchemeSelect.value !== schemeId) {
+        return;
+      }
+
       applyColorSchemeById(schemeId);
       scheduleBoardSettingsSave();
     });

@@ -1,4 +1,5 @@
 const SB_STATUS_REGION_ID = 'signboardStatusRegion';
+const SB_NATIVE_MENU_SETTLE_DELAY_MS = 0;
 const SB_MODAL_FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
@@ -258,6 +259,19 @@ function prefersReducedMotion() {
   }
 
   return Boolean(state.reducedMotionQuery && state.reducedMotionQuery.matches);
+}
+
+function waitForNativeMenuTrackingToSettle() {
+  return new Promise((resolve) => {
+    window.setTimeout(() => {
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(() => resolve());
+        return;
+      }
+
+      resolve();
+    }, SB_NATIVE_MENU_SETTLE_DELAY_MS);
+  });
 }
 
 function handleModalFocusTrap(event) {

@@ -134,6 +134,7 @@ let mainWindow = null;
 let isAppQuitting = false;
 let mcpPowerSaveBlockerId = null;
 let unresponsiveDialogVisible = false;
+let pendingRendererContextMenuTimer = null;
 let registeredQuickAddGlobalShortcut = '';
 let quickAddGlobalShortcutStatus = {
   accelerator: '',
@@ -1005,11 +1006,33 @@ function showRendererContextMenu(win, params = {}) {
     return;
   }
 
-  Menu.buildFromTemplate(template).popup({
-    window: win,
+  const menu = Menu.buildFromTemplate(template);
+  const popupOptions = {
     x: Number.isFinite(params.x) ? params.x : undefined,
     y: Number.isFinite(params.y) ? params.y : undefined,
-  });
+  };
+
+  if (pendingRendererContextMenuTimer) {
+    clearTimeout(pendingRendererContextMenuTimer);
+    pendingRendererContextMenuTimer = null;
+  }
+
+  pendingRendererContextMenuTimer = setTimeout(() => {
+    pendingRendererContextMenuTimer = null;
+
+    if (!win || win.isDestroyed() || isAppQuitting) {
+      return;
+    }
+
+    try {
+      menu.popup({
+        window: win,
+        ...popupOptions,
+      });
+    } catch (error) {
+      console.error('Unable to show renderer context menu.', error);
+    }
+  }, 0);
 }
 
 function createWindow() {
