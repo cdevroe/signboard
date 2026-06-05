@@ -260,6 +260,41 @@ async function main() {
     SIGNBOARD_CLI_CONFIG_DIR: configDir,
   };
 
+  const createdBoardRoot = path.join(fixture.root, 'Created CLI Board');
+  const createdBoard = JSON.parse(
+    runCli(['boards', 'create', createdBoardRoot, '--json', '--use'], env).stdout
+  );
+  assert.strictEqual(createdBoard.boardRoot, createdBoardRoot);
+  assert.strictEqual(createdBoard.cardFile, '000-hello-stock.md');
+  assert.strictEqual(createdBoard.seededWelcomeCard, true);
+  assert.strictEqual(createdBoard.currentBoardUpdated, true);
+  assert.deepStrictEqual(
+    (await fs.readdir(createdBoardRoot)).sort(),
+    ['000-To-do-stock', '001-Doing-stock', '002-Done-stock', 'XXX-Archive'].sort(),
+  );
+
+  const starterCard = await cardFrontmatter.readCard(
+    path.join(createdBoardRoot, '000-To-do-stock', '000-hello-stock.md')
+  );
+  assert.strictEqual(starterCard.frontmatter.title, '👋 Start Here');
+  assert.ok(starterCard.body.includes('Quick Add'));
+  assert.strictEqual(runCli(['use'], env).stdout.trim(), createdBoardRoot);
+
+  const createdEmptyBoard = JSON.parse(
+    runCli(['boards', 'create', '--parent', fixture.root, '--name', 'Empty CLI Board', '--no-welcome', '--json'], env).stdout
+  );
+  assert.strictEqual(createdEmptyBoard.boardRoot, path.join(fixture.root, 'Empty CLI Board'));
+  assert.strictEqual(createdEmptyBoard.cardFile, '');
+  assert.strictEqual(createdEmptyBoard.seededWelcomeCard, false);
+  assert.deepStrictEqual(
+    (await fs.readdir(path.join(createdEmptyBoard.boardRoot, '000-To-do-stock'))).sort(),
+    [],
+  );
+
+  const invalidBoardSingular = runCliExpectFail(['board', 'create', path.join(fixture.root, 'Broken Board')], env);
+  assert.ok(invalidBoardSingular.stderr.includes('Unknown command group: board'));
+  assert.ok(invalidBoardSingular.stderr.includes('Did you mean `boards`?'));
+
   const useResult = runCli(['use', fixture.boardRoot], env);
   assert.ok(useResult.stdout.includes(fixture.boardRoot));
 

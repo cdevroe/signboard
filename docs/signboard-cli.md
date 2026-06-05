@@ -25,17 +25,16 @@ Once installed, try it out!
 signboard --help
 ```
 
-If you want to run this at its full path...
+The installed wrapper runs the packaged CLI in Electron's Node mode, so terminal commands do not open or quit the desktop app window.
 
-### Packaged app executable
+If you need to run the packaged CLI at its full path, use Electron's Node mode and point it at the bundled CLI script:
 
 ```bash
-/Applications/Signboard.app/Contents/MacOS/Signboard --help
+ELECTRON_RUN_AS_NODE=1 \
+  /Applications/Signboard.app/Contents/MacOS/Signboard \
+  /Applications/Signboard.app/Contents/Resources/app.asar/bin/signboard.js \
+  --help
 ```
-
-Other packaged examples:
-
-- Linux AppImage: `./signboard_*.AppImage --help`
 
 ## Choose a Board
 
@@ -63,11 +62,30 @@ signboard use
 
 The CLI is organized into six command groups:
 
+- `boards`
 - `lists`
 - `cards`
 - `archive`
 - `settings`
 - `import`
+
+### `boards`
+
+Create a new board folder with Signboard's default starter lists.
+
+```bash
+signboard boards create /Path/To/NewBoard
+signboard boards create /Path/To/NewBoard --use
+signboard boards create --parent /Path/To --name "New Board" --json
+signboard boards create /Path/To/EmptyBoard --no-welcome
+```
+
+Notes:
+
+- New boards get `000-To-do-stock`, `001-Doing-stock`, `002-Done-stock`, and `XXX-Archive`.
+- By default, Signboard seeds `000-hello-stock.md` in the To do list with the same starter guidance used by MCP-created boards.
+- Add `--use` to make the new board the active CLI board for later commands.
+- Add `--no-welcome` to create only the default list folders.
 
 ### `lists`
 
@@ -303,6 +321,13 @@ Recommended agent workflow:
 5. Use exact list or card references when possible.
 
 ## Common Workflows
+
+### Create a new board and select it
+
+```bash
+signboard boards create ~/Boards/LaunchPlan --use
+signboard lists
+```
 
 ### Find cards due this week
 

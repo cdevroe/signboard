@@ -70,9 +70,11 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/importers/trello.js` - Trello JSON importer.
 - `lib/importers/obsidian.js` - Obsidian importer covering `obsidian-kanban`, generic task scopes, and CardBoard snapshot imports.
 - `lib/cardBodyEdits.js` - Shared Markdown body-edit helpers for replacing heading sections, inserting text below headings, and appending timestamped note list items.
+- `lib/boardCreation.js` - Shared default board scaffolding for MCP and CLI-created boards, including default list folders and the starter card body/frontmatter.
 - `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings/archive operations inside configured or desktop-trusted roots, safe board creation, archive browse/read/restore tools, Trello/Obsidian/Tasks.md imports, dry-run card writes, and task-summary metadata on card tools.
-- `lib/cliApp.js` - CLI command parsing/output for `use`, `lists`, `cards`, `archive`, `settings`, and path-based `import` commands, including card duplicate/template commands, section/note card edits, dry-run previews, and `--task-status open|any` for card due filtering.
-- `lib/cliBoard.js` - CLI board/list/card filesystem operations, record loading, card duplication/template creation, section/note body edits, explicit label clearing, and due/search/label filtering; overdue task filtering defaults to incomplete/open task markers unless callers pass `--task-status any`.
+- `lib/cliApp.js` - CLI command parsing/output for `use`, `boards`, `lists`, `cards`, `archive`, `settings`, and path-based `import` commands, including board creation, card duplicate/template commands, section/note card edits, dry-run previews, and `--task-status open|any` for card due filtering.
+- `lib/cliBoard.js` - CLI list/card filesystem operations, record loading, card duplication/template creation, section/note body edits, explicit label clearing, and due/search/label filtering; overdue task filtering defaults to incomplete/open task markers unless callers pass `--task-status any`.
+- `lib/cliInstall.js` - User-level CLI shim + shell profile installation; packaged shims run `app.asar/bin/signboard.js` under `ELECTRON_RUN_AS_NODE` instead of launching the desktop lifecycle.
 
 ## Scripts (`scripts/`)
 
@@ -92,7 +94,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux plus curated public-download guidance.
 - `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including trusted-root config/resolution coverage, archive tool coverage, card task metadata assertions, and import-tool coverage.
 - `scripts/test-cli.js` - Node CLI smoke test covering list/card/archive flows, duplicate/template card commands, section/note edits, dry-run previews, plus Trello/Obsidian imports.
-- `scripts/test-desktop-cli.js` - Electron executable CLI dispatch smoke test, including import command routing.
+- `scripts/test-desktop-cli.js` - Packaged-shim-style Electron Node-mode CLI smoke test, including board creation and import command routing.
 
 ## Playwright tests (`tests/playwright/`)
 

@@ -113,16 +113,17 @@ Signboard includes a terminal CLI for direct board management without going thro
 
 - In the desktop app on macOS/Linux: `Help` -> `Install Signboard CLI`
 - Use `signboard use /Path/to/Board` once to remember the active board for later commands
-- Packaged desktop app executable also accepts CLI commands directly:
-  - macOS: `/Applications/Signboard.app/Contents/MacOS/Signboard <command>`
-  - Windows: `Signboard.exe <command>`
-  - Linux AppImage: `./signboard_*.AppImage <command>`
+- Use `signboard boards create /Path/to/NewBoard --use` to create and select a new board from the terminal
+- The installed `signboard` wrapper runs the bundled CLI in Electron's Node mode, avoiding desktop app startup for terminal commands.
 
 Examples:
 
 ```bash
 # Select a board once
 signboard use /Path/to/Board
+
+# Create a board
+signboard boards create /Path/to/NewBoard --use
 
 # Lists
 signboard lists

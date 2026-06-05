@@ -41,9 +41,9 @@ File: `main.js`
 - Owns adjacent-card top-of-list moves through `moveCardToTop`, backed by `lib/cardOrdering.js`.
 - In MCP mode, starts `lib/mcpServer.js`, passes desktop trusted board roots into it, and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
-- Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card/archive management.
-- The packaged Electron executable also routes `lists ...`, `cards ...`, `archive ...`, `settings ...`, and `import ...` CLI invocations through `main.js` without opening the desktop window.
-- Help menu includes `Install Signboard CLI` on macOS/Linux, which installs a per-user shim and PATH profile block for the packaged app executable.
+- Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal board/list/card/archive management.
+- The packaged Electron executable still recognizes `boards ...`, `lists ...`, `cards ...`, `archive ...`, `settings ...`, and `import ...` CLI invocations through `main.js`, but installed CLI shims should use Electron Node mode instead of initializing the desktop lifecycle.
+- Help menu includes `Install Signboard CLI` on macOS/Linux, which installs a per-user shim and PATH profile block; packaged shims run `app.asar/bin/signboard.js` under `ELECTRON_RUN_AS_NODE` so terminal CLI calls do not initialize the desktop app lifecycle.
 - Security-related window settings are:
   - `contextIsolation: true`
   - `nodeIntegration: false`
@@ -362,8 +362,10 @@ Files: `lib/importers/*`
 ### Run CLI locally
 - `npm run cli -- <command>`
 - `node bin/signboard.js <command>`
-- `electron . <command>` routes through the desktop executable path used by packaged builds.
+- `ELECTRON_RUN_AS_NODE=1 electron ./bin/signboard.js <command>` mirrors the installed packaged CLI shim without initializing the desktop app lifecycle.
+- `electron . <command>` still routes through the desktop executable dispatch path, but installed CLI shims should prefer Electron Node mode.
 - CLI board selection is stateful: `signboard use /path/to/board`, then `signboard lists`, `signboard cards`, `signboard archive ...`, `signboard settings`, or `signboard import ...`.
+- Board creation command: `signboard boards create /path/to/new-board [--use] [--no-welcome] [--json]` or `signboard boards create --parent /path/to --name "New Board" [--json]`.
 - Import commands:
   - `signboard import trello --file /absolute/or/relative/export.json [--board <path>] [--json]`
   - `signboard import obsidian --source /path/to/file-or-dir [--source /another/path] [--board <path>] [--json]`
@@ -392,10 +394,11 @@ Files: `lib/importers/*`
 - Concatenates module files into `app/signboard.js` in strict order.
 
 ### CLI internals
-- `lib/cliBoard.js` owns CLI board/list/card filesystem operations, including due filtering with `--due-source any|card|task`, `--task-status open|any`, card duplication/template creation, targeted Markdown section edits, timestamped notes, explicit label clearing, and card write dry-run payloads.
+- `lib/boardCreation.js` owns shared default board scaffolding for MCP and CLI-created boards.
+- `lib/cliBoard.js` owns CLI list/card filesystem operations, including due filtering with `--due-source any|card|task`, `--task-status open|any`, card duplication/template creation, targeted Markdown section edits, timestamped notes, explicit label clearing, and card write dry-run payloads.
 - `lib/taskList.js` exposes shared task parsing and due-date helpers for CLI filtering.
-- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including archive listing/read/restore flows, card write previews, and path-based Trello/Obsidian/Tasks.md imports.
-- `lib/cliInstall.js` owns user-level CLI shim + shell profile installation.
+- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including board creation, archive listing/read/restore flows, card write previews, and path-based Trello/Obsidian/Tasks.md imports.
+- `lib/cliInstall.js` owns user-level CLI shim + shell profile installation, including the packaged-app Node-mode wrapper.
 - `lib/cliState.js` persists the currently selected board for subsequent CLI commands.
 
 CLI overdue behavior:

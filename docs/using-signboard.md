@@ -429,4 +429,4 @@ You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 - Keep list names short. They are stored in folder names, so concise names stay readable on disk.
 - Use labels for durable categories and use lists for workflow stages.
 - Archive aggressively. The archive browser makes restoring easy.
-- If you want automation or scripting, pair this guide with [Signboard CLI](./signboard-cli.md).
+- If you want automation or scripting, pair this guide with [Signboard CLI](./signboard-cli.md), which can also create new board folders from the terminal.

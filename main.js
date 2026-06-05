@@ -1686,6 +1686,48 @@ function printMcpConfigToStdout() {
   process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
 }
 
+function exitCliProcess(exitCode) {
+  const code = Number.isInteger(exitCode) ? exitCode : 0;
+  let didExit = false;
+  const finish = () => {
+    if (didExit) {
+      return;
+    }
+    didExit = true;
+    process.exit(code);
+  };
+
+  const fallbackTimer = setTimeout(finish, 250);
+  if (typeof fallbackTimer.unref === 'function') {
+    fallbackTimer.unref();
+  }
+
+  try {
+    process.stdout.write('', () => {
+      process.stderr.write('', () => {
+        clearTimeout(fallbackTimer);
+        finish();
+      });
+    });
+  } catch {
+    clearTimeout(fallbackTimer);
+    finish();
+  }
+}
+
+function runCliMode() {
+  runCli(signboardArgs, {
+    commandName: app.isPackaged ? 'Signboard' : 'signboard',
+    stdout: process.stdout,
+    stderr: process.stderr,
+  }).then((exitCode) => {
+    exitCliProcess(exitCode);
+  }).catch((error) => {
+    console.error(error.message || error);
+    exitCliProcess(1);
+  });
+}
+
 function getUpdatePreferencesPath() {
   return path.join(app.getPath('userData'), UPDATE_PREFS_FILE);
 }
@@ -2896,63 +2938,46 @@ ipcMain.handle('check-for-updates', async () => {
   return { ok: true };
 });
 
-app.whenReady().then(async () => {
-  if (isMcpConfigMode) {
-    printMcpConfigToStdout();
-    app.quit();
-    return;
-  }
-
-  if (isMcpServerMode) {
-    if (!isMcpPowerSaveBlockerActive()) {
-      mcpPowerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+if (isCliMode) {
+  runCliMode();
+} else {
+  app.whenReady().then(async () => {
+    if (isMcpConfigMode) {
+      printMcpConfigToStdout();
+      app.quit();
+      return;
     }
 
-    if (app.dock && typeof app.dock.hide === 'function') {
-      app.dock.hide();
-    }
+    if (isMcpServerMode) {
+      if (!isMcpPowerSaveBlockerActive()) {
+        mcpPowerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+      }
 
-    await startSignboardMcpServer({
-      appVersion: app.getVersion(),
-      trustedBoardRoots: Array.from(readTrustedBoardRoots()),
-      onStop: () => {
-        if (isMcpPowerSaveBlockerActive()) {
-          powerSaveBlocker.stop(mcpPowerSaveBlockerId);
-        }
-        mcpPowerSaveBlockerId = null;
-        app.quit();
-      },
-    });
-    return;
-  }
+      if (app.dock && typeof app.dock.hide === 'function') {
+        app.dock.hide();
+      }
 
-  if (isCliMode) {
-    if (app.dock && typeof app.dock.hide === 'function') {
-      app.dock.hide();
-    }
-
-    let exitCode = 0;
-    try {
-      exitCode = await runCli(signboardArgs, {
-        commandName: app.isPackaged ? 'Signboard' : 'signboard',
-        stdout: process.stdout,
-        stderr: process.stderr,
+      await startSignboardMcpServer({
+        appVersion: app.getVersion(),
+        trustedBoardRoots: Array.from(readTrustedBoardRoots()),
+        onStop: () => {
+          if (isMcpPowerSaveBlockerActive()) {
+            powerSaveBlocker.stop(mcpPowerSaveBlockerId);
+          }
+          mcpPowerSaveBlockerId = null;
+          app.quit();
+        },
       });
-    } catch (error) {
-      console.error(error.message || error);
-      exitCode = 1;
+      return;
     }
 
-    app.exit(Number.isInteger(exitCode) ? exitCode : 0);
-    return;
-  }
-
-  await loadUpdatePreferences();
-  await initializeAppRuntimeSettings();
-  createWindow();
-  buildApplicationMenu();
-  setupAutoUpdater();
-});
+    await loadUpdatePreferences();
+    await initializeAppRuntimeSettings();
+    createWindow();
+    buildApplicationMenu();
+    setupAutoUpdater();
+  });
+}
 
 app.on('activate', () => {
   if (isCliMode) {
