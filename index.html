@@ -335,6 +335,23 @@
     </div>
   </div>
 
+  <div id="modalObsidianVaultRequired" class="modal obsidian-vault-required-modal hidden" role="dialog" aria-modal="true" aria-labelledby="obsidianVaultRequiredTitle" aria-hidden="true">
+    <div class="obsidian-vault-required-header">
+      <div>
+        <p class="obsidian-vault-required-eyebrow">Obsidian</p>
+        <h2 id="obsidianVaultRequiredTitle">Obsidian vault required</h2>
+      </div>
+      <button id="obsidianVaultRequiredClose" class="obsidian-vault-required-close" type="button" title="Close" aria-label="Close"><i data-feather="x"></i></button>
+    </div>
+    <div class="obsidian-vault-required-copy">
+      <p id="obsidianVaultRequiredMessage">This feature only works when the current board folder is stored inside an Obsidian vault.</p>
+      <p>Move this board into a vault, or create/open a board inside a vault, then try again.</p>
+    </div>
+    <div class="obsidian-vault-required-actions">
+      <button id="obsidianVaultRequiredOk" type="button">OK</button>
+    </div>
+  </div>
+
   <div id="modalAboutSignboard" class="modal about-signboard-modal hidden" role="dialog" aria-modal="true" aria-labelledby="aboutSignboardTitle" aria-hidden="true">
     <div class="about-signboard-header">
       <div>
@@ -418,6 +435,7 @@
         <div class="board-settings-nav-separator" role="separator"></div>
         <p class="board-settings-nav-label">Current Board</p>
         <button id="boardSettingsNavGeneral" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelGeneral" class="board-settings-nav-button" data-settings-panel="general">General</button>
+        <button id="boardSettingsNavObsidian" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelObsidian" class="board-settings-nav-button" data-settings-panel="obsidian">Obsidian</button>
         <button id="boardSettingsNavWorkflow" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelWorkflow" class="board-settings-nav-button" data-settings-panel="workflow">Workflow</button>
         <button id="boardSettingsNavLabels" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelLabels" class="board-settings-nav-button" data-settings-panel="labels">Labels</button>
         <button id="boardSettingsNavColors" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelColors" class="board-settings-nav-button" data-settings-panel="colors">Colors</button>
@@ -508,6 +526,20 @@
               <button id="btnMoveBoard" type="button" title="Move board">Move Board</button>
             </div>
             <p class="boardSettingsHint">Move this board folder to another location on your computer.</p>
+          </div>
+        </section>
+
+        <section id="boardSettingsPanelObsidian" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavObsidian" data-settings-panel="obsidian">
+          <h3>Obsidian</h3>
+          <p class="boardSettingsHint">Keep this board inside an Obsidian vault to open cards in Obsidian, create linked notes, manage linked objects, and generate a Bases view.</p>
+          <div class="board-settings-group">
+            <h4 class="board-settings-subheading">Bases</h4>
+            <p class="boardSettingsHint">Generate a <code>Signboard Board.base</code> file in this board folder for Obsidian Bases.</p>
+            <div class="board-settings-inline-actions board-settings-inline-actions-right">
+              <button id="btnGenerateObsidianBase" type="button" title="Generate Obsidian Base">Generate Base</button>
+              <button id="btnOpenObsidianBase" type="button" title="Open Obsidian Base">Open Base</button>
+            </div>
+            <p id="boardSettingsObsidianStatus" class="boardSettingsHint" aria-live="polite"></p>
           </div>
         </section>
 
@@ -617,11 +649,14 @@
       <div class="cardEditorHeaderActions">
         <button type="button" id="cardEditorArchiveLink" title="Archive" aria-label="Archive card"><i data-feather="archive"></i></button>
         <button type="button" id="cardEditorShareLink" title="Share" aria-label="Share card"><i data-feather="share-2"></i></button>
+        <button type="button" id="cardEditorOpenWithLink" title="Open with" aria-label="Open with" aria-expanded="false"><i data-feather="external-link"></i></button>
         <button type="button" id="cardEditorDupeLink" title="Duplicate" aria-label="Duplicate card"><i data-feather="copy"></i></button>
         <button type="button" id="cardEditorMoveListLink" title="Move to next list" aria-label="Move card to next list"><i data-feather="arrow-right"></i></button>
         <button type="button" id="cardEditorClose" title="Close" aria-label="Close card editor"><i data-feather="x"></i></button>
       </div>
     </div>
+    <div id="cardEditorOpenWithPopover" class="label-popover card-editor-open-with-popover hidden" aria-hidden="true" data-sb-modal-layer></div>
+    <div id="cardEditorLinkedObjectsPopover" class="label-popover card-editor-linked-objects-popover hidden" aria-hidden="true" data-sb-modal-layer></div>
     <button type="button" id="cardEditorCardID" title="Open this card's file" aria-label="Open this card's file"></button>
     
     <div>
@@ -629,7 +664,9 @@
       <div class="cardEditorMetadataButtons">
         <button type="button" id="cardEditorSetDueDateLink" title="Edit Due Date" aria-label="Edit due date"><i data-feather="clock"></i> <span id="cardEditorCardDueDateDisplay" title="This card's due date"></span></button>
         <button type="button" id="cardEditorSetLabelsLink" title="Edit Labels" aria-label="Edit labels"><i data-feather="tag"></i> <span id="cardEditorCardLabels" title="This card's labels"></span></button>
+        <button type="button" id="cardEditorLinkedObjectsLink" title="Linked objects" aria-label="Linked objects" aria-expanded="false"><i data-feather="paperclip"></i> <span id="cardEditorLinkedObjectsCount" class="card-editor-linked-objects-count" hidden></span></button>
       </div>
+      <div id="cardEditorRelatedNotes" class="card-editor-related-notes" aria-label="Linked objects" hidden></div>
     </div>
     <div id="cardEditorOverType"></div>
     <div id="cardEditorTimestampMetadata" class="cardEditorTimestampMetadata" aria-label="Card timestamps"></div>

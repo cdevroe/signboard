@@ -276,6 +276,7 @@ function createContext() {
   loadSource(context, 'app/utilities/dueDateStatus.js');
   loadSource(context, 'app/utilities/taskList.js');
   loadSource(context, 'app/utilities/cardTimestamps.js');
+  loadSource(context, 'app/utilities/linkedObjects.js');
   loadSource(context, 'app/board/boardLabels.js');
   loadSource(context, 'app/board/boardSearch.js');
   loadSource(context, 'app/board/boardViews.js');
@@ -512,7 +513,7 @@ async function run() {
   const tableHeader = context.createBoardTableHeader();
   assert.deepStrictEqual(
     toPlain(tableHeader.children[0].children.map((headerCell) => headerCell.textContent)),
-    ['Due', 'Updated', 'Created', 'Tasks', 'Card', 'List', 'Labels'],
+    ['Due', 'Updated', 'Created', 'Tasks', 'Links', 'Card', 'List', 'Labels'],
     'expected table columns to keep the configured order',
   );
 
@@ -696,7 +697,14 @@ async function run() {
   ];
   const tableCards = new Map([
     ['/tmp/board/000-To-do-stock/000-alpha.md', {
-      frontmatter: { title: 'Alpha task', labels: ['label-1'] },
+      frontmatter: {
+        title: 'Alpha task',
+        labels: ['label-1'],
+        linked_objects: [
+          { type: 'url', url: 'https://example.com/docs' },
+          { type: 'file', path: '/tmp/example.pdf' },
+        ],
+      },
       body: '- [ ] (due: 2026-03-10) Prep table view',
     }],
     ['/tmp/board/000-To-do-stock/001-beta.md', {
@@ -717,6 +725,7 @@ async function run() {
   const unfilteredTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);
   assert.strictEqual(unfilteredTableState.allCards.length, 3, 'expected table collection to read every card');
   assert.strictEqual(unfilteredTableState.visibleCards.length, 3, 'expected table view to include every unfiltered card');
+  assert.strictEqual(unfilteredTableState.allCards[0].linkedObjectCount, 2, 'expected table collection to count linked objects');
 
   filterState.filterIds = ['label-1'];
   const labelFilteredTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);
@@ -748,6 +757,10 @@ async function run() {
   const tableRender = await context.renderTableBoard('/tmp/board/', tableLists);
   assert(tableRender.root.textContent.includes('Alpha task'), 'expected rendered table to include card title');
   assert(tableRender.root.textContent.includes('To-do'), 'expected rendered table to include list dropdown text');
+  assert(tableRender.root.textContent.includes('Links'), 'expected rendered table to include links column');
+  const tableLinksBadge = findFirstByClass(tableRender.root, 'board-table-linked-objects-badge');
+  assert(tableLinksBadge, 'expected rendered table to show linked-object badge');
+  assert.strictEqual(tableLinksBadge.textContent, '2');
 
   const plannerState = context.getPlannerState();
   plannerState.searchTokens = [];

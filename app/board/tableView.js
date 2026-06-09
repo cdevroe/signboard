@@ -3,6 +3,7 @@ const BOARD_TABLE_COLUMNS = Object.freeze([
   { id: 'updated', label: 'Updated' },
   { id: 'created', label: 'Created' },
   { id: 'tasks', label: 'Tasks' },
+  { id: 'links', label: 'Links' },
   { id: 'title', label: 'Card' },
   { id: 'list', label: 'List' },
   { id: 'labels', label: 'Labels' },
@@ -121,6 +122,9 @@ async function collectBoardTableCards(boardRoot, listsWithCards) {
             taskSummary: getTaskListSummary(body),
             taskDueDates: getTaskListDueDates(body),
             incompleteTaskDueDates: getIncompleteTaskListDueDates(body),
+            linkedObjectCount: typeof getFrontmatterLinkedObjectCount === 'function'
+              ? getFrontmatterLinkedObjectCount(frontmatter)
+              : 0,
             timestamps: card && card.timestamps && typeof card.timestamps === 'object'
               ? card.timestamps
               : {},
@@ -481,6 +485,25 @@ function createBoardTableTaskCell(entry) {
   return cell;
 }
 
+function createBoardTableLinkedObjectsCell(entry) {
+  const cell = document.createElement('td');
+  cell.className = 'board-table-cell board-table-cell-links';
+
+  const linkedObjectsBadge = typeof createLinkedObjectsMetadataBadge === 'function'
+    ? createLinkedObjectsMetadataBadge(entry.linkedObjectCount, 'board-table-linked-objects-badge')
+    : null;
+  if (linkedObjectsBadge) {
+    cell.appendChild(linkedObjectsBadge);
+  } else {
+    const empty = document.createElement('span');
+    empty.className = 'board-table-empty-value';
+    empty.textContent = 'None';
+    cell.appendChild(empty);
+  }
+
+  return cell;
+}
+
 function createBoardTableLabelsCell(entry) {
   const cell = document.createElement('td');
   cell.className = 'board-table-cell board-table-cell-labels';
@@ -536,6 +559,7 @@ async function createBoardTableRow(entry, listOptions) {
   row.appendChild(createBoardTableTimestampCell(entry, 'updatedAt'));
   row.appendChild(createBoardTableTimestampCell(entry, 'createdAt'));
   row.appendChild(createBoardTableTaskCell(entry));
+  row.appendChild(createBoardTableLinkedObjectsCell(entry));
   row.appendChild(createBoardTableTitleCell(entry));
   row.appendChild(createBoardTableListCell(entry, listOptions));
   row.appendChild(createBoardTableLabelsCell(entry));

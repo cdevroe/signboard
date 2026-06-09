@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 function invokeBoard(op, ...args) {
   return ipcRenderer.invoke('board-call', { op, args });
@@ -12,6 +12,29 @@ function getNormalizedBaseName(filePath) {
 
   const parts = normalized.split('/').filter(Boolean);
   return parts[parts.length - 1] || '';
+}
+
+function getPathForDroppedFile(file) {
+  if (!file || !webUtils || typeof webUtils.getPathForFile !== 'function') {
+    return typeof file?.path === 'string' ? file.path : '';
+  }
+
+  try {
+    return webUtils.getPathForFile(file) || (typeof file.path === 'string' ? file.path : '');
+  } catch {
+    return typeof file?.path === 'string' ? file.path : '';
+  }
+}
+
+function getDroppedFilePaths(files) {
+  const sourceFiles = Array.isArray(files)
+    ? files
+    : (files && typeof files.length === 'number' ? Array.from(files) : [files]);
+
+  return sourceFiles
+    .map(getPathForDroppedFile)
+    .map((filePath) => String(filePath || '').trim())
+    .filter(Boolean);
 }
 
 contextBridge.exposeInMainWorld('board', {
@@ -36,6 +59,15 @@ contextBridge.exposeInMainWorld('board', {
   stopBoardWatch: async () => invokeBoard('stopBoardWatch'),
   getBoardWatchToken: async () => invokeBoard('getBoardWatchToken'),
   openCard: async (filePath) => invokeBoard('openCard', filePath),
+  openCardDefault: async (filePath) => invokeBoard('openCardDefault', filePath),
+  openCardInObsidian: async (filePath) => invokeBoard('openCardInObsidian', filePath),
+  openRelatedObsidianNote: async (boardRoot, filePath, related) =>
+    invokeBoard('openRelatedObsidianNote', boardRoot, filePath, related),
+  addLinkedObject: async (filePath, linkedObject) => invokeBoard('addLinkedObject', filePath, linkedObject),
+  openLinkedObject: async (filePath, linkedObject) => invokeBoard('openLinkedObject', filePath, linkedObject),
+  copyCardObsidianUri: async (filePath) => invokeBoard('copyCardObsidianUri', filePath),
+  copyCardSignboardUri: async (filePath) => invokeBoard('copyCardSignboardUri', filePath),
+  getCardExternalLinks: async (filePath) => invokeBoard('getCardExternalLinks', filePath),
   shareCard: async (filePath) => ipcRenderer.invoke('share-file', filePath),
   readCard: async (filePath) => invokeBoard('readCard', filePath),
   listArchiveEntries: async () => invokeBoard('listArchiveEntries'),
@@ -51,6 +83,10 @@ contextBridge.exposeInMainWorld('board', {
   updateBoardSettings: async (boardRoot, partialSettings) =>
     invokeBoard('updateBoardSettings', boardRoot, partialSettings),
   createCard: async (filePath, content) => invokeBoard('createCard', filePath, content),
+  generateObsidianBase: async (boardRoot) => invokeBoard('generateObsidianBase', boardRoot),
+  openObsidianBase: async (boardRoot) => invokeBoard('openObsidianBase', boardRoot),
+  createLinkedObsidianNote: async (boardRoot, filePath) =>
+    invokeBoard('createLinkedObsidianNote', boardRoot, filePath),
   archiveCard: async (filePath) => invokeBoard('archiveCard', filePath),
   archiveList: async (listPath) => invokeBoard('archiveList', listPath),
   restoreArchivedCard: async (archivedCardPath, targetListPath) =>
@@ -75,6 +111,11 @@ contextBridge.exposeInMainWorld('board', {
 contextBridge.exposeInMainWorld('chooser', {
   pickDirectory: (opts = {}) => ipcRenderer.invoke('choose-directory', opts),
   pickImportSources: (opts = {}) => ipcRenderer.invoke('pick-import-sources', opts),
+  pickLinkedObjects: (opts = {}) => ipcRenderer.invoke('pick-linked-objects', opts),
+  linkDroppedObjects: (cardPath, files) => {
+    const droppedPaths = getDroppedFilePaths(files);
+    return invokeBoard('addDroppedLinkedObjects', cardPath, droppedPaths);
+  },
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -155,6 +196,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('open-quick-add-card', listener);
     return () => {
       ipcRenderer.removeListener('open-quick-add-card', listener);
+    };
+  },
+  onOpenSignboardCardLink: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = (_event, payload) => {
+      callback(payload);
+    };
+
+    ipcRenderer.on('open-signboard-card-link', listener);
+    return () => {
+      ipcRenderer.removeListener('open-signboard-card-link', listener);
+    };
+  },
+  onOpenSignboardBoardLink: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = (_event, payload) => {
+      callback(payload);
+    };
+
+    ipcRenderer.on('open-signboard-board-link', listener);
+    return () => {
+      ipcRenderer.removeListener('open-signboard-board-link', listener);
     };
   },
   onToggleThemeMode: (callback) => {

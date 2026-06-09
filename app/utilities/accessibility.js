@@ -125,7 +125,12 @@ function refreshBackgroundInertState(activeModal) {
       continue;
     }
 
-    const shouldRemainInteractive = activeModal && (child === activeModal || child.contains(activeModal));
+    const isModalLayer = child.hasAttribute('data-sb-modal-layer');
+    const shouldRemainInteractive = activeModal && (
+      child === activeModal ||
+      child.contains(activeModal) ||
+      isModalLayer
+    );
     if (activeModal && !shouldRemainInteractive) {
       if (!child.hasAttribute('data-sb-modal-inert')) {
         child.setAttribute('data-sb-modal-inert', child.inert ? 'existing' : 'added');

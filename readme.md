@@ -20,6 +20,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 📋 Kanban and Table board views, including card age columns and sorting in Table
 - 🗂 Planner overlay for actionable dated work across open boards
 - 📆 Optional local External Published Calendar feed for calendar app subscriptions
+- 🔮 Obsidian-friendly properties, Bases generation, linked objects, linked-object counts, and `signboard://` card links
 - 🎨 Board-colored source pills in Planner date views
 - ✅ Completed-list workflow settings that preserve due-date history
 - ✅ Progress counters on cards
@@ -171,6 +172,18 @@ Import options:
 - `signboard import obsidian --source <path> [--source <path> ...] [--board <path>] [--json]`
 - `signboard import tasksmd --source <path> [--board <path>] [--json]`
 
+## Obsidian Integration
+
+Signboard boards can live inside an Obsidian vault. A good layout is `Vault/Signboard/<Board Name>/`; avoid making a board a nested Obsidian vault with its own `.obsidian` folder. You can move an existing board into a vault later with `Settings > General > Move Board`.
+
+When cards are created or edited, Signboard writes flat Obsidian-friendly properties such as `title`, `signboard_id`, `signboard_board`, `signboard_list`, `status`, `signboard_uri`, and `related`. If the board is inside a detected vault, the card editor's Open With menu shows Obsidian actions for opening the card and copying an Obsidian URI.
+
+Use the paperclip control next to labels to link Obsidian notes, local files, folders, web URLs, app deep links, and `signboard://` links. You can also drag local files onto the open card editor to link them to that card. Signboard-created Obsidian notes are named `Linked Signboard Note.md` when available and start empty except for link metadata. If a board is not inside a vault, Signboard explains that requirement before creating linked Obsidian notes or Bases. Local files stay wherever they are on the user's computer. URL chips open in the default browser and use locally cached favicons when available. Linked objects appear in the card editor as removable chips, and cards with linked objects show a paperclip count in Kanban and Table views.
+
+Inside a vault, Signboard automatically creates `Signboard Board.base` for Obsidian Bases and keeps it current while it is still Signboard-managed. If you customize the Base in Obsidian, Signboard leaves it alone until you choose Settings > Obsidian > Generate Base again. The generated Base filters the board's Markdown cards and exposes card titles plus common Signboard properties for table/card views.
+
+An optional desktop-only Obsidian companion plugin lives in `obsidian-plugin/`. Copy it into a vault as `.obsidian/plugins/signboard-companion` and enable it to open/copy Signboard links, attach active Obsidian notes to Signboard cards, handle `obsidian://signboard?cardId=...`, and right-click a folder to `Create Signboard`. Folder conversion asks first, adds board metadata/list folders, treats existing child folders as lists, moves top-level Markdown notes into a To-do list, and opens the board in Signboard.
+
 Example task checklist syntax:
 
 ```md
@@ -207,12 +220,15 @@ npm run test:app-settings
 npm run test:board-card-metadata
 npm run test:due-notifications
 npm run test:task-list
+npm run test:obsidian-integration
 npm run test:mcp
 npm run test:cli
 npm run test:cli-install
 npm run test:desktop-cli
 npm run test:playwright
 ```
+
+Playwright Electron tests do not explicitly bring the Signboard window to the foreground by default. Set `SIGNBOARD_PLAYWRIGHT_FOREGROUND=1` before `npm run test:playwright` when you want the app focused while debugging.
 
 ---
 

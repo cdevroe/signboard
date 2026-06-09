@@ -8,6 +8,7 @@ const cardFrontmatter = require('../../lib/cardFrontmatter');
 
 const repoRoot = path.resolve(__dirname, '../..');
 const usesMetaModifier = process.platform === 'darwin';
+const shouldBringPlaywrightAppToFront = process.env.SIGNBOARD_PLAYWRIGHT_FOREGROUND === '1';
 
 function normalizeBoardRoot(boardRoot) {
   const normalized = String(boardRoot || '').replace(/\\/g, '/').trim();
@@ -80,7 +81,9 @@ async function prepareOpenBoardsPage(electronApp, boardRoot, boardNames = ['Road
   }
 
   const page = await electronApp.firstWindow();
-  await page.bringToFront();
+  if (shouldBringPlaywrightAppToFront) {
+    await page.bringToFront();
+  }
   await seedOpenBoardState(page, [boardRoot, ...additionalBoardRoots], boardRoot);
 
   return {
@@ -168,6 +171,10 @@ const test = base.extend({
       env: {
         ...process.env,
         SIGNBOARD_USER_DATA_DIR: userDataDir,
+        SIGNBOARD_TEST_DISABLE_EXTERNAL_OPEN: '1',
+        SIGNBOARD_TEST_DISABLE_FAVICON_FETCH: '1',
+        SIGNBOARD_TEST_ALLOW_DIRECT_LINKED_OBJECT_PATHS: '1',
+        SIGNBOARD_TEST_AUTO_CONFIRM_OPEN_BOARD_PROTOCOL: '1',
       },
     });
 
@@ -180,7 +187,9 @@ const test = base.extend({
 
   page: async ({ electronApp, boardRoot }, use) => {
     const page = await electronApp.firstWindow();
-    await page.bringToFront();
+    if (shouldBringPlaywrightAppToFront) {
+      await page.bringToFront();
+    }
     await seedBoardState(page, boardRoot);
     await use(page);
   },
@@ -191,6 +200,353 @@ test('keeps add modals hidden on startup', async ({ page }) => {
   await expect(page.locator('#modalAddCardToList')).toBeHidden();
   await expect(page.locator('#modalAddList')).toBeHidden();
   await expect(page.locator('#boardMenuPopover')).toBeHidden();
+});
+
+test('explains Obsidian-only actions outside an Obsidian vault', async ({ page, boardRoot }) => {
+  await openFirstCardInEditor(page);
+  await page.locator('#cardEditorOpenWithLink').click();
+
+  const popover = page.locator('#cardEditorOpenWithPopover');
+  await expect(popover).toBeVisible();
+  await expect(popover.getByRole('button', { name: 'Open in Obsidian' })).toHaveCount(0);
+  await expect(popover.getByRole('button', { name: 'Create Linked Note' })).toHaveCount(0);
+  await expect(popover.getByRole('button', { name: 'Send to Inbox' })).toHaveCount(0);
+  await expect(popover.getByRole('button', { name: 'Copy Obsidian URI' })).toHaveCount(0);
+  await expect(popover.getByRole('button', { name: 'Open in Default App' })).toBeVisible();
+  await expect(popover.getByRole('button', { name: 'Reveal File' })).toBeVisible();
+  await expect(popover.getByRole('button', { name: 'Copy Signboard Link' })).toBeVisible();
+  await page.locator('#cardEditorLinkedObjectsLink').click();
+  await expect(page.locator('#cardEditorLinkedObjectsPopover')).toBeVisible();
+  const createLinkedNoteButton = page.locator('#cardEditorLinkedObjectsPopover').getByRole('button', { name: 'Create Linked Obsidian Note' });
+  await expect(createLinkedNoteButton).toBeEnabled();
+  await createLinkedNoteButton.click();
+  await expect(page.locator('#modalObsidianVaultRequired')).toBeVisible();
+  await expect(page.locator('#modalObsidianVaultRequired')).toContainText('Creating a linked Obsidian note only works when the current board folder is stored inside an Obsidian vault.');
+  await page.locator('#modalObsidianVaultRequired').getByRole('button', { name: 'OK' }).click();
+  await expect(page.locator('#modalObsidianVaultRequired')).toBeHidden();
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await page.locator('#cardEditorClose').click();
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+
+  await openBoardMenu(page);
+  await page.locator('#openBoardSettings').click();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await page.locator('#boardSettingsNavObsidian').click();
+  await page.locator('#btnGenerateObsidianBase').click();
+  await expect(page.locator('#modalObsidianVaultRequired')).toBeVisible();
+  await expect(page.locator('#modalObsidianVaultRequired')).toContainText('Generating an Obsidian Base only works when the current board folder is stored inside an Obsidian vault.');
+  await page.locator('#modalObsidianVaultRequired').getByRole('button', { name: 'OK' }).click();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  expect(await pathExists(path.join(boardRoot, 'Signboard Board.base'))).toBe(false);
+});
+
+test('opens Obsidian-created boards through the Signboard board protocol', async ({ page, boardRoot }) => {
+  const vaultRoot = path.dirname(boardRoot);
+  const protocolBoardRoot = path.join(vaultRoot, 'Protocol Created Board');
+  const listRoot = path.join(protocolBoardRoot, '000-To-do-stock');
+
+  await fs.mkdir(path.join(vaultRoot, '.obsidian'), { recursive: true });
+  await fs.mkdir(listRoot, { recursive: true });
+  await fs.mkdir(path.join(protocolBoardRoot, 'XXX-Archive'), { recursive: true });
+  await fs.writeFile(path.join(protocolBoardRoot, 'board-settings.md'), [
+    '---',
+    'labels: []',
+    '---',
+    '',
+  ].join('\n'), 'utf8');
+  await cardFrontmatter.writeCard(path.join(listRoot, '000-from-obsidian-ab123.md'), {
+    frontmatter: {
+      title: 'From Obsidian',
+      signboard_id: 'ab123',
+    },
+    body: 'Created by the Obsidian companion plugin.',
+  });
+
+  await page.evaluate(async (openBoardUri) => {
+    await window.electronAPI.openExternal(openBoardUri);
+  }, `signboard://open-board?path=${encodeURIComponent(protocolBoardRoot)}`);
+
+  await expect(page.locator('#boardName')).toHaveText('Protocol Created Board');
+  await expect(page.locator('.card').filter({ hasText: 'From Obsidian' })).toBeVisible();
+});
+
+test('exposes Obsidian actions and generates a board Base', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+  const basePath = path.join(boardRoot, 'Signboard Board.base');
+  const linkedNotePath = path.join(boardRoot, 'Linked Signboard Note.md');
+  const renamedLinkedNotePath = path.join(boardRoot, 'Renamed Project Brief.md');
+  const externalLinkedFilePath = path.join(path.dirname(boardRoot), 'linked-reference.pdf');
+
+  await fs.mkdir(path.join(path.dirname(boardRoot), '.obsidian'), { recursive: true });
+  await page.evaluate(async () => {
+    await window.board.setActiveBoardRoot(window.boardRoot);
+  });
+  await expect.poll(async () => {
+    try {
+      await fs.access(basePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }).toBe(true);
+
+  await openFirstCardInEditor(page);
+  await page.locator('#cardEditorOpenWithLink').click();
+  await expect(page.locator('#cardEditorOpenWithPopover')).toBeVisible();
+  await expect(page.locator('#cardEditorOpenWithPopover')).toContainText('Open in Obsidian');
+  await expect(page.locator('#cardEditorOpenWithPopover')).not.toContainText('Create Linked Note');
+  await expect(page.locator('#cardEditorOpenWithPopover')).not.toContainText('Send to Inbox');
+  await expect(page.locator('#cardEditorOpenWithPopover')).toContainText('Copy Signboard Link');
+
+  const triggerBox = await page.locator('#cardEditorOpenWithLink').boundingBox();
+  const popoverBox = await page.locator('#cardEditorOpenWithPopover').boundingBox();
+  const viewport = await page.evaluate(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }));
+  if (!triggerBox || !popoverBox || !viewport) {
+    throw new Error('Unable to measure Open With popover placement.');
+  }
+  expect(popoverBox.x).toBeGreaterThanOrEqual(0);
+  expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(viewport.width);
+  expect(popoverBox.y).toBeLessThanOrEqual(triggerBox.y + triggerBox.height + 16);
+  expect(popoverBox.x).toBeLessThanOrEqual(triggerBox.x + triggerBox.width + 8);
+
+  const popoverLayerState = await page.evaluate(() => {
+    const modal = document.getElementById('modalEditCard');
+    const popover = document.getElementById('cardEditorOpenWithPopover');
+    if (modal && typeof window.setAccessibleModalVisible === 'function') {
+      window.setAccessibleModalVisible(modal, true, {
+        display: 'flex',
+        restoreFocus: false,
+      });
+    }
+
+    return {
+      inert: Boolean(popover && popover.inert),
+      inertMarker: Boolean(popover && popover.hasAttribute('data-sb-modal-inert')),
+    };
+  });
+  expect(popoverLayerState).toEqual({
+    inert: false,
+    inertMarker: false,
+  });
+
+  const titleBoxBeforeLink = await page.locator('#cardEditorTitle').boundingBox();
+  if (!titleBoxBeforeLink) {
+    throw new Error('Unable to measure card title before linking.');
+  }
+
+  await page.evaluate(() => {
+    window.boardRoot = '';
+  });
+  await page.locator('#cardEditorOpenWithLink').click();
+  await expect(page.locator('#cardEditorOpenWithPopover')).toBeHidden();
+  await page.locator('#cardEditorLinkedObjectsLink').click();
+  await expect(page.locator('#cardEditorLinkedObjectsPopover')).toBeVisible();
+  await page.locator('#cardEditorLinkedObjectsPopover').getByRole('button', { name: 'Create Linked Obsidian Note' }).click();
+  await fs.access(linkedNotePath);
+  const linkedNoteRaw = await fs.readFile(linkedNotePath, 'utf8');
+  expect(linkedNoteRaw).toContain('signboard_card_id: stock');
+  expect(linkedNoteRaw).not.toContain('# Plan release notes');
+  expect(linkedNoteRaw).not.toContain('## Notes');
+  await expect.poll(async () => {
+    const updatedCard = await cardFrontmatter.readCard(cardPath);
+    return updatedCard.frontmatter.related || [];
+  }).toContain('[[Playwright Board/Linked Signboard Note]]');
+  await expect.poll(async () => {
+    const updatedCard = await cardFrontmatter.readCard(cardPath);
+    return updatedCard.frontmatter.linked_objects || [];
+  }).toContainEqual(expect.objectContaining({
+    type: 'obsidian-note',
+    path: linkedNotePath,
+  }));
+  const titleBoxAfterLink = await page.locator('#cardEditorTitle').boundingBox();
+  if (!titleBoxAfterLink) {
+    throw new Error('Unable to measure card title after linking.');
+  }
+  expect(titleBoxAfterLink.y).toBeCloseTo(titleBoxBeforeLink.y, 0);
+  const relatedNoteButton = page
+    .locator('#cardEditorRelatedNotes')
+    .getByRole('button', { name: 'Open Linked Signboard Note' });
+  await expect(relatedNoteButton).toBeVisible();
+  await expect(page.locator('#cardEditorLinkedObjectsCount')).toHaveText('1');
+  await relatedNoteButton.click();
+  await expect(page.locator('#signboardStatusRegion'))
+    .toHaveText('Opened Linked Signboard Note.');
+
+  await fs.rename(linkedNotePath, renamedLinkedNotePath);
+  const cardAfterLinkedNoteRename = await cardFrontmatter.readCard(cardPath);
+  await cardFrontmatter.writeCard(cardPath, {
+    frontmatter: {
+      ...cardAfterLinkedNoteRename.frontmatter,
+      related: ['[[Playwright Board/Renamed Project Brief]]'],
+    },
+    body: cardAfterLinkedNoteRename.body,
+  });
+
+  await page.evaluate((nextBoardRoot) => {
+    window.boardRoot = nextBoardRoot;
+  }, normalizeBoardRoot(boardRoot));
+  await page.locator('#cardEditorClose').click();
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+  await openFirstCardInEditor(page);
+
+  const renamedRelatedNoteButton = page
+    .locator('#cardEditorRelatedNotes')
+    .getByRole('button', { name: 'Open Renamed Project Brief' });
+  await expect(renamedRelatedNoteButton).toBeVisible();
+  await expect(page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Open Linked Signboard Note' })).toHaveCount(0);
+  await expect(page.locator('#cardEditorRelatedNotes .card-editor-related-note')).toHaveCount(1);
+  await expect(page.locator('#cardEditorLinkedObjectsCount')).toHaveText('1');
+  await renamedRelatedNoteButton.click();
+  await expect(page.locator('#signboardStatusRegion'))
+    .toHaveText('Opened Renamed Project Brief.');
+  await page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Remove Renamed Project Brief' }).click();
+  await expect(page.locator('#cardEditorRelatedNotes')).toBeHidden();
+  await expect(page.locator('#cardEditorLinkedObjectsCount')).toBeHidden();
+  await expect.poll(async () => {
+    const updatedCard = await cardFrontmatter.readCard(cardPath);
+    return updatedCard.frontmatter.related || [];
+  }).toEqual([]);
+  await expect.poll(async () => {
+    const updatedCard = await cardFrontmatter.readCard(cardPath);
+    return updatedCard.frontmatter.linked_objects || [];
+  }).toEqual([]);
+
+  await page.locator('#cardEditorLinkedObjectsLink').click();
+  await expect(page.locator('#cardEditorLinkedObjectsPopover')).toBeVisible();
+  await page.locator('#cardEditorLinkedObjectsPopover').getByRole('button', { name: 'Link URL...' }).click();
+  await expect(page.locator('#cardEditorLinkedObjectUrlForm')).toBeVisible();
+  await expect(page.locator('#cardEditorLinkedObjectUrlInput')).toBeFocused();
+  await page.locator('#cardEditorLinkedObjectUrlInput').fill('example.com/docs');
+  await page.locator('#cardEditorLinkedObjectUrlForm').getByRole('button', { name: 'Add' }).click();
+  await expect(page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Open example.com' })).toBeVisible();
+  await expect(page.locator('#cardEditorLinkedObjectsCount')).toHaveText('1');
+  await expect.poll(async () => {
+    const updatedCard = await cardFrontmatter.readCard(cardPath);
+    return updatedCard.frontmatter.linked_objects || [];
+  }).toContainEqual(expect.objectContaining({
+    type: 'url',
+    url: 'https://example.com/docs',
+  }));
+
+  await fs.writeFile(externalLinkedFilePath, 'PDF placeholder', 'utf8');
+  await page.evaluate(({ cardPath: activeCardPath, filePath }) => {
+    window.__signboardTestLinkDroppedObjects = async (_cardPath, files) => {
+      window.__linkedObjectDropFilesAreArray = Array.isArray(files);
+      window.__linkedObjectDropFileCount = files ? files.length : 0;
+      const result = await window.board.addLinkedObject(activeCardPath, {
+        type: 'file',
+        path: filePath,
+      });
+      return {
+        ok: true,
+        linkedObjects: [{
+          type: 'file',
+          title: 'linked-reference.pdf',
+          path: filePath,
+        }],
+        frontmatter: result.frontmatter,
+      };
+    };
+  }, { cardPath, filePath: externalLinkedFilePath });
+  await page.evaluate(() => {
+    const existingInput = document.getElementById('linkedObjectDropTestInput');
+    if (existingInput) {
+      existingInput.remove();
+    }
+    const input = document.createElement('input');
+    input.id = 'linkedObjectDropTestInput';
+    input.type = 'file';
+    input.style.position = 'fixed';
+    input.style.left = '-10000px';
+    document.body.appendChild(input);
+  });
+  await page.locator('#linkedObjectDropTestInput').setInputFiles(externalLinkedFilePath);
+  await page.evaluate(async () => {
+    const input = document.getElementById('linkedObjectDropTestInput');
+    const dropTarget = document.querySelector('#cardEditorOverType .overtype-input');
+    if (!input || !dropTarget || !input.files || input.files.length === 0) {
+      throw new Error('Unable to prepare dropped linked-object file.');
+    }
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(input.files[0]);
+    dropTarget.dispatchEvent(new DragEvent('dragenter', {
+      bubbles: true,
+      cancelable: true,
+      dataTransfer,
+    }));
+    dropTarget.dispatchEvent(new DragEvent('dragover', {
+      bubbles: true,
+      cancelable: true,
+      dataTransfer,
+    }));
+  });
+  await expect(page.locator('#modalEditCard')).toHaveClass(/card-editor-drop-active/);
+  await page.evaluate(async () => {
+    const input = document.getElementById('linkedObjectDropTestInput');
+    const dropTarget = document.querySelector('#cardEditorOverType .overtype-input');
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(input.files[0]);
+    dropTarget.dispatchEvent(new DragEvent('drop', {
+      bubbles: true,
+      cancelable: true,
+      dataTransfer,
+    }));
+  });
+  await expect(page.locator('#modalEditCard')).not.toHaveClass(/card-editor-drop-active/);
+  await expect.poll(async () => page.evaluate(() => window.__linkedObjectDropFileCount || 0)).toBe(1);
+  await expect.poll(async () => page.evaluate(() => window.__linkedObjectDropFilesAreArray === true)).toBe(true);
+  await expect(page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Open linked-reference.pdf' })).toBeVisible();
+  await expect(page.locator('#cardEditorLinkedObjectsCount')).toHaveText('2');
+  await page.evaluate(() => {
+    delete window.__signboardTestLinkDroppedObjects;
+  });
+
+  await page.locator('#cardEditorOpenWithLink').click();
+  await expect(page.locator('#cardEditorOpenWithPopover')).toBeVisible();
+  await page.locator('#cardEditorOpenWithPopover').getByRole('button', { name: 'Copy Signboard Link' }).click();
+  await expect(page.locator('#signboardStatusRegion')).toHaveText('Copied Signboard link.');
+  await page.locator('#cardEditorOpenWithLink').click();
+  await expect(page.locator('#cardEditorOpenWithPopover')).toBeVisible();
+
+  await page.evaluate((nextBoardRoot) => {
+    window.boardRoot = nextBoardRoot;
+  }, normalizeBoardRoot(boardRoot));
+  await page.locator('#cardEditorClose').click();
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+
+  const planCard = page.locator('.list').first().locator('.card').filter({ hasText: 'Plan release notes' });
+  await expect(planCard.locator('.linked-objects-badge-inline')).toHaveText('2');
+  await page.keyboard.press(getCurrentBoardPlannerShortcut('1'));
+  await expect(page.locator('main#board')).toHaveClass(/board-view-table/);
+  await expect(page.locator('.board-table-heading-links')).toHaveText('Links');
+  const planRow = page.locator('.board-table-row').filter({ hasText: 'Plan release notes' });
+  await expect(planRow.locator('.board-table-linked-objects-badge')).toHaveText('2');
+  await page.keyboard.press(getShortcut('1'));
+  await expect(page.locator('main#board')).not.toHaveClass(/board-view-table/);
+
+  await openBoardMenu(page);
+  await page.locator('#openBoardSettings').click();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await page.locator('#boardSettingsNavObsidian').click();
+  await expect(page.locator('#boardSettingsPanelObsidian')).toBeVisible();
+  await page.locator('#btnGenerateObsidianBase').click();
+  await expect(page.locator('#boardSettingsObsidianStatus')).toContainText('Generated Signboard Board.base');
+
+  await fs.access(basePath);
+  const baseRaw = await fs.readFile(basePath, 'utf8');
+  expect(baseRaw).toContain('title:');
+  expect(baseRaw).toContain('- title');
+  expect(baseRaw).toContain('linked_objects:');
+  expect(baseRaw).toContain('- linked_objects');
+  const card = await cardFrontmatter.readCard(cardPath);
+  expect(card.frontmatter.signboard_board).toBe(path.basename(boardRoot));
+  expect(card.frontmatter.signboard_list).toBe('To-do');
+  expect(card.frontmatter.status).toBe('To-do');
+  expect(card.frontmatter.signboard_uri).toBe('signboard://open-card?id=stock');
 });
 
 test('keeps the first board tab clear of the Planner rail', async ({ page }) => {

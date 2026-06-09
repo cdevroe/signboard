@@ -1224,7 +1224,7 @@ body:not(.board-empty) main#board.board-view-week {
 
 .board-table-view {
   width: 100%;
-  min-width: 1020px;
+  min-width: 1080px;
 }
 
 .board-table-header {
@@ -1284,7 +1284,7 @@ body:not(.board-empty) main#board.board-view-week {
 
 .board-table {
   width: 100%;
-  min-width: 1020px;
+  min-width: 1080px;
   border-collapse: separate;
   border-spacing: 0;
   color: var(--text);
@@ -1327,7 +1327,7 @@ body:not(.board-empty) main#board.board-view-week {
 }
 
 .board-table-cell-title {
-  width: 38%;
+  width: 34%;
   min-width: 260px;
 }
 
@@ -1340,6 +1340,10 @@ body:not(.board-empty) main#board.board-view-week {
 .board-table-cell-created,
 .board-table-cell-tasks {
   width: 130px;
+}
+
+.board-table-cell-links {
+  width: 90px;
 }
 
 .board-table-cell-labels {
@@ -1415,6 +1419,10 @@ body:not(.board-empty) main#board.board-view-week {
 
 .board-table-task-progress {
   font-size: var(--font-xs);
+}
+
+.board-table-linked-objects-badge {
+  min-height: 24px;
 }
 
 .board-table-labels {
@@ -2210,6 +2218,38 @@ body.board-card-drag-active * {
   padding: 3px;
 }
 
+.linked-objects-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.linked-objects-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.linked-objects-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.linked-objects-badge-text {
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+.linked-objects-badge-inline {
+  padding: 3px;
+}
+
 .card-body svg {
   height: 16px;
 }
@@ -2597,6 +2637,84 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   color: var(--muted);
   font-size: var(--font-sm);
   padding: 14px 10px 10px;
+}
+
+.obsidian-vault-required-modal {
+  position: fixed;
+  z-index: 14000;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100vw - 28px));
+  max-width: 420px;
+  padding: 18px;
+}
+
+.obsidian-vault-required-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.obsidian-vault-required-eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.obsidian-vault-required-header h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.obsidian-vault-required-close {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+}
+
+.obsidian-vault-required-close:hover {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+  color: var(--text);
+}
+
+.obsidian-vault-required-copy {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+
+.obsidian-vault-required-copy p {
+  margin: 0;
+}
+
+.obsidian-vault-required-copy p + p {
+  margin-top: 8px;
+}
+
+.obsidian-vault-required-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.obsidian-vault-required-actions button {
+  min-height: 34px;
+  min-width: 72px;
+  padding: 7px 14px;
 }
 
 .about-signboard-modal {
@@ -3411,6 +3529,30 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   padding: 16px 16px 12px 10px;
 }
 
+#modalEditCard.card-editor-drop-active {
+  border-color: color-mix(in oklab, var(--accent) 70%, var(--border));
+  box-shadow:
+    0 16px 40px rgba(16, 24, 40, .12),
+    0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+#modalEditCard.card-editor-drop-active::after {
+  content: "Drop files to link";
+  position: absolute;
+  inset: 52px 14px 14px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed color-mix(in oklab, var(--accent) 70%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 88%, transparent);
+  color: var(--text);
+  font-size: var(--font-md);
+  font-weight: 650;
+  pointer-events: none;
+}
+
 #modalEditCard #cardEditorTitle {
   padding-left: 16px;
 }
@@ -3627,6 +3769,10 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 .board-settings-status.is-warning {
+  color: var(--due-date-today-color);
+}
+
+.board-settings-status-error {
   color: var(--due-date-today-color);
 }
 
@@ -4212,6 +4358,77 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #modalEditCard .cardEditorHeaderActions button { color: var(--muted); }
 #modalEditCard .cardEditorHeaderActions a + a,
 #modalEditCard .cardEditorHeaderActions button + button { margin-left: 20px; }
+.card-editor-open-with-popover,
+.card-editor-linked-objects-popover {
+  position: fixed;
+  min-width: 220px;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+}
+.card-editor-open-with-action {
+  min-height: 36px;
+}
+.card-editor-linked-object-url-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 260px;
+}
+.card-editor-linked-object-url-title {
+  color: var(--text);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 2px 2px 0;
+}
+.card-editor-linked-object-url-label {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  line-height: 1;
+}
+.card-editor-linked-object-url-input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: var(--font-sm);
+  padding: 7px 9px;
+}
+.card-editor-linked-object-url-input:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 1px;
+}
+.card-editor-linked-object-url-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.card-editor-linked-object-url-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.card-editor-linked-object-url-actions button {
+  min-height: 32px;
+  padding: 6px 11px;
+}
+.card-editor-linked-object-url-submit {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.card-editor-linked-object-url-submit:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--accent) 88%, var(--text));
+}
+.card-editor-linked-object-url-cancel {
+  border-color: var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+}
+.card-editor-linked-object-url-cancel:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
+}
 #modalEditCard #cardEditorListSelect {
   width: 100%;
   max-width: 280px;
@@ -4247,7 +4464,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 12px;
   padding-left: 16px;
 }
 #modalEditCard .cardEditorMetadataButtons a,
@@ -4256,6 +4473,23 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   align-items: center;
   gap: 6px;
   color: var(--muted);
+}
+#modalEditCard .card-editor-linked-objects-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 18%, var(--bg-card));
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 5px;
+}
+#modalEditCard .card-editor-linked-objects-count[hidden] {
+  display: none;
 }
 #modalEditCard #cardEditorCardDueDateDisplay,
 #modalEditCard #cardEditorCardLabels { margin-right: 0; }
@@ -4268,6 +4502,89 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 #modalEditCard #cardEditorCardLabels.card-editor-labels .card-label-chip {
   cursor: inherit;
+}
+#modalEditCard .card-editor-related-notes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 16px 0;
+}
+#modalEditCard .card-editor-related-notes[hidden] {
+  display: none;
+}
+#modalEditCard .card-editor-related-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(100%, 320px);
+  min-height: 28px;
+  border: 1px solid color-mix(in oklab, var(--border) 82%, var(--accent));
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--accent));
+  color: var(--text);
+  font-size: var(--font-sm);
+  line-height: 1.2;
+  overflow: hidden;
+}
+#modalEditCard .card-editor-related-note:hover {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--accent));
+}
+#modalEditCard .card-editor-related-note-open,
+#modalEditCard .card-editor-related-note-remove {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+}
+#modalEditCard .card-editor-related-note-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 2px 4px 8px;
+}
+#modalEditCard .card-editor-related-note-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  flex: 0 0 auto;
+  width: 28px;
+  color: var(--muted);
+  padding: 0;
+}
+#modalEditCard .card-editor-related-note-remove:hover {
+  color: var(--text);
+  background: color-mix(in oklab, var(--border) 55%, transparent);
+}
+#modalEditCard .card-editor-related-note-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+#modalEditCard .card-editor-related-note-icon svg {
+  height: 15px;
+  width: 15px;
+}
+#modalEditCard .card-editor-related-note-icon img {
+  display: block;
+  height: 15px;
+  width: 15px;
+  border-radius: 3px;
+  object-fit: contain;
+}
+#modalEditCard .card-editor-related-note-remove svg {
+  height: 14px;
+  width: 14px;
+}
+#modalEditCard .card-editor-related-note-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 #modalEditCard .cardEditorTimestampMetadata {
   display: flex;

@@ -2359,7 +2359,7 @@ function renderBoardSettingsPanelState() {
 }
 
 function setActiveBoardSettingsPanel(panelId) {
-  const normalizedPanelId = ['app', 'general', 'workflow', 'labels', 'colors', 'import'].includes(panelId)
+  const normalizedPanelId = ['app', 'general', 'obsidian', 'workflow', 'labels', 'colors', 'import'].includes(panelId)
     ? panelId
     : 'app';
   const state = getBoardLabelState();
@@ -2759,6 +2759,63 @@ function renderBoardImportControls() {
   }
 }
 
+function setBoardSettingsObsidianStatus(message, isError = false) {
+  const status = document.getElementById('boardSettingsObsidianStatus');
+  if (!status) {
+    return;
+  }
+
+  status.textContent = String(message || '');
+  status.classList.toggle('board-settings-status-error', Boolean(isError));
+}
+
+async function generateCurrentBoardObsidianBase() {
+  if (!window.boardRoot || !window.board || typeof window.board.generateObsidianBase !== 'function') {
+    return null;
+  }
+
+  const result = await window.board.generateObsidianBase(window.boardRoot);
+  if (result && result.ok) {
+    if (!result.inVault) {
+      setBoardSettingsObsidianStatus('Move this board into an Obsidian vault before generating a Base.', true);
+      if (typeof showObsidianVaultRequiredModal === 'function') {
+        showObsidianVaultRequiredModal({
+          message: 'Generating an Obsidian Base only works when the current board folder is stored inside an Obsidian vault.',
+        });
+      }
+      return result;
+    }
+
+    const cardCountText = Number.isFinite(Number(result.cardsUpdated))
+      ? ` Prepared ${Number(result.cardsUpdated)} card${Number(result.cardsUpdated) === 1 ? '' : 's'}.`
+      : '';
+    const actionText = result.reason === 'UPDATED'
+      ? 'Updated'
+      : 'Generated';
+    setBoardSettingsObsidianStatus(`${actionText} Signboard Board.base.${cardCountText}`);
+  }
+  return result;
+}
+
+async function openCurrentBoardObsidianBase() {
+  if (!window.boardRoot || !window.board || typeof window.board.openObsidianBase !== 'function') {
+    return null;
+  }
+
+  const result = await window.board.openObsidianBase(window.boardRoot);
+  if (result && result.ok) {
+    setBoardSettingsObsidianStatus('Opened Signboard Board.base.');
+  } else if (result && result.error === 'NOT_IN_OBSIDIAN_VAULT') {
+    setBoardSettingsObsidianStatus('Move this board into an Obsidian vault before opening the Base.', true);
+    if (typeof showObsidianVaultRequiredModal === 'function') {
+      showObsidianVaultRequiredModal({
+        message: 'Opening an Obsidian Base only works when the current board folder is stored inside an Obsidian vault.',
+      });
+    }
+  }
+  return result;
+}
+
 async function runBoardImport(importer) {
   const state = getBoardLabelState();
   if (!window.boardRoot || state.importInProgress) {
@@ -3025,6 +3082,8 @@ function initializeBoardLabelControls() {
   const externalCalendarCopyButton = document.getElementById('btnCopyExternalCalendarUrl');
   const externalCalendarIncludeToggle = document.getElementById('boardSettingsExternalCalendarIncludeToggle');
   const autoDetectCompletedListsToggle = document.getElementById('boardSettingsAutoDetectCompletedListsToggle');
+  const generateObsidianBaseButton = document.getElementById('btnGenerateObsidianBase');
+  const openObsidianBaseButton = document.getElementById('btnOpenObsidianBase');
   const importFromTrelloButton = document.getElementById('btnImportBoardFromTrello');
   const importFromObsidianButton = document.getElementById('btnImportBoardFromObsidian');
   const importFromTasksMdButton = document.getElementById('btnImportBoardFromTasksMd');
@@ -3348,6 +3407,40 @@ function initializeBoardLabelControls() {
   if (autoDetectCompletedListsToggle) {
     autoDetectCompletedListsToggle.addEventListener('change', (event) => {
       updateBoardWorkflowAutoDetection(Boolean(event.target.checked));
+    });
+  }
+
+  if (generateObsidianBaseButton) {
+    generateObsidianBaseButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      generateObsidianBaseButton.disabled = true;
+      setBoardSettingsObsidianStatus('Generating Base...');
+      try {
+        await generateCurrentBoardObsidianBase();
+      } catch (error) {
+        console.error('Unable to generate Obsidian Base.', error);
+        setBoardSettingsObsidianStatus('Unable to generate Obsidian Base.', true);
+      } finally {
+        generateObsidianBaseButton.disabled = false;
+      }
+    });
+  }
+
+  if (openObsidianBaseButton) {
+    openObsidianBaseButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openObsidianBaseButton.disabled = true;
+      setBoardSettingsObsidianStatus('Opening Base...');
+      try {
+        await openCurrentBoardObsidianBase();
+      } catch (error) {
+        console.error('Unable to open Obsidian Base.', error);
+        setBoardSettingsObsidianStatus('Unable to open Obsidian Base.', true);
+      } finally {
+        openObsidianBaseButton.disabled = false;
+      }
     });
   }
 

@@ -183,8 +183,110 @@ function isExternalBoardRefreshBlocked() {
     return isModalOpen('modalEditCard')
         || isModalOpen('modalBoardSettings')
         || isModalOpen('modalArchiveBrowser')
+        || isModalOpen('modalObsidianVaultRequired')
         || isModalOpen('modalCommercialLicense')
         || isModalOpen('modalAboutSignboard');
+}
+
+function isAnyPrimaryModalOpen() {
+    return isModalOpen('modalEditCard')
+        || isModalOpen('modalBoardSettings')
+        || isModalOpen('modalArchiveBrowser')
+        || isModalOpen('modalCommercialLicense')
+        || isModalOpen('modalAboutSignboard');
+}
+
+function showObsidianVaultRequiredModal(options = {}) {
+    const modal = document.getElementById('modalObsidianVaultRequired');
+    if (!modal) {
+        return;
+    }
+
+    const messageEl = document.getElementById('obsidianVaultRequiredMessage');
+    if (messageEl) {
+        messageEl.textContent = String(
+            options.message ||
+            'This feature only works when the current board folder is stored inside an Obsidian vault.',
+        );
+    }
+
+    if (typeof closeCardEditorOpenWithPopover === 'function') {
+        closeCardEditorOpenWithPopover();
+    }
+    if (typeof closeCardEditorLinkedObjectsPopover === 'function') {
+        closeCardEditorLinkedObjectsPopover();
+    }
+
+    if (typeof setAccessibleModalVisible === 'function') {
+        setAccessibleModalVisible(modal, true, {
+            display: 'block',
+            initialFocus: '#obsidianVaultRequiredOk',
+            labelledBy: 'obsidianVaultRequiredTitle',
+        });
+    } else {
+        modal.style.display = 'block';
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    if (typeof setBoardInteractive === 'function') {
+        setBoardInteractive(false);
+    }
+
+    if (typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus('Obsidian vault required.');
+    }
+}
+
+function closeObsidianVaultRequiredModal() {
+    const modal = document.getElementById('modalObsidianVaultRequired');
+    if (!modal || modal.style.display === 'none' || modal.getAttribute('aria-hidden') === 'true') {
+        return;
+    }
+
+    if (typeof setAccessibleModalVisible === 'function') {
+        setAccessibleModalVisible(modal, false);
+    } else {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    if (typeof setBoardInteractive === 'function' && !isAnyPrimaryModalOpen()) {
+        setBoardInteractive(true);
+    }
+}
+
+function initializeObsidianVaultRequiredModalControls() {
+    const modal = document.getElementById('modalObsidianVaultRequired');
+    const closeButton = document.getElementById('obsidianVaultRequiredClose');
+    const okButton = document.getElementById('obsidianVaultRequiredOk');
+
+    if (modal) {
+        modal.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+            closeObsidianVaultRequiredModal();
+        });
+    }
+
+    if (closeButton) {
+        closeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            closeObsidianVaultRequiredModal();
+        });
+    }
+
+    if (okButton) {
+        okButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            closeObsidianVaultRequiredModal();
+        });
+    }
 }
 
 function getCommercialLicensePriceLabel() {
@@ -742,11 +844,93 @@ function startExternalBoardSync() {
     }, { once: true });
 }
 
+async function handleOpenSignboardCardLink(payload = {}) {
+    if (!payload || payload.ok !== true) {
+        if (typeof announceSignboardStatus === 'function') {
+            announceSignboardStatus('Signboard card link was not found.');
+        }
+        return;
+    }
+
+    const boardRoot = typeof normalizeBoardPath === 'function'
+        ? normalizeBoardPath(payload.boardRoot || '')
+        : String(payload.boardRoot || '');
+    const cardPath = String(payload.cardPath || '').trim();
+    if (!boardRoot || !cardPath) {
+        return;
+    }
+
+    if (typeof ensureBoardInTabs === 'function') {
+        ensureBoardInTabs(boardRoot);
+    }
+
+    if (typeof switchToBoardPath === 'function') {
+        const switched = await switchToBoardPath(boardRoot);
+        if (!switched) {
+            return;
+        }
+    } else if (typeof openBoard === 'function') {
+        await openBoard(boardRoot);
+    }
+
+    if (typeof toggleEditCardModal === 'function') {
+        await toggleEditCardModal(cardPath);
+    }
+}
+
+async function handleOpenSignboardBoardLink(payload = {}) {
+    if (!payload || payload.ok !== true) {
+        if (typeof announceSignboardStatus === 'function') {
+            const message = payload && payload.error === 'USER_CANCELLED'
+                ? 'Signboard board link was cancelled.'
+                : 'Signboard board link could not be opened.';
+            announceSignboardStatus(message);
+        }
+        return;
+    }
+
+    const boardRoot = typeof normalizeBoardPath === 'function'
+        ? normalizeBoardPath(payload.boardRoot || '')
+        : String(payload.boardRoot || '');
+    if (!boardRoot) {
+        return;
+    }
+
+    if (typeof ensureBoardInTabs === 'function') {
+        ensureBoardInTabs(boardRoot);
+    }
+
+    if (typeof switchToBoardPath === 'function') {
+        const switched = await switchToBoardPath(boardRoot);
+        if (!switched) {
+            return;
+        }
+    } else if (typeof openBoard === 'function') {
+        await openBoard(boardRoot);
+    }
+}
+
 async function init() {
     if (typeof initializeAccessibilityHelpers === 'function') {
         initializeAccessibilityHelpers();
     }
     initializeTooltips();
+
+    if (window.electronAPI && typeof window.electronAPI.onOpenSignboardCardLink === 'function') {
+        window.electronAPI.onOpenSignboardCardLink((payload) => {
+            handleOpenSignboardCardLink(payload).catch((error) => {
+                console.error('Failed to open Signboard card link.', error);
+            });
+        });
+    }
+
+    if (window.electronAPI && typeof window.electronAPI.onOpenSignboardBoardLink === 'function') {
+        window.electronAPI.onOpenSignboardBoardLink((payload) => {
+            handleOpenSignboardBoardLink(payload).catch((error) => {
+                console.error('Failed to open Signboard board link.', error);
+            });
+        });
+    }
 
     if (window.board && typeof window.board.adoptLegacyBoardRoots === 'function' && typeof getStoredOpenBoards === 'function') {
         try {
@@ -764,9 +948,10 @@ async function init() {
 
     const restoredBoard = restoreBoardTabs();
     const initializeHeaderControls = () => {
-    initializeAboutSignboardControls();
-    initializeBoardMenuControls();
-    initializeCommercialLicenseControls();
+        initializeAboutSignboardControls();
+        initializeObsidianVaultRequiredModalControls();
+        initializeBoardMenuControls();
+        initializeCommercialLicenseControls();
         initializeBoardLabelControls();
         initializeBoardSearchControls();
         initializeBoardViewControls();
@@ -856,7 +1041,7 @@ async function init() {
             if (rawHref && rawHref !== '#') {
                 try {
                     const resolvedUrl = new URL(rawHref, window.location.href);
-                    const supportedProtocols = ['http:', 'https:', 'mailto:'];
+                    const supportedProtocols = ['http:', 'https:', 'mailto:', 'obsidian:', 'signboard:'];
                     if (supportedProtocols.includes(resolvedUrl.protocol)) {
                         e.preventDefault();
                         e.stopPropagation();
@@ -882,6 +1067,12 @@ async function init() {
         }
         if (typeof closeListActionsPopoverIfClickOutside === 'function') {
             closeListActionsPopoverIfClickOutside(e.target);
+        }
+        if (typeof closeCardEditorOpenWithPopoverIfClickOutside === 'function') {
+            closeCardEditorOpenWithPopoverIfClickOutside(e.target);
+        }
+        if (typeof closeCardEditorLinkedObjectsPopoverIfClickOutside === 'function') {
+            closeCardEditorLinkedObjectsPopoverIfClickOutside(e.target);
         }
 
         await closeAllModals(e);

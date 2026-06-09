@@ -11,6 +11,7 @@ cat \
   app/utilities/accessibility.js \
   app/utilities/cardDragTilt.js \
   app/utilities/cardTimestamps.js \
+  app/utilities/linkedObjects.js \
   app/appSettings.js \
   app/board/boardLabels.js \
   app/board/boardSearch.js \

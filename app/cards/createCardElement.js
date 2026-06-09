@@ -12,6 +12,9 @@ async function createCardElement(cardPath) {
   const taskSummary = getTaskListSummary(card.body);
   const taskDueDates = getTaskListDueDates(card.body);
   const incompleteTaskDueDates = getIncompleteTaskListDueDates(card.body);
+  const linkedObjectCount = typeof getFrontmatterLinkedObjectCount === 'function'
+    ? getFrontmatterLinkedObjectCount(card.frontmatter)
+    : 0;
 
   const previewText = card.body
     .split(/\r?\n/)
@@ -76,6 +79,13 @@ async function createCardElement(cardPath) {
     metadata.appendChild(taskProgressBadge);
   }
 
+  const linkedObjectsBadge = typeof createLinkedObjectsMetadataBadge === 'function'
+    ? createLinkedObjectsMetadataBadge(linkedObjectCount, 'metadata-action linked-objects-badge-inline')
+    : null;
+  if (linkedObjectsBadge) {
+    metadata.appendChild(linkedObjectsBadge);
+  }
+
   const labelButton = document.createElement('button');
   labelButton.type = 'button';
   labelButton.className = 'metadata-action card-label-button';
@@ -104,7 +114,8 @@ async function createCardElement(cardPath) {
     const hasDueDate = dueDateValue.length > 0;
     const hasLabels = selectedLabelIds.length > 0;
     const hasTasks = taskSummary.total > 0;
-    const hasAnyMetadata = hasDueDate || hasLabels || hasTasks;
+    const hasLinkedObjects = linkedObjectCount > 0;
+    const hasAnyMetadata = hasDueDate || hasLabels || hasTasks || hasLinkedObjects;
 
     metadata.classList.toggle('metadata-discovery', !hasAnyMetadata);
     dueButton.classList.toggle('metadata-action-empty', !hasDueDate);

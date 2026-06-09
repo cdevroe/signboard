@@ -1,0 +1,10 @@
+{
+  "id": "signboard-companion",
+  "name": "Signboard Companion",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Optional companion tools for opening, linking, and creating Signboard boards from Obsidian.",
+  "author": "Colin Devroe",
+  "authorUrl": "https://cdevroe.com/",
+  "isDesktopOnly": true
+}

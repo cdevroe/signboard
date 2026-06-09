@@ -32,6 +32,23 @@ function resetCardEditorModalState() {
     if (cardEditorCardLabels) {
         cardEditorCardLabels.textContent = '';
     }
+
+    const cardEditorRelatedNotes = document.getElementById('cardEditorRelatedNotes');
+    if (cardEditorRelatedNotes) {
+        cardEditorRelatedNotes.innerHTML = '';
+        cardEditorRelatedNotes.hidden = true;
+    }
+
+    const cardEditorLinkedObjectsCount = document.getElementById('cardEditorLinkedObjectsCount');
+    if (cardEditorLinkedObjectsCount) {
+        cardEditorLinkedObjectsCount.textContent = '';
+        cardEditorLinkedObjectsCount.hidden = true;
+    }
+
+    if (typeof clearCardEditorDropState === 'function') {
+        clearCardEditorDropState();
+    }
+
 }
 
 function isCardEditorRelatedClickTarget(target) {
@@ -44,6 +61,14 @@ function isCardEditorRelatedClickTarget(target) {
     }
 
     if (target.closest('.card-label-popover')) {
+        return true;
+    }
+
+    if (target.closest('#cardEditorOpenWithPopover')) {
+        return true;
+    }
+
+    if (target.closest('#cardEditorLinkedObjectsPopover')) {
         return true;
     }
 
@@ -95,7 +120,10 @@ async function closeAllModals(e, options = {}){
     if (
         eventTarget &&
         typeof eventTarget.closest === 'function' &&
-        eventTarget.closest('#modalBoardSwitcher')
+        (
+            eventTarget.closest('#modalBoardSwitcher') ||
+            eventTarget.closest('#modalObsidianVaultRequired')
+        )
     ) {
         return;
     }
@@ -113,6 +141,7 @@ async function closeAllModals(e, options = {}){
     const modalAddList = document.getElementById('modalAddList');
     const modalBoardSettings = document.getElementById('modalBoardSettings');
     const modalArchiveBrowser = document.getElementById('modalArchiveBrowser');
+    const modalObsidianVaultRequired = document.getElementById('modalObsidianVaultRequired');
     const modalAboutSignboard = document.getElementById('modalAboutSignboard');
     const modalCommercialLicense = document.getElementById('modalCommercialLicense');
     const editModalWasOpen = isVisibleModal(modalEditCard);
@@ -126,6 +155,12 @@ async function closeAllModals(e, options = {}){
     }
     if (closeAllRequest && typeof closeListActionsPopover === 'function') {
         closeListActionsPopover();
+    }
+    if (closeAllRequest && typeof closeCardEditorOpenWithPopover === 'function') {
+        closeCardEditorOpenWithPopover();
+    }
+    if (closeAllRequest && typeof closeCardEditorLinkedObjectsPopover === 'function') {
+        closeCardEditorLinkedObjectsPopover();
     }
 
     if ( closeAllRequest ) {
@@ -167,6 +202,10 @@ async function closeAllModals(e, options = {}){
                 hideModalElement(modalArchiveBrowser);
                 setBoardInteractive(true);
             }
+        }
+        if ( modalObsidianVaultRequired && modalObsidianVaultRequired.style.display === 'block' ) {
+            hideModalElement(modalObsidianVaultRequired);
+            setBoardInteractive(true);
         }
         if ( modalAboutSignboard && modalAboutSignboard.style.display === 'block' ) {
             hideModalElement(modalAboutSignboard);
@@ -221,6 +260,11 @@ async function closeAllModals(e, options = {}){
                 hideModalElement(modalArchiveBrowser);
                 setBoardInteractive(true);
             }
+        }
+
+        if ( modalObsidianVaultRequired && modalObsidianVaultRequired.style.display === 'block' && eventTarget && !modalObsidianVaultRequired.contains(eventTarget) ) {
+            hideModalElement(modalObsidianVaultRequired);
+            setBoardInteractive(true);
         }
 
         if ( modalAboutSignboard && modalAboutSignboard.style.display === 'block' && eventTarget && !modalAboutSignboard.contains(eventTarget) ) {

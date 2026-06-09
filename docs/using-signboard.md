@@ -28,6 +28,8 @@ Signboard is file-first.
 - Board-level settings live in `board-settings.md`.
 - Archived cards and lists live in `XXX-Archive`.
 
+Boards can live inside an Obsidian vault. Use a normal folder such as `Vault/Signboard/<Board Name>/`; do not create a nested vault inside the board. You can also move an existing board into a vault later from `Settings > General > Move Board`.
+
 Because the board is just files and folders, you can back it up, sync it, inspect it in your editor, and use it from the CLI or MCP server.
 
 ## Create or Open a Board
@@ -105,6 +107,8 @@ Click a card to open it. In the card editor you can:
 - Move it to the next list
 - Duplicate it
 - Share it
+- Open it in Obsidian or the default Markdown app
+- Create, open, or remove linked objects
 - Archive it
 
 The card body is Markdown, so plain text notes, headings, lists, and checklists all work naturally.
@@ -130,6 +134,20 @@ The CLI can also duplicate cards and create cards from templates with `cards dup
 ### Share a card
 
 Use the share action in the card editor to hand the underlying Markdown file to another app using the operating system share flow when supported.
+
+### Use Obsidian with Signboard
+
+You can keep a board inside an Obsidian vault. A practical layout is `Vault/Signboard/<Board Name>/`. Do not make the board a nested vault with its own `.obsidian` folder. If you already created the board elsewhere, use `Settings > General > Move Board` and choose a folder inside the vault.
+
+When Signboard detects that the board is inside a vault, the card editor's Open With menu can open the card in Obsidian and copy an Obsidian URI. Use the paperclip control next to labels to create a linked Obsidian note in the board folder. Signboard-created notes use the name `Linked Signboard Note.md` when available, add a numeric suffix when needed, and start empty except for link metadata. If the board is not inside a vault, Signboard explains that requirement instead of creating the note or Base file.
+
+The same paperclip menu can link local files, folders, web URLs, app deep links, and `signboard://` links. You can also drag local files onto the open card editor to link them to that card. Local files and folders stay wherever they are on your computer; Signboard stores the path and opens the item in your default app. Web links open in your default browser, accept entries like `example.com/page`, and Signboard caches site favicons locally when possible so linked URL chips stay fast.
+
+Linked objects appear in the card editor as removable chips. Click the object name to open it, or click its remove control to unlink it from the card without deleting the underlying file, folder, or note. Cards with linked objects also show a small paperclip count in Kanban and Table views.
+
+New or edited cards include flat Obsidian-friendly properties such as `title`, `signboard_id`, `signboard_board`, `signboard_list`, `status`, `signboard_uri`, and `related`, plus structured `linked_objects` when the card has linked files, folders, URLs, app links, or Obsidian notes. When a board is inside a vault, Signboard automatically creates `Signboard Board.base` for Obsidian Bases and keeps it current while it is still Signboard-managed. If you customize the Base in Obsidian, Signboard leaves it alone until you choose `Settings > Obsidian > Generate Base` again.
+
+Signboard also includes an optional desktop-only Obsidian companion plugin in `obsidian-plugin/`. Copy that folder into your vault as `.obsidian/plugins/signboard-companion` and enable it from Obsidian's Community plugins settings. The plugin can open and copy Signboard links, attach the active Obsidian note to a Signboard card, open cards by `obsidian://signboard?cardId=...`, and add a folder context-menu action named `Create Signboard`. That action asks first, then adds board metadata/list folders, treats existing child folders as lists, moves top-level Markdown notes into a To-do list, and opens the board in Signboard.
 
 ## Due Dates, Labels, and Checklists
 
@@ -198,11 +216,11 @@ Board context can be Kanban or Table. Dated planning happens in Planner.
 
 ### Kanban
 
-Kanban is the board view. Use it for day-to-day drag-and-drop organization.
+Kanban is the board view. Use it for day-to-day drag-and-drop organization. Cards show compact metadata for due dates, checklist progress, labels, and linked-object counts.
 
 ### Table
 
-Table is an active-board view for scanning cards in board/list order. It uses the same board search, label filters, Today/Overdue date filters, task progress badges, and completed-list workflow rules as Kanban.
+Table is an active-board view for scanning cards in board/list order. It uses the same board search, label filters, Today/Overdue date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.
 
 Open `Board menu > View > Table`. Click a card title or row to open the normal card editor. Use the row's list dropdown to move a card to another list; moved cards land at the top of the destination list.
 
