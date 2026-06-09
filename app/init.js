@@ -171,7 +171,12 @@ function startDueCardNotificationSchedule() {
 
 function isModalOpen(modalId) {
     const modal = document.getElementById(modalId);
-    return Boolean(modal && modal.style.display === 'block');
+    return Boolean(
+        modal &&
+        !modal.classList.contains('hidden') &&
+        modal.getAttribute('aria-hidden') !== 'true' &&
+        modal.style.display !== 'none'
+    );
 }
 
 function isExternalBoardRefreshBlocked() {

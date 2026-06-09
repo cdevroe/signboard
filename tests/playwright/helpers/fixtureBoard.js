@@ -24,27 +24,40 @@ async function createFixtureBoardAt(root, boardName = 'Playwright Board') {
     ],
   });
 
+  const planReleasePath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+  const polishCopyPath = path.join(boardRoot, '001-Doing-stock', '000-polish-copy-stock.md');
+  const shipBetaPath = path.join(boardRoot, '002-Done-stock', '000-ship-beta-stock.md');
+
   await Promise.all([
-    cardFrontmatter.writeCard(path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md'), {
+    cardFrontmatter.writeCard(planReleasePath, {
       frontmatter: {
         title: 'Plan release notes',
+        createdAt: '2026-01-05T12:00:00.000Z',
         labels: ['launch'],
       },
       body: 'Outline the next release notes draft.',
     }),
-    cardFrontmatter.writeCard(path.join(boardRoot, '001-Doing-stock', '000-polish-copy-stock.md'), {
+    cardFrontmatter.writeCard(polishCopyPath, {
       frontmatter: {
         title: 'Polish homepage copy',
+        createdAt: '2026-02-01T12:00:00.000Z',
         labels: ['content'],
       },
       body: 'Tighten the copy before launch.',
     }),
-    cardFrontmatter.writeCard(path.join(boardRoot, '002-Done-stock', '000-ship-beta-stock.md'), {
+    cardFrontmatter.writeCard(shipBetaPath, {
       frontmatter: {
         title: 'Ship beta',
+        createdAt: '2026-01-01T12:00:00.000Z',
       },
       body: 'Shipped the beta build to testers.',
     }),
+  ]);
+
+  await Promise.all([
+    fs.utimes(planReleasePath, new Date('2026-01-15T12:00:00.000Z'), new Date('2026-01-15T12:00:00.000Z')),
+    fs.utimes(polishCopyPath, new Date('2026-03-01T12:00:00.000Z'), new Date('2026-03-01T12:00:00.000Z')),
+    fs.utimes(shipBetaPath, new Date('2026-01-20T12:00:00.000Z'), new Date('2026-01-20T12:00:00.000Z')),
   ]);
 
   return boardRoot;

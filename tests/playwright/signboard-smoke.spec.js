@@ -466,6 +466,13 @@ test('switches to table view and moves a card through the list column', async ({
 
   await expect(page.locator('main#board')).toHaveClass(/board-view-table/);
   await expect(page.locator('.board-table-row')).toHaveCount(3);
+  await expect(page.locator('.board-table-heading-updated')).toHaveText('Updated');
+  await expect(page.locator('.board-table-heading-created')).toHaveText('Created');
+  await expect(page.locator('.board-table-sort-select')).toHaveValue('board');
+  await page.locator('.board-table-sort-select').selectOption({ label: 'Created, oldest first' });
+  await expect(page.locator('.board-table-row').first()).toContainText('Ship beta');
+  await page.locator('.board-table-sort-select').selectOption({ label: 'Updated, oldest first' });
+  await expect(page.locator('.board-table-row').first()).toContainText('Plan release notes');
 
   const planRow = page.locator('.board-table-row').filter({ hasText: 'Plan release notes' });
   await expect(planRow).toBeVisible();
@@ -489,6 +496,19 @@ test('switches to table view and moves a card through the list column', async ({
   await movedPlanRow.locator('.board-table-card-title-button').click();
   await expect(page.locator('#modalEditCard')).toBeVisible();
   await expect(page.locator('#cardEditorTitle')).toHaveText('Plan release notes');
+  await expect(page.locator('#cardEditorTimestampMetadata')).toContainText('Created');
+  await expect(page.locator('#cardEditorTimestampMetadata')).toContainText('Updated');
+  await expect(page.locator('#cardEditorTimestampMetadata time').first()).not.toContainText(/:\d{2}/);
+  await expect(page.locator('#cardEditorTimestampMetadata time').first()).toHaveAttribute('title', /:\d{2}/);
+
+  const editorBox = await page.locator('#cardEditorOverType').boundingBox();
+  const timestampBox = await page.locator('#cardEditorTimestampMetadata').boundingBox();
+  expect(editorBox).toBeTruthy();
+  expect(timestampBox).toBeTruthy();
+  expect(timestampBox.y).toBeGreaterThanOrEqual(editorBox.y + editorBox.height - 1);
+
+  await page.locator('#cardEditorClose').click();
+  await expect(page.locator('#modalEditCard')).toBeHidden();
 });
 
 test('adds a new list to the right of the invoking list from the list actions popover', async ({ page, boardRoot }) => {

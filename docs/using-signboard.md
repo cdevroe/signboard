@@ -109,6 +109,8 @@ Click a card to open it. In the card editor you can:
 
 The card body is Markdown, so plain text notes, headings, lists, and checklists all work naturally.
 
+The editor shows when the card was created and when it was last updated. Newer cards use Signboard's card metadata for the created date; older cards fall back to filesystem timestamps.
+
 Right-click in editable areas of the card title or body to use the native cut, copy, paste, delete, and select-all context menu.
 
 ### Move cards
@@ -203,6 +205,8 @@ Kanban is the board view. Use it for day-to-day drag-and-drop organization.
 Table is an active-board view for scanning cards in board/list order. It uses the same board search, label filters, Today/Overdue date filters, task progress badges, and completed-list workflow rules as Kanban.
 
 Open `Board menu > View > Table`. Click a card title or row to open the normal card editor. Use the row's list dropdown to move a card to another list; moved cards land at the top of the destination list.
+
+Table includes `Updated` and `Created` columns plus a sort control. Sort by `Updated, oldest first` to find cards you have not touched in a while, or by `Created, oldest first` to find your oldest cards. Search and filters apply first, then the Table sort orders the visible cards.
 
 ### Dated Views
 

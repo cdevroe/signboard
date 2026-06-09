@@ -1224,7 +1224,7 @@ body:not(.board-empty) main#board.board-view-week {
 
 .board-table-view {
   width: 100%;
-  min-width: 760px;
+  min-width: 1020px;
 }
 
 .board-table-header {
@@ -1234,6 +1234,34 @@ body:not(.board-empty) main#board.board-view-week {
   gap: 12px;
   margin-bottom: 8px;
   min-height: 24px;
+}
+
+.board-table-sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+}
+
+.board-table-sort-label {
+  font-weight: 700;
+  line-height: 1;
+}
+
+.board-table-sort-select {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: var(--font-xs);
+  padding: 4px 28px 4px 8px;
+}
+
+.board-table-sort-select:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 1px;
 }
 
 .board-table-summary {
@@ -1256,7 +1284,7 @@ body:not(.board-empty) main#board.board-view-week {
 
 .board-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 1020px;
   border-collapse: separate;
   border-spacing: 0;
   color: var(--text);
@@ -1308,6 +1336,8 @@ body:not(.board-empty) main#board.board-view-week {
 }
 
 .board-table-cell-due,
+.board-table-cell-updated,
+.board-table-cell-created,
 .board-table-cell-tasks {
   width: 130px;
 }
@@ -1374,6 +1404,13 @@ body:not(.board-empty) main#board.board-view-week {
 
 .board-table-due.due-date-tomorrow {
   color: var(--due-date-tomorrow-color);
+}
+
+.board-table-timestamp {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .board-table-task-progress {
@@ -2330,6 +2367,10 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   .label-popover {
     border: 1px solid CanvasText;
     box-shadow: none;
+  }
+
+  #modalEditCard .cardEditorTimestampMetadata {
+    color: CanvasText;
   }
 }
 
@@ -3365,7 +3406,9 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 40px rgba(16, 24, 40, .12);
-  padding: 16px 16px 50px 10px;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px 16px 12px 10px;
 }
 
 #modalEditCard #cardEditorTitle {
@@ -4107,7 +4150,14 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   background: color-mix(in oklab, #dc2626 12%, transparent);
 }
 
-#modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
+#modalEditCard #cardEditorCardID {
+  align-self: flex-end;
+  cursor: pointer;
+  margin-top: 10px;
+  float: none;
+  font-size: var(--font-sm);
+  color: var(--muted);
+}
 #modalEditCard #cardEditorCardID,
 #modalEditCard .cardEditorHeaderActions button,
 #modalEditCard .cardEditorMetadataButtons button {
@@ -4138,6 +4188,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 #modalEditCard .cardEditorHeader {
   border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
   min-height: 36px;
   padding: 3px 0;
   display: flex;
@@ -4217,6 +4268,35 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 #modalEditCard #cardEditorCardLabels.card-editor-labels .card-label-chip {
   cursor: inherit;
+}
+#modalEditCard .cardEditorTimestampMetadata {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-height: 28px;
+  padding: 7px 16px 0;
+  color: color-mix(in oklab, var(--muted) 92%, var(--text));
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+}
+#modalEditCard .cardEditorTimestampMetadata[hidden] {
+  display: none;
+}
+#modalEditCard .cardEditorTimestampItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+#modalEditCard .cardEditorTimestampLabel {
+  font-weight: 600;
+}
+#modalEditCard .cardEditorTimestampValue {
+  color: inherit;
 }
 #modalEditCard .cardEditorHeader a svg,
 #modalEditCard .cardEditorHeader button svg,
@@ -4403,11 +4483,22 @@ select:disabled {
 }
 
 #cardEditorOverType {
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: 20px;
 }
 
 #cardEditorOverType .overtype-container {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol", sans-serif !important;
+}
+
+#cardEditorOverType .overtype-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 #cardEditorOverType .overtype-toolbar {

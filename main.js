@@ -13,6 +13,7 @@ const http = require('http');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
+const { readCardWithTimestamps } = require('./lib/cardTimestamps');
 const { insertCardFileAtTop } = require('./lib/cardOrdering');
 const { prepareNewCardFrontmatter } = require('./lib/cardLifecycle');
 const {
@@ -2484,7 +2485,7 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
 
     case 'readCard': {
       const filePath = requireReadablePath(event.sender, args[0]);
-      return cardFrontmatter.readCard(filePath);
+      return readCardWithTimestamps(filePath);
     }
 
     case 'listArchiveEntries': {

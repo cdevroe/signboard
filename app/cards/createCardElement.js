@@ -253,7 +253,12 @@ async function createCardElement(cardPath) {
 
   const openCardEditor = async () => {
     let modalEditCard = document.getElementById('modalEditCard');
-    if ( modalEditCard.style.display == 'block' ) {
+    if (
+      modalEditCard &&
+      !modalEditCard.classList.contains('hidden') &&
+      modalEditCard.getAttribute('aria-hidden') !== 'true' &&
+      modalEditCard.style.display !== 'none'
+    ) {
       return;
     }
 

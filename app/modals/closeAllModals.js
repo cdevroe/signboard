@@ -115,7 +115,7 @@ async function closeAllModals(e, options = {}){
     const modalArchiveBrowser = document.getElementById('modalArchiveBrowser');
     const modalAboutSignboard = document.getElementById('modalAboutSignboard');
     const modalCommercialLicense = document.getElementById('modalCommercialLicense');
-    const editModalWasOpen = modalEditCard.style.display === 'block';
+    const editModalWasOpen = isVisibleModal(modalEditCard);
     const boardSettingsWasOpen = modalBoardSettings && modalBoardSettings.style.display === 'block';
 
     let editModalClosed = false;
@@ -132,7 +132,7 @@ async function closeAllModals(e, options = {}){
         if ( isVisibleModal(modalAddCard) ) {
             hideModalElement(modalAddCard);
         }
-        if ( modalEditCard.style.display === 'block' ) {
+        if ( isVisibleModal(modalEditCard) ) {
             if (typeof flushEditorSaveIfNeeded === 'function') {
                 await flushEditorSaveIfNeeded();
             }
@@ -182,7 +182,7 @@ async function closeAllModals(e, options = {}){
         }
 
         const clickIsInsideCardEditor = isCardEditorRelatedClickTarget(eventTarget);
-        if ( modalEditCard.style.display === 'block' && !clickIsInsideCardEditor ) {
+        if ( isVisibleModal(modalEditCard) && !clickIsInsideCardEditor ) {
             if (typeof flushEditorSaveIfNeeded === 'function') {
                 await flushEditorSaveIfNeeded();
             }

@@ -1,14 +1,42 @@
 const BOARD_TABLE_COLUMNS = Object.freeze([
   { id: 'due', label: 'Due' },
+  { id: 'updated', label: 'Updated' },
+  { id: 'created', label: 'Created' },
   { id: 'tasks', label: 'Tasks' },
   { id: 'title', label: 'Card' },
   { id: 'list', label: 'List' },
   { id: 'labels', label: 'Labels' },
 ]);
 
+const BOARD_TABLE_SORT_OPTIONS = Object.freeze([
+  { value: 'board', label: 'Board order' },
+  { value: 'updated-asc', label: 'Updated, oldest first' },
+  { value: 'updated-desc', label: 'Updated, newest first' },
+  { value: 'created-asc', label: 'Created, oldest first' },
+  { value: 'created-desc', label: 'Created, newest first' },
+  { value: 'due-asc', label: 'Due date' },
+  { value: 'title-asc', label: 'Title, A-Z' },
+]);
+
 function normalizeBoardTableTitle(titleText) {
   const normalized = String(titleText || '').trim().replace(/^#\s+/, '');
   return normalized || 'Untitled';
+}
+
+function getBoardTableState() {
+  if (!window.__boardTableState) {
+    window.__boardTableState = {
+      sortKey: 'board',
+    };
+  }
+
+  return window.__boardTableState;
+}
+
+function getBoardTableSortKey() {
+  const state = getBoardTableState();
+  const sortKey = String(state.sortKey || 'board');
+  return BOARD_TABLE_SORT_OPTIONS.some((option) => option.value === sortKey) ? sortKey : 'board';
 }
 
 function getBoardTableListEntries(boardRoot, listsWithCards) {
@@ -93,6 +121,9 @@ async function collectBoardTableCards(boardRoot, listsWithCards) {
             taskSummary: getTaskListSummary(body),
             taskDueDates: getTaskListDueDates(body),
             incompleteTaskDueDates: getIncompleteTaskListDueDates(body),
+            timestamps: card && card.timestamps && typeof card.timestamps === 'object'
+              ? card.timestamps
+              : {},
           };
         }),
       );
@@ -101,12 +132,156 @@ async function collectBoardTableCards(boardRoot, listsWithCards) {
     }),
   );
 
-  const allCards = rowsByList.flat();
+  const allCards = rowsByList.flat().map((entry, index) => ({
+    ...entry,
+    boardOrderIndex: index,
+  }));
   return {
     listEntries,
     allCards,
     visibleCards: allCards.filter(boardTableEntryMatchesFilters),
   };
+}
+
+function compareBoardTableBaseOrder(left, right) {
+  const leftIndex = Number.isFinite(left && left.boardOrderIndex) ? left.boardOrderIndex : 0;
+  const rightIndex = Number.isFinite(right && right.boardOrderIndex) ? right.boardOrderIndex : 0;
+  return leftIndex - rightIndex;
+}
+
+function compareOptionalTimestampValues(leftValue, rightValue, descending = false) {
+  const leftMs = getCardTimestampMs(leftValue);
+  const rightMs = getCardTimestampMs(rightValue);
+
+  if (leftMs > 0 && rightMs > 0 && leftMs !== rightMs) {
+    return descending ? rightMs - leftMs : leftMs - rightMs;
+  }
+
+  if (leftMs > 0 && rightMs <= 0) {
+    return -1;
+  }
+
+  if (leftMs <= 0 && rightMs > 0) {
+    return 1;
+  }
+
+  return 0;
+}
+
+function getBoardTablePrimaryDueDate(entry) {
+  const displayDue = getBoardTableDisplayDueDates(entry);
+  return displayDue.dueDates[0] || '';
+}
+
+function compareOptionalIsoDateValues(leftValue, rightValue) {
+  const leftDate = String(leftValue || '').trim();
+  const rightDate = String(rightValue || '').trim();
+
+  if (leftDate && rightDate && leftDate !== rightDate) {
+    return leftDate.localeCompare(rightDate);
+  }
+
+  if (leftDate && !rightDate) {
+    return -1;
+  }
+
+  if (!leftDate && rightDate) {
+    return 1;
+  }
+
+  return 0;
+}
+
+function sortBoardTableCards(cards, sortKey = getBoardTableSortKey()) {
+  const items = Array.isArray(cards) ? cards.slice() : [];
+  const normalizedSortKey = BOARD_TABLE_SORT_OPTIONS.some((option) => option.value === sortKey)
+    ? sortKey
+    : 'board';
+
+  items.sort((left, right) => {
+    if (normalizedSortKey === 'updated-asc' || normalizedSortKey === 'updated-desc') {
+      const byUpdated = compareOptionalTimestampValues(
+        getCardTimestampValue(left, 'updatedAt'),
+        getCardTimestampValue(right, 'updatedAt'),
+        normalizedSortKey === 'updated-desc',
+      );
+      if (byUpdated !== 0) {
+        return byUpdated;
+      }
+    } else if (normalizedSortKey === 'created-asc' || normalizedSortKey === 'created-desc') {
+      const byCreated = compareOptionalTimestampValues(
+        getCardTimestampValue(left, 'createdAt'),
+        getCardTimestampValue(right, 'createdAt'),
+        normalizedSortKey === 'created-desc',
+      );
+      if (byCreated !== 0) {
+        return byCreated;
+      }
+    } else if (normalizedSortKey === 'due-asc') {
+      const byDue = compareOptionalIsoDateValues(
+        getBoardTablePrimaryDueDate(left),
+        getBoardTablePrimaryDueDate(right),
+      );
+      if (byDue !== 0) {
+        return byDue;
+      }
+    } else if (normalizedSortKey === 'title-asc') {
+      const byTitle = String(left && left.title || '').localeCompare(String(right && right.title || ''), undefined, {
+        numeric: true,
+        sensitivity: 'base',
+        ignorePunctuation: true,
+      });
+      if (byTitle !== 0) {
+        return byTitle;
+      }
+    }
+
+    return compareBoardTableBaseOrder(left, right);
+  });
+
+  return items;
+}
+
+function createBoardTableSortControl() {
+  const control = document.createElement('label');
+  control.className = 'board-table-sort-control';
+
+  const labelText = document.createElement('span');
+  labelText.className = 'board-table-sort-label';
+  labelText.textContent = 'Sort';
+  control.appendChild(labelText);
+
+  const select = document.createElement('select');
+  select.className = 'board-table-sort-select';
+  select.setAttribute('aria-label', 'Sort table cards');
+
+  const sortKey = getBoardTableSortKey();
+  for (const optionEntry of BOARD_TABLE_SORT_OPTIONS) {
+    const option = document.createElement('option');
+    option.value = optionEntry.value;
+    option.textContent = optionEntry.label;
+    option.selected = optionEntry.value === sortKey;
+    select.appendChild(option);
+  }
+
+  select.value = sortKey;
+  select.addEventListener('change', async () => {
+    const nextSortKey = String(select.value || 'board');
+
+    if (typeof waitForNativeMenuTrackingToSettle === 'function') {
+      await waitForNativeMenuTrackingToSettle();
+    }
+
+    if (!select.isConnected || select.value !== nextSortKey) {
+      return;
+    }
+
+    getBoardTableState().sortKey = nextSortKey;
+    await renderBoard();
+  });
+
+  control.appendChild(select);
+  return control;
 }
 
 function createBoardTableHeader() {
@@ -123,6 +298,29 @@ function createBoardTableHeader() {
 
   thead.appendChild(row);
   return thead;
+}
+
+function createBoardTableTimestampCell(entry, timestampKey) {
+  const cell = document.createElement('td');
+  cell.className = `board-table-cell board-table-cell-${timestampKey === 'createdAt' ? 'created' : 'updated'}`;
+
+  const timestampValue = getCardTimestampValue(entry, timestampKey);
+  if (!timestampValue) {
+    const empty = document.createElement('span');
+    empty.className = 'board-table-empty-value';
+    empty.textContent = 'Unknown';
+    cell.appendChild(empty);
+    return cell;
+  }
+
+  const time = document.createElement('time');
+  time.className = 'board-table-timestamp';
+  time.setAttribute('datetime', timestampValue);
+  time.textContent = createCardTimestampCellValue(timestampValue);
+  time.title = formatCardTimestampDateTime(timestampValue);
+  cell.appendChild(time);
+
+  return cell;
 }
 
 function createBoardTableTitleCell(entry) {
@@ -335,6 +533,8 @@ async function createBoardTableRow(entry, listOptions) {
   });
 
   row.appendChild(await createBoardTableDueCell(entry));
+  row.appendChild(createBoardTableTimestampCell(entry, 'updatedAt'));
+  row.appendChild(createBoardTableTimestampCell(entry, 'createdAt'));
   row.appendChild(createBoardTableTaskCell(entry));
   row.appendChild(createBoardTableTitleCell(entry));
   row.appendChild(createBoardTableListCell(entry, listOptions));
@@ -373,6 +573,7 @@ async function renderTableBoard(boardRoot, listsWithCards) {
 
   const tableHeader = document.createElement('div');
   tableHeader.className = 'board-table-header';
+  tableHeader.appendChild(createBoardTableSortControl());
   tableHeader.appendChild(createBoardTableSummary(
     tableState.visibleCards.length,
     tableState.allCards.length,
@@ -397,8 +598,9 @@ async function renderTableBoard(boardRoot, listsWithCards) {
   table.appendChild(createBoardTableHeader());
 
   const tbody = document.createElement('tbody');
+  const visibleCards = sortBoardTableCards(tableState.visibleCards);
   const rows = await Promise.all(
-    tableState.visibleCards.map((entry) => createBoardTableRow(entry, listOptions)),
+    visibleCards.map((entry) => createBoardTableRow(entry, listOptions)),
   );
 
   for (const row of rows) {

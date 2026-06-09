@@ -30,11 +30,12 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and incomplete task due markers, skipping completed workflow lists.
 - `app/utilities/accessibility.js` - Shared renderer accessibility helpers for modal focus restoration/trapping, background inert state, live status announcements, stable DOM IDs, reduced-motion checks, and deferring DOM mutations until native menu/select popup tracking settles on macOS.
 - `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, reduced-motion handling, and drag text-selection lock used by Kanban and temporal card drag/drop.
+- `app/utilities/cardTimestamps.js` - Renderer card timestamp formatting helpers for editor metadata and Table age columns.
 - `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification/Quick Add global shortcut/External Published Calendar controls, persistence scheduling, and one-time migration from legacy board settings.
 - `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with date filters ignoring completed task due markers and completed workflow lists), keyboard-operable card label popovers, Settings modal board panels/nav, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state, input handling for title/body filtering, and keyboard navigation from the search field through visible card results.
 - `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card due/open task due markers, and source-list/source-board pills on temporal cards.
-- `app/board/tableView.js` - Board-scoped Table view rendering, dense row metadata, board filter/search reuse, and list-column card moves through the top-of-list move IPC path.
+- `app/board/tableView.js` - Board-scoped Table view rendering, dense row metadata including Created/Updated age columns, board filter/search reuse, Table sort controls, and list-column card moves through the top-of-list move IPC path.
 - `app/board/plannerView.js` - Workspace-level Planner overlay with Calendar, This Week, Day, and Agenda views across currently open boards, all/current/custom board scope controls, Planner-local search/date/completed-card/board/active-board-label filters, keyboard navigation for Planner search/filter controls, left-rail open/close behavior, and Planner card opening that switches the active board when needed.
 - `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing with keyboard result navigation, detail-pane rendering, incremental result loading, and restore flows.
 - `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder), keyboard navigation/close behavior for visible tabs, responsive `N more` overflow for unbounded open boards, plus the shared safe board-switch helper used by tab clicks and the switcher.
@@ -50,7 +51,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/modals/toggleAddCardModal.js` - Add-card modal position/toggle.
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
-- `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, active-card top-of-list moves from the dropdown/directional controls, debounced + serialized saves, clean-editor reloads after external/MCP card edits, fresh duplicate lifecycle metadata, and task-line due-date controls aligned from measured line coordinates.
+- `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, Created/Updated timestamp display, active-card top-of-list moves from the dropdown/directional controls, debounced + serialized saves, clean-editor reloads after external/MCP card edits, fresh duplicate lifecycle metadata, and task-line due-date controls aligned from measured line coordinates.
 - `app/listeners/window.js` - Keyboard shortcuts, menu/global-command listeners, Quick Add card modal wiring with board/list selection across open boards, board view switching, Planner toggle/view shortcut handling including all-open-board and current-board date-view scopes, Settings fallback handling, quick board switcher shortcut handling, color cycling, active-card move/archive shortcuts, active-editor closing for workspace-level shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, sponsorship modal triggers, and external board-change auto-refresh sync loop, including clean open-editor refreshes.
 - `app/ui/theme.js` - Theme toggle + OverType theme integration, including the theme shortcut hint/state in the board menu.
@@ -60,6 +61,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support.
 - `lib/cardLifecycle.js` - Shared card lifecycle metadata helper for `createdAt`, compact `activity` trails, archive frontmatter state, and moved/restored transitions.
+- `lib/cardTimestamps.js` - Shared timestamp resolver for desktop/CLI card records, preferring frontmatter/activity creation data and filesystem modification data.
 - `lib/cardOrdering.js` - Shared list-card ordering helper used by main-process/MCP restore and move flows to insert a card at the top while renumbering existing files.
 - `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
 - `lib/boardLabels.js` - Board-level label/theme/workflow/External Published Calendar inclusion settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
@@ -83,6 +85,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-app-settings.js` - Node assertions for app-wide settings persistence and one-time board-settings migration.
 - `scripts/test-board-card-metadata.js` - Board card metadata rendering assertions (due/labels/task badge behavior).
 - `scripts/test-board-views.js` - Kanban/Table/Planner rendering and filter helper assertions.
+- `scripts/test-card-timestamps.js` - Card timestamp normalization assertions for frontmatter, activity, and filesystem fallback behavior.
 - `scripts/test-archive.js` - Archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.
 - `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
 - `scripts/test-external-published-calendar.js` - External Published Calendar assertions for ICS generation, completed-list skipping, checked-task skipping, and board opt-out.

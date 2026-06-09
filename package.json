@@ -37,6 +37,7 @@
     "test:due-notifications": "node scripts/test-due-notifications.js",
     "test:external-calendar": "node scripts/test-external-published-calendar.js",
     "test:task-list": "node scripts/test-task-list-parser.js",
+    "test:card-timestamps": "node scripts/test-card-timestamps.js",
     "test:archive": "node scripts/test-archive.js",
     "test:import-trello": "node scripts/test-import-trello.js",
     "test:import-obsidian": "node scripts/test-import-obsidian.js",

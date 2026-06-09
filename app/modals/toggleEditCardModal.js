@@ -113,6 +113,58 @@ function setEditorLabelDisplay(labelIds) {
     }
 }
 
+function renderCardEditorTimestamps(timestamps = {}) {
+    const timestampEl = document.getElementById('cardEditorTimestampMetadata');
+    if (!timestampEl) {
+        return;
+    }
+
+    const createdAt = getCardTimestampValue({ timestamps }, 'createdAt');
+    const updatedAt = getCardTimestampValue({ timestamps }, 'updatedAt');
+    timestampEl.innerHTML = '';
+    timestampEl.dataset.createdAt = createdAt;
+    timestampEl.dataset.updatedAt = updatedAt;
+
+    const entries = [
+        { label: 'Created', value: createdAt },
+        { label: 'Updated', value: updatedAt },
+    ].filter((entry) => entry.value);
+
+    timestampEl.hidden = entries.length === 0;
+    if (entries.length === 0) {
+        return;
+    }
+
+    for (const entry of entries) {
+        const item = document.createElement('span');
+        item.className = 'cardEditorTimestampItem';
+
+        const label = document.createElement('span');
+        label.className = 'cardEditorTimestampLabel';
+        label.textContent = entry.label;
+        item.appendChild(label);
+
+        const time = document.createElement('time');
+        time.className = 'cardEditorTimestampValue';
+        setCardTimestampElement(time, entry.value, formatCardTimestampDate);
+        item.appendChild(time);
+
+        timestampEl.appendChild(item);
+    }
+}
+
+function updateCardEditorUpdatedTimestamp(updatedAt = new Date().toISOString()) {
+    const timestampEl = document.getElementById('cardEditorTimestampMetadata');
+    if (!timestampEl) {
+        return;
+    }
+
+    renderCardEditorTimestamps({
+        createdAt: timestampEl.dataset.createdAt || '',
+        updatedAt,
+    });
+}
+
 let pendingEditorBody = '';
 let pendingEditorSaveTimer = null;
 let editorSaveInFlight = Promise.resolve();
@@ -129,7 +181,12 @@ function getActiveEditorCardPath() {
 
 function isCardEditorActive() {
     const modalEditCard = document.getElementById('modalEditCard');
-    if (!modalEditCard || modalEditCard.style.display !== 'block') {
+    if (
+        !modalEditCard ||
+        modalEditCard.classList.contains('hidden') ||
+        modalEditCard.getAttribute('aria-hidden') === 'true' ||
+        modalEditCard.style.display === 'none'
+    ) {
         return false;
     }
 
@@ -203,11 +260,14 @@ function isActiveEditorUnchangedFromDisk() {
         && JSON.stringify(getEditorFrontmatter()) === activeEditorDiskState.frontmatterJson;
 }
 
-async function renderActiveEditorMetadata(frontmatter = {}) {
+async function renderActiveEditorMetadata(frontmatter = {}, timestamps) {
     const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
     const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
 
     setEditorLabelDisplay(frontmatter.labels);
+    if (timestamps !== undefined) {
+        renderCardEditorTimestamps(timestamps);
+    }
 
     if (!cardEditorCardDueDateDisplay) {
         return;
@@ -259,7 +319,7 @@ async function refreshActiveCardEditorFromDiskIfClean() {
             cardEditorTitle.textContent = card.frontmatter.title || '';
         }
 
-        await renderActiveEditorMetadata(card.frontmatter);
+        await renderActiveEditorMetadata(card.frontmatter, card.timestamps);
 
         if (activeCardEditorInstance && typeof activeCardEditorInstance.setValue === 'function') {
             activeCardEditorInstance.setValue(card.body);
@@ -356,6 +416,7 @@ async function saveEditorCard(bodyValue) {
             frontmatter: normalizedFrontmatter,
             body: normalizedBody,
         });
+        updateCardEditorUpdatedTimestamp();
 
         setActiveEditorDiskState(cardPath, {
             frontmatter: normalizedFrontmatter,
@@ -1065,6 +1126,7 @@ async function toggleEditCardModal(cardPath, options = {}) {
     cardEditorCardDueDateDisplay.textContent = '';
     setDueDateVisualClass(cardEditorSetDueDateLink, '');
     setEditorLabelDisplay(card.frontmatter.labels);
+    renderCardEditorTimestamps(card.timestamps);
 
     if (card.frontmatter.due) {
         cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(card.frontmatter.due);
@@ -1193,14 +1255,14 @@ async function toggleEditCardModal(cardPath, options = {}) {
 
     if (typeof setAccessibleModalVisible === 'function') {
         setAccessibleModalVisible(modalEditCard, true, {
-            display: 'block',
+            display: 'flex',
             initialFocus: shouldOpenDueDatePicker
                 ? '#cardEditorSetDueDateLink'
                 : (shouldFocusNotes ? '#cardEditorOverType .overtype-input' : '#cardEditorTitle'),
             labelledBy: 'cardEditorTitle',
         });
     } else {
-        modalEditCard.style.display = 'block';
+        modalEditCard.style.display = 'flex';
         modalEditCard.classList.remove('hidden');
         modalEditCard.setAttribute('aria-hidden', 'false');
     }
@@ -1461,6 +1523,16 @@ async function refreshCardEditorAfterMove(newPath) {
         const cardID = await window.board.getCardID(newPath);
         cardEditorCardID.textContent = cardID;
         cardEditorCardID.setAttribute('aria-label', `Open card file ${cardID}`);
+    }
+
+    try {
+        const movedCard = await window.board.readCard(newPath);
+        setEditorFrontmatter(movedCard.frontmatter);
+        await renderActiveEditorMetadata(movedCard.frontmatter, movedCard.timestamps);
+        setActiveEditorDiskState(newPath, movedCard);
+    } catch (error) {
+        console.error('Failed to refresh moved card metadata.', error);
+        updateCardEditorUpdatedTimestamp();
     }
 
     await renderBoard();

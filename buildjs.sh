@@ -10,6 +10,7 @@ cat \
   app/utilities/dueNotifications.js \
   app/utilities/accessibility.js \
   app/utilities/cardDragTilt.js \
+  app/utilities/cardTimestamps.js \
   app/appSettings.js \
   app/board/boardLabels.js \
   app/board/boardSearch.js \

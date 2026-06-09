@@ -275,6 +275,7 @@ function createContext() {
   vm.createContext(context);
   loadSource(context, 'app/utilities/dueDateStatus.js');
   loadSource(context, 'app/utilities/taskList.js');
+  loadSource(context, 'app/utilities/cardTimestamps.js');
   loadSource(context, 'app/board/boardLabels.js');
   loadSource(context, 'app/board/boardSearch.js');
   loadSource(context, 'app/board/boardViews.js');
@@ -511,8 +512,46 @@ async function run() {
   const tableHeader = context.createBoardTableHeader();
   assert.deepStrictEqual(
     toPlain(tableHeader.children[0].children.map((headerCell) => headerCell.textContent)),
-    ['Due', 'Tasks', 'Card', 'List', 'Labels'],
+    ['Due', 'Updated', 'Created', 'Tasks', 'Card', 'List', 'Labels'],
     'expected table columns to keep the configured order',
+  );
+
+  const sortableTableCards = [
+    {
+      title: 'New untouched',
+      boardOrderIndex: 0,
+      timestamps: {
+        createdAt: '2026-03-09T12:00:00.000Z',
+        updatedAt: '2026-03-09T12:00:00.000Z',
+      },
+    },
+    {
+      title: 'Old stale',
+      boardOrderIndex: 1,
+      timestamps: {
+        createdAt: '2026-01-10T12:00:00.000Z',
+        updatedAt: '2026-01-20T12:00:00.000Z',
+      },
+    },
+    {
+      title: 'Old active',
+      boardOrderIndex: 2,
+      timestamps: {
+        createdAt: '2026-01-05T12:00:00.000Z',
+        updatedAt: '2026-03-10T12:00:00.000Z',
+      },
+    },
+  ];
+
+  assert.deepStrictEqual(
+    toPlain(context.sortBoardTableCards(sortableTableCards, 'updated-asc').map((entry) => entry.title)),
+    ['Old stale', 'New untouched', 'Old active'],
+    'expected updated oldest-first sort to surface stale cards',
+  );
+  assert.deepStrictEqual(
+    toPlain(context.sortBoardTableCards(sortableTableCards, 'created-asc').map((entry) => entry.title)),
+    ['Old active', 'Old stale', 'New untouched'],
+    'expected created oldest-first sort to surface oldest cards',
   );
 
   context.renderBoardViewPopover();

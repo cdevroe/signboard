@@ -20,7 +20,7 @@ If you want structured tool access from an agent, see [MCP Server](../MCP_README
 
 - Creating and organizing boards, lists, and cards
 - Drag-and-drop movement, including the empty insertion slot shown while dragging cards
-- Due dates, task lists, labels, completed-list workflow settings, Kanban/Table board views, Planner date views, and External Published Calendar
+- Due dates, task lists, labels, completed-list workflow settings, Kanban/Table board views, card age sorting in Table, Planner date views, and External Published Calendar
 - Archiving and restoring cards and lists
 - Settings, including app-wide tooltips/notifications/Quick Add global shortcut/External Published Calendar and board-specific workflow, colors, labels, and imports
 - Native text editing context menus in editable fields

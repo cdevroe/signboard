@@ -9,6 +9,7 @@ Signboard is a local-first board app built with Electron and plain JavaScript. B
 - Board-level settings are stored in `board-settings.md` at the board root, including labels, color scheme data, completed-list workflow rules, and whether the board participates in External Published Calendar.
 - App-level tooltip, notification, Quick Add global shortcut, and External Published Calendar settings are stored in `app-settings.json` under Electron `userData`.
 - Card metadata is stored in YAML frontmatter (with legacy parser support).
+- Desktop card reads expose normalized timestamps in addition to frontmatter/body. `timestamps.createdAt` prefers `createdAt` frontmatter, then a `created` activity entry, then filesystem birth/ctime/mtime for legacy cards; `timestamps.updatedAt` comes from filesystem modification time.
 - Task checklist lines in card bodies can store task due markers with `(due: YYYY-MM-DD)`.
 
 ## Runtime Architecture
@@ -156,6 +157,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Loads board label definitions and temporary filter state before rendering cards.
 - `app/board/tableView.js`:
   - Renders active-board cards in board/list order as a dense table.
+  - Shows `Updated` and `Created` age columns and a compact sort control for board order, oldest/newest updated, oldest/newest created, due date, and title.
   - Reuses board search, label filters, Today/Overdue date filters, task progress badges, and completed-list workflow handling.
   - Moves a card to another list through the row list dropdown by calling the same top-of-list move IPC path as the card editor.
   - Defers row list dropdown DOM updates until macOS native menu tracking has settled.
@@ -221,6 +223,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Quick Add card submissions can target any currently open/trusted board, request opening the created card immediately with the notes field focused, and switch to the target board first when `Shift + Enter` creates a card outside the active board.
 - `app/modals/toggleEditCardModal.js`:
   - Loads card into OverType editor.
+  - Displays quiet `Created` and `Updated` card timestamps from the normalized desktop read metadata.
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
   - Tracks the clean on-disk editor state so external/MCP updates can reload an open card editor when the user has no local edits in progress.
