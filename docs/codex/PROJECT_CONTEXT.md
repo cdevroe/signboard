@@ -9,7 +9,7 @@ Signboard is a local-first board app built with Electron and plain JavaScript. B
 - Board-level settings are stored in `board-settings.md` at the board root, including labels, color scheme data, completed-list workflow rules, and whether the board participates in External Published Calendar.
 - App-level tooltip, notification, Quick Add global shortcut, and External Published Calendar settings are stored in `app-settings.json` under Electron `userData`.
 - Card metadata is stored in YAML frontmatter (with legacy parser support).
-- Desktop card reads expose normalized timestamps in addition to frontmatter/body. `timestamps.createdAt` prefers `createdAt` frontmatter, then a `created` activity entry, then filesystem birth/ctime/mtime for legacy cards; `timestamps.updatedAt` comes from filesystem modification time.
+- Desktop card reads, CLI JSON card output, and MCP card tool responses expose normalized timestamps in addition to frontmatter/body. `timestamps.createdAt` prefers `createdAt` frontmatter, then a `created` activity entry, then filesystem birth/ctime/mtime for legacy cards; `timestamps.updatedAt` comes from filesystem modification time. CLI card listing also supports age-oriented sort keys for updated/created oldest/newest.
 - Task checklist lines in card bodies can store task due markers with `(due: YYYY-MM-DD)`.
 
 ## Runtime Architecture
@@ -318,6 +318,11 @@ File: `lib/cardLifecycle.js`
   - compact `activity` entry creation
   - temporary archive frontmatter state
   - `moved-list` / `archived` / `restored` card metadata transitions
+
+File: `lib/cardTimestamps.js`
+
+- Shared timestamp resolver for desktop reads, CLI JSON output/sorting, and MCP card responses.
+- Normalizes `createdAt` from frontmatter/activity or legacy filesystem fallback and `updatedAt` from filesystem modification time.
 
 File: `lib/cardBodyEdits.js`
 

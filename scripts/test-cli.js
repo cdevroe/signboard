@@ -64,6 +64,9 @@ async function createFixtureBoard() {
   const doingList = path.join(boardRoot, '001-Doing-stock');
   const backlogList = path.join(boardRoot, '002-Backlog-stock');
   const archiveDirectory = path.join(boardRoot, 'XXX-Archive');
+  const launchPlanPath = path.join(todoList, '001-launch-plan-ab123.md');
+  const clientFollowUpPath = path.join(todoList, '002-client-follow-up-cd456.md');
+  const internalReviewPath = path.join(doingList, '001-internal-review-ef789.md');
 
   await fs.mkdir(todoList, { recursive: true });
   await fs.mkdir(doingList, { recursive: true });
@@ -78,9 +81,10 @@ async function createFixtureBoard() {
     ],
   });
 
-  await cardFrontmatter.writeCard(path.join(todoList, '001-launch-plan-ab123.md'), {
+  await cardFrontmatter.writeCard(launchPlanPath, {
     frontmatter: {
       title: 'Launch plan',
+      createdAt: '2026-01-10T12:00:00.000Z',
       due: daysFromTodayIso(3),
       labels: ['urgent', 'template'],
     },
@@ -96,17 +100,19 @@ async function createFixtureBoard() {
     ].join('\n'),
   });
 
-  await cardFrontmatter.writeCard(path.join(todoList, '002-client-follow-up-cd456.md'), {
+  await cardFrontmatter.writeCard(clientFollowUpPath, {
     frontmatter: {
       title: 'Client follow up',
+      createdAt: '2026-01-05T12:00:00.000Z',
       labels: ['client'],
     },
     body: `Follow up with client\n- [ ] (due: ${daysFromTodayIso(5)}) Schedule check-in`,
   });
 
-  await cardFrontmatter.writeCard(path.join(doingList, '001-internal-review-ef789.md'), {
+  await cardFrontmatter.writeCard(internalReviewPath, {
     frontmatter: {
       title: 'Internal review',
+      createdAt: '2026-02-01T12:00:00.000Z',
     },
     body: 'Review notes',
   });
@@ -132,6 +138,12 @@ async function createFixtureBoard() {
     },
     body: `Card-level due date only\n- [x] (due: ${daysFromTodayIso(-3)}) Finished prep`,
   });
+
+  await Promise.all([
+    fs.utimes(launchPlanPath, new Date('2026-03-10T12:00:00.000Z'), new Date('2026-03-10T12:00:00.000Z')),
+    fs.utimes(clientFollowUpPath, new Date('2026-02-10T12:00:00.000Z'), new Date('2026-02-10T12:00:00.000Z')),
+    fs.utimes(internalReviewPath, new Date('2026-01-20T12:00:00.000Z'), new Date('2026-01-20T12:00:00.000Z')),
+  ]);
 
   const standaloneArchivedSourcePath = path.join(todoList, '003-archived-standalone-mn901.md');
   await cardFrontmatter.writeCard(standaloneArchivedSourcePath, {
@@ -337,6 +349,33 @@ async function main() {
   assert.strictEqual(dueCards.length, 2);
   assert.ok(dueCards.some((card) => card.title === 'Launch plan'));
   assert.ok(dueCards.some((card) => card.title === 'Client follow up'));
+  assert.ok(dueCards.every((card) => card.timestamps && card.timestamps.createdAt && card.timestamps.updatedAt));
+
+  const createdOldestCards = JSON.parse(
+    runCli([
+      'cards',
+      '--sort',
+      'created-oldest',
+      '--limit',
+      '1',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(createdOldestCards[0].title, 'Client follow up');
+  assert.strictEqual(createdOldestCards[0].timestamps.createdAt, '2026-01-05T12:00:00.000Z');
+
+  const updatedOldestCards = JSON.parse(
+    runCli([
+      'cards',
+      '--sort',
+      'updated-oldest',
+      '--limit',
+      '1',
+      '--json',
+    ], env).stdout
+  );
+  assert.strictEqual(updatedOldestCards[0].title, 'Internal review');
+  assert.strictEqual(updatedOldestCards[0].timestamps.updatedAt, '2026-01-20T12:00:00.000Z');
 
   const overdueCards = JSON.parse(
     runCli([
@@ -434,6 +473,8 @@ async function main() {
   assert.strictEqual(duplicatePreview.title, 'Lead from template');
   assert.ok(duplicatePreview.labels.includes('urgent'));
   assert.ok(!duplicatePreview.labels.includes('template'));
+  assert.ok(duplicatePreview.timestamps.createdAt);
+  assert.strictEqual(duplicatePreview.timestamps.updatedAt, '');
 
   const waitingAfterDuplicatePreview = JSON.parse(runCli(['cards', 'Waiting', '--json'], env).stdout);
   assert.strictEqual(waitingAfterDuplicatePreview.length, 0);
@@ -458,6 +499,8 @@ async function main() {
   assert.ok(duplicatedCard.labels.includes('urgent'));
   assert.ok(!duplicatedCard.labels.includes('template'));
   assert.strictEqual(duplicatedCard.taskSummary.total, 1);
+  assert.ok(duplicatedCard.timestamps.createdAt);
+  assert.ok(duplicatedCard.timestamps.updatedAt);
 
   const preparedBodyPath = path.join(fixture.root, 'prepared.md');
   const replacementNotesPath = path.join(fixture.root, 'replacement-notes.md');
@@ -640,6 +683,8 @@ async function main() {
   );
   assert.strictEqual(readCard.title, 'Needs approval');
   assert.strictEqual(readCard.listDisplayName, 'Doing');
+  assert.ok(readCard.timestamps.createdAt);
+  assert.ok(readCard.timestamps.updatedAt);
 
   const doingCards = JSON.parse(
     runCli([

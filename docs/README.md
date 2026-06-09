@@ -27,7 +27,7 @@ If you want structured tool access from an agent, see [MCP Server](../MCP_README
 - Accessibility support for keyboard-operable cards/list actions, modal focus handling, live status announcements, reduced motion, and forced-colors mode
 - Keyboard result/menu navigation for board search, Planner search, Archive search, board tabs, list actions, label/filter popovers, and Settings sections
 - Keyboard shortcuts for Quick Add card creation across open boards, creating lists, switching and closing open boards, opening Planner views across all open boards or the current board, cycling colors, moving open cards, archiving, and opening Archive
-- CLI setup, board creation, command reference, filters, JSON output, card duplication/template workflows, dry-run previews, archive workflows, settings, and imports
+- CLI setup, board creation, command reference, filters, age sorting, timestamp JSON output, card duplication/template workflows, dry-run previews, archive workflows, settings, and imports
 - MCP trusted-root behavior and board-name lookup
 
 ## File-First Model

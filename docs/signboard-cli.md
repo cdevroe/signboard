@@ -119,6 +119,8 @@ signboard cards --due today
 signboard cards --due next:7 --due-source any
 signboard cards --due overdue --task-status open
 signboard cards --sort due
+signboard cards --sort updated-oldest
+signboard cards --sort created-oldest
 signboard cards --limit 10
 signboard cards --include-archive
 ```
@@ -132,9 +134,11 @@ Useful filters:
 - `--due today|tomorrow|overdue|upcoming|this-week|next:7|next:14|next:30|YYYY-MM-DD|none`
 - `--due-source any|card|task`
 - `--task-status open|any`
-- `--sort list|due|title|updated`
+- `--sort list|due|title|updated|updated-oldest|updated-newest|created-oldest|created-newest`
 - `--limit <n>`
 - `--include-archive`
+
+`updated` is kept as a compatibility alias for `updated-newest`. JSON card output includes `timestamps.createdAt` and `timestamps.updatedAt`; `createdAt` prefers Signboard card metadata and falls back to filesystem timestamps for older cards.
 
 #### Read one card
 
@@ -364,6 +368,13 @@ signboard cards --label Docs --label Review --label-mode all
 
 ```bash
 signboard cards --sort updated --limit 20 --json
+```
+
+### Find stale or oldest cards
+
+```bash
+signboard cards --sort updated-oldest --limit 20 --json
+signboard cards --sort created-oldest --limit 20 --json
 ```
 
 ## Archive Workflows

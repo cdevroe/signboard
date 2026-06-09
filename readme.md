@@ -162,7 +162,7 @@ Interesting card listing filters:
 - `--label <name-or-id>` (repeatable)
 - `--label-mode any|all`
 - `--search <query>`
-- `--sort list|due|title|updated`
+- `--sort list|due|title|updated|updated-oldest|updated-newest|created-oldest|created-newest`
 - `--json` for scripting output
 
 Import options:

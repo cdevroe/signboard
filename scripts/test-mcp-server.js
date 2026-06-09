@@ -73,6 +73,23 @@ function readNdjsonFrames(buffer, onFrame) {
   }
 }
 
+function assertCardTimestamps(card, contextLabel) {
+  const timestamps = card && card.timestamps;
+  if (!timestamps || typeof timestamps !== 'object') {
+    throw new Error(`${contextLabel} did not include card.timestamps.`);
+  }
+
+  if (!timestamps.createdAt || Number.isNaN(Date.parse(timestamps.createdAt))) {
+    throw new Error(`${contextLabel} included invalid createdAt: ${JSON.stringify(timestamps)}`);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(timestamps, 'updatedAt') && timestamps.updatedAt) {
+    if (Number.isNaN(Date.parse(timestamps.updatedAt))) {
+      throw new Error(`${contextLabel} included invalid updatedAt: ${JSON.stringify(timestamps)}`);
+    }
+  }
+}
+
 async function createFixtureBoard() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-mcp-test-'));
   const boardName = 'Good Migrations';
@@ -462,6 +479,7 @@ async function runForTransport(transportMode, fixture) {
   if (createdBoardCard.frontmatter?.title !== '👋 Start Here') {
     throw new Error(`create_board starter card title mismatch (${transportMode}): ${JSON.stringify(createdBoardCard)}`);
   }
+  assertCardTimestamps(createdBoardCard, `read_card starter card (${transportMode})`);
   const starterBody = String(createdBoardCard.body || '');
   if (!starterBody.includes('Quick Add') || !starterBody.includes('Cmd/Ctrl + K')) {
     throw new Error(`create_board starter card copy missing current workflow hints (${transportMode}): ${starterBody}`);
@@ -494,6 +512,7 @@ async function runForTransport(transportMode, fixture) {
   if (!duplicateOutput.cardFile || duplicateOutput.cardFile === fixture.templateCardFile) {
     throw new Error(`duplicate_card returned invalid cardFile (${transportMode}): ${JSON.stringify(duplicateOutput)}`);
   }
+  assertCardTimestamps(duplicateOutput.card, `duplicate_card (${transportMode})`);
 
   const duplicatedLabels = Array.isArray(duplicateOutput.card?.frontmatter?.labels)
     ? duplicateOutput.card.frontmatter.labels
@@ -969,6 +988,7 @@ async function runForTransport(transportMode, fixture) {
   }
 
   const readCardOutput = readCardResponse.result?.structuredContent || {};
+  assertCardTimestamps(readCardOutput.card, `read_card (${transportMode})`);
   if (!readCardOutput.taskSummary || readCardOutput.taskSummary.total !== 3 || readCardOutput.taskSummary.completed !== 2) {
     throw new Error(`read_card taskSummary mismatch (${transportMode}): ${JSON.stringify(readCardOutput)}`);
   }
@@ -997,6 +1017,7 @@ async function runForTransport(transportMode, fixture) {
   }
 
   const updateCardOutput = updateCardResponse.result?.structuredContent || {};
+  assertCardTimestamps(updateCardOutput.card, `update_card (${transportMode})`);
   if (!updateCardOutput.taskSummary || updateCardOutput.taskSummary.total !== 3 || updateCardOutput.taskSummary.completed !== 3) {
     throw new Error(`update_card taskSummary mismatch (${transportMode}): ${JSON.stringify(updateCardOutput)}`);
   }
@@ -1025,6 +1046,7 @@ async function runForTransport(transportMode, fixture) {
   }
 
   const createCardOutput = createCardResponse.result?.structuredContent || {};
+  assertCardTimestamps(createCardOutput.card, `create_card (${transportMode})`);
   if (!createCardOutput.taskSummary || createCardOutput.taskSummary.total !== 4 || createCardOutput.taskSummary.completed !== 3) {
     throw new Error(`create_card taskSummary mismatch (${transportMode}): ${JSON.stringify(createCardOutput)}`);
   }

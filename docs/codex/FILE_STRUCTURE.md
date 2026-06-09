@@ -61,7 +61,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support.
 - `lib/cardLifecycle.js` - Shared card lifecycle metadata helper for `createdAt`, compact `activity` trails, archive frontmatter state, and moved/restored transitions.
-- `lib/cardTimestamps.js` - Shared timestamp resolver for desktop/CLI card records, preferring frontmatter/activity creation data and filesystem modification data.
+- `lib/cardTimestamps.js` - Shared timestamp resolver for desktop reads, CLI card records/JSON output, and MCP card responses, preferring frontmatter/activity creation data and filesystem modification data.
 - `lib/cardOrdering.js` - Shared list-card ordering helper used by main-process/MCP restore and move flows to insert a card at the top while renumbering existing files.
 - `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
 - `lib/boardLabels.js` - Board-level label/theme/workflow/External Published Calendar inclusion settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
@@ -73,9 +73,9 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/importers/obsidian.js` - Obsidian importer covering `obsidian-kanban`, generic task scopes, and CardBoard snapshot imports.
 - `lib/cardBodyEdits.js` - Shared Markdown body-edit helpers for replacing heading sections, inserting text below headings, and appending timestamped note list items.
 - `lib/boardCreation.js` - Shared default board scaffolding for MCP and CLI-created boards, including default list folders and the starter card body/frontmatter.
-- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings/archive operations inside configured or desktop-trusted roots, safe board creation, archive browse/read/restore tools, Trello/Obsidian/Tasks.md imports, dry-run card writes, and task-summary metadata on card tools.
-- `lib/cliApp.js` - CLI command parsing/output for `use`, `boards`, `lists`, `cards`, `archive`, `settings`, and path-based `import` commands, including board creation, card duplicate/template commands, section/note card edits, dry-run previews, and `--task-status open|any` for card due filtering.
-- `lib/cliBoard.js` - CLI list/card filesystem operations, record loading, card duplication/template creation, section/note body edits, explicit label clearing, and due/search/label filtering; overdue task filtering defaults to incomplete/open task markers unless callers pass `--task-status any`.
+- `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings/archive operations inside configured or desktop-trusted roots, safe board creation, archive browse/read/restore tools, Trello/Obsidian/Tasks.md imports, dry-run card writes, and timestamp/task metadata on card tools.
+- `lib/cliApp.js` - CLI command parsing/output for `use`, `boards`, `lists`, `cards`, `archive`, `settings`, and path-based `import` commands, including board creation, card duplicate/template commands, section/note card edits, dry-run previews, JSON timestamp output, and `--task-status open|any` for card due filtering.
+- `lib/cliBoard.js` - CLI list/card filesystem operations, record loading, card duplication/template creation, section/note body edits, explicit label clearing, due/search/label filtering, and created/updated age sorting; overdue task filtering defaults to incomplete/open task markers unless callers pass `--task-status any`.
 - `lib/cliInstall.js` - User-level CLI shim + shell profile installation; packaged shims run `app.asar/bin/signboard.js` under `ELECTRON_RUN_AS_NODE` instead of launching the desktop lifecycle.
 
 ## Scripts (`scripts/`)

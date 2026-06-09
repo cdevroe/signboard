@@ -97,10 +97,10 @@ The server currently exposes these tools:
 - `signboard_create_board` (write mode only)
 - `signboard_list_lists`
 - `signboard_list_cards`
-- `signboard_read_card` (includes `taskSummary` + `taskDueDates`)
-- `signboard_create_card` (write mode only, includes `taskSummary` + `taskDueDates`; supports `dryRun`)
-- `signboard_update_card` (write mode only, includes `taskSummary` + `taskDueDates`; supports section edits, note insertion, label operations, and `dryRun`)
-- `signboard_duplicate_card` (write mode only, includes `taskSummary` + `taskDueDates`; supports title/body override, label operations, and `dryRun`)
+- `signboard_read_card` (includes `timestamps`, `taskSummary`, and `taskDueDates`)
+- `signboard_create_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports `dryRun`)
+- `signboard_update_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports section edits, note insertion, label operations, and `dryRun`)
+- `signboard_duplicate_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports title/body override, label operations, and `dryRun`)
 - `signboard_archive_card` (write mode only)
 - `signboard_move_card` (write mode only)
 - `signboard_create_list` (write mode only)
@@ -118,10 +118,12 @@ Board-scoped tools take absolute `boardRoot` paths, `signboard_create_board` tak
 Board settings tools include labels, theme overrides, completed-list workflow settings, and board-level External Published Calendar inclusion. App tooltip, notification, Quick Add, and External Published Calendar server preferences are desktop app settings.
 Import tools also take absolute external source paths, and those paths must resolve inside configured or trusted roots.
 
-## Task Metadata in Card Tool Responses
+## Card Metadata in Card Tool Responses
 
 `signboard_read_card`, `signboard_create_card`, `signboard_update_card`, and `signboard_duplicate_card` return:
 
+- `card.timestamps.createdAt`: ISO timestamp for when the card was created, preferring Signboard card metadata and falling back to filesystem timestamps for older cards
+- `card.timestamps.updatedAt`: ISO timestamp from the card file's filesystem modification time when available
 - `taskSummary`: `{ total, completed, remaining }`
 - `taskDueDates`: sorted unique ISO dates found in task lines (`YYYY-MM-DD`)
 
