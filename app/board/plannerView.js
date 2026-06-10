@@ -944,7 +944,11 @@ async function handlePlannerCardDrop(evt, rangePredicate) {
   }
 
   try {
-    await window.board.updateFrontmatter(cardPath, { due: targetDate });
+    if (typeof moveTemporalCardDueDate === 'function') {
+      await moveTemporalCardDueDate(cardPath, sourceDate, targetDate, draggedCard);
+    } else {
+      await window.board.updateFrontmatter(cardPath, { due: targetDate });
+    }
     draggedCard.dataset.due = targetDate;
   } catch (error) {
     console.error('Failed to move Planner card to a new date.', error);

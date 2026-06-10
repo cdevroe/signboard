@@ -39,6 +39,104 @@ function formatLocalIsoDate(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function getCurrentMonthDate(dayOfMonth) {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
+}
+
+function getCurrentWeekDate(dayOffset) {
+  const today = new Date();
+  const mondayFirstOffset = (today.getDay() + 6) % 7;
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate() - mondayFirstOffset + dayOffset);
+}
+
+async function openCurrentBoardPlannerView(page, shortcut, viewSelector) {
+  await page.keyboard.press(getShortcut(shortcut));
+  await expect(page.locator('#plannerOverlay')).toBeVisible();
+  await expect(page.locator(viewSelector)).toBeVisible();
+}
+
+async function getPlannerTemporalSortableEndTarget(sourceLocator, targetIso) {
+  return await sourceLocator.evaluate((item, targetDate) => {
+    if (!(item instanceof HTMLElement)) {
+      throw new Error('Planner temporal card was not an HTMLElement.');
+    }
+
+    const from = item.closest('.board-calendar-day-cards, .board-this-week-day-cards');
+    const targetSelector = from && from.classList.contains('board-this-week-day-cards')
+      ? `.planner-this-week .board-this-week-day-cards[data-date="${targetDate}"]`
+      : `.planner-calendar .board-calendar-day-cards[data-date="${targetDate}"]`;
+    const to = document.querySelector(targetSelector);
+
+    if (!(from instanceof HTMLElement) || !(to instanceof HTMLElement)) {
+      throw new Error('Unable to resolve Planner temporal drop containers.');
+    }
+    if (typeof createBoardCardSortableOptions !== 'function') {
+      throw new Error('Sortable options helper is unavailable.');
+    }
+
+    const rect = item.getBoundingClientRect();
+    const pointer = {
+      clientX: rect.left + (rect.width / 2),
+      clientY: rect.top + (rect.height / 2),
+    };
+    const options = createBoardCardSortableOptions();
+    const evt = {
+      item,
+      from,
+      to,
+      originalEvent: pointer,
+    };
+
+    options.onStart(evt);
+    options.onEnd(evt);
+
+    return {
+      toClass: evt.to instanceof HTMLElement ? evt.to.className : '',
+      toDate: evt.to instanceof HTMLElement ? String(evt.to.dataset.date || '') : '',
+      parentClass: item.parentElement instanceof HTMLElement ? item.parentElement.className : '',
+      parentDate: item.parentElement instanceof HTMLElement ? String(item.parentElement.dataset.date || '') : '',
+    };
+  }, targetIso);
+}
+
+async function dropPlannerTemporalCardOnDate(sourceLocator, targetIso) {
+  await sourceLocator.evaluate(async (item, targetDate) => {
+    if (!(item instanceof HTMLElement)) {
+      throw new Error('Planner temporal card was not an HTMLElement.');
+    }
+
+    const from = item.closest('.board-calendar-day-cards, .board-this-week-day-cards');
+    const targetSelector = from && from.classList.contains('board-this-week-day-cards')
+      ? `.planner-this-week .board-this-week-day-cards[data-date="${targetDate}"]`
+      : `.planner-calendar .board-calendar-day-cards[data-date="${targetDate}"]`;
+    const to = document.querySelector(targetSelector);
+
+    if (!(from instanceof HTMLElement) || !(to instanceof HTMLElement)) {
+      throw new Error('Unable to resolve Planner temporal drop containers.');
+    }
+    if (typeof handlePlannerCardDrop !== 'function') {
+      throw new Error('Planner drop handler is unavailable.');
+    }
+
+    await handlePlannerCardDrop({ item, from, to }, () => true);
+    if (typeof renderPlannerView === 'function') {
+      await renderPlannerView();
+    }
+  }, targetIso);
+}
+
+async function writeCardWithSingleTaskDue(cardPath, sourceIso, taskText) {
+  const card = await cardFrontmatter.readCard(cardPath);
+  const frontmatter = { ...card.frontmatter };
+  delete frontmatter.due;
+
+  await cardFrontmatter.writeCard(cardPath, {
+    frontmatter,
+    body: `- [ ] (due: ${sourceIso}) ${taskText}\n\nContext for the task due drag regression.`,
+  });
+}
+
 async function pathExists(targetPath) {
   try {
     await fs.access(targetPath);
@@ -101,6 +199,81 @@ async function getVerticalGap(upperLocator, lowerLocator) {
   }
 
   return lowerBox.y - (upperBox.y + upperBox.height);
+}
+
+async function getBoardCardDragState(page, pointer = null) {
+  return await page.evaluate((currentPointer) => {
+    const fallback = document.querySelector('.card-sortable--fallback');
+    const fallbackRect = fallback instanceof HTMLElement
+      ? fallback.getBoundingClientRect()
+      : null;
+    const pointerDistance = (() => {
+      if (!currentPointer || !fallbackRect) {
+        return null;
+      }
+
+      const closestX = Math.max(fallbackRect.left, Math.min(currentPointer.x, fallbackRect.right));
+      const closestY = Math.max(fallbackRect.top, Math.min(currentPointer.y, fallbackRect.bottom));
+      return Math.hypot(currentPointer.x - closestX, currentPointer.y - closestY);
+    })();
+
+    return {
+      activeDrag: document.body.classList.contains('board-card-drag-active'),
+      fallbackCount: document.querySelectorAll('.card-sortable--fallback').length,
+      ghostCount: document.querySelectorAll('.card-sortable--ghost').length,
+      draggingCount: document.querySelectorAll('.card-sortable--dragging').length,
+      fallbackInCardListCount: Array.from(document.querySelectorAll('.card-sortable--fallback')).filter((element) => element.closest('.cards')).length,
+      fallbackRect: fallbackRect
+        ? {
+            left: Math.round(fallbackRect.left),
+            top: Math.round(fallbackRect.top),
+            right: Math.round(fallbackRect.right),
+            bottom: Math.round(fallbackRect.bottom),
+            width: Math.round(fallbackRect.width),
+            height: Math.round(fallbackRect.height),
+          }
+        : null,
+      pointerDistance: pointerDistance === null ? null : Math.round(pointerDistance),
+      cardsByPath: Array.from(document.querySelectorAll('.card[data-path]')).reduce((counts, element) => {
+        const cardPath = String(element.dataset.path || '');
+        counts[cardPath] = (counts[cardPath] || 0) + 1;
+        return counts;
+      }, {}),
+    };
+  }, pointer);
+}
+
+async function moveMouseSlowlyAndSampleDrag(page, from, to, options = {}) {
+  const steps = options.steps || 20;
+  const label = options.label || 'move';
+  const pauseMs = options.pauseMs || 10;
+  const samples = [];
+
+  for (let index = 1; index <= steps; index += 1) {
+    const ratio = index / steps;
+    const point = {
+      x: from.x + ((to.x - from.x) * ratio),
+      y: from.y + ((to.y - from.y) * ratio),
+    };
+
+    await page.mouse.move(point.x, point.y);
+    if (pauseMs > 0) {
+      await page.waitForTimeout(pauseMs);
+    }
+
+    const state = await getBoardCardDragState(page, point);
+    samples.push({
+      label,
+      step: index,
+      point: {
+        x: Math.round(point.x),
+        y: Math.round(point.y),
+      },
+      ...state,
+    });
+  }
+
+  return samples;
 }
 
 async function openBoardMenu(page) {
@@ -402,6 +575,25 @@ test('exposes Obsidian actions and generates a board Base', async ({ page, board
   await renamedRelatedNoteButton.click();
   await expect(page.locator('#signboardStatusRegion'))
     .toHaveText('Opened Renamed Project Brief.');
+  await fs.unlink(renamedLinkedNotePath);
+  await page.locator('#cardEditorClose').click();
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+  await openFirstCardInEditor(page);
+
+  const missingRelatedNoteButton = page
+    .locator('#cardEditorRelatedNotes')
+    .getByRole('button', { name: 'Open missing Renamed Project Brief' });
+  await expect(missingRelatedNoteButton).toBeVisible();
+  await expect(page.locator('#cardEditorRelatedNotes .card-editor-related-note.is-missing')).toContainText('Missing: Renamed Project Brief');
+  await expect(page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Recreate Renamed Project Brief' })).toBeVisible();
+  await expect(page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Relink Renamed Project Brief' })).toBeVisible();
+  await missingRelatedNoteButton.click();
+  await expect(page.locator('#signboardStatusRegion'))
+    .toHaveText('Linked note not found.');
+  await page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Recreate Renamed Project Brief' }).click();
+  await fs.access(renamedLinkedNotePath);
+  await expect(page.locator('#cardEditorRelatedNotes .card-editor-related-note.is-missing')).toHaveCount(0);
+  await expect(page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Open Renamed Project Brief' })).toBeVisible();
   await page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Remove Renamed Project Brief' }).click();
   await expect(page.locator('#cardEditorRelatedNotes')).toBeHidden();
   await expect(page.locator('#cardEditorLinkedObjectsCount')).toBeHidden();
@@ -770,6 +962,343 @@ test('does not leave duplicate card nodes after rapid cross-list dragging', asyn
   }
 });
 
+test('keeps slow cross-list dragging healthy over blank board areas', async ({ page, boardRoot }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 942, height: 746 });
+
+  const todoListPath = path.join(boardRoot, '000-To-do-stock');
+  const doingListPath = path.join(boardRoot, '001-Doing-stock');
+  const doneListPath = path.join(boardRoot, '002-Done-stock');
+
+  await Promise.all([
+    fs.rm(path.join(doingListPath, '000-polish-copy-stock.md'), { force: true }),
+    cardFrontmatter.writeCard(path.join(todoListPath, '001-test-weather-variations-stock.md'), {
+      frontmatter: {
+        title: 'Add a way to test all weather variations',
+        createdAt: '2026-04-01T12:00:00.000Z',
+      },
+      body: '',
+    }),
+    cardFrontmatter.writeCard(path.join(doneListPath, '001-add-hard-mode-stock.md'), {
+      frontmatter: {
+        title: 'Add Hard Mode',
+        createdAt: '2026-04-02T12:00:00.000Z',
+      },
+      body: 'Describe hard mode here.',
+    }),
+    cardFrontmatter.writeCard(path.join(doneListPath, '002-dark-mode-keyboard-stock.md'), {
+      frontmatter: {
+        title: 'Bug: Clicking on Dark Mode causes keyboard to show on mobile',
+        createdAt: '2026-04-03T12:00:00.000Z',
+      },
+      body: 'When a user clicks on the Dark Mode...',
+    }),
+    cardFrontmatter.writeCard(path.join(doneListPath, '003-add-menu-stock.md'), {
+      frontmatter: {
+        title: 'Add Menu',
+        createdAt: '2026-04-04T12:00:00.000Z',
+      },
+      body: '',
+    }),
+  ]);
+  await seedBoardState(page, boardRoot);
+
+  const firstList = page.locator('.list').first();
+  const doingList = page.locator('.list').nth(1);
+  const doneList = page.locator('.list').nth(2);
+  const draggedCard = firstList.locator('.card').filter({ hasText: 'Add a way to test all weather variations' });
+
+  await expect(firstList.locator('.card')).toHaveCount(2);
+  await expect(doingList.locator('.card')).toHaveCount(0);
+  await expect(doneList.locator('.card')).toHaveCount(4);
+
+  const cardBox = await draggedCard.boundingBox();
+  const firstListBox = await firstList.boundingBox();
+  const doingListBox = await doingList.boundingBox();
+  const doneListBox = await doneList.boundingBox();
+  const boardBox = await page.locator('#board').boundingBox();
+
+  if (!cardBox || !firstListBox || !doingListBox || !doneListBox || !boardBox) {
+    throw new Error('Unable to measure drag stress positions.');
+  }
+
+  const start = {
+    x: cardBox.x + (cardBox.width / 2),
+    y: cardBox.y + (cardBox.height / 2),
+  };
+  const waypoints = [
+    {
+      label: 'done-top-right-edge',
+      x: Math.min(doneListBox.x + doneListBox.width + 34, boardBox.x + boardBox.width - 8),
+      y: doneListBox.y + 95,
+    },
+    {
+      label: 'done-card-stack',
+      x: doneListBox.x + (doneListBox.width / 2),
+      y: doneListBox.y + Math.min(doneListBox.height - 36, 330),
+    },
+    {
+      label: 'done-right-edge-card-stack',
+      x: Math.min(doneListBox.x + doneListBox.width + 28, boardBox.x + boardBox.width - 8),
+      y: doneListBox.y + Math.min(doneListBox.height - 60, 300),
+    },
+    {
+      label: 'blank-below-done',
+      x: doneListBox.x + (doneListBox.width / 2),
+      y: boardBox.y + boardBox.height - 64,
+    },
+    {
+      label: 'blank-gap-between-doing-and-done',
+      x: (doingListBox.x + doingListBox.width + doneListBox.x) / 2,
+      y: boardBox.y + boardBox.height - 64,
+    },
+    {
+      label: 'blank-below-doing',
+      x: doingListBox.x + (doingListBox.width / 2),
+      y: boardBox.y + boardBox.height - 64,
+    },
+    {
+      label: 'blank-below-todo',
+      x: firstListBox.x + (firstListBox.width / 2),
+      y: boardBox.y + boardBox.height - 64,
+    },
+    {
+      label: 'doing-empty-list',
+      x: doingListBox.x + (doingListBox.width / 2),
+      y: doingListBox.y + 132,
+    },
+    {
+      label: 'done-top-again',
+      x: Math.min(doneListBox.x + doneListBox.width + 24, boardBox.x + boardBox.width - 8),
+      y: doneListBox.y + 92,
+    },
+  ];
+
+  const allSamples = [];
+  let currentPoint = start;
+
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 6, start.y + 6);
+  await expect.poll(async () => {
+    const state = await getBoardCardDragState(page, {
+      x: start.x + 6,
+      y: start.y + 6,
+    });
+    return {
+      activeDrag: state.activeDrag,
+      fallbackCount: state.fallbackCount,
+    };
+  }).toEqual({
+    activeDrag: true,
+    fallbackCount: 1,
+  });
+
+  for (let lap = 0; lap < 8; lap += 1) {
+    for (const waypoint of waypoints) {
+      const nextPoint = {
+        x: waypoint.x,
+        y: waypoint.y,
+      };
+      const samples = await moveMouseSlowlyAndSampleDrag(page, currentPoint, nextPoint, {
+        label: `${waypoint.label}-lap-${lap + 1}`,
+        steps: 18,
+        pauseMs: 12,
+      });
+      allSamples.push(...samples);
+      currentPoint = nextPoint;
+
+      const unhealthySample = samples.find((sample) => (
+        !sample.activeDrag ||
+        sample.fallbackCount !== 1 ||
+        sample.ghostCount !== 1 ||
+        sample.fallbackInCardListCount !== 0 ||
+        (sample.pointerDistance !== null && sample.pointerDistance > 180)
+      ));
+
+      if (unhealthySample) {
+        throw new Error(`Card drag became unhealthy: ${JSON.stringify(unhealthySample, null, 2)}`);
+      }
+    }
+  }
+
+  await page.mouse.up();
+  await expect.poll(async () => {
+    const state = await getBoardCardDragState(page);
+    return {
+      activeDrag: state.activeDrag,
+      fallbackCount: state.fallbackCount,
+      ghostCount: state.ghostCount,
+      draggingCount: state.draggingCount,
+    };
+  }).toEqual({
+    activeDrag: false,
+    fallbackCount: 0,
+    ghostCount: 0,
+    draggingCount: 0,
+  });
+
+  const finalState = await getBoardCardDragState(page);
+  for (const count of Object.values(finalState.cardsByPath)) {
+    expect(count).toBe(1);
+  }
+
+  await expect.poll(async () => {
+    const fileNamesByList = await Promise.all([
+      fs.readdir(todoListPath),
+      fs.readdir(doingListPath),
+      fs.readdir(doneListPath),
+    ]);
+    return fileNamesByList.flat().filter((fileName) => fileName.endsWith('.md')).length;
+  }).toBe(6);
+
+  await expect.poll(async () => {
+    const fileNamesByList = await Promise.all([
+      fs.readdir(todoListPath),
+      fs.readdir(doingListPath),
+      fs.readdir(doneListPath),
+    ]);
+    return fileNamesByList.flat().filter((fileName) => fileName.endsWith('.tmp')).length;
+  }).toBe(0);
+});
+
+test('drops cards into the lower area of an empty list column', async ({ page, boardRoot }) => {
+  const emptyListPath = path.join(boardRoot, '001-Doing-stock');
+  const emptyListCards = await fs.readdir(emptyListPath);
+  await Promise.all(
+    emptyListCards.map((fileName) => fs.rm(path.join(emptyListPath, fileName), { force: true }))
+  );
+  await seedBoardState(page, boardRoot);
+
+  const firstList = page.locator('.list').first();
+  const emptyList = page.locator('.list').nth(1);
+  const card = firstList.locator('.card').first();
+
+  await expect(card.locator('h3')).toHaveText('Plan release notes');
+  await expect(emptyList.locator('.card')).toHaveCount(0);
+
+  const cardBox = await card.boundingBox();
+  const emptyListBox = await emptyList.boundingBox();
+  const boardBox = await page.locator('#board').boundingBox();
+
+  if (!cardBox || !emptyListBox || !boardBox) {
+    throw new Error('Unable to measure card/list positions.');
+  }
+
+  const start = {
+    x: cardBox.x + (cardBox.width / 2),
+    y: cardBox.y + (cardBox.height / 2),
+  };
+  const lowerEmptyListTarget = {
+    x: emptyListBox.x + (emptyListBox.width / 2),
+    y: boardBox.y + boardBox.height - 72,
+  };
+
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 8, start.y + 8);
+  await expect.poll(async () => {
+    return await page.evaluate(() => document.body.classList.contains('board-card-drag-active'));
+  }).toBe(true);
+
+  const dropTargetIncludesEmptyList = await page.evaluate(({ x, y }) => {
+    return document.elementsFromPoint(x, y).some((element) => (
+      element instanceof HTMLElement &&
+      element.classList.contains('cards') &&
+      String(element.dataset.path || '').includes('001-Doing-stock')
+    ));
+  }, lowerEmptyListTarget);
+
+  expect(dropTargetIncludesEmptyList).toBe(false);
+
+  const tallestListHeightDuringDrag = await page.evaluate(() => {
+    return Math.max(
+      0,
+      ...Array.from(document.querySelectorAll('.list')).map((element) => (
+        element instanceof HTMLElement ? element.getBoundingClientRect().height : 0
+      ))
+    );
+  });
+  expect(tallestListHeightDuringDrag).toBeLessThan(420);
+
+  await page.mouse.move(lowerEmptyListTarget.x, lowerEmptyListTarget.y, { steps: 8 });
+  await page.mouse.up();
+
+  await expect.poll(async () => {
+    return await page.evaluate(() => ({
+      activeDrag: document.body.classList.contains('board-card-drag-active'),
+      fallbackCount: document.querySelectorAll('.card-sortable--fallback').length,
+      ghostCount: document.querySelectorAll('.card-sortable--ghost').length,
+    }));
+  }).toEqual({
+    activeDrag: false,
+    fallbackCount: 0,
+    ghostCount: 0,
+  });
+
+  await expect(emptyList.locator('.card').filter({ hasText: 'Plan release notes' })).toBeVisible();
+  await expect(firstList.locator('.card').filter({ hasText: 'Plan release notes' })).toHaveCount(0);
+});
+
+test('drops cards into the lower area of a short non-empty list column', async ({ page }) => {
+  const firstList = page.locator('.list').first();
+  const doneList = page.locator('.list').nth(2);
+  const card = firstList.locator('.card').first();
+
+  await expect(card.locator('h3')).toHaveText('Plan release notes');
+  await expect(doneList.locator('.card').filter({ hasText: 'Ship beta' })).toBeVisible();
+
+  const cardBox = await card.boundingBox();
+  const doneListBox = await doneList.boundingBox();
+  const boardBox = await page.locator('#board').boundingBox();
+
+  if (!cardBox || !doneListBox || !boardBox) {
+    throw new Error('Unable to measure card/list positions.');
+  }
+
+  const start = {
+    x: cardBox.x + (cardBox.width / 2),
+    y: cardBox.y + (cardBox.height / 2),
+  };
+  const lowerDoneListTarget = {
+    x: doneListBox.x + (doneListBox.width / 2),
+    y: boardBox.y + boardBox.height - 72,
+  };
+
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 8, start.y + 8);
+
+  const dropTargetIncludesDoneList = await page.evaluate(({ x, y }) => {
+    return document.elementsFromPoint(x, y).some((element) => (
+      element instanceof HTMLElement &&
+      element.classList.contains('cards') &&
+      String(element.dataset.path || '').includes('002-Done-stock')
+    ));
+  }, lowerDoneListTarget);
+
+  expect(dropTargetIncludesDoneList).toBe(false);
+
+  await page.mouse.move(lowerDoneListTarget.x, lowerDoneListTarget.y, { steps: 8 });
+  await page.mouse.up();
+
+  await expect.poll(async () => {
+    return await page.evaluate(() => ({
+      activeDrag: document.body.classList.contains('board-card-drag-active'),
+      fallbackCount: document.querySelectorAll('.card-sortable--fallback').length,
+      ghostCount: document.querySelectorAll('.card-sortable--ghost').length,
+    }));
+  }).toEqual({
+    activeDrag: false,
+    fallbackCount: 0,
+    ghostCount: 0,
+  });
+
+  await expect(doneList.locator('.card').filter({ hasText: 'Plan release notes' })).toBeVisible();
+  await expect(doneList.locator('.card')).toHaveCount(2);
+  await expect(firstList.locator('.card').filter({ hasText: 'Plan release notes' })).toHaveCount(0);
+});
+
 test('opens the list actions popover and routes Add new card through the existing modal', async ({ page }) => {
   await page.locator('.list-actions-button').first().click();
 
@@ -865,6 +1394,76 @@ test('switches to table view and moves a card through the list column', async ({
 
   await page.locator('#cardEditorClose').click();
   await expect(page.locator('#modalEditCard')).toBeHidden();
+});
+
+test('updates task item due dates from Planner calendar drops', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+  const sourceIso = formatLocalIsoDate(getCurrentMonthDate(10));
+  const targetIso = formatLocalIsoDate(getCurrentMonthDate(11));
+  const taskText = 'Review task due calendar drag';
+
+  await writeCardWithSingleTaskDue(cardPath, sourceIso, taskText);
+  await seedBoardState(page, boardRoot);
+  await openCurrentBoardPlannerView(page, '2', '.planner-calendar');
+
+  const sourceCard = page
+    .locator(`.planner-calendar .board-calendar-day-cards[data-date="${sourceIso}"] .planner-calendar-card`)
+    .filter({ hasText: taskText });
+  const targetDayCards = page.locator(`.planner-calendar .board-calendar-day-cards[data-date="${targetIso}"]`);
+
+  await expect(sourceCard).toBeVisible();
+  await expect(targetDayCards).toBeVisible();
+
+  await expect(await getPlannerTemporalSortableEndTarget(sourceCard, targetIso)).toEqual(expect.objectContaining({
+    toDate: targetIso,
+    parentDate: sourceIso,
+  }));
+  await dropPlannerTemporalCardOnDate(sourceCard, targetIso);
+
+  await expect.poll(async () => {
+    const card = await cardFrontmatter.readCard(cardPath);
+    return card.body;
+  }).toContain(`- [ ] (due: ${targetIso}) ${taskText}`);
+
+  const updatedCard = await cardFrontmatter.readCard(cardPath);
+  expect(updatedCard.body).not.toContain(`- [ ] (due: ${sourceIso}) ${taskText}`);
+  expect(updatedCard.frontmatter.due).toBeUndefined();
+  await expect(targetDayCards.locator('.planner-calendar-card').filter({ hasText: taskText })).toBeVisible();
+});
+
+test('updates task item due dates from Planner This Week drops', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+  const sourceIso = formatLocalIsoDate(getCurrentWeekDate(1));
+  const targetIso = formatLocalIsoDate(getCurrentWeekDate(2));
+  const taskText = 'Review task due week drag';
+
+  await writeCardWithSingleTaskDue(cardPath, sourceIso, taskText);
+  await seedBoardState(page, boardRoot);
+  await openCurrentBoardPlannerView(page, '3', '.planner-this-week');
+
+  const sourceCard = page
+    .locator(`.planner-this-week .board-this-week-day-cards[data-date="${sourceIso}"] .planner-this-week-card`)
+    .filter({ hasText: taskText });
+  const targetDayCards = page.locator(`.planner-this-week .board-this-week-day-cards[data-date="${targetIso}"]`);
+
+  await expect(sourceCard).toBeVisible();
+  await expect(targetDayCards).toBeVisible();
+
+  await expect(await getPlannerTemporalSortableEndTarget(sourceCard, targetIso)).toEqual(expect.objectContaining({
+    toDate: targetIso,
+    parentDate: sourceIso,
+  }));
+  await dropPlannerTemporalCardOnDate(sourceCard, targetIso);
+
+  await expect.poll(async () => {
+    const card = await cardFrontmatter.readCard(cardPath);
+    return card.body;
+  }).toContain(`- [ ] (due: ${targetIso}) ${taskText}`);
+
+  const updatedCard = await cardFrontmatter.readCard(cardPath);
+  expect(updatedCard.body).not.toContain(`- [ ] (due: ${sourceIso}) ${taskText}`);
+  expect(updatedCard.frontmatter.due).toBeUndefined();
+  await expect(targetDayCards.locator('.planner-this-week-card').filter({ hasText: taskText })).toBeVisible();
 });
 
 test('adds a new list to the right of the invoking list from the list actions popover', async ({ page, boardRoot }) => {

@@ -4,7 +4,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + opt-in localhost External Published Calendar server + native menu/accelerators (including board switcher/settings/theme shortcuts) + optional Quick Add global shortcut registration + renderer right-click text editing context menu with deferred native popup handling + archive browse/restore + top-of-list card move IPC + linked-object add/open/drop IPC with URL favicon caching + Obsidian outbound/deep-link IPC and `signboard://` protocol dispatch for card and validated board opening + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + filesystem watchers + opt-in localhost External Published Calendar server + native menu/accelerators (including board switcher/settings/theme shortcuts) + optional Quick Add global shortcut registration + renderer right-click text editing context menu with deferred native popup handling + archive browse/restore + top-of-list card move IPC + linked-object add/open/drop/status/recreate/relink IPC with URL favicon caching + Obsidian outbound/deep-link IPC and `signboard://` protocol dispatch for card and validated board opening + GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
 - `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
@@ -19,7 +19,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `buildjs.sh` - Concatenate renderer modules into `app/signboard.js`.
 - `electron-builder.json` - Build targets/artifact settings.
 - `LICENSE` - MIT license.
-- `obsidian-plugin/` - Optional desktop-only Obsidian companion plugin source (`manifest.json`, `main.js`, helper/tested conversion/link utilities, styles, and plugin README) for opening/copying Signboard links, attaching active notes, creating Signboard boards from folders, and handling `obsidian://signboard?...`.
+- `obsidian-plugin/` - Optional desktop-only Obsidian companion plugin source (`manifest.json`, self-contained `main.js`, helper/tested conversion/link/delete-cleanup utilities, styles, and plugin README) for opening/copying Signboard links, attaching active notes, asking before removing links to deleted notes, creating Signboard boards from folders, and handling `obsidian://signboard?...`.
 - `skills/signboard-mcp/SKILL.md` - Optional agent skill instructions for safe/consistent Signboard MCP tool usage.
 - `skills/signboard-mcp/agents/openai.yaml` - UI metadata for clients that support skill lists/chips.
 
@@ -53,7 +53,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/modals/toggleAddCardModal.js` - Add-card modal position/toggle.
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
-- `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, Created/Updated timestamp display, active-card top-of-list moves from the dropdown/directional controls, debounced + serialized saves, clean-editor reloads after external/MCP card edits, fresh duplicate lifecycle metadata, linked-object paperclip controls including inline URL/app-link entry, Obsidian rename reconciliation between `linked_objects` and `related` wikilinks, drag/drop local-file linking, Open With/Obsidian actions, and task-line due-date controls aligned from measured line coordinates.
+- `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, Created/Updated timestamp display, active-card top-of-list moves from the dropdown/directional controls, debounced + serialized saves, clean-editor reloads after external/MCP card edits, fresh duplicate lifecycle metadata, linked-object paperclip controls including inline URL/app-link entry, Obsidian rename reconciliation between `linked_objects` and `related` wikilinks, missing-note status rendering with recreate/relink/remove actions, drag/drop local-file linking, Open With/Obsidian actions, and task-line due-date controls aligned from measured line coordinates.
 - `app/listeners/window.js` - Keyboard shortcuts, menu/global-command listeners, Quick Add card modal wiring with board/list selection across open boards, board view switching, Planner toggle/view shortcut handling including all-open-board and current-board date-view scopes, Settings fallback handling, quick board switcher shortcut handling, color cycling, active-card move/archive shortcuts, active-editor closing for workspace-level shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, Obsidian-vault-required info modal controls, sponsorship modal triggers, and external board-change auto-refresh sync loop, including clean open-editor refreshes.
 - `app/ui/theme.js` - Theme toggle + OverType theme integration, including the theme shortcut hint/state in the board menu.
@@ -69,7 +69,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/boardLabels.js` - Board-level label/theme/workflow/External Published Calendar inclusion settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
 - `lib/appSettings.js` - App-wide tooltip/notification/Quick Add global shortcut/External Published Calendar settings normalization and JSON persistence under Electron `userData`.
 - `lib/externalPublishedCalendar.js` - External Published Calendar event collection and iCalendar feed generation for card due dates and incomplete task due markers.
-- `lib/obsidianIntegration.js` - Obsidian URI and Signboard deep-link helpers, flat card property normalization, Obsidian vault discovery, managed generated `Signboard Board.base` files with hash-based user-edit protection, linked-note creation, and linked-note wikilink resolution.
+- `lib/obsidianIntegration.js` - Obsidian URI and Signboard deep-link helpers, flat card property normalization, Obsidian vault discovery, managed generated `Signboard Board.base` files with hash-based user-edit protection, linked-note creation/recreation, and linked-note wikilink resolution.
 - `lib/importers/index.js` - Export surface for board importers.
 - `lib/importers/shared.js` - Shared importer helpers for list/card creation, label reuse/creation, metadata section building, and markdown source discovery.
 - `lib/importers/trello.js` - Trello JSON importer.

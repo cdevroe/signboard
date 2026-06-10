@@ -610,7 +610,7 @@ function appendLinkedObjectIcon(parent, linkedObject) {
         image.src = filePathToRendererUrl(linkedObject.faviconPath);
         iconWrap.appendChild(image);
         parent.appendChild(iconWrap);
-        return;
+        return iconWrap;
     }
 
     const iconName = getLinkedObjectIconName(linkedObject);
@@ -618,6 +618,20 @@ function appendLinkedObjectIcon(parent, linkedObject) {
         iconWrap.innerHTML = window.feather.icons[iconName].toSvg();
     }
     parent.appendChild(iconWrap);
+    return iconWrap;
+}
+
+function setLinkedObjectFeatherIcon(element, iconName, fallbackText = '') {
+    if (!element) {
+        return;
+    }
+
+    if (window.feather && window.feather.icons && window.feather.icons[iconName]) {
+        element.innerHTML = window.feather.icons[iconName].toSvg();
+        return;
+    }
+
+    element.textContent = fallbackText;
 }
 
 async function openCardEditorLinkedObject(linkedObject) {
@@ -695,6 +709,214 @@ async function removeCardEditorLinkedObject(linkedObject) {
     }
 }
 
+async function recreateLinkedObsidianNoteForActiveCard(linkedObject) {
+    const cardPath = getActiveEditorCardPath();
+    if (!cardPath || !window.board || typeof window.board.recreateLinkedObsidianNote !== 'function') {
+        return;
+    }
+
+    try {
+        const result = await window.board.recreateLinkedObsidianNote(window.boardRoot, cardPath, linkedObject);
+        if (!result || result.ok === false) {
+            const message = result && result.error === 'NOTE_ALREADY_EXISTS'
+                ? 'Linked note already exists.'
+                : 'Unable to recreate linked note.';
+            if (typeof announceSignboardStatus === 'function') {
+                announceSignboardStatus(message);
+            }
+            return;
+        }
+
+        if (result.frontmatter) {
+            setEditorFrontmatter(result.frontmatter);
+            await renderActiveEditorMetadata(result.frontmatter);
+            setActiveEditorDiskState(cardPath, {
+                frontmatter: result.frontmatter,
+                body: getEditorBodyValue(),
+            });
+        } else {
+            await refreshEditorAfterExternalFrontmatterChange(cardPath);
+        }
+
+        if (typeof announceSignboardStatus === 'function') {
+            announceSignboardStatus('Recreated linked note.');
+        }
+    } catch (error) {
+        console.error('Unable to recreate linked note.', error);
+        if (typeof announceSignboardStatus === 'function') {
+            announceSignboardStatus('Unable to recreate linked note.');
+        }
+    }
+}
+
+function getLinkedObjectDefaultPickerPath(linkedObject = {}) {
+    const filePath = String(linkedObject.path || '').replace(/\\/g, '/').trim();
+    const parts = filePath.split('/').filter(Boolean);
+    if (parts.length <= 1) {
+        return '';
+    }
+
+    const prefix = filePath.startsWith('/') ? '/' : '';
+    return `${prefix}${parts.slice(0, -1).join('/')}`;
+}
+
+async function relinkLinkedObsidianNoteForActiveCard(linkedObject) {
+    const cardPath = getActiveEditorCardPath();
+    if (
+        !cardPath ||
+        !window.board ||
+        typeof window.board.relinkLinkedObsidianNote !== 'function' ||
+        !window.chooser ||
+        typeof window.chooser.pickLinkedObjects !== 'function'
+    ) {
+        return;
+    }
+
+    try {
+        const selections = await window.chooser.pickLinkedObjects({
+            mode: 'file',
+            defaultPath: getLinkedObjectDefaultPickerPath(linkedObject),
+        });
+        if (!Array.isArray(selections) || selections.length === 0) {
+            return;
+        }
+
+        const selection = selections[0];
+        const result = await window.board.relinkLinkedObsidianNote(window.boardRoot, cardPath, linkedObject, {
+            type: 'obsidian-note',
+            title: String(selection.path || '').split(/[\\/]/).filter(Boolean).pop().replace(/\.md$/i, ''),
+            token: selection.token,
+        });
+        if (!result || result.ok === false) {
+            if (typeof announceSignboardStatus === 'function') {
+                announceSignboardStatus('Unable to relink note.');
+            }
+            return;
+        }
+
+        if (result.frontmatter) {
+            setEditorFrontmatter(result.frontmatter);
+            await renderActiveEditorMetadata(result.frontmatter);
+            setActiveEditorDiskState(cardPath, {
+                frontmatter: result.frontmatter,
+                body: getEditorBodyValue(),
+            });
+        } else {
+            await refreshEditorAfterExternalFrontmatterChange(cardPath);
+        }
+
+        if (typeof announceSignboardStatus === 'function') {
+            announceSignboardStatus('Relinked note.');
+        }
+    } catch (error) {
+        console.error('Unable to relink note.', error);
+        if (typeof announceSignboardStatus === 'function') {
+            announceSignboardStatus('Unable to relink note.');
+        }
+    }
+}
+
+function createLinkedObjectActionButton({ className, title, ariaLabel, iconName, fallbackText, onClick }) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.title = title;
+    button.setAttribute('aria-label', ariaLabel);
+    setLinkedObjectFeatherIcon(button, iconName, fallbackText);
+    button.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await onClick();
+    });
+    return button;
+}
+
+function applyMissingLinkedObjectState({
+    chip,
+    linkedObject,
+    labelText,
+    openButton,
+    iconWrap,
+    label,
+    removeButton,
+}) {
+    if (!chip || chip.classList.contains('is-missing')) {
+        return;
+    }
+
+    chip.classList.add('is-missing');
+    if (iconWrap) {
+        setLinkedObjectFeatherIcon(iconWrap, 'alert-triangle', '!');
+    }
+    if (label) {
+        label.textContent = `Missing: ${labelText}`;
+    }
+    if (openButton) {
+        openButton.title = 'Linked note not found';
+        openButton.setAttribute('aria-label', `Open missing ${labelText}`);
+    }
+
+    const recreateButton = createLinkedObjectActionButton({
+        className: 'card-editor-related-note-action card-editor-related-note-recreate',
+        title: 'Recreate linked note',
+        ariaLabel: `Recreate ${labelText}`,
+        iconName: 'file-plus',
+        fallbackText: '+',
+        onClick: () => recreateLinkedObsidianNoteForActiveCard(linkedObject),
+    });
+    const relinkButton = createLinkedObjectActionButton({
+        className: 'card-editor-related-note-action card-editor-related-note-relink',
+        title: 'Relink note',
+        ariaLabel: `Relink ${labelText}`,
+        iconName: 'link',
+        fallbackText: 'link',
+        onClick: () => relinkLinkedObsidianNoteForActiveCard(linkedObject),
+    });
+
+    chip.insertBefore(recreateButton, removeButton || null);
+    chip.insertBefore(relinkButton, removeButton || null);
+}
+
+async function refreshCardEditorLinkedObjectStatus({
+    chip,
+    linkedObject,
+    labelText,
+    openButton,
+    iconWrap,
+    label,
+    removeButton,
+}) {
+    const cardPath = getActiveEditorCardPath();
+    if (
+        !cardPath ||
+        linkedObject.type !== 'obsidian-note' ||
+        !window.board ||
+        typeof window.board.getLinkedObjectStatus !== 'function'
+    ) {
+        return;
+    }
+
+    try {
+        const result = await window.board.getLinkedObjectStatus(cardPath, linkedObject);
+        if (!chip.isConnected || getActiveEditorCardPath() !== cardPath) {
+            return;
+        }
+        if (result && result.missing) {
+            applyMissingLinkedObjectState({
+                chip,
+                linkedObject,
+                labelText,
+                openButton,
+                iconWrap,
+                label,
+                removeButton,
+            });
+        }
+    } catch (error) {
+        console.error('Unable to check linked object status.', error);
+    }
+}
+
 function renderCardEditorRelatedNotes(frontmatter = {}) {
     const relatedEl = document.getElementById('cardEditorRelatedNotes');
     if (!relatedEl) {
@@ -723,7 +945,7 @@ function renderCardEditorRelatedNotes(frontmatter = {}) {
         openButton.className = 'card-editor-related-note-open';
         openButton.title = 'Open linked object';
         openButton.setAttribute('aria-label', `Open ${labelText}`);
-        appendLinkedObjectIcon(openButton, linkedObject);
+        const iconWrap = appendLinkedObjectIcon(openButton, linkedObject);
 
         const label = document.createElement('span');
         label.className = 'card-editor-related-note-label';
@@ -755,6 +977,16 @@ function renderCardEditorRelatedNotes(frontmatter = {}) {
         chip.appendChild(openButton);
         chip.appendChild(removeButton);
         relatedEl.appendChild(chip);
+
+        refreshCardEditorLinkedObjectStatus({
+            chip,
+            linkedObject,
+            labelText,
+            openButton,
+            iconWrap,
+            label,
+            removeButton,
+        });
     }
 }
 

@@ -65,6 +65,11 @@ contextBridge.exposeInMainWorld('board', {
     invokeBoard('openRelatedObsidianNote', boardRoot, filePath, related),
   addLinkedObject: async (filePath, linkedObject) => invokeBoard('addLinkedObject', filePath, linkedObject),
   openLinkedObject: async (filePath, linkedObject) => invokeBoard('openLinkedObject', filePath, linkedObject),
+  getLinkedObjectStatus: async (filePath, linkedObject) => invokeBoard('getLinkedObjectStatus', filePath, linkedObject),
+  recreateLinkedObsidianNote: async (boardRoot, filePath, linkedObject) =>
+    invokeBoard('recreateLinkedObsidianNote', boardRoot, filePath, linkedObject),
+  relinkLinkedObsidianNote: async (boardRoot, filePath, previousLinkedObject, nextLinkedObject) =>
+    invokeBoard('relinkLinkedObsidianNote', boardRoot, filePath, previousLinkedObject, nextLinkedObject),
   copyCardObsidianUri: async (filePath) => invokeBoard('copyCardObsidianUri', filePath),
   copyCardSignboardUri: async (filePath) => invokeBoard('copyCardSignboardUri', filePath),
   getCardExternalLinks: async (filePath) => invokeBoard('getCardExternalLinks', filePath),

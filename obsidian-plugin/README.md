@@ -8,6 +8,7 @@ This optional Obsidian plugin helps a vault talk to the Signboard desktop app wh
 - Copy a Signboard card link from the command palette or file context menu.
 - Right-click a folder and choose `Create Signboard` to turn that folder into a Signboard board and open it in Signboard.
 - Attach the active Obsidian note to a Signboard card by pasting a `signboard://open-card?id=...` link or card ID.
+- Ask before removing Signboard linked objects when a linked Obsidian note is deleted.
 - Handle `obsidian://signboard?cardId=...` links so Signboard can ask Obsidian to open a card by ID.
 
 ## Install During Development

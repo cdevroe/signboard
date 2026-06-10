@@ -179,8 +179,17 @@ function isModalOpen(modalId) {
     );
 }
 
+function isBoardDragInProgress() {
+    // Sortable sets Sortable.active to the dragging instance for the lifetime of a card
+    // or list drag and nulls it on drop. Re-rendering the board mid-drag destroys the
+    // active Sortable; because the forced-fallback ghost lives on <body> (fallbackOnBody)
+    // rather than inside #board, replaceChildren() never clears it and it gets stuck.
+    return typeof Sortable !== 'undefined' && Sortable && Sortable.active != null;
+}
+
 function isExternalBoardRefreshBlocked() {
-    return isModalOpen('modalEditCard')
+    return isBoardDragInProgress()
+        || isModalOpen('modalEditCard')
         || isModalOpen('modalBoardSettings')
         || isModalOpen('modalArchiveBrowser')
         || isModalOpen('modalObsidianVaultRequired')

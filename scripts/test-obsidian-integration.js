@@ -9,6 +9,7 @@ const {
   buildObsidianOpenUri,
   buildSignboardCardUri,
   createLinkedObsidianNote,
+  createLinkedObsidianNoteAtPath,
   findObsidianVaultRoot,
   getSignboardCardId,
   normalizeSignboardCardFrontmatter,
@@ -143,6 +144,26 @@ async function run() {
     assert.strictEqual(resolvedLinkedNote.ok, true);
     assert.strictEqual(resolvedLinkedNote.notePath, linkedNote.notePath);
     assert(resolvedLinkedNote.obsidianUri.startsWith('obsidian://open?'));
+
+    await fs.unlink(linkedNote.notePath);
+    const missingLinkedNote = await resolveObsidianRelatedNote({
+      boardRoot,
+      cardPath,
+      related: linkedNote.linkTarget,
+    });
+    assert.strictEqual(missingLinkedNote.ok, false);
+    assert.strictEqual(missingLinkedNote.error, 'NOTE_NOT_FOUND');
+    assert.strictEqual(missingLinkedNote.notePath, linkedNote.notePath);
+    const recreatedLinkedNote = await createLinkedObsidianNoteAtPath({
+      boardRoot,
+      cardPath,
+      card,
+      notePath: missingLinkedNote.notePath,
+    });
+    assert.strictEqual(recreatedLinkedNote.ok, true);
+    assert.strictEqual(recreatedLinkedNote.notePath, linkedNote.notePath);
+    assert.strictEqual(recreatedLinkedNote.linkTarget, linkedNote.linkTarget);
+    await fs.access(recreatedLinkedNote.notePath);
 
     console.log('Obsidian integration tests passed.');
   } finally {

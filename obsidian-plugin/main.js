@@ -186,6 +186,121 @@ const helpers = (() => {
     return normalized;
   }
 
+  function stripMarkdownExtension(value) {
+    return trimString(value).replace(/\.md$/i, '');
+  }
+
+  function parseObsidianWikilinkTarget(value) {
+    const raw = trimString(value);
+    const match = raw.match(/^!?\[\[([^\]]+)\]\]$/);
+    if (!match) {
+      return '';
+    }
+
+    const inner = trimString(match[1]);
+    const pipeIndex = inner.indexOf('|');
+    const targetWithAnchor = trimString(pipeIndex >= 0 ? inner.slice(0, pipeIndex) : inner);
+    return stripMarkdownExtension(targetWithAnchor.split('#')[0].replace(/\\/g, '/').replace(/^\/+/, ''));
+  }
+
+  function getDeletedObsidianNoteMatchContext({ vaultPath, absolutePath, basename } = {}) {
+    const normalizedVaultPath = slashPath(vaultPath).replace(/^\/+/, '');
+    const normalizedAbsolutePath = slashPath(absolutePath);
+    const fileBaseName = stripMarkdownExtension(basename || getBaseName(normalizedVaultPath || normalizedAbsolutePath));
+    const targets = new Set();
+
+    if (normalizedVaultPath) {
+      targets.add(stripMarkdownExtension(normalizedVaultPath));
+    }
+    if (fileBaseName) {
+      targets.add(fileBaseName);
+    }
+
+    return {
+      absolutePath: normalizedAbsolutePath,
+      basename: fileBaseName,
+      targets,
+    };
+  }
+
+  function obsidianTargetMatchesDeletedNote(target, context = {}) {
+    const normalizedTarget = stripMarkdownExtension(trimString(target).replace(/\\/g, '/').replace(/^\/+/, ''));
+    if (!normalizedTarget) {
+      return false;
+    }
+
+    const targetBaseName = stripMarkdownExtension(getBaseName(normalizedTarget));
+    const targets = context.targets instanceof Set ? context.targets : new Set(context.targets || []);
+    return targets.has(normalizedTarget) || (targetBaseName && targets.has(targetBaseName));
+  }
+
+  function linkedObjectMatchesDeletedObsidianNote(linkedObject = {}, context = {}) {
+    if (!linkedObject || typeof linkedObject !== 'object' || Array.isArray(linkedObject)) {
+      return false;
+    }
+    if (trimString(linkedObject.type) !== 'obsidian-note') {
+      return false;
+    }
+
+    const absolutePath = slashPath(context.absolutePath);
+    const linkedPath = slashPath(linkedObject.path);
+    if (absolutePath && linkedPath && linkedPath === absolutePath) {
+      return true;
+    }
+
+    const target = parseObsidianWikilinkTarget(linkedObject.target || linkedObject.raw);
+    return obsidianTargetMatchesDeletedNote(target, context);
+  }
+
+  function removeDeletedObsidianNoteLinksFromFrontmatter(frontmatter, deletedNoteContext) {
+    const target = frontmatter && typeof frontmatter === 'object' ? frontmatter : {};
+    const context = deletedNoteContext && deletedNoteContext.targets
+      ? deletedNoteContext
+      : getDeletedObsidianNoteMatchContext(deletedNoteContext);
+    let removedLinkedObjects = 0;
+    let removedRelated = 0;
+
+    if (Array.isArray(target.linked_objects)) {
+      const nextLinkedObjects = target.linked_objects.filter((linkedObject) => {
+        const shouldRemove = linkedObjectMatchesDeletedObsidianNote(linkedObject, context);
+        if (shouldRemove) {
+          removedLinkedObjects += 1;
+        }
+        return !shouldRemove;
+      });
+
+      if (nextLinkedObjects.length > 0) {
+        target.linked_objects = nextLinkedObjects;
+      } else {
+        delete target.linked_objects;
+      }
+    }
+
+    const related = normalizeStringList(target.related);
+    if (related.length > 0) {
+      const nextRelated = related.filter((relatedLink) => {
+        const targetValue = parseObsidianWikilinkTarget(relatedLink);
+        const shouldRemove = targetValue && obsidianTargetMatchesDeletedNote(targetValue, context);
+        if (shouldRemove) {
+          removedRelated += 1;
+        }
+        return !shouldRemove;
+      });
+
+      if (nextRelated.length > 0) {
+        target.related = nextRelated;
+      } else {
+        delete target.related;
+      }
+    }
+
+    return {
+      changed: removedLinkedObjects > 0 || removedRelated > 0,
+      removedLinkedObjects,
+      removedRelated,
+    };
+  }
+
   function createObsidianNoteLinkedObject({ title, target, path } = {}) {
     const normalizedTarget = trimString(target);
     const normalizedPath = trimString(path);
@@ -250,9 +365,14 @@ const helpers = (() => {
     createObsidianNoteLinkedObject,
     extractSignboardCardId,
     getCardFileId,
+    getDeletedObsidianNoteMatchContext,
     getListDisplayName,
+    linkedObjectMatchesDeletedObsidianNote,
     normalizeStringList,
+    obsidianTargetMatchesDeletedNote,
+    parseObsidianWikilinkTarget,
     randomId,
+    removeDeletedObsidianNoteLinksFromFrontmatter,
     slashPath,
     slugify,
     addLinkedObjectToFrontmatter,
@@ -469,6 +589,13 @@ module.exports = class SignboardCompanionPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on('file-menu', (menu, file) => {
       this.addFileMenuItems(menu, file);
     }));
+    if (this.app.vault && typeof this.app.vault.on === 'function') {
+      this.registerEvent(this.app.vault.on('delete', (file) => {
+        this.handleDeletedObsidianNote(file).catch((error) => {
+          console.error('Unable to handle deleted linked Obsidian note.', error);
+        });
+      }));
+    }
 
     if (typeof this.registerObsidianProtocolHandler === 'function') {
       this.registerObsidianProtocolHandler('signboard', (params) => {
@@ -645,6 +772,84 @@ module.exports = class SignboardCompanionPlugin extends Plugin {
     }
 
     return null;
+  }
+
+  cardHasDeletedObsidianNoteLink(cardFile, deletedNoteContext) {
+    if (!(cardFile instanceof TFile) || cardFile.extension !== 'md') {
+      return false;
+    }
+
+    const frontmatter = this.getFileFrontmatter(cardFile);
+    const draftFrontmatter = {
+      ...frontmatter,
+      related: Array.isArray(frontmatter.related) ? [...frontmatter.related] : frontmatter.related,
+      linked_objects: Array.isArray(frontmatter.linked_objects)
+        ? frontmatter.linked_objects.map((item) => (
+          item && typeof item === 'object' && !Array.isArray(item)
+            ? { ...item }
+            : item
+        ))
+        : frontmatter.linked_objects,
+    };
+    return helpers.removeDeletedObsidianNoteLinksFromFrontmatter(draftFrontmatter, deletedNoteContext).changed;
+  }
+
+  findCardsLinkedToDeletedObsidianNote(noteFile) {
+    if (!(noteFile instanceof TFile) || noteFile.extension !== 'md') {
+      return [];
+    }
+
+    const deletedNoteContext = helpers.getDeletedObsidianNoteMatchContext({
+      vaultPath: noteFile.path,
+      absolutePath: this.getAbsolutePathForVaultPath(noteFile.path),
+      basename: noteFile.basename || noteFile.name,
+    });
+
+    return this.app.vault
+      .getMarkdownFiles()
+      .filter((cardFile) => cardFile.path !== noteFile.path)
+      .filter((cardFile) => this.cardHasDeletedObsidianNoteLink(cardFile, deletedNoteContext))
+      .map((cardFile) => ({ cardFile, deletedNoteContext }));
+  }
+
+  async handleDeletedObsidianNote(file) {
+    if (!(file instanceof TFile) || file.extension !== 'md') {
+      return;
+    }
+
+    const matches = this.findCardsLinkedToDeletedObsidianNote(file);
+    if (matches.length === 0) {
+      return;
+    }
+
+    const confirmed = await this.confirm({
+      title: 'Remove Signboard links?',
+      message: [
+        `"${file.basename || file.name}" was deleted.`,
+        '',
+        `Remove its linked object from ${matches.length} Signboard card${matches.length === 1 ? '' : 's'}?`,
+      ].join('\n'),
+      confirmText: 'Remove Links',
+    });
+    if (!confirmed) {
+      return;
+    }
+
+    let updatedCount = 0;
+    for (const match of matches) {
+      let changed = false;
+      await this.app.fileManager.processFrontMatter(match.cardFile, (frontmatter) => {
+        const result = helpers.removeDeletedObsidianNoteLinksFromFrontmatter(frontmatter, match.deletedNoteContext);
+        changed = result.changed;
+      });
+      if (changed) {
+        updatedCount += 1;
+      }
+    }
+
+    if (updatedCount > 0) {
+      new Notice(`Removed linked note from ${updatedCount} Signboard card${updatedCount === 1 ? '' : 's'}.`);
+    }
   }
 
   addFileMenuItems(menu, file) {

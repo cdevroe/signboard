@@ -366,6 +366,9 @@ function createTemporalPlacementForDate(cardEntry, dueDateValue) {
       temporalDisplaySubtitle: cardEntry.title,
       temporalReason: 'task',
       temporalTaskCount: taskItemsDueOnDate.length,
+      temporalTaskLineIndexes: taskItemsDueOnDate
+        .map((taskItem) => Number(taskItem && taskItem.lineIndex))
+        .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0),
     };
   }
 
@@ -380,6 +383,75 @@ function createTemporalPlacementForDate(cardEntry, dueDateValue) {
     temporalReason: 'card',
     temporalTaskCount: 0,
   };
+}
+
+function getTemporalTaskLineIndexesFromElement(element) {
+  if (!(element instanceof HTMLElement)) {
+    return [];
+  }
+
+  return String(element.dataset.taskLineIndexes || '')
+    .split(',')
+    .map((value) => Number(value))
+    .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0);
+}
+
+function getTaskLineIndexesDueOnDateFromBody(bodyValue, dueDateValue) {
+  const normalizedDueDate = normalizeTaskDueDateValue(dueDateValue);
+  if (!normalizedDueDate) {
+    return [];
+  }
+
+  return parseTaskListItems(bodyValue)
+    .filter((taskItem) => taskItem && !taskItem.isCompleted)
+    .filter((taskItem) => normalizeTaskDueDateValue(taskItem.due) === normalizedDueDate)
+    .map((taskItem) => Number(taskItem.lineIndex))
+    .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0);
+}
+
+async function moveTemporalTaskDueDate(cardPath, sourceDate, targetDate, taskLineIndexes) {
+  const card = await window.board.readCard(cardPath);
+  const body = String(card && card.body ? card.body : '');
+  const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
+    ? card.frontmatter
+    : {};
+  const lineIndexes = Array.isArray(taskLineIndexes) && taskLineIndexes.length > 0
+    ? taskLineIndexes
+    : getTaskLineIndexesDueOnDateFromBody(body, sourceDate);
+  if (lineIndexes.length === 0) {
+    return false;
+  }
+
+  let nextBody = body;
+  for (const lineIndex of lineIndexes) {
+    nextBody = setTaskListItemDueDateByLineIndex(nextBody, lineIndex, targetDate);
+  }
+
+  await window.board.writeCard(cardPath, {
+    frontmatter,
+    body: nextBody,
+  });
+  return true;
+}
+
+async function moveTemporalCardDueDate(cardPath, sourceDate, targetDate, draggedCard) {
+  const temporalReason = draggedCard instanceof HTMLElement
+    ? String(draggedCard.dataset.temporalReason || '').trim()
+    : '';
+
+  if (temporalReason === 'task') {
+    const updatedTask = await moveTemporalTaskDueDate(
+      cardPath,
+      sourceDate,
+      targetDate,
+      getTemporalTaskLineIndexesFromElement(draggedCard),
+    );
+    if (updatedTask) {
+      return;
+    }
+  }
+
+  await window.board.updateFrontmatter(cardPath, { due: targetDate });
 }
 
 async function collectCardsForCalendar(boardRoot, lists, options = {}) {
@@ -754,7 +826,7 @@ async function handleCalendarCardDrop(evt, monthCursor) {
   }
 
   try {
-    await window.board.updateFrontmatter(cardPath, { due: targetDate });
+    await moveTemporalCardDueDate(cardPath, sourceDate, targetDate, draggedCard);
     draggedCard.dataset.due = targetDate;
   } catch (error) {
     console.error('Failed to move card to a new calendar date.', error);
@@ -801,6 +873,10 @@ function createTemporalCardElement(cardEntry, isoDate, className, options = {}) 
   cardButton.className = className;
   cardButton.dataset.path = cardEntry.cardPath;
   cardButton.dataset.due = isoDate;
+  cardButton.dataset.temporalReason = cardEntry.temporalReason || 'card';
+  if (Array.isArray(cardEntry.temporalTaskLineIndexes) && cardEntry.temporalTaskLineIndexes.length > 0) {
+    cardButton.dataset.taskLineIndexes = cardEntry.temporalTaskLineIndexes.join(',');
+  }
   cardButton.setAttribute('data-sb-tooltip-disabled', 'true');
 
   const cardFrame = document.createElement('span');
@@ -1022,7 +1098,7 @@ async function handleWeekCardDrop(evt, weekStartDate) {
   }
 
   try {
-    await window.board.updateFrontmatter(cardPath, { due: targetDate });
+    await moveTemporalCardDueDate(cardPath, sourceDate, targetDate, draggedCard);
     draggedCard.dataset.due = targetDate;
   } catch (error) {
     console.error('Failed to move card to a new week date.', error);

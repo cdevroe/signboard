@@ -175,6 +175,121 @@ function normalizeStringList(value) {
   return normalized;
 }
 
+function stripMarkdownExtension(value) {
+  return trimString(value).replace(/\.md$/i, '');
+}
+
+function parseObsidianWikilinkTarget(value) {
+  const raw = trimString(value);
+  const match = raw.match(/^!?\[\[([^\]]+)\]\]$/);
+  if (!match) {
+    return '';
+  }
+
+  const inner = trimString(match[1]);
+  const pipeIndex = inner.indexOf('|');
+  const targetWithAnchor = trimString(pipeIndex >= 0 ? inner.slice(0, pipeIndex) : inner);
+  return stripMarkdownExtension(targetWithAnchor.split('#')[0].replace(/\\/g, '/').replace(/^\/+/, ''));
+}
+
+function getDeletedObsidianNoteMatchContext({ vaultPath, absolutePath, basename } = {}) {
+  const normalizedVaultPath = slashPath(vaultPath).replace(/^\/+/, '');
+  const normalizedAbsolutePath = slashPath(absolutePath);
+  const fileBaseName = stripMarkdownExtension(basename || getBaseName(normalizedVaultPath || normalizedAbsolutePath));
+  const targets = new Set();
+
+  if (normalizedVaultPath) {
+    targets.add(stripMarkdownExtension(normalizedVaultPath));
+  }
+  if (fileBaseName) {
+    targets.add(fileBaseName);
+  }
+
+  return {
+    absolutePath: normalizedAbsolutePath,
+    basename: fileBaseName,
+    targets,
+  };
+}
+
+function obsidianTargetMatchesDeletedNote(target, context = {}) {
+  const normalizedTarget = stripMarkdownExtension(trimString(target).replace(/\\/g, '/').replace(/^\/+/, ''));
+  if (!normalizedTarget) {
+    return false;
+  }
+
+  const targetBaseName = stripMarkdownExtension(getBaseName(normalizedTarget));
+  const targets = context.targets instanceof Set ? context.targets : new Set(context.targets || []);
+  return targets.has(normalizedTarget) || (targetBaseName && targets.has(targetBaseName));
+}
+
+function linkedObjectMatchesDeletedObsidianNote(linkedObject = {}, context = {}) {
+  if (!linkedObject || typeof linkedObject !== 'object' || Array.isArray(linkedObject)) {
+    return false;
+  }
+  if (trimString(linkedObject.type) !== 'obsidian-note') {
+    return false;
+  }
+
+  const absolutePath = slashPath(context.absolutePath);
+  const linkedPath = slashPath(linkedObject.path);
+  if (absolutePath && linkedPath && linkedPath === absolutePath) {
+    return true;
+  }
+
+  const target = parseObsidianWikilinkTarget(linkedObject.target || linkedObject.raw);
+  return obsidianTargetMatchesDeletedNote(target, context);
+}
+
+function removeDeletedObsidianNoteLinksFromFrontmatter(frontmatter, deletedNoteContext) {
+  const target = frontmatter && typeof frontmatter === 'object' ? frontmatter : {};
+  const context = deletedNoteContext && deletedNoteContext.targets
+    ? deletedNoteContext
+    : getDeletedObsidianNoteMatchContext(deletedNoteContext);
+  let removedLinkedObjects = 0;
+  let removedRelated = 0;
+
+  if (Array.isArray(target.linked_objects)) {
+    const nextLinkedObjects = target.linked_objects.filter((linkedObject) => {
+      const shouldRemove = linkedObjectMatchesDeletedObsidianNote(linkedObject, context);
+      if (shouldRemove) {
+        removedLinkedObjects += 1;
+      }
+      return !shouldRemove;
+    });
+
+    if (nextLinkedObjects.length > 0) {
+      target.linked_objects = nextLinkedObjects;
+    } else {
+      delete target.linked_objects;
+    }
+  }
+
+  const related = normalizeStringList(target.related);
+  if (related.length > 0) {
+    const nextRelated = related.filter((relatedLink) => {
+      const targetValue = parseObsidianWikilinkTarget(relatedLink);
+      const shouldRemove = targetValue && obsidianTargetMatchesDeletedNote(targetValue, context);
+      if (shouldRemove) {
+        removedRelated += 1;
+      }
+      return !shouldRemove;
+    });
+
+    if (nextRelated.length > 0) {
+      target.related = nextRelated;
+    } else {
+      delete target.related;
+    }
+  }
+
+  return {
+    changed: removedLinkedObjects > 0 || removedRelated > 0,
+    removedLinkedObjects,
+    removedRelated,
+  };
+}
+
 function createObsidianNoteLinkedObject({ title, target, path } = {}) {
   const normalizedTarget = trimString(target);
   const normalizedPath = trimString(path);
@@ -239,9 +354,14 @@ module.exports = {
   createObsidianNoteLinkedObject,
   extractSignboardCardId,
   getCardFileId,
+  getDeletedObsidianNoteMatchContext,
   getListDisplayName,
+  linkedObjectMatchesDeletedObsidianNote,
   normalizeStringList,
+  obsidianTargetMatchesDeletedNote,
+  parseObsidianWikilinkTarget,
   randomId,
+  removeDeletedObsidianNoteLinksFromFrontmatter,
   slashPath,
   slugify,
   addLinkedObjectToFrontmatter,

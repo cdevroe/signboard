@@ -4517,7 +4517,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  max-width: min(100%, 320px);
+  max-width: min(100%, 380px);
   min-height: 28px;
   border: 1px solid color-mix(in oklab, var(--border) 82%, var(--accent));
   border-radius: 6px;
@@ -4527,11 +4527,19 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   line-height: 1.2;
   overflow: hidden;
 }
+#modalEditCard .card-editor-related-note.is-missing {
+  border-color: color-mix(in oklab, #f59e0b 62%, var(--border));
+  background: color-mix(in oklab, var(--bg-card) 84%, #f59e0b);
+}
 #modalEditCard .card-editor-related-note:hover {
   background: color-mix(in oklab, var(--bg-card) 84%, var(--accent));
 }
+#modalEditCard .card-editor-related-note.is-missing:hover {
+  background: color-mix(in oklab, var(--bg-card) 78%, #f59e0b);
+}
 #modalEditCard .card-editor-related-note-open,
-#modalEditCard .card-editor-related-note-remove {
+#modalEditCard .card-editor-related-note-remove,
+#modalEditCard .card-editor-related-note-action {
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -4546,6 +4554,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   min-width: 0;
   padding: 4px 2px 4px 8px;
 }
+#modalEditCard .card-editor-related-note-action,
 #modalEditCard .card-editor-related-note-remove {
   display: inline-flex;
   align-items: center;
@@ -4556,6 +4565,10 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   color: var(--muted);
   padding: 0;
 }
+#modalEditCard .card-editor-related-note-action {
+  width: 26px;
+}
+#modalEditCard .card-editor-related-note-action:hover,
 #modalEditCard .card-editor-related-note-remove:hover {
   color: var(--text);
   background: color-mix(in oklab, var(--border) 55%, transparent);
@@ -4576,6 +4589,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   border-radius: 3px;
   object-fit: contain;
 }
+#modalEditCard .card-editor-related-note-action svg,
 #modalEditCard .card-editor-related-note-remove svg {
   height: 14px;
   width: 14px;

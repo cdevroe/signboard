@@ -787,6 +787,22 @@ function addLinkedObjectToList(existingObjects, nextObject) {
   return filtered;
 }
 
+function replaceLinkedObjectInList(existingObjects, previousObject, nextObject) {
+  const objects = normalizeLinkedObjectList(existingObjects);
+  const previousKey = getLinkedObjectKey(previousObject);
+  const nextKey = getLinkedObjectKey(nextObject);
+  if (!nextKey) {
+    return objects;
+  }
+
+  const filtered = objects.filter((object) => {
+    const objectKey = getLinkedObjectKey(object);
+    return objectKey !== previousKey && objectKey !== nextKey;
+  });
+  filtered.push(nextObject);
+  return filtered;
+}
+
 function getLinkedObjectIconCacheDir() {
   return path.join(app.getPath('userData'), LINKED_OBJECT_ICON_DIRECTORY);
 }
@@ -1017,7 +1033,13 @@ async function buildLinkedObjectFromRendererInput(sender, input = {}) {
   }
 
   if (requestedType === 'obsidian-note') {
-    const notePath = normalizeAbsolutePath(source.path);
+    let notePath = consumePendingSelection(sender, source.token, ['file']);
+    if (!notePath && process.env.SIGNBOARD_TEST_ALLOW_DIRECT_LINKED_OBJECT_PATHS === '1') {
+      notePath = normalizeAbsolutePath(source.path);
+    }
+    if (!notePath) {
+      notePath = normalizeAbsolutePath(source.path);
+    }
     const title = String(source.title || '').trim();
     return {
       type: 'obsidian-note',
@@ -1127,7 +1149,6 @@ async function openLinkedObjectFromRenderer(event, cardPath, input) {
   let openTarget = '';
 
   if (type === 'obsidian-note') {
-    let unresolvedRelatedNote = null;
     const relatedTarget = String(linkedObject.target || linkedObject.raw || '').trim();
     if (relatedTarget) {
       const resolvedNote = await obsidianIntegration.resolveObsidianRelatedNote({
@@ -1137,7 +1158,7 @@ async function openLinkedObjectFromRenderer(event, cardPath, input) {
       if (resolvedNote.ok) {
         openTarget = resolvedNote.obsidianUri;
       } else {
-        unresolvedRelatedNote = resolvedNote;
+        return resolvedNote;
       }
     }
 
@@ -1151,10 +1172,10 @@ async function openLinkedObjectFromRenderer(event, cardPath, input) {
           openTarget = '';
         }
       }
+    }
 
-      if (!openTarget && unresolvedRelatedNote) {
-        return unresolvedRelatedNote;
-      }
+    if (!openTarget) {
+      return { ok: false, error: 'NOTE_NOT_FOUND' };
     }
 
     if (!skippedExternalOpen) {
@@ -1210,6 +1231,237 @@ async function openLinkedObjectFromRenderer(event, cardPath, input) {
   }
 
   return { ok: false, error: 'UNSUPPORTED_LINKED_OBJECT_TYPE' };
+}
+
+async function getLinkedObjectStatusFromRenderer(event, cardPath, input) {
+  requireReadablePath(event.sender, cardPath);
+  const linkedObject = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const type = String(linkedObject.type || '').trim();
+
+  if (type === 'obsidian-note') {
+    const relatedTarget = String(linkedObject.target || linkedObject.raw || '').trim();
+    if (relatedTarget) {
+      const resolvedNote = await obsidianIntegration.resolveObsidianRelatedNote({
+        cardPath,
+        related: relatedTarget,
+      });
+      if (resolvedNote.ok) {
+        return {
+          ok: true,
+          type,
+          status: 'available',
+          missing: false,
+          notePath: resolvedNote.notePath,
+          obsidianUri: resolvedNote.obsidianUri,
+        };
+      }
+
+      return {
+        ok: true,
+        type,
+        status: resolvedNote.error === 'NOTE_NOT_FOUND' ? 'missing' : 'unavailable',
+        missing: resolvedNote.error === 'NOTE_NOT_FOUND',
+        error: resolvedNote.error,
+        notePath: resolvedNote.notePath || '',
+        vaultRoot: resolvedNote.vaultRoot || '',
+      };
+    }
+
+    const notePath = normalizeAbsolutePath(linkedObject.path);
+    if (!notePath) {
+      return { ok: true, type, status: 'missing', missing: true, error: 'NOTE_NOT_FOUND' };
+    }
+
+    try {
+      await fsPromises.access(notePath);
+      return {
+        ok: true,
+        type,
+        status: 'available',
+        missing: false,
+        notePath,
+        obsidianUri: obsidianIntegration.buildObsidianOpenUri(notePath),
+      };
+    } catch {
+      return { ok: true, type, status: 'missing', missing: true, error: 'NOTE_NOT_FOUND', notePath };
+    }
+  }
+
+  if (type === 'file' || type === 'folder') {
+    const targetPath = normalizeAbsolutePath(linkedObject.path);
+    if (!targetPath) {
+      return { ok: true, type, status: 'missing', missing: true, error: 'INVALID_PATH' };
+    }
+
+    try {
+      await fsPromises.access(targetPath);
+      return { ok: true, type, status: 'available', missing: false, path: targetPath };
+    } catch {
+      return { ok: true, type, status: 'missing', missing: true, error: 'PATH_NOT_FOUND', path: targetPath };
+    }
+  }
+
+  return { ok: true, type, status: 'unknown', missing: false };
+}
+
+async function getMissingObsidianNoteRecreatePath(cardPath, linkedObject) {
+  const relatedTarget = String(linkedObject.target || linkedObject.raw || '').trim();
+  if (relatedTarget) {
+    const resolvedNote = await obsidianIntegration.resolveObsidianRelatedNote({
+      cardPath,
+      related: relatedTarget,
+    });
+    if (resolvedNote.ok) {
+      return {
+        ok: false,
+        error: 'NOTE_ALREADY_EXISTS',
+        notePath: resolvedNote.notePath,
+        linkTarget: relatedTarget,
+      };
+    }
+    if (resolvedNote.error === 'NOTE_NOT_FOUND' && resolvedNote.notePath) {
+      return {
+        ok: true,
+        notePath: resolvedNote.notePath,
+        linkTarget: relatedTarget,
+      };
+    }
+    return {
+      ok: false,
+      error: resolvedNote.error || 'NOTE_NOT_FOUND',
+      notePath: resolvedNote.notePath || '',
+    };
+  }
+
+  const notePath = normalizeAbsolutePath(linkedObject.path);
+  if (!notePath) {
+    return { ok: false, error: 'NOTE_NOT_FOUND', notePath: '' };
+  }
+
+  try {
+    await fsPromises.access(notePath);
+    return { ok: false, error: 'NOTE_ALREADY_EXISTS', notePath };
+  } catch {
+    return { ok: true, notePath, linkTarget: '' };
+  }
+}
+
+async function recreateLinkedObsidianNoteFromRenderer(event, boardRootInput, cardPathInput, input) {
+  const { boardRoot, filePath } = requireWritableBoardCardPath(event.sender, boardRootInput, cardPathInput);
+  const linkedObject = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  if (String(linkedObject.type || '').trim() !== 'obsidian-note') {
+    return { ok: false, error: 'UNSUPPORTED_LINKED_OBJECT_TYPE' };
+  }
+
+  const card = await cardFrontmatter.readCard(filePath);
+  const recreateTarget = await getMissingObsidianNoteRecreatePath(filePath, linkedObject);
+  if (!recreateTarget.ok) {
+    return recreateTarget;
+  }
+
+  const result = await obsidianIntegration.createLinkedObsidianNoteAtPath({
+    boardRoot,
+    cardPath: filePath,
+    card,
+    notePath: recreateTarget.notePath,
+  });
+  if (!result.ok) {
+    return result;
+  }
+
+  const linkTarget = recreateTarget.linkTarget || result.linkTarget;
+  const nextLinkedObject = await buildLinkedObjectFromRendererInput(event.sender, {
+    type: 'obsidian-note',
+    target: linkTarget,
+    path: result.notePath,
+  });
+  const nextRelated = obsidianIntegration.addUniqueStringListValue(card.frontmatter.related, linkTarget);
+  const nextFrontmatter = obsidianIntegration.normalizeSignboardCardFrontmatter({
+    boardRoot,
+    cardPath: filePath,
+    frontmatter: {
+      ...card.frontmatter,
+      linked_objects: replaceLinkedObjectInList(card.frontmatter.linked_objects, linkedObject, nextLinkedObject),
+      related: nextRelated,
+    },
+  });
+
+  await cardFrontmatter.writeCard(filePath, {
+    frontmatter: nextFrontmatter,
+    body: card.body,
+  });
+  await autoSyncManagedObsidianBaseForBoard(boardRoot);
+
+  return {
+    ...result,
+    ok: true,
+    linkedObject: nextLinkedObject,
+    frontmatter: nextFrontmatter,
+  };
+}
+
+async function relinkObsidianNoteFromRenderer(event, boardRootInput, cardPathInput, previousInput, nextInput) {
+  const { boardRoot, filePath } = requireWritableBoardCardPath(event.sender, boardRootInput, cardPathInput);
+  const previousObject = previousInput && typeof previousInput === 'object' && !Array.isArray(previousInput) ? previousInput : {};
+  const nextSource = nextInput && typeof nextInput === 'object' && !Array.isArray(nextInput) ? nextInput : {};
+  if (String(previousObject.type || '').trim() !== 'obsidian-note') {
+    return { ok: false, error: 'UNSUPPORTED_LINKED_OBJECT_TYPE' };
+  }
+
+  const notePath = consumePendingSelection(event.sender, nextSource.token, ['file'])
+    || (process.env.SIGNBOARD_TEST_ALLOW_DIRECT_LINKED_OBJECT_PATHS === '1' ? normalizeAbsolutePath(nextSource.path) : '');
+  if (!notePath) {
+    return { ok: false, error: 'INVALID_SELECTION_TOKEN' };
+  }
+  if (path.extname(notePath).toLowerCase() !== '.md') {
+    return { ok: false, error: 'INVALID_OBSIDIAN_NOTE' };
+  }
+
+  const vaultRoot = await obsidianIntegration.findObsidianVaultRoot(filePath);
+  if (!vaultRoot) {
+    return { ok: false, error: 'NOT_IN_OBSIDIAN_VAULT' };
+  }
+  if (!isPathInsideRoot(vaultRoot, notePath)) {
+    return { ok: false, error: 'NOTE_OUTSIDE_OBSIDIAN_VAULT' };
+  }
+
+  const linkTarget = `[[${obsidianIntegration.toObsidianLinkTarget(vaultRoot, notePath)}]]`;
+  const nextLinkedObject = await buildLinkedObjectFromRendererInput(event.sender, {
+    type: 'obsidian-note',
+    title: String(nextSource.title || path.basename(notePath, path.extname(notePath)) || '').trim(),
+    target: linkTarget,
+    path: notePath,
+  });
+  const currentCard = await cardFrontmatter.readCard(filePath);
+  const nextRelated = obsidianIntegration.normalizeStringList(currentCard.frontmatter.related)
+    .filter((item) => item !== previousObject.target && item !== previousObject.raw);
+  if (!nextRelated.includes(linkTarget)) {
+    nextRelated.push(linkTarget);
+  }
+
+  const nextFrontmatter = obsidianIntegration.normalizeSignboardCardFrontmatter({
+    boardRoot,
+    cardPath: filePath,
+    frontmatter: {
+      ...currentCard.frontmatter,
+      linked_objects: replaceLinkedObjectInList(currentCard.frontmatter.linked_objects, previousObject, nextLinkedObject),
+      related: nextRelated,
+    },
+  });
+
+  await cardFrontmatter.writeCard(filePath, {
+    frontmatter: nextFrontmatter,
+    body: currentCard.body,
+  });
+  await autoSyncManagedObsidianBaseForBoard(boardRoot);
+
+  return {
+    ok: true,
+    linkedObject: nextLinkedObject,
+    frontmatter: nextFrontmatter,
+    notePath,
+    linkTarget,
+  };
 }
 
 function isBoardCardPath(boardRoot, candidatePath) {
@@ -3584,6 +3836,18 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
 
     case 'openLinkedObject': {
       return openLinkedObjectFromRenderer(event, args[0], args[1]);
+    }
+
+    case 'getLinkedObjectStatus': {
+      return getLinkedObjectStatusFromRenderer(event, args[0], args[1]);
+    }
+
+    case 'recreateLinkedObsidianNote': {
+      return recreateLinkedObsidianNoteFromRenderer(event, args[0], args[1], args[2]);
+    }
+
+    case 'relinkLinkedObsidianNote': {
+      return relinkObsidianNoteFromRenderer(event, args[0], args[1], args[2], args[3]);
     }
 
     case 'copyCardObsidianUri': {

@@ -83,6 +83,7 @@ function createMockObsidianApp() {
       adapter: {},
       getAbstractFileByPath: () => null,
       getMarkdownFiles: () => [],
+      on: () => ({ e: { offref() {} } }),
     },
   };
 }
@@ -172,6 +173,41 @@ async function run() {
   }), '[[Current Note]]');
   assert.strictEqual(frontmatter.linked_objects.length, 2, 'linked object should dedupe by path');
   assert.deepStrictEqual(frontmatter.related, ['[[Existing]]', '[[Current Note]]'], 'related links should dedupe');
+
+  const deletedNoteContext = helpers.getDeletedObsidianNoteMatchContext({
+    vaultPath: 'Projects/Current Note.md',
+    absolutePath: '/tmp/Current Note.md',
+    basename: 'Current Note',
+  });
+  assert.strictEqual(
+    helpers.linkedObjectMatchesDeletedObsidianNote(frontmatter.linked_objects[1], deletedNoteContext),
+    true,
+    'deleted note should match linked object path',
+  );
+  const cleanupFrontmatter = {
+    related: ['[[Existing]]', '[[Projects/Current Note]]'],
+    linked_objects: [
+      {
+        type: 'obsidian-note',
+        title: 'Existing',
+        target: '[[Existing]]',
+      },
+      {
+        type: 'obsidian-note',
+        title: 'Current Note',
+        target: '[[Projects/Current Note]]',
+        path: '/tmp/Current Note.md',
+      },
+    ],
+  };
+  const cleanupResult = helpers.removeDeletedObsidianNoteLinksFromFrontmatter(cleanupFrontmatter, deletedNoteContext);
+  assert.strictEqual(cleanupResult.changed, true, 'deleted note cleanup should report a change');
+  assert.deepStrictEqual(cleanupFrontmatter.related, ['[[Existing]]']);
+  assert.deepStrictEqual(cleanupFrontmatter.linked_objects, [{
+    type: 'obsidian-note',
+    title: 'Existing',
+    target: '[[Existing]]',
+  }]);
 
   await testPluginLoadFallbacks();
 
