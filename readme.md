@@ -97,6 +97,8 @@ You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 
 Editable fields, including the card title and body editor, support the native right-click text editing menu for cut, copy, paste, delete, and select all.
 
+Raw `http://`, `https://`, and `www.` URLs typed in the card body are visually marked in the editor. Use the inline open-link control or Cmd/Ctrl-click the URL to open it in your default browser without changing the card's Markdown.
+
 Cards, list actions, and dialogs are keyboard-operable, with screen-reader status announcements for common actions. Focus indicators appear for keyboard navigation without adding persistent outlines to the card editor for pointer users.
 
 ## 🤖 MCP Server

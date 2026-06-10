@@ -174,6 +174,8 @@ let activeEditorDiskState = null;
 let editorSaveOperationInFlight = false;
 let isApplyingExternalEditorRefresh = false;
 let cardEditorDropDepth = 0;
+let cardEditorBodyUrlControlsTeardown = null;
+const CARD_EDITOR_BODY_URL_PATTERN = /(?:https?:\/\/|www\.)[^\s<>"'`]+/gi;
 
 function getActiveEditorCardPath() {
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
@@ -204,6 +206,9 @@ function clearQueuedEditorSave() {
 }
 
 function clearActiveCardEditorState() {
+    if (typeof destroyCardEditorBodyUrlControls === 'function') {
+        destroyCardEditorBodyUrlControls();
+    }
     activeCardEditorInstance = null;
     activeEditorDiskState = null;
     editorSaveOperationInFlight = false;
@@ -1363,6 +1368,574 @@ function destroyTaskLineDueDateControls() {
     taskLineDueControlsTeardown = null;
 }
 
+function getCardEditorUrlOpenIconMarkup() {
+    if (
+        window.feather &&
+        window.feather.icons &&
+        typeof window.feather.icons['external-link']?.toSvg === 'function'
+    ) {
+        return window.feather.icons['external-link'].toSvg({
+            width: 16,
+            height: 16,
+            stroke: 'currentColor',
+        });
+    }
+
+    return '<i data-feather="external-link" aria-hidden="true"></i>';
+}
+
+function trimCardEditorBodyUrlCandidate(rawUrl) {
+    let candidate = String(rawUrl || '').trim();
+    if (!candidate) {
+        return '';
+    }
+
+    const countCharacter = (value, character) => (
+        String(value || '').split(character).length - 1
+    );
+    const hasUnmatchedClosingCharacter = (value, opening, closing) => (
+        value.endsWith(closing) && countCharacter(value, closing) > countCharacter(value, opening)
+    );
+
+    let changed = true;
+    while (candidate && changed) {
+        const previousCandidate = candidate;
+        candidate = candidate.replace(/[.,!?;:]+$/g, '');
+
+        while (hasUnmatchedClosingCharacter(candidate, '(', ')')) {
+            candidate = candidate.slice(0, -1);
+        }
+        while (hasUnmatchedClosingCharacter(candidate, '[', ']')) {
+            candidate = candidate.slice(0, -1);
+        }
+        while (hasUnmatchedClosingCharacter(candidate, '{', '}')) {
+            candidate = candidate.slice(0, -1);
+        }
+
+        changed = candidate !== previousCandidate;
+    }
+
+    return candidate;
+}
+
+function normalizeCardEditorBodyUrl(rawUrl) {
+    const displayUrl = trimCardEditorBodyUrlCandidate(rawUrl);
+    if (!displayUrl) {
+        return null;
+    }
+
+    const candidateUrl = /^www\./i.test(displayUrl) ? `https://${displayUrl}` : displayUrl;
+    let parsedUrl = null;
+    try {
+        parsedUrl = new URL(candidateUrl);
+    } catch {
+        return null;
+    }
+
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        return null;
+    }
+
+    return {
+        text: displayUrl,
+        url: parsedUrl.href,
+    };
+}
+
+function findCardEditorBodyUrls(text) {
+    const source = String(text || '');
+    const matches = [];
+    CARD_EDITOR_BODY_URL_PATTERN.lastIndex = 0;
+
+    let match = null;
+    while ((match = CARD_EDITOR_BODY_URL_PATTERN.exec(source)) !== null) {
+        const normalizedUrl = normalizeCardEditorBodyUrl(match[0]);
+        if (normalizedUrl) {
+            matches.push({
+                start: match.index,
+                end: match.index + normalizedUrl.text.length,
+                text: normalizedUrl.text,
+                url: normalizedUrl.url,
+            });
+        }
+
+        if (CARD_EDITOR_BODY_URL_PATTERN.lastIndex === match.index) {
+            CARD_EDITOR_BODY_URL_PATTERN.lastIndex += 1;
+        }
+    }
+
+    return matches;
+}
+
+function getCardEditorBodyUrlAtPosition(text, position) {
+    const offset = Math.max(0, Number(position) || 0);
+    return findCardEditorBodyUrls(text).find((match) => (
+        offset >= match.start && offset <= match.end
+    )) || null;
+}
+
+function getCardEditorBodyUrlHostLabel(rawUrl) {
+    try {
+        return new URL(String(rawUrl || '')).hostname || 'link';
+    } catch {
+        return 'link';
+    }
+}
+
+function shouldOpenCardEditorBodyUrlFromEvent(event) {
+    if (!event || event.button !== 0) {
+        return false;
+    }
+
+    const platform = String(navigator.platform || '');
+    const usesMetaModifier = /Mac|iPhone|iPad|iPod/i.test(platform);
+    return usesMetaModifier ? Boolean(event.metaKey) : Boolean(event.ctrlKey || event.metaKey);
+}
+
+async function openCardEditorBodyUrl(match) {
+    if (!match || !match.url || !window.electronAPI || typeof window.electronAPI.openExternal !== 'function') {
+        return;
+    }
+
+    try {
+        const result = await window.electronAPI.openExternal(match.url);
+        if (!result || result.ok === false) {
+            if (typeof announceSignboardStatus === 'function') {
+                announceSignboardStatus('Unable to open link.');
+            }
+            return;
+        }
+
+        if (typeof announceSignboardStatus === 'function') {
+            announceSignboardStatus(`Opened ${getCardEditorBodyUrlHostLabel(match.url)} in your browser.`);
+        }
+    } catch (error) {
+        console.error('Unable to open card body URL.', error);
+        if (typeof announceSignboardStatus === 'function') {
+            announceSignboardStatus('Unable to open link.');
+        }
+    }
+}
+
+function decorateCardEditorBodyUrlPreview(preview) {
+    if (!preview || preview.dataset.cardEditorBodyUrlDecorating === 'true') {
+        return;
+    }
+
+    preview.dataset.cardEditorBodyUrlDecorating = 'true';
+    try {
+        const textNodes = [];
+        const walker = document.createTreeWalker(preview, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                if (!node || !node.nodeValue || !CARD_EDITOR_BODY_URL_PATTERN.test(node.nodeValue)) {
+                    CARD_EDITOR_BODY_URL_PATTERN.lastIndex = 0;
+                    return NodeFilter.FILTER_REJECT;
+                }
+                CARD_EDITOR_BODY_URL_PATTERN.lastIndex = 0;
+
+                const parentElement = node.parentElement;
+                if (
+                    parentElement &&
+                    parentElement.closest('a, code, pre, .card-editor-body-url-text')
+                ) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+
+                return NodeFilter.FILTER_ACCEPT;
+            },
+        });
+
+        let currentNode = walker.nextNode();
+        while (currentNode) {
+            textNodes.push(currentNode);
+            currentNode = walker.nextNode();
+        }
+
+        for (const textNode of textNodes) {
+            const source = String(textNode.nodeValue || '');
+            const matches = findCardEditorBodyUrls(source);
+            if (matches.length === 0) {
+                continue;
+            }
+
+            const fragment = document.createDocumentFragment();
+            let cursor = 0;
+            for (const match of matches) {
+                if (match.start > cursor) {
+                    fragment.appendChild(document.createTextNode(source.slice(cursor, match.start)));
+                }
+
+                const urlSpan = document.createElement('span');
+                urlSpan.className = 'card-editor-body-url-text';
+                urlSpan.dataset.url = match.url;
+                urlSpan.textContent = match.text;
+                fragment.appendChild(urlSpan);
+                cursor = match.end;
+            }
+
+            if (cursor < source.length) {
+                fragment.appendChild(document.createTextNode(source.slice(cursor)));
+            }
+
+            textNode.parentNode.replaceChild(fragment, textNode);
+        }
+    } finally {
+        delete preview.dataset.cardEditorBodyUrlDecorating;
+        CARD_EDITOR_BODY_URL_PATTERN.lastIndex = 0;
+    }
+}
+
+function createCardEditorTextareaMeasurementMirror(textarea, wrapper) {
+    const style = window.getComputedStyle(textarea);
+    const mirror = document.createElement('div');
+    const textareaRect = textarea.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+
+    mirror.style.position = 'absolute';
+    mirror.style.top = `${Math.round(textareaRect.top - wrapperRect.top)}px`;
+    mirror.style.left = `${Math.round(textareaRect.left - wrapperRect.left)}px`;
+    mirror.style.visibility = 'hidden';
+    mirror.style.pointerEvents = 'none';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordWrap = 'break-word';
+    mirror.style.overflowWrap = 'break-word';
+    mirror.style.boxSizing = 'border-box';
+    mirror.style.width = `${Math.max(textarea.clientWidth, 1)}px`;
+    mirror.style.padding = style.padding;
+    mirror.style.margin = '0';
+    mirror.style.border = '0';
+    mirror.style.font = style.font;
+    mirror.style.lineHeight = style.lineHeight;
+    mirror.style.letterSpacing = style.letterSpacing;
+    mirror.style.textIndent = style.textIndent;
+    mirror.style.textTransform = style.textTransform;
+    mirror.style.textAlign = style.textAlign;
+    mirror.style.direction = style.direction;
+    mirror.style.tabSize = style.tabSize;
+    mirror.style.wordSpacing = style.wordSpacing;
+    mirror.style.webkitTextSizeAdjust = '100%';
+
+    wrapper.appendChild(mirror);
+    return mirror;
+}
+
+function measureCardEditorTextareaOffset(textarea, wrapper, offset) {
+    const textValue = String(textarea.value || '');
+    const safeOffset = Math.min(Math.max(0, Number(offset) || 0), textValue.length);
+    const mirror = createCardEditorTextareaMeasurementMirror(textarea, wrapper);
+
+    try {
+        if (safeOffset > 0) {
+            mirror.appendChild(document.createTextNode(textValue.slice(0, safeOffset)));
+        }
+
+        const marker = document.createElement('span');
+        marker.textContent = '\u200b';
+        marker.setAttribute('aria-hidden', 'true');
+        marker.style.display = 'inline';
+        marker.style.padding = '0';
+        marker.style.margin = '0';
+        marker.style.border = '0';
+        marker.style.lineHeight = 'inherit';
+        marker.style.pointerEvents = 'none';
+        mirror.appendChild(marker);
+
+        if (safeOffset < textValue.length) {
+            mirror.appendChild(document.createTextNode(textValue.slice(safeOffset)));
+        } else if (textValue.length === 0) {
+            mirror.appendChild(document.createTextNode(' '));
+        }
+
+        const markerRect = marker.getBoundingClientRect();
+        const wrapperRect = wrapper.getBoundingClientRect();
+        if (!markerRect || !Number.isFinite(markerRect.top) || !Number.isFinite(markerRect.left)) {
+            return null;
+        }
+
+        return {
+            top: markerRect.top - wrapperRect.top,
+            left: markerRect.left - wrapperRect.left,
+            height: markerRect.height,
+        };
+    } finally {
+        mirror.remove();
+    }
+}
+
+function measureCardEditorPreviewUrlEnd(preview, wrapper, match) {
+    if (!preview || !wrapper || !match || typeof document.createRange !== 'function') {
+        return null;
+    }
+
+    const candidates = Array.from(preview.querySelectorAll('.card-editor-body-url-text')).filter((element) => (
+        element instanceof HTMLElement &&
+        String(element.dataset.url || '') === match.url &&
+        String(element.textContent || '') === match.text
+    ));
+    if (candidates.length === 0) {
+        return null;
+    }
+
+    const wrapperRect = wrapper.getBoundingClientRect();
+    for (const candidate of candidates) {
+        const range = document.createRange();
+        try {
+            range.selectNodeContents(candidate);
+            const clientRects = Array.from(range.getClientRects()).filter((rect) => (
+                rect &&
+                Number.isFinite(rect.top) &&
+                Number.isFinite(rect.right) &&
+                Number.isFinite(rect.height) &&
+                rect.height > 0
+            ));
+            const rect = clientRects[clientRects.length - 1] || candidate.getBoundingClientRect();
+            if (!rect || !Number.isFinite(rect.top) || !Number.isFinite(rect.right)) {
+                continue;
+            }
+
+            return {
+                top: rect.top - wrapperRect.top,
+                left: rect.right - wrapperRect.left,
+                height: rect.height,
+            };
+        } finally {
+            if (typeof range.detach === 'function') {
+                range.detach();
+            }
+        }
+    }
+
+    return null;
+}
+
+function positionCardEditorBodyUrlOpenButton(button, textarea, wrapper, match, preview = null) {
+    if (!button || !textarea || !wrapper || !match) {
+        return false;
+    }
+
+    const previewPosition = measureCardEditorPreviewUrlEnd(preview, wrapper, match);
+    const offsetPosition = previewPosition || measureCardEditorTextareaOffset(textarea, wrapper, match.end);
+    if (!offsetPosition) {
+        return false;
+    }
+
+    const style = window.getComputedStyle(textarea);
+    const fontSize = Number.parseFloat(style.fontSize) || 16;
+    const lineHeight = Math.max(Number.parseFloat(style.lineHeight) || fontSize * 1.6, 1);
+    const buttonSize = 22;
+    const visibleTop = -lineHeight;
+    const visibleBottom = textarea.clientHeight + lineHeight;
+    const visibleLineTop = previewPosition ? offsetPosition.top : offsetPosition.top - textarea.scrollTop;
+    const visibleLineLeft = previewPosition ? offsetPosition.left : offsetPosition.left - textarea.scrollLeft;
+
+    if (visibleLineTop < visibleTop || visibleLineTop > visibleBottom) {
+        return false;
+    }
+
+    const measuredLineHeight = Math.max(Number.parseFloat(offsetPosition.height) || lineHeight, lineHeight);
+    const top = Math.max(4, Math.round(
+        visibleLineTop + ((measuredLineHeight - buttonSize) / 2) - 5,
+    ));
+    const maxLeft = Math.max(4, wrapper.clientWidth - buttonSize - 4);
+    const left = Math.min(
+        maxLeft,
+        Math.max(4, Math.round(visibleLineLeft + 6)),
+    );
+
+    button.style.top = `${top}px`;
+    button.style.left = `${left}px`;
+    return true;
+}
+
+function destroyCardEditorBodyUrlControls() {
+    if (typeof cardEditorBodyUrlControlsTeardown === 'function') {
+        cardEditorBodyUrlControlsTeardown();
+    }
+
+    cardEditorBodyUrlControlsTeardown = null;
+}
+
+function setupCardEditorBodyUrlControls(editor) {
+    destroyCardEditorBodyUrlControls();
+
+    if (!editor || !editor.textarea || !editor.container) {
+        return;
+    }
+
+    const textarea = editor.textarea;
+    const wrapper = editor.container.querySelector('.overtype-wrapper');
+    const preview = editor.container.querySelector('.overtype-preview');
+    if (!wrapper) {
+        return;
+    }
+
+    const openButton = document.createElement('button');
+    openButton.type = 'button';
+    openButton.className = 'card-editor-body-url-open';
+    openButton.hidden = true;
+    openButton.setAttribute('aria-label', 'Open URL in browser');
+    openButton.title = 'Open URL in browser';
+    openButton.innerHTML = getCardEditorUrlOpenIconMarkup();
+    wrapper.appendChild(openButton);
+
+    let activeUrlMatch = null;
+    let renderRafId = 0;
+    let isDecoratingPreview = false;
+
+    const getActiveUrlMatch = () => (
+        getCardEditorBodyUrlAtPosition(textarea.value, textarea.selectionStart)
+    );
+
+    const hideOpenButton = () => {
+        activeUrlMatch = null;
+        openButton.hidden = true;
+        openButton.removeAttribute('data-url');
+    };
+
+    const updateOpenButton = () => {
+        activeUrlMatch = getActiveUrlMatch();
+        if (!activeUrlMatch) {
+            hideOpenButton();
+            return;
+        }
+
+        const positioned = positionCardEditorBodyUrlOpenButton(openButton, textarea, wrapper, activeUrlMatch, preview);
+        if (!positioned) {
+            hideOpenButton();
+            return;
+        }
+
+        openButton.hidden = false;
+        openButton.dataset.url = activeUrlMatch.url;
+        const hostLabel = getCardEditorBodyUrlHostLabel(activeUrlMatch.url);
+        openButton.title = `Open ${hostLabel} in browser`;
+        openButton.setAttribute('aria-label', `Open ${hostLabel} in browser`);
+    };
+
+    function renderBodyUrlControls() {
+        if (preview && !isDecoratingPreview) {
+            isDecoratingPreview = true;
+            decorateCardEditorBodyUrlPreview(preview);
+            isDecoratingPreview = false;
+        }
+
+        updateOpenButton();
+    }
+
+    const requestRender = () => {
+        if (renderRafId) {
+            return;
+        }
+
+        renderRafId = window.requestAnimationFrame(() => {
+            renderRafId = 0;
+            renderBodyUrlControls();
+        });
+    };
+
+    const handleTextareaClick = (event) => {
+        if (!shouldOpenCardEditorBodyUrlFromEvent(event)) {
+            requestRender();
+            return;
+        }
+
+        const match = getActiveUrlMatch();
+        if (!match) {
+            requestRender();
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        activeUrlMatch = match;
+        openCardEditorBodyUrl(match);
+        requestRender();
+    };
+
+    const handleOpenButtonMouseDown = (event) => {
+        event.preventDefault();
+    };
+
+    const handleOpenButtonClick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const match = activeUrlMatch || getActiveUrlMatch();
+        if (!match) {
+            hideOpenButton();
+            return;
+        }
+
+        openCardEditorBodyUrl(match);
+    };
+
+    const handleDocumentSelectionChange = () => {
+        if (document.activeElement === textarea) {
+            requestRender();
+        }
+    };
+
+    textarea.addEventListener('click', handleTextareaClick);
+    textarea.addEventListener('input', requestRender);
+    textarea.addEventListener('keyup', requestRender);
+    textarea.addEventListener('scroll', requestRender);
+    document.addEventListener('selectionchange', handleDocumentSelectionChange);
+    openButton.addEventListener('mousedown', handleOpenButtonMouseDown);
+    openButton.addEventListener('click', handleOpenButtonClick);
+    window.addEventListener('resize', requestRender);
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver === 'function') {
+        resizeObserver = new ResizeObserver(() => {
+            requestRender();
+        });
+        resizeObserver.observe(textarea);
+        resizeObserver.observe(wrapper);
+    }
+
+    let previewMutationObserver = null;
+    if (typeof MutationObserver === 'function' && preview) {
+        previewMutationObserver = new MutationObserver(() => {
+            if (!isDecoratingPreview) {
+                requestRender();
+            }
+        });
+        previewMutationObserver.observe(preview, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+        });
+    }
+
+    requestRender();
+
+    cardEditorBodyUrlControlsTeardown = () => {
+        if (renderRafId) {
+            window.cancelAnimationFrame(renderRafId);
+            renderRafId = 0;
+        }
+
+        textarea.removeEventListener('click', handleTextareaClick);
+        textarea.removeEventListener('input', requestRender);
+        textarea.removeEventListener('keyup', requestRender);
+        textarea.removeEventListener('scroll', requestRender);
+        document.removeEventListener('selectionchange', handleDocumentSelectionChange);
+        openButton.removeEventListener('mousedown', handleOpenButtonMouseDown);
+        openButton.removeEventListener('click', handleOpenButtonClick);
+        window.removeEventListener('resize', requestRender);
+
+        if (resizeObserver) {
+            resizeObserver.disconnect();
+        }
+        if (previewMutationObserver) {
+            previewMutationObserver.disconnect();
+        }
+        if (openButton.parentNode) {
+            openButton.parentNode.removeChild(openButton);
+        }
+    };
+}
+
 function getTaskLineDueControlIconMarkup(hasDueDate) {
     if (
         window.feather &&
@@ -1832,6 +2405,7 @@ async function toggleEditCardModal(cardPath, options = {}) {
     const shouldFocusNotes = Boolean(options && options.focusNotes);
     const modalEditCard = document.getElementById('modalEditCard');
     destroyTaskLineDueDateControls();
+    destroyCardEditorBodyUrlControls();
 
     const card = await window.board.readCard(cardPath);
 
@@ -1891,6 +2465,7 @@ async function toggleEditCardModal(cardPath, options = {}) {
     editor.container.classList.remove('plain-mode');
     addTimestampToolbarButton(editor);
     setupTaskLineDueDateControls(editor);
+    setupCardEditorBodyUrlControls(editor);
 
     cardEditorTitle.onkeydown = (e) => {
         if ( e.code == 'Enter' ) { e.preventDefault(); return; }

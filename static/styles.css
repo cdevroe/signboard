@@ -2429,6 +2429,17 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   #modalEditCard .cardEditorTimestampMetadata {
     color: CanvasText;
   }
+
+  #cardEditorOverType .card-editor-body-url-text {
+    color: LinkText !important;
+  }
+
+  #cardEditorOverType .card-editor-body-url-open {
+    border-color: CanvasText !important;
+    background: ButtonFace !important;
+    color: ButtonText !important;
+    box-shadow: none !important;
+  }
 }
 
 /* 7) Modals (Add Card, Add Card To List) */
@@ -4832,6 +4843,7 @@ select:disabled {
 
 #cardEditorOverType {
   flex: 1 1 auto;
+  width: 100%;
   min-height: 0;
   margin-top: 20px;
 }
@@ -4847,6 +4859,46 @@ select:disabled {
 #cardEditorOverType .overtype-wrapper {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+#cardEditorOverType .card-editor-body-url-text {
+  color: color-mix(in oklab, var(--accent) 78%, var(--text));
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+#cardEditorOverType .card-editor-body-url-open {
+  position: absolute;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid color-mix(in oklab, var(--border) 76%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-card) 94%, transparent);
+  color: color-mix(in oklab, var(--accent) 78%, var(--text));
+  box-shadow: 0 2px 8px var(--shadow-card);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#cardEditorOverType .card-editor-body-url-open[hidden] {
+  display: none !important;
+}
+
+#cardEditorOverType .card-editor-body-url-open:hover {
+  border-color: color-mix(in oklab, var(--accent) 44%, var(--border));
+  background: color-mix(in oklab, var(--accent) 10%, var(--bg-card));
+}
+
+#cardEditorOverType .card-editor-body-url-open svg {
+  width: 13px;
+  height: 13px;
+  display: block;
 }
 
 #cardEditorOverType .overtype-toolbar {

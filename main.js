@@ -4425,10 +4425,16 @@ ipcMain.handle('open-external-url', async (_event, rawUrl) => {
   try {
     if (parsedUrl.protocol === 'signboard:') {
       await dispatchSignboardProtocolUrl(parsedUrl.href);
-      return { ok: true };
+      return { ok: true, openTarget: parsedUrl.href };
     }
+
+    const skippedExternalOpen = process.env.SIGNBOARD_TEST_DISABLE_EXTERNAL_OPEN === '1';
+    if (skippedExternalOpen) {
+      return { ok: true, openTarget: parsedUrl.href, skippedExternalOpen };
+    }
+
     await shell.openExternal(parsedUrl.href);
-    return { ok: true };
+    return { ok: true, openTarget: parsedUrl.href };
   } catch (error) {
     return { ok: false, error: error?.message || 'OPEN_EXTERNAL_FAILED' };
   }

@@ -108,10 +108,13 @@ Click a card to open it. In the card editor you can:
 - Duplicate it
 - Share it
 - Open it in Obsidian or the default Markdown app
+- Open raw web URLs from the card body
 - Create, open, or remove linked objects
 - Archive it
 
 The card body is Markdown, so plain text notes, headings, lists, and checklists all work naturally.
+
+Raw `http://`, `https://`, and `www.` URLs in the body stay as plain Markdown text. When the cursor is in one, Signboard shows a small open-link control; Cmd/Ctrl-clicking the URL also opens it in your default browser.
 
 The editor shows when the card was created and when it was last updated. Newer cards use Signboard's card metadata for the created date; older cards fall back to filesystem timestamps.
 

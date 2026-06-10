@@ -236,6 +236,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
   - Tracks the clean on-disk editor state so external/MCP updates can reload an open card editor when the user has no local edits in progress.
   - Relies on the main-process renderer context menu for native right-click cut/copy/paste/select-all in editable title/body fields.
+  - Detects raw `http(s)`/`www` URLs in the body without rewriting Markdown, visually marks them in the OverType preview, and opens them through `window.electronAPI.openExternal` from the inline open button or Cmd/Ctrl-click.
   - Moves active cards to selected/adjacent lists from the list dropdown, arrow action, and keyboard shortcuts by calling the main-process `moveCardToTop` IPC path, which inserts at the top of the destination list.
   - Defers list-dropdown moves until macOS native menu tracking has settled before disabling controls or refreshing editor state.
   - Renders task-line due-date controls at the start of each parsed checklist line in the editor.

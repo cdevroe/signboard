@@ -24,6 +24,7 @@ If you want structured tool access from an agent, see [MCP Server](../MCP_README
 - Archiving and restoring cards and lists
 - Settings, including app-wide tooltips/notifications/Quick Add global shortcut/External Published Calendar and board-specific workflow, colors, labels, and imports
 - Obsidian integration, including boards stored inside vaults, Open With actions, generated Bases files, linked notes, missing-note handling, linked objects, dropped local-file linking, URL favicons, `signboard://` card/board links, and the optional Obsidian companion plugin
+- Raw web URLs in card bodies, opened from the editor through the inline open-link control or Cmd/Ctrl-click
 - Native text editing context menus in editable fields
 - Accessibility support for keyboard-operable cards/list actions, modal focus handling, live status announcements, reduced motion, and forced-colors mode
 - Keyboard result/menu navigation for board search, Planner search, Archive search, board tabs, list actions, label/filter popovers, and Settings sections

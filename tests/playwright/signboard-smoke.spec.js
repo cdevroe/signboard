@@ -2294,6 +2294,68 @@ test('closes the task due date picker when clearing a task due date', async ({ p
   await expect(datepickerPopup).toBeVisible();
 });
 
+test('opens raw card body URLs without rewriting the body', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  const body = [
+    '- June 10, 11:02 - Adding the nerdpress-team.md to the repo',
+    '',
+    'Repo URL: https://example.com/docs?item=1.',
+    'Then keep editing.',
+  ].join('\n');
+  await setEditorBody(page, body);
+
+  const textarea = page.locator('#cardEditorOverType .overtype-input');
+  const urlText = page
+    .locator('#cardEditorOverType .card-editor-body-url-text')
+    .filter({ hasText: 'https://example.com/docs?item=1' })
+    .first();
+  await expect(urlText).toBeVisible();
+  await expect(urlText).toHaveAttribute('data-url', 'https://example.com/docs?item=1');
+
+  const urlBox = await urlText.boundingBox();
+  if (!urlBox) {
+    throw new Error('Unable to measure raw URL text in the card editor.');
+  }
+
+  await page.mouse.click(urlBox.x + (urlBox.width / 2), urlBox.y + (urlBox.height / 2));
+  const openUrlButton = page.locator('#cardEditorOverType .card-editor-body-url-open');
+  await expect(openUrlButton).toBeVisible();
+  await expect(openUrlButton).toHaveAttribute('data-url', 'https://example.com/docs?item=1');
+  const openUrlButtonBox = await openUrlButton.boundingBox();
+  if (!openUrlButtonBox) {
+    throw new Error('Unable to measure raw URL open button in the card editor.');
+  }
+  expect(openUrlButtonBox.x).toBeGreaterThan(urlBox.x + urlBox.width - 2);
+  expect(openUrlButtonBox.y).toBeGreaterThan(urlBox.y - 10);
+
+  await page.evaluate(() => {
+    const statusRegion = document.getElementById('signboardStatusRegion');
+    if (statusRegion) {
+      statusRegion.textContent = '';
+    }
+  });
+  const linkOpenModifier = usesMetaModifier ? 'Meta' : 'Control';
+  try {
+    await page.keyboard.down(linkOpenModifier);
+    await page.mouse.click(urlBox.x + (urlBox.width / 2), urlBox.y + (urlBox.height / 2));
+  } finally {
+    await page.keyboard.up(linkOpenModifier);
+  }
+  await expect(page.locator('#signboardStatusRegion')).toHaveText('Opened example.com in your browser.');
+  await expect(textarea).toHaveValue(body);
+
+  await page.evaluate(() => {
+    const statusRegion = document.getElementById('signboardStatusRegion');
+    if (statusRegion) {
+      statusRegion.textContent = '';
+    }
+  });
+  await openUrlButton.click();
+  await expect(page.locator('#signboardStatusRegion')).toHaveText('Opened example.com in your browser.');
+  await expect(textarea).toHaveValue(body);
+});
+
 test('persists the app tooltip toggle and suppresses tooltips when disabled', async ({ page }) => {
   const supportButton = page.locator('#openCommercialLicenseModal');
   const tooltip = page.locator('#sbTooltip');
