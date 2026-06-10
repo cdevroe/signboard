@@ -1779,6 +1779,18 @@ test('opens Planner across currently open boards', async ({ electronApp, boardRo
   await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Plan release notes' })).toContainText('Playwright Board');
   await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Polish homepage copy' })).toContainText('Roadmap Board');
   await expect(page.locator('.planner-calendar-card').filter({ hasText: 'Ship beta' })).toHaveCount(0);
+  await expect.poll(async () => page.evaluate(() => {
+    const bodyFont = getComputedStyle(document.body).fontFamily;
+    return [
+      '.planner-view-tab',
+      '.planner-scope-option',
+      '#plannerScopeLabel',
+      '#plannerFilterButton',
+    ].every((selector) => {
+      const element = document.querySelector(selector);
+      return element && getComputedStyle(element).fontFamily === bodyFont;
+    });
+  })).toBe(true);
 
   const roadmapSourcePill = page
     .locator('.planner-calendar-card')

@@ -196,6 +196,13 @@ body {
   overflow: hidden;
 }
 
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 /* 3) App chrome */
 body > header {
   display: flex;
@@ -717,6 +724,7 @@ body.planner-open .planner-overlay {
   box-shadow: none;
   font-size: var(--font-sm);
   font-weight: 600;
+  line-height: 1;
   padding: 6px 11px;
 }
 
@@ -733,6 +741,15 @@ body.planner-open .planner-overlay {
 .planner-view-tab svg {
   width: 15px;
   height: 15px;
+}
+
+.planner-view-tab-icon,
+.planner-view-tab-label,
+.planner-scope-option-icon,
+.planner-scope-option-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .planner-scope-toggle {
@@ -758,6 +775,7 @@ body.planner-open .planner-overlay {
   box-shadow: none;
   font-size: var(--font-sm);
   font-weight: 600;
+  line-height: 1;
   padding: 5px 9px;
 }
 
@@ -783,8 +801,7 @@ body.planner-open .planner-overlay {
 
 .planner-scope-label {
   color: var(--muted);
-  font-family: "JetBrains Mono Local", "JetBrains Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--font-xs);
   font-weight: 600;
   white-space: nowrap;
   margin-bottom: 2px;
