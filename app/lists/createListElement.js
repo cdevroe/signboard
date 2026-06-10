@@ -1,5 +1,5 @@
 async function createListElement(name, listPath, cardNames, options = {}) {
-  const listEl = document.createElement('div');
+  const listEl = document.createElement('section');
   listEl.className = 'list';
   listEl.dataset.path = listPath;
 
@@ -9,6 +9,19 @@ async function createListElement(name, listPath, cardNames, options = {}) {
   listName.setAttribute('contenteditable',true);
   listName.setAttribute('data-listpath',listPath);
   listName.textContent = name.substring(4,name.length-6);
+  listName.id = typeof createStableDomId === 'function'
+    ? createStableDomId('list-name', listPath)
+    : '';
+  listName.setAttribute('role', 'textbox');
+  listName.setAttribute('aria-label', 'List name');
+  listName.setAttribute('aria-multiline', 'false');
+  listName.setAttribute('spellcheck', 'false');
+  listName.tabIndex = 0;
+  if (listName.id) {
+    listEl.setAttribute('aria-labelledby', listName.id);
+  } else {
+    listEl.setAttribute('aria-label', listName.textContent || 'List');
+  }
 
   listName.addEventListener('keydown', async function (e){
       if ( e.code == 'Enter' ) { 
@@ -34,7 +47,7 @@ async function createListElement(name, listPath, cardNames, options = {}) {
   actionsBtn.type = 'button';
   actionsBtn.className = 'list-actions-button';
   actionsBtn.title = 'List actions';
-  actionsBtn.setAttribute('aria-label', 'List actions');
+  actionsBtn.setAttribute('aria-label', `List actions for ${listName.textContent || 'list'}`);
   actionsBtn.innerHTML = '<i data-feather="more-horizontal"></i>';
   actionsBtn.addEventListener('click', async function (e) {
     e.stopPropagation();
@@ -52,6 +65,8 @@ async function createListElement(name, listPath, cardNames, options = {}) {
   const cardsEl = document.createElement('div');
   cardsEl.className = 'cards';
   cardsEl.dataset.path = listPath;
+  cardsEl.setAttribute('role', 'list');
+  cardsEl.setAttribute('aria-label', `${listName.textContent || 'List'} cards`);
   listEl.appendChild(cardsEl);
 
   const cardElements = await Promise.all(
@@ -165,6 +180,9 @@ async function renameList( e ) {
 
   await window.board.moveList(oldPath,newPath);
   await renderBoard();
+  if (typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus(`Renamed list to "${e.target.textContent || 'Untitled'}".`);
+  }
 
   return;
 }

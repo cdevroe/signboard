@@ -122,6 +122,8 @@ function updateBoardCardDragTilt(event) {
     return;
   }
 
+  activeBoardCardDragTiltState.lastPointer = pointer;
+
   if (activeBoardCardDragTiltState.startX === null) {
     activeBoardCardDragTiltState.startX = pointer.clientX;
   }
@@ -168,6 +170,10 @@ function addBoardCardDragTiltListeners() {
 function beginBoardCardDragTilt(evt) {
   endBoardCardDragTilt();
 
+  if (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) {
+    return;
+  }
+
   const item = evt && evt.item;
   if (!isBoardCardDragTiltElement(item)) {
     return;
@@ -177,6 +183,7 @@ function beginBoardCardDragTilt(evt) {
   activeBoardCardDragTiltState = {
     item,
     startX: pointer ? pointer.clientX : null,
+    lastPointer: pointer,
     targets: [],
   };
 
@@ -203,7 +210,86 @@ function endBoardCardDragTilt(evt) {
   activeBoardCardDragTiltState = null;
 }
 
+function getBoardCardFallbackDropTarget(pointer) {
+  if (!pointer || typeof document === 'undefined') {
+    return null;
+  }
+
+  const boardEl = document.getElementById('board');
+  if (!boardEl || typeof boardEl.getBoundingClientRect !== 'function') {
+    return null;
+  }
+
+  const listEntries = Array.from(boardEl.children)
+    .filter((element) => element instanceof HTMLElement && element.classList.contains('list'))
+    .map((listEl) => ({
+      listEl,
+      rect: listEl.getBoundingClientRect(),
+    }))
+    .filter((entry) => entry.rect.width > 0 && entry.rect.height > 0);
+
+  if (listEntries.length === 0) {
+    return null;
+  }
+
+  const boardRect = boardEl.getBoundingClientRect();
+  if (
+    pointer.clientY < boardRect.top ||
+    pointer.clientY > boardRect.bottom ||
+    pointer.clientX < boardRect.left ||
+    pointer.clientX > boardRect.right
+  ) {
+    return null;
+  }
+
+  const firstListRect = listEntries[0].rect;
+  const lastListRect = listEntries[listEntries.length - 1].rect;
+  if (pointer.clientX < firstListRect.left || pointer.clientX > lastListRect.right) {
+    return null;
+  }
+
+  let closestEntry = null;
+  let closestDistance = Infinity;
+  for (const entry of listEntries) {
+    const centerX = entry.rect.left + (entry.rect.width / 2);
+    const distance = Math.abs(pointer.clientX - centerX);
+    if (distance < closestDistance) {
+      closestEntry = entry;
+      closestDistance = distance;
+    }
+  }
+
+  return closestEntry && closestEntry.listEl
+    ? closestEntry.listEl.querySelector('.cards')
+    : null;
+}
+
+function redirectBoardCardDropToFallbackTarget(evt) {
+  if (!activeBoardCardDragTiltState || !evt || !isBoardCardDragTiltElement(evt.item)) {
+    return;
+  }
+
+  if (!evt.item.classList.contains('card')) {
+    return;
+  }
+
+  const targetCardsEl = getBoardCardFallbackDropTarget(activeBoardCardDragTiltState.lastPointer);
+  if (!targetCardsEl || targetCardsEl === evt.to) {
+    return;
+  }
+
+  const currentCardsEl = evt.item.parentElement;
+  if (currentCardsEl !== targetCardsEl) {
+    targetCardsEl.appendChild(evt.item);
+  }
+
+  evt.to = targetCardsEl;
+  evt.newIndex = Array.from(targetCardsEl.querySelectorAll('.card')).indexOf(evt.item);
+  evt.newDraggableIndex = evt.newIndex;
+}
+
 function createBoardCardSortableOptions(options = {}) {
+  const shouldReduceMotion = typeof prefersReducedMotion === 'function' && prefersReducedMotion();
   const mergedOptions = {
     forceFallback: true,
     fallbackOnBody: true,
@@ -211,8 +297,12 @@ function createBoardCardSortableOptions(options = {}) {
     chosenClass: 'card-sortable--chosen',
     ghostClass: 'card-sortable--ghost',
     dragClass: 'card-sortable--dragging',
+    animation: shouldReduceMotion ? 0 : options.animation,
     ...options,
   };
+  if (shouldReduceMotion) {
+    mergedOptions.animation = 0;
+  }
   const baseOnChoose = mergedOptions.onChoose;
   const baseOnUnchoose = mergedOptions.onUnchoose;
   const baseOnStart = mergedOptions.onStart;
@@ -243,6 +333,7 @@ function createBoardCardSortableOptions(options = {}) {
     },
     onEnd(evt) {
       try {
+        redirectBoardCardDropToFallbackTarget(evt);
         if (typeof baseOnEnd === 'function') {
           return baseOnEnd.call(this, evt);
         }

@@ -1,14 +1,17 @@
 # Signboard Project Context
 
 ## What this app is
-Signboard is a local-first board app built with Electron and plain JavaScript. Boards render as Kanban; Calendar, This Week, Day, and Agenda dated workflows live in the workspace-level Planner overlay.
+Signboard is a local-first board app built with Electron and plain JavaScript. Boards render as Kanban by default and can switch to a board-scoped Table view; Calendar, This Week, Day, and Agenda dated workflows live in the workspace-level Planner overlay.
 
 - A board is a folder on disk.
 - Lists are subdirectories inside that board folder.
 - Cards are Markdown files in each list directory.
-- Board-level settings are stored in `board-settings.md` at the board root, including labels, color scheme data, and completed-list workflow rules.
-- App-level tooltip and notification settings are stored in `app-settings.json` under Electron `userData`.
+- Board-level settings are stored in `board-settings.md` at the board root, including labels, color scheme data, completed-list workflow rules, and whether the board participates in External Published Calendar.
+- App-level tooltip, notification, Quick Add global shortcut, and External Published Calendar settings are stored in `app-settings.json` under Electron `userData`.
+- Obsidian integration is outbound and file-native: boards can live inside a vault, cards gain flat Obsidian-friendly properties on create/write/move, managed `Signboard Board.base` files are auto-created/updated for boards inside detected vaults unless the user customizes them, vault-only card actions can write linked notes in the board root, non-vault linked-note/Base actions show an info modal, legacy `related` Obsidian wikilinks remain readable, structured `linked_objects` render as removable chips for notes/files/folders/URLs/app links/Signboard links, Obsidian-note chips prefer the current `related` wikilink name/open/status/recreate target when Obsidian renames notes, missing Obsidian notes remain linked until the user recreates, relinks, or removes them, Kanban/Table views show linked-object counts, local files can be linked by dragging them onto the card editor, `signboard://open-card?id=...` deep links resolve only through trusted board roots, and `signboard://open-board?path=...` opens validated vault-contained board folders after user confirmation.
+- The optional Obsidian companion plugin source lives in `obsidian-plugin/`; it can open/copy Signboard links, attach active notes to cards, ask before removing links to deleted notes, handle `obsidian://signboard?...`, and convert a non-root Obsidian folder into a Signboard board after warning the user.
 - Card metadata is stored in YAML frontmatter (with legacy parser support).
+- Desktop card reads, CLI JSON card output, and MCP card tool responses expose normalized timestamps in addition to frontmatter/body. `timestamps.createdAt` prefers `createdAt` frontmatter, then a `created` activity entry, then filesystem birth/ctime/mtime for legacy cards; `timestamps.updatedAt` comes from filesystem modification time. CLI card listing also supports age-oriented sort keys for updated/created oldest/newest.
 - Task checklist lines in card bodies can store task due markers with `(due: YYYY-MM-DD)`.
 
 ## Runtime Architecture
@@ -24,7 +27,10 @@ File: `main.js`
 - Registers IPC handler `choose-directory` to open native folder picker.
 - Registers IPC handler `pick-import-sources` to open native file/directory pickers for Trello JSON and Obsidian markdown/vault sources.
 - Registers IPC handler `check-for-updates` for renderer-triggered manual update checks.
-- Builds a native app menu with a `Check for Updates...` action.
+- Registers the `signboard://` protocol in desktop mode, resolves `open-card` links by scanning trusted board roots for matching card IDs, and resolves `open-board` links only for board-looking folders inside an Obsidian vault after prompting before adding a new trusted root.
+- Builds a native app menu with board view, Settings, theme, and `Check for Updates...` actions, and validates/rebuilds it on focus if required Signboard actions are missing.
+- Registers the optional app-level Quick Add global shortcut with Electron `globalShortcut` while Signboard is running; the shortcut focuses the main window and opens the same renderer Quick Add card modal as `Cmd/Ctrl + N`.
+- Runs the opt-in External Published Calendar HTTP server on `127.0.0.1:<port>` while enabled, protected by a stable per-install token in the subscription URL.
 - Help menu includes `Copy MCP Config` to copy a ready-to-paste Signboard MCP JSON snippet.
 - In unpackaged/dev mode, Help menu includes `Preview Update Available...` and `Preview Update Ready...` to test updater dialogs without downloading/installing.
 - Uses `electron-updater` against GitHub Releases for automatic and manual update checks.
@@ -32,16 +38,17 @@ File: `main.js`
 - Shows native update dialogs with release notes, changelog links, remind-later, and install/relaunch actions.
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` as a thin renderer bridge into main-process IPC.
-- Owns renderer right-click text editing context menus through the `webContents` `context-menu` event, covering editable fields such as the card title and OverType notes editor.
+- Owns renderer right-click text editing context menus through the `webContents` `context-menu` event, covering editable fields such as the card title and OverType notes editor; context-menu popup creation is deferred one tick so AppKit can finish native menu tracking before window layout changes.
 - Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
 - Owns explicit board import operations for Trello, Obsidian, and Tasks.md; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
+- Owns outbound Obsidian operations through `lib/obsidianIntegration.js`: containing-vault detection, Obsidian URI construction, default-app opening, managed generated Bases files, linked note creation, inbox note appends, and Signboard deep-link copying/resolution.
 - Owns archive browse/read/restore operations through `lib/archive.js`; renderer code never scans or restores archive contents directly.
 - Owns adjacent-card top-of-list moves through `moveCardToTop`, backed by `lib/cardOrdering.js`.
 - In MCP mode, starts `lib/mcpServer.js`, passes desktop trusted board roots into it, and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
-- Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal list/card/archive management.
-- The packaged Electron executable also routes `lists ...`, `cards ...`, `archive ...`, `settings ...`, and `import ...` CLI invocations through `main.js` without opening the desktop window.
-- Help menu includes `Install Signboard CLI` on macOS/Linux, which installs a per-user shim and PATH profile block for the packaged app executable.
+- Source checkouts also expose a Node CLI at `bin/signboard.js` for direct terminal board/list/card/archive management.
+- The packaged Electron executable still recognizes `boards ...`, `lists ...`, `cards ...`, `archive ...`, `settings ...`, and `import ...` CLI invocations through `main.js`, but installed CLI shims should use Electron Node mode instead of initializing the desktop lifecycle.
+- Help menu includes `Install Signboard CLI` on macOS/Linux, which installs a per-user shim and PATH profile block; packaged shims run `app.asar/bin/signboard.js` under `ELECTRON_RUN_AS_NODE` so terminal CLI calls do not initialize the desktop app lifecycle.
 - Security-related window settings are:
   - `contextIsolation: true`
   - `nodeIntegration: false`
@@ -51,12 +58,13 @@ File: `main.js`
 File: `preload.js`
 
 - Exposes `window.board`, `window.chooser`, and `window.electronAPI`.
-- `window.electronAPI` includes external-link opening, manual update checks, app settings reads/writes, and one-time migration from legacy board-level tooltip/notification settings.
+- `window.electronAPI` includes external-link opening, clipboard text copying, manual update checks, app settings reads/writes, Quick Add global shortcut status, one-time migration from legacy board-level tooltip/notification settings, and main-process-triggered renderer events such as board view switching and Quick Add.
+- `window.electronAPI.onOpenSignboardCardLink(...)` lets `main.js` hand resolved `signboard://open-card` links to the renderer, which switches to the board and opens the normal card editor. `window.electronAPI.onOpenSignboardBoardLink(...)` switches to a board opened through `signboard://open-board`.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
 - Archive browsing uses preload bridge methods (`listArchiveEntries`, `readArchiveEntry`, `restoreArchivedCard`, `restoreArchivedList`) backed by the same trusted-board gate as normal board operations.
 - Adjacent-card moves from renderer shortcuts use preload method `moveCardToTop`, which validates source/target paths in `main.js` and inserts the card at the top of the target list through `lib/cardOrdering.js`.
-- `window.chooser.pickImportSources(...)` returns tokenized external file/directory selections for import flows, and `window.board.importTrello(...)` / `window.board.importObsidian(...)` / `window.board.importTasksMd(...)` invoke the main-process importers.
+- `window.chooser.pickImportSources(...)` returns tokenized external file/directory selections for import flows, and `window.board.importTrello(...)` / `window.board.importObsidian(...)` / `window.board.importTasksMd(...)` invoke the main-process importers. `window.chooser.linkDroppedObjects(...)` extracts OS drag/drop file paths in preload using Electron `webUtils.getPathForFile` and forwards them to main-process linked-object validation.
 - Still exposes board watch helpers (`startBoardWatch`, `stopBoardWatch`, `getBoardWatchToken`), but the watcher implementation now lives in `main.js`.
 
 ### Renderer
@@ -66,24 +74,26 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
 - The left-edge Planner rail and overlay markup live in `index.html`; Planner covers the board header/tabs while open and is hidden when no boards are open.
 - `app/signboard.js` is concatenated from source modules by `buildjs.sh`.
-- Settings includes app-level tooltip/notification controls and board-specific General, Workflow, Labels, Colors, and Import sections, with import summary/warning rendering in the existing settings modal.
+- Settings includes app-level tooltip/notification/Quick Add global shortcut/External Published Calendar controls and board-specific General, Obsidian, Workflow, Labels, Colors, and Import sections, with import summary/warning rendering in the existing settings modal.
+- The shared Obsidian-vault-required info modal lives in `index.html` and is controlled from `app/init.js`; linked-note creation and Base generation use it when the active board is not inside a detected vault.
 - The sponsorship modal is available from the Board menu "Sponsor" item, About modal, and a fixed bottom-right "Sponsor" pill that hides on compact windows so it does not cover lists.
 - The Board menu now opens a dedicated Archive browser modal; Archive remains hidden from normal board rendering and is not a fourth board view.
-- The quick board switcher is a top-center renderer overlay opened with `Cmd/Ctrl + K`; it searches currently open board tabs only and switches through the same safe board transition helper as tab clicks.
+- The quick board switcher is a top-center renderer overlay opened with `Cmd/Ctrl + K`; it searches all currently open boards, supports closing boards, and switches through the same safe board transition helper as tab and overflow-tab clicks.
 
 ## Data Model and Naming Conventions
 
 ### Board
 - `window.boardRoot` is the absolute board path with trailing slash.
-- Open board tabs are persisted in `localStorage.openBoardPaths`.
+- Open board tabs are persisted in `localStorage.openBoardPaths` without a hard count limit; the visible tab strip collapses excess tabs behind an `N more` control.
 - Active board root is persisted in `localStorage.activeBoardPath` and mirrored in legacy `localStorage.boardPath` for backward compatibility.
-- `board-settings.md` is auto-created with default label definitions when missing; legacy tooltip/notification keys are read for app-settings migration and removed on rewrite.
+- `board-settings.md` is auto-created with default label definitions when missing; legacy tooltip/notification keys are read for app-settings migration and removed on rewrite; board-level External Published Calendar inclusion defaults on and only serializes when disabled.
 - Imports are additive only: they create new lists/cards in the current board and never modify external source files.
 
 ### List directories
 - Pattern: `NNN-<list-name>-<suffix>`
 - Default starter lists use suffix `-stock`.
 - Archive list is always `XXX-Archive` and hidden from normal board rendering.
+- Empty desktop-created and MCP-created boards seed the same `👋 Start Here` card, including current workflow hints and generated upcoming checklist due-date examples.
 
 ### Card files
 - Pattern: `NNN-<slug>-<rand5>.md`
@@ -91,6 +101,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - YAML frontmatter (`title`, optional `due`, optional `labels`, unknown keys preserved)
   - Markdown body
 - Card `labels` frontmatter stores board label ids (e.g. `labels: ["label-1"]`).
+- Card writes add flat Obsidian-friendly properties for cards inside list directories: `title`, `status`, `signboard_id`, `signboard_board`, `signboard_list`, `signboard_uri`, optional legacy `related` links, and optional structured `linked_objects`. The card file suffix is preferred for `signboard_id` so duplicated cards do not inherit another card's deep-link identity.
 - New cards created through current app flows now also carry:
   - `createdAt` (ISO timestamp)
   - `activity` (compact lifecycle entries only: `created`, `moved-list`, `archived`, `restored`)
@@ -134,7 +145,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Runs an external-change sync loop that watches active board files, re-renders after external updates (for example MCP card moves), and refreshes an unchanged open card editor after external/MCP card edits.
   - Calls directory chooser and `openBoard`.
 - `app/board/boardTabs.js`:
-  - Manages board tabs (add/open/close/reorder + active tab persistence).
+  - Manages board tabs (add/open/close/reorder + active tab persistence) with responsive overflow into an `N more` switcher entry.
+  - Supports keyboard movement across visible board tabs with arrows, `Home`, and `End`; focused board tabs close with `Delete` / `Backspace`.
   - Provides the shared safe board-switch helper used by both board tabs and the quick switcher.
 - `app/board/openBoard.js`:
   - Creates starter lists/cards when board folder is empty.
@@ -144,48 +156,64 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 
 ### Rendering board/lists/cards
 - `app/board/renderBoard.js`:
-  - Reads list metadata and renders Kanban columns.
+  - Reads list metadata and renders the active board view.
+  - Renders Kanban columns by default.
+  - Renders the board-scoped Table view for dense card scanning.
   - Enables list drag-and-drop reorder in Kanban.
   - Fetches each list's card names concurrently for faster initial render.
   - Loads board label definitions and temporary filter state before rendering cards.
+- `app/board/tableView.js`:
+  - Renders active-board cards in board/list order as a dense table.
+  - Shows `Updated`, `Created`, and linked-object count columns plus a compact sort control for board order, oldest/newest updated, oldest/newest created, due date, and title.
+  - Reuses board search, label filters, Today/Overdue date filters, task progress badges, linked-object counts, and completed-list workflow handling.
+  - Moves a card to another list through the row list dropdown by calling the same top-of-list move IPC path as the card editor.
+  - Defers row list dropdown DOM updates until macOS native menu tracking has settled.
 - `app/board/archiveBrowser.js`:
   - Opens the dedicated Archive modal from the Board menu.
   - Lists archived cards and archived lists with search-first filtering, incremental result rendering, and a detail pane.
+  - Lets keyboard users move from archive search into results, move between results with arrows, return to search with `Esc`, and clear archive search with `Esc` from the search field.
   - Reads archive entry detail lazily over preload IPC.
   - Restores cards through an explicit destination-list picker and restores archived lists back into the board root with rename-on-collision handling.
 - `app/board/boardSwitcher.js`:
   - Opens the `Cmd/Ctrl + K` board switcher overlay.
-  - Filters currently open boards by visible board name, highlights autocomplete results, and delegates switching to the shared board switch helper.
+  - Filters currently open boards by visible board name, highlights autocomplete results, closes open boards from result rows, and delegates switching to the shared board switch helper.
 - `app/board/boardViews.js`:
-  - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, task due-date placement, and temporal card rendering.
-  - Board-facing view state normalizes to Kanban only.
+  - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, open task due-date placement, and temporal card rendering.
+  - Owns board-facing Kanban/Table view state and the Board menu view popover.
   - Shows task progress badges and source-list/source-board pills on temporal cards, tinting source-board pills from each board's color scheme when available.
 - `app/board/plannerView.js`:
   - Owns the workspace Planner overlay opened from the left rail or `Cmd/Ctrl + Shift + P`.
   - Scopes Planner data to currently open board tabs only and defaults to all open boards.
   - Offers quick `All Boards` and `Current Board` scope controls plus custom board selection in the filter menu.
-  - Renders Planner Calendar, This Week, Day, and Agenda views from card due dates and task-level due markers.
+  - Renders Planner Calendar, This Week, Day, and Agenda views from card due dates and incomplete task-level due markers.
   - Uses Planner-local search plus `Today` / `Overdue`, completed-card visibility, and open-board filters; label filters appear only when scoped to the active board.
+  - Lets keyboard users move from Planner search into visible Planner cards, move between cards with arrows, return to search with `Esc`, and traverse the Planner filter popover with arrows.
   - Hides cards from completed workflow lists by default while preserving their due-date metadata; the Planner filter menu can show completed dated cards when needed.
   - Opens Planner cards through the normal editor, switching the active board behind the overlay first when the card belongs to a different board.
   - Keeps Planner on the default Signboard palette for the active light/dark mode instead of inheriting the active board color scheme, while tinting card source pills from their source board color schemes.
 - `app/lists/createListElement.js`:
-  - Builds list UI, add-card button, list rename behavior.
+  - Builds list UI, add-card button, list rename behavior, and labelled section/list semantics for assistive technology.
   - Enables card drag-and-drop reorder and cross-list move.
   - Uses shared Sortable card drag options from `app/utilities/cardDragTilt.js`; the visible ghost placeholder is an empty drop slot rather than a readable duplicate card.
   - Sanitizes list names before filesystem rename.
   - Builds card DOM for a list concurrently to reduce list render time.
   - Records `moved-list` lifecycle events only for real cross-list card moves, not same-list reindexing.
+- `app/lists/listActionsPopover.js`:
+  - Renders native button actions for adding cards/lists, moving lists left/right, and archiving cards/lists.
+  - Keeps the popover labelled, focuses the first enabled action on open, supports arrow-key / `Home` / `End` / `Esc` option navigation, and announces completed list actions through the shared live status helper.
 - `app/cards/createCardElement.js`:
   - Reads card frontmatter/body preview.
   - Computes task summary + task due dates from card body checklist lines.
   - Shows task progress badge on board cards.
+  - Shows linked-object count badges on board cards.
   - Shows label chips and a tag-icon picker on each card.
   - Hides cards that do not match the active label filter or search query.
-  - Opens edit modal on click.
+  - Renders each card as a list item with a native button title so cards can be opened by keyboard and announced with stable labels.
 - `app/board/boardLabels.js`:
   - Owns board label state in the renderer.
   - Renders the header filter dropdown with mutually exclusive `Today` / `Overdue` date filters plus multi-select OR label filters.
+  - Keeps the header filter popover, card label popover, and Settings section nav keyboard-operable with arrow keys, `Home`, `End`, and opener focus restoration on popover `Esc`.
+  - Evaluates date filters from card due dates and incomplete task due markers, ignoring completed task due markers.
   - Combines date filters, label filters, and board search with AND logic when determining visibility.
   - Owns board workflow settings for completed-list auto-detection, ignored auto-detected lists, and manual completed-list selection.
   - Keeps filter state temporary only; opening or switching boards resets the active date + label filters.
@@ -195,21 +223,26 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/board/boardSearch.js`:
   - Stores the current search query/tokens.
   - Debounces live search renders for title/body filtering.
+  - Lets keyboard users move from the search field into visible card result buttons with `Enter` / arrow keys, move between results with arrows, return to search with `Esc`, and clear search with `Esc` from the search field.
 
 ### Add/edit card and list
 - `app/cards/processAddNewCard.js` and `app/cards/processAddNewList.js`:
   - Generate numbered filenames/directories and create on disk.
-  - New-card modal submissions can request opening the created card immediately with the notes field focused, used by `Shift + Enter` from either add-card modal.
+  - Quick Add card submissions can target any currently open/trusted board, request opening the created card immediately with the notes field focused, and switch to the target board first when `Shift + Enter` creates a card outside the active board.
 - `app/modals/toggleEditCardModal.js`:
   - Loads card into OverType editor.
+  - Displays quiet `Created` and `Updated` card timestamps from the normalized desktop read metadata.
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
   - Tracks the clean on-disk editor state so external/MCP updates can reload an open card editor when the user has no local edits in progress.
   - Relies on the main-process renderer context menu for native right-click cut/copy/paste/select-all in editable title/body fields.
+  - Detects raw `http(s)`/`www` URLs in the body without rewriting Markdown, visually marks them in the OverType preview, and opens them through `window.electronAPI.openExternal` from the inline open button or Cmd/Ctrl-click.
   - Moves active cards to selected/adjacent lists from the list dropdown, arrow action, and keyboard shortcuts by calling the main-process `moveCardToTop` IPC path, which inserts at the top of the destination list.
+  - Defers list-dropdown moves until macOS native menu tracking has settled before disabling controls or refreshing editor state.
   - Renders task-line due-date controls at the start of each parsed checklist line in the editor.
   - Uses measured textarea line-start coordinates for control placement so wrapped lines do not drift button positions.
-  - Handles due date picker, labels picker, duplicate, and archive actions.
+  - Handles due date picker, labels picker, linked-object paperclip menu, local-file drag/drop linking, duplicate, archive, and Open With actions.
+  - The Open With menu covers default-app file actions and copied Signboard links for every board; Obsidian open/URI actions are shown only when the card is inside a detected vault.
   - Card duplication now resets archive/lifecycle fields and seeds a fresh `created` event.
 - `app/utilities/taskList.js`:
   - Parses checklist items from card markdown body.
@@ -218,36 +251,47 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/utilities/dueNotifications.js`:
   - Collects due items from both card-level due dates and incomplete task-level due markers, skipping cards in completed workflow lists.
   - Builds notification body text that includes board/card title and task summary text for task due items.
+- `app/utilities/accessibility.js`:
+  - Owns shared modal show/hide accessibility behavior, including `aria-hidden`, focus restoration, focus trapping, and temporary background inert state.
+  - Body-level popovers that belong to an active modal use `data-sb-modal-layer` so they remain interactive while the rest of the background is inert.
+  - Provides the global polite status region used for nonvisual confirmations after card/list/view actions.
+  - Provides stable DOM ID helpers and reduced-motion checks used by card/list rendering and drag behavior.
 - `app/utilities/cardDragTilt.js`:
-  - Centralizes card Sortable fallback options, drag tilt, and text-selection locking for Kanban and temporal card drag/drop.
+  - Centralizes card Sortable fallback options, drag tilt, reduced-motion checks, and text-selection locking for Kanban and temporal card drag/drop.
   - Pairs with `static/styles.css` ghost styles so drag placeholders show an empty insertion slot while the dragged fallback clone remains the only readable card.
 - `app/modals/*.js` and `app/modals/closeAllModals.js`:
-  - Modal open/close, cleanup, and board rerender.
+  - Modal open/close, accessible visibility state, cleanup, and board rerender.
   - Disables board interaction (click/drag/select) while edit modal is open.
   - Re-renders board only when needed (instead of every modal close).
+  - Editor focus uses subtle `:focus-visible` styling for keyboard users rather than always-visible outlines for pointer users.
 
 ### Keyboard shortcuts
 - `app/listeners/window.js`:
   - `Cmd/Ctrl + /`: open the keyboard shortcuts helper modal.
+  - `Cmd/Ctrl + N`: open Quick Add card with board and list selectors for currently open boards.
   - `Cmd/Ctrl + K`: open/toggle the quick board switcher from any screen.
   - `Esc`: close modals.
-  - `Cmd/Ctrl + N`: add card (with list picker modal).
   - `Cmd/Ctrl + Shift + N`: add list.
   - `Cmd/Ctrl + 1`: return to Kanban and close Planner if it is open.
-  - `Cmd/Ctrl + 2`: open Planner Calendar from the board, or switch to Calendar inside Planner.
-  - `Cmd/Ctrl + 3`: open Planner This Week from the board, or switch to This Week inside Planner.
+  - `Cmd/Ctrl + Option/Alt + 1`: switch to Table and close Planner if it is open.
+  - `Cmd/Ctrl + 2`: open Planner Calendar from the board, or switch to Calendar inside Planner, scoped to all open boards.
+  - `Cmd/Ctrl + 3`: open Planner This Week from the board, or switch to This Week inside Planner, scoped to all open boards.
+  - `Cmd/Ctrl + 4`: open Planner Day from the board, or switch to Day inside Planner, scoped to all open boards.
+  - `Cmd/Ctrl + 5`: open Planner Agenda from the board, or switch to Agenda inside Planner, scoped to all open boards.
+  - `Cmd/Ctrl + Option/Alt + 2/3/4/5`: open or switch to the matching Planner date view scoped to the current board.
   - `Cmd/Ctrl + Shift + P`: open/close Planner.
-  - While Planner is open, `Cmd/Ctrl + 4` switches Planner Day and `Cmd/Ctrl + 5` switches Planner Agenda.
   - `Cmd/Ctrl + ,`: open Settings from renderer key handling and the native menu accelerator.
   - `Cmd/Ctrl + Shift + D`: toggle light/dark mode through the native menu accelerator.
   - `Cmd + Control + Shift + C` on macOS / `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes without closing the active screen.
   - `Cmd/Ctrl + Shift + [` and `Cmd/Ctrl + Shift + ]`: move the open card to the previous/next list, no-op at board edges.
   - `Cmd/Ctrl + Option/Alt + Shift + Backspace`: archive the open card.
   - `Cmd/Ctrl + Shift + A`: open the Archive browser modal.
+  - The optional global Quick Add shortcut is configured in App Settings and handled in `main.js`; when registered, it focuses Signboard and sends the same Quick Add command.
   - Workspace-level shortcuts close the active card editor before changing context; editor-scoped move/archive shortcuts keep acting on the open card.
   - Any shortcut changes must update the helper list in `index.html` (`#modalKeyboardShortcuts`) in the same change.
 - View-switcher rows and list-action rows surface the same shortcut hints in subtle monospace text so the app teaches the keyboard path inline.
-- Board date filtering treats overdue task markers and completed workflow lists as actionable work only: completed task due markers and completed-list cards do not keep a card visible in date filters, but overdue card-level due dates still do on actionable lists.
+- Search surfaces, board tabs, list actions, label/filter popovers, and Settings sections are expected to keep keyboard navigation behavior in sync with user-facing docs.
+- Date filtering and Planner date views treat only card due dates and incomplete task due markers as actionable work: completed task due markers and completed-list cards do not keep a card visible by default, but card-level due dates still do on actionable lists.
 
 ### Theme support
 - `app/ui/theme.js`:
@@ -287,6 +331,11 @@ File: `lib/cardLifecycle.js`
   - temporary archive frontmatter state
   - `moved-list` / `archived` / `restored` card metadata transitions
 
+File: `lib/cardTimestamps.js`
+
+- Shared timestamp resolver for desktop reads, CLI JSON output/sorting, and MCP card responses.
+- Normalizes `createdAt` from frontmatter/activity or legacy filesystem fallback and `updatedAt` from filesystem modification time.
+
 File: `lib/cardBodyEdits.js`
 
 - Shared card-body helper for Markdown section replacement, insertion below headings, and timestamped note list items used by CLI and MCP card writes.
@@ -306,7 +355,22 @@ File: `lib/boardLabels.js`
 - Creates default labels when settings are missing.
 - Migrates legacy `labels.md` reads into `board-settings.md`.
 - Normalizes completed-list workflow settings under `workflow`, defaulting auto-detection on for common list names while preserving manual completed and ignored-list overrides.
+- Normalizes board-level External Published Calendar inclusion under `externalPublishedCalendar`.
 - Exposes OR-based label filtering helper logic.
+
+File: `lib/externalPublishedCalendar.js`
+
+- Collects External Published Calendar events from trusted board roots that have not opted out.
+- Emits iCalendar all-day events for card due dates and incomplete task due markers.
+- Skips completed-list cards and checked task due markers so the feed matches actionable Planner/date-filter behavior.
+
+File: `lib/obsidianIntegration.js`
+
+- Builds Obsidian `obsidian://open?path=...` URIs and Signboard `signboard://open-card?id=...` links.
+- Normalizes card frontmatter with flat properties that work in Obsidian Properties and Bases.
+- Finds the containing Obsidian vault by walking upward for `.obsidian`, without requiring the board root itself to be the vault root.
+- Generates and hash-tracks managed `Signboard Board.base` files in the board root for Obsidian Bases, including the card `title` property as the primary readable column.
+- Creates minimal linked Obsidian notes named `Linked Signboard Note.md` in the board root, using numeric suffixes on collisions, so Signboard does not write outside the trusted board. Other linked objects store local file/folder paths, web URLs, app deep links, or Signboard links in `linked_objects`; linked local files stay in their original locations, can be added by picker or editor drop, and shared renderer helpers count them for Kanban/Table badges.
 
 ## Importers
 Files: `lib/importers/*`
@@ -326,8 +390,10 @@ Files: `lib/importers/*`
 ### Run CLI locally
 - `npm run cli -- <command>`
 - `node bin/signboard.js <command>`
-- `electron . <command>` routes through the desktop executable path used by packaged builds.
+- `ELECTRON_RUN_AS_NODE=1 electron ./bin/signboard.js <command>` mirrors the installed packaged CLI shim without initializing the desktop app lifecycle.
+- `electron . <command>` still routes through the desktop executable dispatch path, but installed CLI shims should prefer Electron Node mode.
 - CLI board selection is stateful: `signboard use /path/to/board`, then `signboard lists`, `signboard cards`, `signboard archive ...`, `signboard settings`, or `signboard import ...`.
+- Board creation command: `signboard boards create /path/to/new-board [--use] [--no-welcome] [--json]` or `signboard boards create --parent /path/to --name "New Board" [--json]`.
 - Import commands:
   - `signboard import trello --file /absolute/or/relative/export.json [--board <path>] [--json]`
   - `signboard import obsidian --source /path/to/file-or-dir [--source /another/path] [--board <path>] [--json]`
@@ -356,10 +422,11 @@ Files: `lib/importers/*`
 - Concatenates module files into `app/signboard.js` in strict order.
 
 ### CLI internals
-- `lib/cliBoard.js` owns CLI board/list/card filesystem operations, including due filtering with `--due-source any|card|task`, `--task-status open|any`, card duplication/template creation, targeted Markdown section edits, timestamped notes, explicit label clearing, and card write dry-run payloads.
+- `lib/boardCreation.js` owns shared default board scaffolding for MCP and CLI-created boards.
+- `lib/cliBoard.js` owns CLI list/card filesystem operations, including due filtering with `--due-source any|card|task`, `--task-status open|any`, card duplication/template creation, targeted Markdown section edits, timestamped notes, explicit label clearing, and card write dry-run payloads.
 - `lib/taskList.js` exposes shared task parsing and due-date helpers for CLI filtering.
-- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including archive listing/read/restore flows, card write previews, and path-based Trello/Obsidian/Tasks.md imports.
-- `lib/cliInstall.js` owns user-level CLI shim + shell profile installation.
+- `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including board creation, archive listing/read/restore flows, card write previews, and path-based Trello/Obsidian/Tasks.md imports.
+- `lib/cliInstall.js` owns user-level CLI shim + shell profile installation, including the packaged-app Node-mode wrapper.
 - `lib/cliState.js` persists the currently selected board for subsequent CLI commands.
 
 CLI overdue behavior:
@@ -378,6 +445,11 @@ CLI overdue behavior:
 - `npm run test:import-trello`
 - `npm run test:import-obsidian`
 - Scripts: `scripts/test-import-trello.js`, `scripts/test-import-obsidian.js`
+
+### Obsidian integration tests
+- `npm run test:obsidian-integration`
+- Covers Obsidian URI/link generation, flat card properties, generated Bases YAML, vault-relative linked-note links, and linked-note resolution.
+- `npm run test:obsidian-plugin` covers pure helper behavior for the optional Obsidian companion plugin.
 
 ### MCP smoke test
 - `npm run test:mcp`
@@ -416,7 +488,12 @@ CLI overdue behavior:
 ### App settings tests
 - `npm run test:app-settings`
 - Script: `scripts/test-app-settings.js`
-- Covers app-wide tooltip/notification settings persistence and one-time migration from legacy board settings.
+- Covers app-wide tooltip/notification/Quick Add shortcut/External Published Calendar settings persistence and one-time migration from legacy board settings.
+
+### External Published Calendar tests
+- `npm run test:external-calendar`
+- Script: `scripts/test-external-published-calendar.js`
+- Covers iCalendar generation, incomplete-task filtering, completed-list filtering, and board-level opt-out behavior.
 
 ### Legacy migration
 - `npm run migrate:legacy-cards -- <board-root> [--dry-run] [--include-plain]`

@@ -12,6 +12,9 @@ async function createCardElement(cardPath) {
   const taskSummary = getTaskListSummary(card.body);
   const taskDueDates = getTaskListDueDates(card.body);
   const incompleteTaskDueDates = getIncompleteTaskListDueDates(card.body);
+  const linkedObjectCount = typeof getFrontmatterLinkedObjectCount === 'function'
+    ? getFrontmatterLinkedObjectCount(card.frontmatter)
+    : 0;
 
   const previewText = card.body
     .split(/\r?\n/)
@@ -20,13 +23,29 @@ async function createCardElement(cardPath) {
   const cardEl = document.createElement('div');
   cardEl.className = 'card';
   cardEl.dataset.path = cardPath;
+  cardEl.setAttribute('role', 'listitem');
 
   const cardFrame = document.createElement('div');
   cardFrame.className = 'card-drag-frame';
   cardEl.appendChild(cardFrame);
 
   const title = document.createElement('h3');
-  title.textContent = titleContent.replace('# ', '');
+  const visibleTitle = titleContent.replace('# ', '') || 'Untitled';
+  const titleId = typeof createStableDomId === 'function'
+    ? createStableDomId('card-title', cardPath)
+    : '';
+  if (titleId) {
+    title.id = titleId;
+    cardEl.setAttribute('aria-labelledby', titleId);
+  }
+
+  const titleButton = document.createElement('button');
+  titleButton.type = 'button';
+  titleButton.className = 'card-title-button';
+  titleButton.textContent = visibleTitle;
+  titleButton.setAttribute('aria-label', `Open card: ${visibleTitle}`);
+  titleButton.setAttribute('data-sb-tooltip-disabled', 'true');
+  title.appendChild(titleButton);
   cardFrame.appendChild(title);
 
   const body = document.createElement('div');
@@ -60,6 +79,13 @@ async function createCardElement(cardPath) {
     metadata.appendChild(taskProgressBadge);
   }
 
+  const linkedObjectsBadge = typeof createLinkedObjectsMetadataBadge === 'function'
+    ? createLinkedObjectsMetadataBadge(linkedObjectCount, 'metadata-action linked-objects-badge-inline')
+    : null;
+  if (linkedObjectsBadge) {
+    metadata.appendChild(linkedObjectsBadge);
+  }
+
   const labelButton = document.createElement('button');
   labelButton.type = 'button';
   labelButton.className = 'metadata-action card-label-button';
@@ -88,7 +114,8 @@ async function createCardElement(cardPath) {
     const hasDueDate = dueDateValue.length > 0;
     const hasLabels = selectedLabelIds.length > 0;
     const hasTasks = taskSummary.total > 0;
-    const hasAnyMetadata = hasDueDate || hasLabels || hasTasks;
+    const hasLinkedObjects = linkedObjectCount > 0;
+    const hasAnyMetadata = hasDueDate || hasLabels || hasTasks || hasLinkedObjects;
 
     metadata.classList.toggle('metadata-discovery', !hasAnyMetadata);
     dueButton.classList.toggle('metadata-action-empty', !hasDueDate);
@@ -235,14 +262,33 @@ async function createCardElement(cardPath) {
     cardEl.classList.add('card-filtered-out');
   }
 
-  cardEl.addEventListener('click', async () => {
-
+  const openCardEditor = async () => {
     let modalEditCard = document.getElementById('modalEditCard');
-    if ( modalEditCard.style.display == 'block' ) {
+    if (
+      modalEditCard &&
+      !modalEditCard.classList.contains('hidden') &&
+      modalEditCard.getAttribute('aria-hidden') !== 'true' &&
+      modalEditCard.style.display !== 'none'
+    ) {
       return;
     }
 
     toggleEditCardModal( cardPath );
+  };
+
+  titleButton.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await openCardEditor();
+  });
+
+  cardEl.addEventListener('click', async (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target && typeof target.closest === 'function' && target.closest('button, a, input, select, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]')) {
+      return;
+    }
+
+    await openCardEditor();
   });
 
   // Not used yet! Drop zone for attachments

@@ -17,7 +17,7 @@ This guide covers the Signboard command-line interface.
 
 ## How to Run It
 
-On macOS and Linux, the desktop app can install the Signboard wrapper from `Help > Install Signboard CLI`. Sorry for those of you on Windows, but you can use WSL (it is good, and you should!).
+On macOS and Linux, the desktop app can install the Signboard wrapper from `Help > Install Signboard CLI`. On Windows, use the packaged executable directly or run the CLI from a source checkout/WSL environment.
 
 Once installed, try it out!
 
@@ -25,17 +25,22 @@ Once installed, try it out!
 signboard --help
 ```
 
-If you want to run this at its full path...
+The installed wrapper runs the packaged CLI in Electron's Node mode, so terminal commands do not open or quit the desktop app window.
 
-### Packaged app executable
+If you need to run the packaged CLI at its full path, direct CLI invocations are supported:
 
 ```bash
-/Applications/Signboard.app/Contents/MacOS/Signboard --help
+/Applications/Signboard.app/Contents/MacOS/Signboard cards --due next:7
 ```
 
-Other packaged examples:
+The installed wrapper uses Electron's Node mode and points at the bundled CLI script:
 
-- Linux AppImage: `./signboard_*.AppImage --help`
+```bash
+ELECTRON_RUN_AS_NODE=1 \
+  /Applications/Signboard.app/Contents/MacOS/Signboard \
+  /Applications/Signboard.app/Contents/Resources/app.asar/bin/signboard.js \
+  --help
+```
 
 ## Choose a Board
 
@@ -45,7 +50,7 @@ Most commands operate on one board root. To simplify subsequent calls, you can f
 signboard use /Path/To/Board
 ```
 
-You can always supply a differen't board's path with `--board`.
+You can always supply a different board path with `--board`.
 
 Example: 
 
@@ -63,11 +68,30 @@ signboard use
 
 The CLI is organized into six command groups:
 
+- `boards`
 - `lists`
 - `cards`
 - `archive`
 - `settings`
 - `import`
+
+### `boards`
+
+Create a new board folder with Signboard's default starter lists.
+
+```bash
+signboard boards create /Path/To/NewBoard
+signboard boards create /Path/To/NewBoard --use
+signboard boards create --parent /Path/To --name "New Board" --json
+signboard boards create /Path/To/EmptyBoard --no-welcome
+```
+
+Notes:
+
+- New boards get `000-To-do-stock`, `001-Doing-stock`, `002-Done-stock`, and `XXX-Archive`.
+- By default, Signboard seeds `000-hello-stock.md` in the To do list with the same starter guidance used by MCP-created boards.
+- Add `--use` to make the new board the active CLI board for later commands.
+- Add `--no-welcome` to create only the default list folders.
 
 ### `lists`
 
@@ -101,6 +125,8 @@ signboard cards --due today
 signboard cards --due next:7 --due-source any
 signboard cards --due overdue --task-status open
 signboard cards --sort due
+signboard cards --sort updated-oldest
+signboard cards --sort created-oldest
 signboard cards --limit 10
 signboard cards --include-archive
 ```
@@ -114,9 +140,11 @@ Useful filters:
 - `--due today|tomorrow|overdue|upcoming|this-week|next:7|next:14|next:30|YYYY-MM-DD|none`
 - `--due-source any|card|task`
 - `--task-status open|any`
-- `--sort list|due|title|updated`
+- `--sort list|due|title|updated|updated-oldest|updated-newest|created-oldest|created-newest`
 - `--limit <n>`
 - `--include-archive`
+
+`updated` is kept as a compatibility alias for `updated-newest`. JSON card output includes `timestamps.createdAt` and `timestamps.updatedAt`; `createdAt` prefers Signboard card metadata and falls back to filesystem timestamps for older cards.
 
 #### Read one card
 
@@ -304,6 +332,13 @@ Recommended agent workflow:
 
 ## Common Workflows
 
+### Create a new board and select it
+
+```bash
+signboard boards create ~/Boards/LaunchPlan --use
+signboard lists
+```
+
 ### Find cards due this week
 
 ```bash
@@ -339,6 +374,13 @@ signboard cards --label Docs --label Review --label-mode all
 
 ```bash
 signboard cards --sort updated --limit 20 --json
+```
+
+### Find stale or oldest cards
+
+```bash
+signboard cards --sort updated-oldest --limit 20 --json
+signboard cards --sort created-oldest --limit 20 --json
 ```
 
 ## Archive Workflows
@@ -392,11 +434,11 @@ signboard settings
 signboard settings --json
 ```
 
-This returns the board settings Markdown document, including labels, color scheme data, and workflow settings for completed lists. App-wide tooltip and notification preferences are desktop app settings, not board settings.
+This returns the board settings Markdown document, including labels, color scheme data, workflow settings for completed lists, and whether the board is included in External Published Calendar. App-wide tooltip, notification, Quick Add global shortcut, and External Published Calendar server preferences are desktop app settings, not board settings.
 
 Current CLI editing support is intentionally narrow.
 
-For label editing, color-scheme changes, and completed-list workflow changes, use the desktop app or edit `board-settings.md` carefully.
+For label editing, color-scheme changes, completed-list workflow changes, and External Published Calendar board inclusion changes, use the desktop app or edit `board-settings.md` carefully.
 
 ### Import from Trello
 
@@ -408,7 +450,7 @@ signboard import trello --file ~/Downloads/trello-export.json
 
 ### Import from Obsidian
 
-You can import any Markdown files. But also Signboard supports the frontmatter and metadata created by most of the leading popular community kanban plugins for Obsidian.
+You can import Markdown files. Signboard also supports the frontmatter and metadata created by common community kanban plugins for Obsidian.
 
 ```bash
 signboard import obsidian --source ~/Vault/Kanban.md
@@ -452,4 +494,4 @@ Checklist items may also contain due dates in the body:
 - [x] (due: 2026-04-01) Draft release notes
 ```
 
-These task due dates participate in due-date filtering and temporal views.
+Task due dates participate in CLI due-date filtering. Use `--task-status open` to limit task matches to unchecked items, or `--task-status any` to include checked task due markers when you want historical matches.

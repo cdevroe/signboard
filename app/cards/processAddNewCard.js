@@ -1,4 +1,10 @@
 async function processAddNewCard( cardName, listPath, options = {} ){
+    const targetBoardRoot = typeof normalizeBoardPath === 'function'
+        ? normalizeBoardPath(options.boardRoot || '')
+        : String(options.boardRoot || '').trim();
+    const activeBoardRoot = typeof normalizeBoardPath === 'function'
+        ? normalizeBoardPath(window.boardRoot || '')
+        : String(window.boardRoot || '').trim();
     let countCardsInList = await window.board.countCards(listPath);
     countCardsInList++;
     
@@ -14,11 +20,19 @@ async function processAddNewCard( cardName, listPath, options = {} ){
     const cardPath = listPath + fileName;
 
     await window.board.createCard( cardPath, cardName);
-    
-    await closeAllModals(createCloseAllModalsRequest(), { rerender: true });
+
+    const shouldRerenderActiveBoard = !targetBoardRoot || targetBoardRoot === activeBoardRoot;
+    await closeAllModals(createCloseAllModalsRequest(), { rerender: shouldRerenderActiveBoard });
 
     if (options && options.openAfterCreate && typeof toggleEditCardModal === 'function') {
+        if (targetBoardRoot && targetBoardRoot !== activeBoardRoot && typeof switchToBoardPath === 'function') {
+            await switchToBoardPath(targetBoardRoot);
+        }
         await toggleEditCardModal(cardPath, { focusNotes: true });
+    }
+
+    if (typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus(`Created card "${cardName}".`);
     }
 
     return cardPath;

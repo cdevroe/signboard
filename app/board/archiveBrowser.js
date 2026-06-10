@@ -339,6 +339,228 @@ function renderArchiveBrowserSortOptions() {
   }
 }
 
+function isArchiveBrowserResultElementVisible(element) {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden') {
+    return false;
+  }
+
+  return Boolean(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+}
+
+function getArchiveBrowserResultButtons() {
+  const resultsEl = document.getElementById('archiveBrowserResults');
+  if (!resultsEl) {
+    return [];
+  }
+
+  return Array.from(resultsEl.querySelectorAll('.archive-browser-row'))
+    .filter((button) => button instanceof HTMLButtonElement)
+    .filter((button) => !button.disabled)
+    .filter(isArchiveBrowserResultElementVisible);
+}
+
+function focusArchiveBrowserResultButton(button) {
+  if (!(button instanceof HTMLButtonElement)) {
+    return false;
+  }
+
+  try {
+    button.focus({ preventScroll: true });
+  } catch {
+    button.focus();
+  }
+
+  if (typeof button.scrollIntoView === 'function') {
+    button.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  }
+
+  return true;
+}
+
+function focusArchiveBrowserSearchInput(options = {}) {
+  const searchInput = document.getElementById('archiveBrowserSearchInput');
+  if (!searchInput) {
+    return false;
+  }
+
+  searchInput.focus();
+  if (options.select !== false && typeof searchInput.select === 'function') {
+    searchInput.select();
+  }
+
+  return true;
+}
+
+async function selectArchiveBrowserEntry(entryPath, options = {}) {
+  const state = getArchiveBrowserState();
+  const normalizedEntryPath = String(entryPath || '').trim();
+  if (!normalizedEntryPath) {
+    return false;
+  }
+
+  state.selectedEntryPath = normalizedEntryPath;
+  renderArchiveBrowserResults();
+
+  if (options.focus !== false) {
+    const nextButton = getArchiveBrowserResultButtons()
+      .find((button) => String(button.dataset.entryPath || '') === normalizedEntryPath);
+    focusArchiveBrowserResultButton(nextButton);
+  }
+
+  await loadArchiveBrowserDetail(normalizedEntryPath);
+  return true;
+}
+
+async function focusArchiveBrowserResultByIndex(index) {
+  const resultButtons = getArchiveBrowserResultButtons();
+  if (resultButtons.length === 0) {
+    if (typeof announceSignboardStatus === 'function') {
+      announceSignboardStatus('No archived items match your search.');
+    }
+    return false;
+  }
+
+  const safeIndex = ((index % resultButtons.length) + resultButtons.length) % resultButtons.length;
+  const targetButton = resultButtons[safeIndex];
+  const targetPath = String(targetButton.dataset.entryPath || '').trim();
+  if (targetPath) {
+    await selectArchiveBrowserEntry(targetPath, { focus: true });
+    return true;
+  }
+
+  return focusArchiveBrowserResultButton(targetButton);
+}
+
+function focusFirstArchiveBrowserResult() {
+  return focusArchiveBrowserResultByIndex(0);
+}
+
+function focusLastArchiveBrowserResult() {
+  return focusArchiveBrowserResultByIndex(getArchiveBrowserResultButtons().length - 1);
+}
+
+async function moveArchiveBrowserResultFocus(offset) {
+  const resultButtons = getArchiveBrowserResultButtons();
+  if (resultButtons.length === 0) {
+    if (typeof announceSignboardStatus === 'function') {
+      announceSignboardStatus('No archived items match your search.');
+    }
+    return false;
+  }
+
+  const currentIndex = resultButtons.indexOf(document.activeElement);
+  const fallbackIndex = Number(offset) < 0 ? resultButtons.length - 1 : 0;
+  const nextIndex = currentIndex >= 0 ? currentIndex + Number(offset || 0) : fallbackIndex;
+  return focusArchiveBrowserResultByIndex(nextIndex);
+}
+
+async function clearArchiveBrowserSearchFromKeyboard(searchInput) {
+  const state = getArchiveBrowserState();
+  if (!searchInput || (!searchInput.value && !state.searchQuery)) {
+    return false;
+  }
+
+  searchInput.value = '';
+  state.searchQuery = '';
+  resetArchiveBrowserPagination(state.activeTab);
+  state.selectedEntryPath = '';
+  renderArchiveBrowserModal();
+
+  const selectedPath = syncArchiveBrowserSelection(getFilteredArchiveEntries());
+  renderArchiveBrowserModal();
+  if (selectedPath) {
+    await loadArchiveBrowserDetail(selectedPath);
+  }
+
+  if (typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus('Archive search cleared.');
+  }
+  return true;
+}
+
+async function handleArchiveBrowserSearchInputKeydown(event) {
+  if (!event) {
+    return;
+  }
+
+  if (event.key === 'Enter' || event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === 'ArrowUp') {
+      await focusLastArchiveBrowserResult();
+      return;
+    }
+
+    await focusFirstArchiveBrowserResult();
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    const state = getArchiveBrowserState();
+    const shouldClear = Boolean(event.target && (event.target.value || state.searchQuery));
+    if (shouldClear) {
+      event.preventDefault();
+      event.stopPropagation();
+      await clearArchiveBrowserSearchFromKeyboard(event.target);
+    }
+  }
+}
+
+function handleArchiveBrowserResultKeydown(event) {
+  if (!event || !(event.currentTarget instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const runNavigation = (callback) => {
+    callback().catch((error) => {
+      console.error('Failed to navigate archive browser results.', error);
+    });
+  };
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    event.stopPropagation();
+    runNavigation(() => moveArchiveBrowserResultFocus(1));
+    return;
+  }
+
+  if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+    event.preventDefault();
+    event.stopPropagation();
+    runNavigation(() => moveArchiveBrowserResultFocus(-1));
+    return;
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault();
+    event.stopPropagation();
+    runNavigation(() => focusArchiveBrowserResultByIndex(0));
+    return;
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault();
+    event.stopPropagation();
+    runNavigation(() => focusArchiveBrowserResultByIndex(getArchiveBrowserResultButtons().length - 1));
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusArchiveBrowserSearchInput();
+  }
+}
+
 function renderArchiveBrowserResults() {
   const state = getArchiveBrowserState();
   const resultsEl = document.getElementById('archiveBrowserResults');
@@ -390,6 +612,7 @@ function renderArchiveBrowserResults() {
     const rowButton = document.createElement('button');
     rowButton.type = 'button';
     rowButton.className = 'archive-browser-row';
+    rowButton.dataset.entryPath = entry.entryPath;
     rowButton.classList.toggle('is-active', entry.entryPath === state.selectedEntryPath);
     rowButton.setAttribute('aria-pressed', entry.entryPath === state.selectedEntryPath ? 'true' : 'false');
 
@@ -451,10 +674,9 @@ function renderArchiveBrowserResults() {
     rowButton.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();
-      state.selectedEntryPath = entry.entryPath;
-      renderArchiveBrowserResults();
-      await loadArchiveBrowserDetail(entry.entryPath);
+      await selectArchiveBrowserEntry(entry.entryPath, { focus: event.detail === 0 });
     });
+    rowButton.addEventListener('keydown', handleArchiveBrowserResultKeydown);
 
     fragment.appendChild(rowButton);
   }
@@ -641,8 +863,26 @@ function renderArchiveRestoreDialog() {
     ? selectedEntry
     : (Array.isArray(state.entries.cards) ? state.entries.cards.find((entry) => entry.entryPath === state.restore.entryPath) : null);
 
-  dialogEl.classList.toggle('hidden', !state.restore.isOpen);
-  dialogEl.setAttribute('aria-hidden', state.restore.isOpen ? 'false' : 'true');
+  const dialogWasOpen = dialogEl.getAttribute('aria-hidden') === 'false' && !dialogEl.classList.contains('hidden');
+  if (state.restore.isOpen) {
+    if (typeof setAccessibleModalVisible === 'function' && !dialogWasOpen) {
+      setAccessibleModalVisible(dialogEl, true, {
+        display: 'grid',
+        initialFocus: '#archiveRestoreSearchInput',
+        labelledBy: 'archiveRestoreTitle',
+      });
+    } else {
+      dialogEl.classList.remove('hidden');
+      dialogEl.style.display = 'grid';
+      dialogEl.setAttribute('aria-hidden', 'false');
+    }
+  } else if (dialogWasOpen && typeof setAccessibleModalVisible === 'function') {
+    setAccessibleModalVisible(dialogEl, false, { restoreFocus: false });
+  } else {
+    dialogEl.classList.add('hidden');
+    dialogEl.style.display = 'none';
+    dialogEl.setAttribute('aria-hidden', 'true');
+  }
 
   if (!state.restore.isOpen || !restoreEntry) {
     errorEl.textContent = '';
@@ -829,9 +1069,17 @@ async function openArchiveBrowserModal() {
   }
 
   resetArchiveBrowserState();
-  modal.style.display = 'block';
-  modal.classList.remove('hidden');
-  modal.setAttribute('aria-hidden', 'false');
+  if (typeof setAccessibleModalVisible === 'function') {
+    setAccessibleModalVisible(modal, true, {
+      display: 'block',
+      initialFocus: '#archiveBrowserSearchInput',
+      labelledBy: 'archiveBrowserTitle',
+    });
+  } else {
+    modal.style.display = 'block';
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
 
   if (typeof setBoardInteractive === 'function') {
     setBoardInteractive(false);
@@ -855,9 +1103,24 @@ function closeArchiveBrowserModal() {
     return;
   }
 
-  modal.style.display = 'none';
-  modal.classList.add('hidden');
-  modal.setAttribute('aria-hidden', 'true');
+  const restoreDialog = document.getElementById('archiveRestoreDialog');
+  if (restoreDialog && restoreDialog.getAttribute('aria-hidden') === 'false') {
+    if (typeof setAccessibleModalVisible === 'function') {
+      setAccessibleModalVisible(restoreDialog, false, { restoreFocus: false });
+    } else {
+      restoreDialog.classList.add('hidden');
+      restoreDialog.style.display = 'none';
+      restoreDialog.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  if (typeof setAccessibleModalVisible === 'function') {
+    setAccessibleModalVisible(modal, false);
+  } else {
+    modal.style.display = 'none';
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
   resetArchiveBrowserState();
 
   if (typeof setBoardInteractive === 'function') {
@@ -930,6 +1193,9 @@ async function handleConfirmArchiveRestore() {
     closeArchiveRestoreDialog();
     await refreshArchiveBrowserData();
     await renderBoard();
+    if (typeof announceSignboardStatus === 'function') {
+      announceSignboardStatus('Restored archived card.');
+    }
   } catch (error) {
     state.restore.isSaving = false;
     state.restore.error = error && error.message
@@ -1029,6 +1295,9 @@ async function handleRestoreArchivedList(entry) {
     await window.board.restoreArchivedList(entry.entryPath, restoredDirectoryName);
     await refreshArchiveBrowserData();
     await renderBoard();
+    if (typeof announceSignboardStatus === 'function') {
+      announceSignboardStatus('Restored archived list.');
+    }
   } catch (error) {
     window.alert(error && error.message ? error.message : 'Unable to restore archived list.');
   }
@@ -1154,11 +1423,24 @@ function initializeArchiveBrowserControls() {
         await loadArchiveBrowserDetail(selectedPath);
       }
     });
+    searchInput.addEventListener('keydown', (event) => {
+      handleArchiveBrowserSearchInputKeydown(event).catch((error) => {
+        console.error('Failed to handle archive search keyboard navigation.', error);
+      });
+    });
   }
 
   if (sortSelect) {
     sortSelect.addEventListener('change', async (event) => {
-      state.sortKeyByTab[state.activeTab] = String(event.currentTarget.value || 'archived-desc');
+      const nextSortKey = String(event.currentTarget.value || 'archived-desc');
+      if (typeof waitForNativeMenuTrackingToSettle === 'function') {
+        await waitForNativeMenuTrackingToSettle();
+      }
+      if (!sortSelect.isConnected || sortSelect.value !== nextSortKey) {
+        return;
+      }
+
+      state.sortKeyByTab[state.activeTab] = nextSortKey;
       resetArchiveBrowserPagination(state.activeTab);
       state.selectedEntryPath = '';
       renderArchiveBrowserModal();

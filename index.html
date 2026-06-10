@@ -21,7 +21,7 @@
           <input id="boardPath" type="text" class="hidden" readonly>
         </div>
         <div id="boardControls">
-          <input id="boardSearchInput" type="search" placeholder="Search cards">
+          <input id="boardSearchInput" type="search" placeholder="Search cards" aria-label="Search cards">
           <div class="board-toolbar-group">
             <button id="labelFilterButton" title="Filter cards" aria-label="Filter cards">
               <i data-feather="filter" class="label-toolbar-icon"></i>
@@ -85,7 +85,7 @@
     </button>
   </main>
 
-  <div id="labelFilterPopover" class="label-popover hidden"></div>
+  <div id="labelFilterPopover" class="label-popover hidden" aria-hidden="true"></div>
 
   <div id="boardMenuPopover" class="label-popover hidden" aria-hidden="true">
     <button id="openBoardSettings" class="board-menu-action" type="button" title="Open settings" aria-label="Open settings">
@@ -93,6 +93,13 @@
       <span class="board-menu-action-label">Settings</span>
       <span class="menu-shortcut-hint" data-shortcut-action="boardSettings" data-shortcut-format="menu" aria-hidden="true">⌘,</span>
     </button>
+    <div class="board-menu-view-group">
+      <button id="boardViewButton" class="board-menu-action" type="button" title="Current view: Kanban. Change view." aria-label="Current view: Kanban. Change view.">
+        <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="columns"></i></span>
+        <span class="board-menu-action-label">View: Kanban</span>
+      </button>
+      <div id="boardViewPopover" class="label-popover hidden" aria-hidden="true"></div>
+    </div>
     <button id="openArchiveBrowser" class="board-menu-action" type="button" title="Browse archived cards and lists" aria-label="Browse archived cards and lists">
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="archive"></i></span>
       <span class="board-menu-action-label">Archive</span>
@@ -116,7 +123,7 @@
   </button>
 
   <div id="modalBoardSwitcher" class="modal board-switcher-modal hidden" role="dialog" aria-modal="false" aria-label="Switch to board" aria-hidden="true">
-    <input id="boardSwitcherInput" type="search" placeholder="Switch to board" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-controls="boardSwitcherResults">
+    <input id="boardSwitcherInput" type="search" role="combobox" placeholder="Switch to board" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-controls="boardSwitcherResults" aria-expanded="false">
     <div id="boardSwitcherResults" class="board-switcher-results" role="listbox" aria-label="Open boards"></div>
   </div>
 
@@ -160,28 +167,29 @@
     </div>
   </div>
 
-  <div id="modalAddList" class="modal hidden">
-    <input id="userInputListName" type="text" placeholder="Backlog">
+  <div id="modalAddList" class="modal hidden" role="dialog" aria-modal="true" aria-label="Add list" aria-hidden="true">
+    <input id="userInputListName" type="text" placeholder="Backlog" aria-label="List name">
     <button id="btnAddList" title="Add list">Add List</button>
   </div>
 
-  <div id="modalAddCard" class="modal hidden">
-    <input id="userInput" type="text" placeholder="A small task">
+  <div id="modalAddCard" class="modal hidden" role="dialog" aria-modal="true" aria-label="Add card" aria-hidden="true">
+    <input id="userInput" type="text" placeholder="A small task" aria-label="Card title">
     <input id="hiddenListPath" type="hidden" value="">
     <p class="new-card-modal-helper"><kbd>Shift</kbd> + <kbd>Enter</kbd> to create and open</p>
     <button id="btnAddCard" title="Add card">Add card</button>
   </div>
 
-  <div id="modalAddCardToList" class="modal hidden">
-     <p><select id="userInputListPath"></select></p>
-    <p class="modalAddCardToListInputRow"><input id="userInputCardName" type="text" placeholder="🐟 Go fishing"></p>
+  <div id="modalAddCardToList" class="modal hidden" role="dialog" aria-modal="true" aria-label="Quick add card" aria-hidden="true">
+    <p><select id="userInputBoardPath" aria-label="Board"></select></p>
+    <p><select id="userInputListPath" aria-label="List"></select></p>
+    <p class="modalAddCardToListInputRow"><input id="userInputCardName" type="text" placeholder="Go fishing" aria-label="Card title"></p>
     <p class="new-card-modal-helper"><kbd>Shift</kbd> + <kbd>Enter</kbd> to create and open</p>
     <button id="btnAddCardToList" title="Add card to selected list">Add</button>
   </div>
 
-  <div id="modalKeyboardShortcuts" class="modal keyboard-shortcuts-modal hidden" aria-hidden="true">
+  <div id="modalKeyboardShortcuts" class="modal keyboard-shortcuts-modal hidden" role="dialog" aria-modal="true" aria-labelledby="keyboardShortcutsTitle" aria-hidden="true">
     <div class="keyboard-shortcuts-header">
-      <h2>Keyboard Shortcuts</h2>
+      <h2 id="keyboardShortcutsTitle">Keyboard Shortcuts</h2>
       <p>Press <span class="shortcut-modifier-label">Command</span> + / to open this list.</p>
     </div>
     <div class="keyboard-shortcuts-grid">
@@ -189,7 +197,7 @@
         <h3 id="keyboard-shortcuts-section-create">Create</h3>
         <ul class="keyboard-shortcuts-list">
           <li>
-            <span>Add card</span>
+            <span>Quick add card</span>
             <kbd data-shortcut-action="addCard">⌘ + N</kbd>
           </li>
           <li>
@@ -206,11 +214,15 @@
             <kbd data-shortcut-action="kanbanView">⌘ + 1</kbd>
           </li>
           <li>
-            <span>Planner Calendar</span>
+            <span>Table board</span>
+            <kbd data-shortcut-action="tableView">⌘ + ⌥ + 1</kbd>
+          </li>
+          <li>
+            <span>Planner Calendar, all boards</span>
             <kbd data-shortcut-action="calendarView">⌘ + 2</kbd>
           </li>
           <li>
-            <span>Planner This Week</span>
+            <span>Planner This Week, all boards</span>
             <kbd data-shortcut-action="thisWeekView">⌘ + 3</kbd>
           </li>
         </ul>
@@ -223,20 +235,36 @@
             <kbd data-shortcut-action="plannerToggle">⌘ + ⇧ + P</kbd>
           </li>
           <li>
-            <span>Calendar view</span>
+            <span>Calendar, all boards</span>
             <kbd data-shortcut-action="calendarView">⌘ + 2</kbd>
           </li>
           <li>
-            <span>This Week view</span>
+            <span>This Week, all boards</span>
             <kbd data-shortcut-action="thisWeekView">⌘ + 3</kbd>
           </li>
           <li>
-            <span>Day view</span>
+            <span>Day, all boards</span>
             <kbd data-shortcut-action="plannerDayView">⌘ + 4</kbd>
           </li>
           <li>
-            <span>Agenda view</span>
+            <span>Agenda, all boards</span>
             <kbd data-shortcut-action="plannerAgendaView">⌘ + 5</kbd>
+          </li>
+          <li>
+            <span>Calendar, current board</span>
+            <kbd data-shortcut-action="calendarCurrentBoardView">⌘ + ⌥ + 2</kbd>
+          </li>
+          <li>
+            <span>This Week, current board</span>
+            <kbd data-shortcut-action="thisWeekCurrentBoardView">⌘ + ⌥ + 3</kbd>
+          </li>
+          <li>
+            <span>Day, current board</span>
+            <kbd data-shortcut-action="plannerDayCurrentBoardView">⌘ + ⌥ + 4</kbd>
+          </li>
+          <li>
+            <span>Agenda, current board</span>
+            <kbd data-shortcut-action="plannerAgendaCurrentBoardView">⌘ + ⌥ + 5</kbd>
           </li>
         </ul>
       </section>
@@ -307,10 +335,27 @@
     </div>
   </div>
 
+  <div id="modalObsidianVaultRequired" class="modal obsidian-vault-required-modal hidden" role="dialog" aria-modal="true" aria-labelledby="obsidianVaultRequiredTitle" aria-hidden="true">
+    <div class="obsidian-vault-required-header">
+      <div>
+        <p class="obsidian-vault-required-eyebrow">Obsidian</p>
+        <h2 id="obsidianVaultRequiredTitle">Obsidian vault required</h2>
+      </div>
+      <button id="obsidianVaultRequiredClose" class="obsidian-vault-required-close" type="button" title="Close" aria-label="Close"><i data-feather="x"></i></button>
+    </div>
+    <div class="obsidian-vault-required-copy">
+      <p id="obsidianVaultRequiredMessage">This feature only works when the current board folder is stored inside an Obsidian vault.</p>
+      <p>Move this board into a vault, or create/open a board inside a vault, then try again.</p>
+    </div>
+    <div class="obsidian-vault-required-actions">
+      <button id="obsidianVaultRequiredOk" type="button">OK</button>
+    </div>
+  </div>
+
   <div id="modalAboutSignboard" class="modal about-signboard-modal hidden" role="dialog" aria-modal="true" aria-labelledby="aboutSignboardTitle" aria-hidden="true">
     <div class="about-signboard-header">
       <div>
-        <p class="about-signboard-eyebrow">Local-first Kanban</p>
+        <p class="about-signboard-eyebrow">Local-first boards</p>
         <h2 id="aboutSignboardTitle">About Signboard</h2>
       </div>
       <button id="aboutSignboardClose" class="commercial-license-close" type="button" title="Close About Signboard" aria-label="Close About Signboard"><i data-feather="x"></i></button>
@@ -321,7 +366,7 @@
           <span class="about-signboard-badge" data-about-app-version>Version</span>
           <span class="about-signboard-badge"><span data-about-license>MIT</span> License</span>
         </div>
-        <p>Signboard is a kanban app that writes Markdown files.</p>
+        <p>Signboard writes Markdown files for Kanban and Table board views.</p>
         <p class="about-signboard-meta">Created by <a href="https://cdevroe.com/" rel="noopener noreferrer">Colin Devroe</a>.</p>
         <div class="about-signboard-actions">
           <a class="about-signboard-link-button" href="https://cdevroe.com/signboard/" rel="noopener noreferrer">Visit Website</a>
@@ -379,24 +424,25 @@
     <!-- <p class="commercial-license-signoff">Thanks for your support.<br>Colin</p> -->
   </div>
 
-  <div id="modalBoardSettings" class="modal hidden">
+  <div id="modalBoardSettings" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="boardSettingsTitle" aria-hidden="true">
     <div class="boardSettingsHeader">
-      <h2>Settings</h2>
-      <a href="#" id="boardSettingsClose" title="Close settings"><i data-feather="x"></i></a>
+      <h2 id="boardSettingsTitle">Settings</h2>
+      <button type="button" id="boardSettingsClose" class="board-settings-close-button" title="Close settings" aria-label="Close settings"><i data-feather="x"></i></button>
     </div>
     <div class="board-settings-layout">
-      <nav class="board-settings-nav" aria-label="Settings sections">
-        <button id="boardSettingsNavApp" type="button" class="board-settings-nav-button is-active" data-settings-panel="app">App Settings</button>
+      <nav class="board-settings-nav" role="tablist" aria-orientation="vertical" aria-label="Settings sections">
+        <button id="boardSettingsNavApp" type="button" role="tab" aria-selected="true" aria-controls="boardSettingsPanelApp" class="board-settings-nav-button is-active" data-settings-panel="app">App Settings</button>
         <div class="board-settings-nav-separator" role="separator"></div>
         <p class="board-settings-nav-label">Current Board</p>
-        <button id="boardSettingsNavGeneral" type="button" class="board-settings-nav-button" data-settings-panel="general">General</button>
-        <button id="boardSettingsNavWorkflow" type="button" class="board-settings-nav-button" data-settings-panel="workflow">Workflow</button>
-        <button id="boardSettingsNavLabels" type="button" class="board-settings-nav-button" data-settings-panel="labels">Labels</button>
-        <button id="boardSettingsNavColors" type="button" class="board-settings-nav-button" data-settings-panel="colors">Colors</button>
-        <button id="boardSettingsNavImport" type="button" class="board-settings-nav-button" data-settings-panel="import">Import</button>
+        <button id="boardSettingsNavGeneral" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelGeneral" class="board-settings-nav-button" data-settings-panel="general">General</button>
+        <button id="boardSettingsNavObsidian" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelObsidian" class="board-settings-nav-button" data-settings-panel="obsidian">Obsidian</button>
+        <button id="boardSettingsNavWorkflow" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelWorkflow" class="board-settings-nav-button" data-settings-panel="workflow">Workflow</button>
+        <button id="boardSettingsNavLabels" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelLabels" class="board-settings-nav-button" data-settings-panel="labels">Labels</button>
+        <button id="boardSettingsNavColors" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelColors" class="board-settings-nav-button" data-settings-panel="colors">Colors</button>
+        <button id="boardSettingsNavImport" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelImport" class="board-settings-nav-button" data-settings-panel="import">Import</button>
       </nav>
       <div class="board-settings-panels">
-        <section id="boardSettingsPanelApp" class="boardSettingsSection board-settings-panel is-active" data-settings-panel="app">
+        <section id="boardSettingsPanelApp" class="boardSettingsSection board-settings-panel is-active" role="tabpanel" aria-hidden="false" aria-labelledby="boardSettingsNavApp" data-settings-panel="app">
           <h3>App Settings</h3>
           <div class="board-settings-group">
             <div class="board-settings-toggle-row">
@@ -422,14 +468,48 @@
               </label>
             </div>
           </div>
-          <div class="board-settings-group">
+          <div id="boardSettingsNotificationsDetails" class="board-settings-group hidden" aria-hidden="true">
             <label for="boardSettingsNotificationsTime">Notification time (local)</label>
             <input id="boardSettingsNotificationsTime" type="text" value="09:00" placeholder="HH:MM" inputmode="numeric" maxlength="5" width="10" pattern="(?:0[1-9]|1[0-9]|2[0-4]):[0-5][0-9]">
             <p class="boardSettingsHint">Use HH:MM in 24-hour format. Hours can be 01 through 24 (example: 21:30).</p>
           </div>
+          <div class="board-settings-group">
+            <label for="boardSettingsQuickAddShortcut">Global Quick Add shortcut</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsQuickAddShortcut" type="text" placeholder="CommandOrControl+Shift+Space" spellcheck="false" autocomplete="off">
+              <span id="boardSettingsQuickAddShortcutStatus" class="board-settings-status">Disabled</span>
+            </div>
+            <p class="boardSettingsHint">Leave blank to disable. Signboard must be open.</p>
+          </div>
+          <div class="board-settings-group">
+            <div class="board-settings-toggle-row">
+              <div>
+                <p class="boardSettingsHint boardSettingsHintTight">External Published Calendar</p>
+                <p class="boardSettingsHint">Publish a read-only local iCalendar feed while Signboard is open.</p>
+              </div>
+              <label class="board-settings-switch" for="boardSettingsExternalCalendarToggle" title="Enable External Published Calendar">
+                <input id="boardSettingsExternalCalendarToggle" type="checkbox" role="switch" aria-label="Enable External Published Calendar">
+                <span class="board-settings-switch-track" aria-hidden="true"></span>
+              </label>
+            </div>
+          </div>
+          <div id="boardSettingsExternalCalendarPortGroup" class="board-settings-group hidden" aria-hidden="true">
+            <label for="boardSettingsExternalCalendarPort">Calendar feed port</label>
+            <input id="boardSettingsExternalCalendarPort" type="number" min="1024" max="65535" step="1" value="48273" inputmode="numeric">
+            <p class="boardSettingsHint">Use another port only if the default local URL is unavailable.</p>
+          </div>
+          <div id="boardSettingsExternalCalendarUrlGroup" class="board-settings-group hidden" aria-hidden="true">
+            <label for="boardSettingsExternalCalendarUrl">Calendar subscription URL</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsExternalCalendarUrl" type="text" readonly spellcheck="false" autocomplete="off">
+              <button id="btnCopyExternalCalendarUrl" type="button" title="Copy calendar subscription URL">Copy URL</button>
+              <span id="boardSettingsExternalCalendarStatus" class="board-settings-status">Disabled</span>
+            </div>
+            <p class="boardSettingsHint">Subscribe from your calendar app using this URL. It works only while Signboard is open.</p>
+          </div>
         </section>
 
-        <section id="boardSettingsPanelGeneral" class="boardSettingsSection board-settings-panel" data-settings-panel="general">
+        <section id="boardSettingsPanelGeneral" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavGeneral" data-settings-panel="general">
           <h3>Board General</h3>
           <div class="board-settings-group">
             <label for="boardSettingsBoardNameInput">Board name</label>
@@ -449,7 +529,21 @@
           </div>
         </section>
 
-        <section id="boardSettingsPanelWorkflow" class="boardSettingsSection board-settings-panel" data-settings-panel="workflow">
+        <section id="boardSettingsPanelObsidian" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavObsidian" data-settings-panel="obsidian">
+          <h3>Obsidian</h3>
+          <p class="boardSettingsHint">Keep this board inside an Obsidian vault to open cards in Obsidian, create linked notes, manage linked objects, and generate a Bases view.</p>
+          <div class="board-settings-group">
+            <h4 class="board-settings-subheading">Bases</h4>
+            <p class="boardSettingsHint">Generate a <code>Signboard Board.base</code> file in this board folder for Obsidian Bases.</p>
+            <div class="board-settings-inline-actions board-settings-inline-actions-right">
+              <button id="btnGenerateObsidianBase" type="button" title="Generate Obsidian Base">Generate Base</button>
+              <button id="btnOpenObsidianBase" type="button" title="Open Obsidian Base">Open Base</button>
+            </div>
+            <p id="boardSettingsObsidianStatus" class="boardSettingsHint" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <section id="boardSettingsPanelWorkflow" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavWorkflow" data-settings-panel="workflow">
           <h3>Workflow</h3>
           <p class="boardSettingsHint">Completed lists are hidden from Planner date views unless completed cards are shown in Planner filters.</p>
           <div class="board-settings-group">
@@ -469,16 +563,28 @@
             <p class="boardSettingsHint">Check any list that should count as finished work. Auto-detected lists can be unchecked here.</p>
             <div id="boardSettingsWorkflowLists" class="board-workflow-list-settings" aria-live="polite"></div>
           </div>
+          <div class="board-settings-group">
+            <div class="board-settings-toggle-row">
+              <div>
+                <p class="boardSettingsHint boardSettingsHintTight">Include in External Published Calendar</p>
+                <p class="boardSettingsHint">When app-level publishing is enabled, include this board's actionable due items in the local calendar feed.</p>
+              </div>
+              <label class="board-settings-switch" for="boardSettingsExternalCalendarIncludeToggle" title="Include this board in External Published Calendar">
+                <input id="boardSettingsExternalCalendarIncludeToggle" type="checkbox" role="switch" aria-label="Include this board in External Published Calendar">
+                <span class="board-settings-switch-track" aria-hidden="true"></span>
+              </label>
+            </div>
+          </div>
         </section>
 
-        <section id="boardSettingsPanelLabels" class="boardSettingsSection board-settings-panel" data-settings-panel="labels">
+        <section id="boardSettingsPanelLabels" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavLabels" data-settings-panel="labels">
           <h3>Labels</h3>
           <p class="boardSettingsHint">Rename labels, choose a color, add new labels, and remove labels.</p>
           <div id="boardSettingsLabels"></div>
           <button id="btnAddBoardLabel" type="button" title="Add label">Add label</button>
         </section>
 
-        <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" data-settings-panel="colors">
+        <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavColors" data-settings-panel="colors">
           <h3>Color Scheme</h3>
           <p class="boardSettingsHint">Choose a color scheme for this board. Each scheme has a light and dark variant.</p>
           <div class="board-color-scheme-selector">
@@ -499,7 +605,7 @@
           </div>
         </section>
 
-        <section id="boardSettingsPanelImport" class="boardSettingsSection board-settings-panel" data-settings-panel="import">
+        <section id="boardSettingsPanelImport" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavImport" data-settings-panel="import">
           <h3>Import</h3>
           <p class="boardSettingsHint"><strong>Note: This feature is in rapid improvement.</strong> Import data from other apps into this board. Signboard copies data in and leaves your source files where they are.</p>
 
@@ -534,30 +640,36 @@
     </div>
   </div>
 
-  <div id="modalEditCard" class="modal hidden">
+  <div id="modalEditCard" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cardEditorTitle" aria-hidden="true">
     <div class="cardEditorHeader">
       <div class="cardEditorListControl">
         <select id="cardEditorListSelect" title="Move card to list" aria-label="Move card to list"></select>
         <span id="cardEditorListMoveFeedback" aria-hidden="true">✓</span>
       </div>
       <div class="cardEditorHeaderActions">
-        <a href="#" id="cardEditorArchiveLink" title="Archive"><i data-feather="archive"></i></a>
-        <a href="#" id="cardEditorShareLink" title="Share"><i data-feather="share-2"></i></a>
-        <a href="#" id="cardEditorDupeLink" title="Duplicate"><i data-feather="copy"></i></a>
-        <a href="#" id="cardEditorMoveListLink" title="Move to next list"><i data-feather="arrow-right"></i></a>
-        <a href="#" id="cardEditorClose" title="Close"><i data-feather="x"></i></a>
+        <button type="button" id="cardEditorArchiveLink" title="Archive" aria-label="Archive card"><i data-feather="archive"></i></button>
+        <button type="button" id="cardEditorShareLink" title="Share" aria-label="Share card"><i data-feather="share-2"></i></button>
+        <button type="button" id="cardEditorOpenWithLink" title="Open with" aria-label="Open with" aria-expanded="false"><i data-feather="external-link"></i></button>
+        <button type="button" id="cardEditorDupeLink" title="Duplicate" aria-label="Duplicate card"><i data-feather="copy"></i></button>
+        <button type="button" id="cardEditorMoveListLink" title="Move to next list" aria-label="Move card to next list"><i data-feather="arrow-right"></i></button>
+        <button type="button" id="cardEditorClose" title="Close" aria-label="Close card editor"><i data-feather="x"></i></button>
       </div>
     </div>
-    <span id="cardEditorCardID" title="Open this card's file"></span>
+    <div id="cardEditorOpenWithPopover" class="label-popover card-editor-open-with-popover hidden" aria-hidden="true" data-sb-modal-layer></div>
+    <div id="cardEditorLinkedObjectsPopover" class="label-popover card-editor-linked-objects-popover hidden" aria-hidden="true" data-sb-modal-layer></div>
+    <button type="button" id="cardEditorCardID" title="Open this card's file" aria-label="Open this card's file"></button>
     
     <div>
-      <h2 id="cardEditorTitle" contenteditable="true"></h2>
+      <h2 id="cardEditorTitle" contenteditable="true" role="textbox" aria-label="Card title" aria-multiline="false" spellcheck="true"></h2>
       <div class="cardEditorMetadataButtons">
-        <a href="#" id="cardEditorSetDueDateLink" title="Edit Due Date"><i data-feather="clock"></i> <span id="cardEditorCardDueDateDisplay" title="This card's due date"></span></a>
-        <a href="#" id="cardEditorSetLabelsLink" title="Edit Labels"><i data-feather="tag"></i> <span id="cardEditorCardLabels" title="This card's labels"></span></a>
+        <button type="button" id="cardEditorSetDueDateLink" title="Edit Due Date" aria-label="Edit due date"><i data-feather="clock"></i> <span id="cardEditorCardDueDateDisplay" title="This card's due date"></span></button>
+        <button type="button" id="cardEditorSetLabelsLink" title="Edit Labels" aria-label="Edit labels"><i data-feather="tag"></i> <span id="cardEditorCardLabels" title="This card's labels"></span></button>
+        <button type="button" id="cardEditorLinkedObjectsLink" title="Linked objects" aria-label="Linked objects" aria-expanded="false"><i data-feather="paperclip"></i> <span id="cardEditorLinkedObjectsCount" class="card-editor-linked-objects-count" hidden></span></button>
       </div>
+      <div id="cardEditorRelatedNotes" class="card-editor-related-notes" aria-label="Linked objects" hidden></div>
     </div>
-    <div id="cardEditorOverType" style="height: calc(100% - 90px);"></div>
+    <div id="cardEditorOverType"></div>
+    <div id="cardEditorTimestampMetadata" class="cardEditorTimestampMetadata" aria-label="Card timestamps"></div>
     <input type="hidden" id="cardEditorCardPath">
     <input type="hidden" id="cardEditorCardMetadata">
     <input type="hidden" id="cardEditorCardDueDate">

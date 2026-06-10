@@ -97,11 +97,16 @@ The server currently exposes these tools:
 - `signboard_create_board` (write mode only)
 - `signboard_list_lists`
 - `signboard_list_cards`
-- `signboard_read_card` (includes `taskSummary` + `taskDueDates`)
-- `signboard_create_card` (write mode only, includes `taskSummary` + `taskDueDates`; supports `dryRun`)
-- `signboard_update_card` (write mode only, includes `taskSummary` + `taskDueDates`; supports section edits, note insertion, label operations, and `dryRun`)
-- `signboard_duplicate_card` (write mode only, includes `taskSummary` + `taskDueDates`; supports title/body override, label operations, and `dryRun`)
+- `signboard_read_card` (includes `timestamps`, `taskSummary`, and `taskDueDates`)
+- `signboard_create_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports `dryRun`)
+- `signboard_update_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports section edits, note insertion, label operations, and `dryRun`)
+- `signboard_duplicate_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports title/body override, label operations, and `dryRun`)
 - `signboard_archive_card` (write mode only)
+- `signboard_archive_list` (write mode only)
+- `signboard_list_archive_entries`
+- `signboard_read_archive_entry`
+- `signboard_restore_archived_card` (write mode only)
+- `signboard_restore_archived_list` (write mode only)
 - `signboard_move_card` (write mode only)
 - `signboard_create_list` (write mode only)
 - `signboard_rename_board` (write mode only)
@@ -115,13 +120,15 @@ The server currently exposes these tools:
 `tools/list` advertises underscore tool names. Dotted `signboard.*` names are still accepted as legacy aliases for backward compatibility.
 
 Board-scoped tools take absolute `boardRoot` paths, `signboard_create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
-Board settings tools include labels, theme overrides, and completed-list workflow settings. App tooltip and notification preferences are desktop app settings.
+Board settings tools include labels, theme overrides, completed-list workflow settings, and board-level External Published Calendar inclusion. App tooltip, notification, Quick Add, and External Published Calendar server preferences are desktop app settings.
 Import tools also take absolute external source paths, and those paths must resolve inside configured or trusted roots.
 
-## Task Metadata in Card Tool Responses
+## Card Metadata in Card Tool Responses
 
 `signboard_read_card`, `signboard_create_card`, `signboard_update_card`, and `signboard_duplicate_card` return:
 
+- `card.timestamps.createdAt`: ISO timestamp for when the card was created, preferring Signboard card metadata and falling back to filesystem timestamps for older cards
+- `card.timestamps.updatedAt`: ISO timestamp from the card file's filesystem modification time when available
 - `taskSummary`: `{ total, completed, remaining }`
 - `taskDueDates`: sorted unique ISO dates found in task lines (`YYYY-MM-DD`)
 
@@ -198,7 +205,7 @@ If neither `SIGNBOARD_MCP_ALLOWED_ROOTS` nor desktop trusted board roots are ava
 - In MCP mode, Signboard starts headless, but activating the app can still reveal the desktop window.
 - The process communicates over stdio (MCP JSON-RPC framing).
 - The stdio parser accepts both header-framed MCP and newline-delimited JSON-RPC payloads.
-- `signboard_list_board_views` currently reports Kanban as the board view; dated Calendar/This Week planning is handled by the desktop Planner overlay.
+- `signboard_list_board_views` reports the board-scoped Kanban and Table views; dated Calendar/This Week/Day/Agenda planning is handled by the desktop Planner overlay.
 - Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`).
 - `signboard_create_card` and `signboard_update_card` normalize literal `\n` / `\N` escape sequences in body input into real line breaks.
 - `signboard_update_card` can replace a Markdown heading section (`replaceSection` + `body`), insert text after a heading (`insertAfterHeading` + `insertText`), append a note under `## Notes` (`addNote`), and clear/add/remove labels without replacing the full body.

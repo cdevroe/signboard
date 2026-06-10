@@ -273,6 +273,8 @@ function createContext(cardFactory, callbacks, options = {}) {
   };
 
   vm.createContext(context);
+  const linkedObjectsSource = fs.readFileSync(path.join(__dirname, '../app/utilities/linkedObjects.js'), 'utf8');
+  vm.runInContext(linkedObjectsSource, context);
   const source = fs.readFileSync(path.join(__dirname, '../app/cards/createCardElement.js'), 'utf8');
   vm.runInContext(source, context);
   return context;
@@ -422,6 +424,46 @@ async function run() {
   assert(taskBadge, 'expected task progress badge');
   assert.strictEqual(metadataTaskSummary.classList.contains('metadata-discovery'), false);
   assert.strictEqual(taskBadge.getAttribute('data-progress'), '1/3');
+
+  const contextLinkedObjects = createContext(
+    () => ({
+      frontmatter: {
+        title: 'Card E',
+        labels: [],
+        due: null,
+        linked_objects: [
+          { type: 'url', url: 'https://example.com/docs' },
+          { type: 'file', path: '/tmp/example.pdf' },
+        ],
+      },
+      body: 'Body',
+    }),
+    {
+      toggleCardLabelSelector: () => {},
+      toggleEditCardModal: async () => {},
+      openDueDatePickerAtTrigger: () => {},
+    },
+  );
+
+  const cardLinkedObjects = await contextLinkedObjects.createCardElement('/tmp/card-e.md');
+  const metadataLinkedObjects = findFirstByClass(cardLinkedObjects, 'metadata');
+  const linkedObjectsBadge = findFirstByClass(cardLinkedObjects, 'linked-objects-badge-inline');
+
+  assert(metadataLinkedObjects, 'expected linked-object metadata');
+  assert(linkedObjectsBadge, 'expected linked-object badge');
+  assert.strictEqual(metadataLinkedObjects.classList.contains('metadata-discovery'), false);
+  assert.strictEqual(linkedObjectsBadge.textContent, '2');
+  assert.strictEqual(linkedObjectsBadge.getAttribute('aria-label'), '2 linked objects');
+  assert.strictEqual(contextLinkedObjects.getFrontmatterLinkedObjectCount({
+    linked_objects: [
+      {
+        type: 'obsidian-note',
+        path: '/tmp/Signboard Note.md',
+        target: '[[Signboard Note]]',
+      },
+    ],
+    related: '[[Signboard Note]]',
+  }), 1, 'expected Obsidian note path/target aliases to count once');
 
   const styles = fs.readFileSync(path.join(__dirname, '../static/styles.css'), 'utf8');
   assert(

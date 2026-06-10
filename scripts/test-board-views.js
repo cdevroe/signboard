@@ -103,6 +103,10 @@ class MockElement {
     return this._textContent;
   }
 
+  get childElementCount() {
+    return this.children.filter((child) => typeof child !== 'string').length;
+  }
+
   appendChild(child) {
     if (typeof child === 'string') {
       this.children.push(child);
@@ -132,6 +136,10 @@ class MockElement {
 
   getAttribute(name) {
     return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
+  }
+
+  removeAttribute(name) {
+    delete this.attributes[name];
   }
 
   addEventListener(type, handler) {
@@ -243,6 +251,8 @@ function createContext() {
       innerHeight: 900,
       board: {
         listCards: async () => [],
+        readCard: async () => ({ frontmatter: {}, body: '' }),
+        formatDueDate: async (dateValue) => String(dateValue || ''),
       },
     },
     document,
@@ -265,8 +275,12 @@ function createContext() {
   vm.createContext(context);
   loadSource(context, 'app/utilities/dueDateStatus.js');
   loadSource(context, 'app/utilities/taskList.js');
+  loadSource(context, 'app/utilities/cardTimestamps.js');
+  loadSource(context, 'app/utilities/linkedObjects.js');
   loadSource(context, 'app/board/boardLabels.js');
+  loadSource(context, 'app/board/boardSearch.js');
   loadSource(context, 'app/board/boardViews.js');
+  loadSource(context, 'app/board/tableView.js');
   loadSource(context, 'app/board/plannerView.js');
   loadSource(context, 'app/lists/listActionsPopover.js');
 
@@ -292,7 +306,7 @@ function createContext() {
   };
 }
 
-function run() {
+async function run() {
   const {
     context,
     filterButton,
@@ -374,6 +388,40 @@ function run() {
   assert.strictEqual(cardPlacement.temporalDisplaySubtitle, '');
   assert.strictEqual(cardPlacement.listDisplayName, 'Backlog');
 
+  const completedTaskOnCardDuePlacement = context.createTemporalPlacementForDate({
+    cardPath: '/tmp/card-due-completed-task.md',
+    listName: '001-Backlog-abc12',
+    listDisplayName: 'Backlog',
+    title: 'Card due with finished task',
+    due: '2026-03-10',
+    labels: [],
+    body: '- [x] (due: 2026-03-10) Finished prep',
+    taskSummary: { total: 1, completed: 1, remaining: 0 },
+    taskItems: context.parseTaskListItems('- [x] (due: 2026-03-10) Finished prep'),
+    taskDueDates: ['2026-03-10'],
+    incompleteTaskDueDates: [],
+  }, '2026-03-10');
+
+  assert(completedTaskOnCardDuePlacement, 'expected card placement when the card due date matches');
+  assert.strictEqual(completedTaskOnCardDuePlacement.temporalReason, 'card');
+  assert.strictEqual(completedTaskOnCardDuePlacement.temporalDisplayTitle, 'Card due with finished task');
+
+  const completedTaskOnlyPlacement = context.createTemporalPlacementForDate({
+    cardPath: '/tmp/completed-task-only.md',
+    listName: '001-Backlog-abc12',
+    listDisplayName: 'Backlog',
+    title: 'Finished task only',
+    due: '',
+    labels: [],
+    body: '- [x] (due: 2026-03-10) Finished prep',
+    taskSummary: { total: 1, completed: 1, remaining: 0 },
+    taskItems: context.parseTaskListItems('- [x] (due: 2026-03-10) Finished prep'),
+    taskDueDates: ['2026-03-10'],
+    incompleteTaskDueDates: [],
+  }, '2026-03-10');
+
+  assert.strictEqual(completedTaskOnlyPlacement, null, 'expected completed task due markers not to create temporal placements');
+
   const labels = [
     createLabel(1, 'Urgent'),
     createLabel(2, 'Bug'),
@@ -440,6 +488,12 @@ function run() {
     ['2026-03-08'],
     'expected overdue active-filter due dates to keep overdue card due dates',
   );
+  filterState.activeDateFilter = 'today';
+  assert.deepStrictEqual(
+    toPlain(context.getActiveBoardFilterDueDates('', ['2026-03-10'], [])),
+    [],
+    'expected today active-filter due dates to ignore completed task dates',
+  );
   assert.strictEqual(context.getShortcutHintText('boardSettings'), 'Ctrl+,');
   assert.strictEqual(context.getShortcutHintText('switchBoard'), 'Ctrl+K');
   assert.strictEqual(context.getShortcutHintText('toggleTheme'), 'Ctrl+Shift+D');
@@ -449,12 +503,62 @@ function run() {
   assert.strictEqual(context.getShortcutKeycapText('archiveCard'), 'Ctrl + Alt + Shift + Backspace');
   assert.strictEqual(context.getShortcutHintText('archiveBrowser'), 'Ctrl+Shift+A');
   assert.strictEqual(context.getShortcutKeycapText('kanbanView'), 'Ctrl + 1');
+  assert.strictEqual(context.getShortcutKeycapText('tableView'), 'Ctrl + Alt + 1');
+  assert.strictEqual(context.getShortcutHintText('tableView'), 'Ctrl+Alt+1');
   assert.strictEqual(context.getShortcutKeycapText('plannerToggle'), 'Ctrl + Shift + P');
   assert.strictEqual(context.getShortcutKeycapText('plannerDayView'), 'Ctrl + 4');
   assert.strictEqual(context.getShortcutKeycapText('plannerAgendaView'), 'Ctrl + 5');
+  assert.strictEqual(context.normalizeBoardViewId('table'), 'table');
+
+  const tableHeader = context.createBoardTableHeader();
+  assert.deepStrictEqual(
+    toPlain(tableHeader.children[0].children.map((headerCell) => headerCell.textContent)),
+    ['Due', 'Updated', 'Created', 'Tasks', 'Links', 'Card', 'List', 'Labels'],
+    'expected table columns to keep the configured order',
+  );
+
+  const sortableTableCards = [
+    {
+      title: 'New untouched',
+      boardOrderIndex: 0,
+      timestamps: {
+        createdAt: '2026-03-09T12:00:00.000Z',
+        updatedAt: '2026-03-09T12:00:00.000Z',
+      },
+    },
+    {
+      title: 'Old stale',
+      boardOrderIndex: 1,
+      timestamps: {
+        createdAt: '2026-01-10T12:00:00.000Z',
+        updatedAt: '2026-01-20T12:00:00.000Z',
+      },
+    },
+    {
+      title: 'Old active',
+      boardOrderIndex: 2,
+      timestamps: {
+        createdAt: '2026-01-05T12:00:00.000Z',
+        updatedAt: '2026-03-10T12:00:00.000Z',
+      },
+    },
+  ];
+
+  assert.deepStrictEqual(
+    toPlain(context.sortBoardTableCards(sortableTableCards, 'updated-asc').map((entry) => entry.title)),
+    ['Old stale', 'New untouched', 'Old active'],
+    'expected updated oldest-first sort to surface stale cards',
+  );
+  assert.deepStrictEqual(
+    toPlain(context.sortBoardTableCards(sortableTableCards, 'created-asc').map((entry) => entry.title)),
+    ['Old active', 'Old stale', 'New untouched'],
+    'expected created oldest-first sort to surface oldest cards',
+  );
 
   context.renderBoardViewPopover();
   assert(viewPopover.textContent.includes('Ctrl+1'), 'expected Kanban shortcut hint in view popover');
+  assert(viewPopover.textContent.includes('Ctrl+Alt+1'), 'expected Table shortcut hint in view popover');
+  assert(viewPopover.textContent.includes('Table'), 'expected Table option in board view popover');
   assert(!viewPopover.textContent.includes('Ctrl+2'), 'expected Calendar shortcut to move out of the board view popover');
   assert(!viewPopover.textContent.includes('Ctrl+3'), 'expected This Week shortcut to move out of the board view popover');
 
@@ -495,6 +599,7 @@ function run() {
       taskSummary: { total: 1, completed: 0, remaining: 1 },
       taskItems: todayTaskItems,
       taskDueDates: context.getTaskListDueDates(todayTaskBody),
+      incompleteTaskDueDates: context.getIncompleteTaskListDueDates(todayTaskBody),
     },
     {
       cardPath: '/tmp/card-overdue.md',
@@ -535,6 +640,19 @@ function run() {
       taskDueDates: ['2026-03-09'],
       incompleteTaskDueDates: [],
     },
+    {
+      cardPath: '/tmp/completed-today-task.md',
+      listName: '002-Doing-abc12',
+      listDisplayName: 'Doing',
+      title: 'Completed today task',
+      due: '',
+      labels: ['label-1'],
+      body: '- [x] (due: 2026-03-10) Finished today',
+      taskSummary: { total: 1, completed: 1, remaining: 0 },
+      taskItems: context.parseTaskListItems('- [x] (due: 2026-03-10) Finished today'),
+      taskDueDates: ['2026-03-10'],
+      incompleteTaskDueDates: [],
+    },
   ];
 
   filterState.filterIds = ['label-1'];
@@ -565,6 +683,85 @@ function run() {
   assert.strictEqual(overdueWeekEntries[0].temporalReason, 'card');
   assert.strictEqual(overdueWeekBuckets.has('2026-03-10'), false);
 
+  const tableLists = [
+    {
+      listName: '000-To-do-stock',
+      listPath: '/tmp/board/000-To-do-stock',
+      cards: ['000-alpha.md', '001-beta.md'],
+    },
+    {
+      listName: '001-Done-stock',
+      listPath: '/tmp/board/001-Done-stock',
+      cards: ['000-done.md'],
+    },
+  ];
+  const tableCards = new Map([
+    ['/tmp/board/000-To-do-stock/000-alpha.md', {
+      frontmatter: {
+        title: 'Alpha task',
+        labels: ['label-1'],
+        linked_objects: [
+          { type: 'url', url: 'https://example.com/docs' },
+          { type: 'file', path: '/tmp/example.pdf' },
+        ],
+      },
+      body: '- [ ] (due: 2026-03-10) Prep table view',
+    }],
+    ['/tmp/board/000-To-do-stock/001-beta.md', {
+      frontmatter: { title: 'Beta overdue', due: '2026-03-09', labels: ['label-2'] },
+      body: 'Body',
+    }],
+    ['/tmp/board/001-Done-stock/000-done.md', {
+      frontmatter: { title: 'Finished overdue', due: '2026-03-09' },
+      body: 'Done body',
+    }],
+  ]);
+  context.window.board.readCard = async (cardPath) => tableCards.get(cardPath) || { frontmatter: {}, body: '' };
+  context.window.board.formatDueDate = async (dateValue) => `formatted ${dateValue}`;
+
+  filterState.filterIds = [];
+  filterState.activeDateFilter = '';
+  context.setBoardSearchQuery('');
+  const unfilteredTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);
+  assert.strictEqual(unfilteredTableState.allCards.length, 3, 'expected table collection to read every card');
+  assert.strictEqual(unfilteredTableState.visibleCards.length, 3, 'expected table view to include every unfiltered card');
+  assert.strictEqual(unfilteredTableState.allCards[0].linkedObjectCount, 2, 'expected table collection to count linked objects');
+
+  filterState.filterIds = ['label-1'];
+  const labelFilteredTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);
+  assert.deepStrictEqual(
+    toPlain(labelFilteredTableState.visibleCards.map((card) => card.title)),
+    ['Alpha task'],
+    'expected table view to reuse board label filters',
+  );
+
+  filterState.filterIds = [];
+  filterState.activeDateFilter = 'overdue';
+  const overdueTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);
+  assert.deepStrictEqual(
+    toPlain(overdueTableState.visibleCards.map((card) => card.title)),
+    ['Beta overdue'],
+    'expected table overdue filter to hide completed-list cards',
+  );
+
+  filterState.activeDateFilter = '';
+  context.setBoardSearchQuery('prep');
+  const searchTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);
+  assert.deepStrictEqual(
+    toPlain(searchTableState.visibleCards.map((card) => card.title)),
+    ['Alpha task'],
+    'expected table view to reuse board search',
+  );
+
+  context.setBoardSearchQuery('');
+  const tableRender = await context.renderTableBoard('/tmp/board/', tableLists);
+  assert(tableRender.root.textContent.includes('Alpha task'), 'expected rendered table to include card title');
+  assert(tableRender.root.textContent.includes('To-do'), 'expected rendered table to include list dropdown text');
+  assert(tableRender.root.textContent.includes('Links'), 'expected rendered table to include links column');
+  const tableLinksBadge = findFirstByClass(tableRender.root, 'board-table-linked-objects-badge');
+  assert(tableLinksBadge, 'expected rendered table to show linked-object badge');
+  assert.strictEqual(tableLinksBadge.textContent, '2');
+
   const plannerState = context.getPlannerState();
   plannerState.searchTokens = [];
   plannerState.dateFilter = '';
@@ -585,6 +782,22 @@ function run() {
       taskItems: context.parseTaskListItems('- [ ] (due: 2026-03-10) Send proposal'),
       taskDueDates: ['2026-03-10'],
       incompleteTaskDueDates: ['2026-03-10'],
+    },
+    {
+      cardPath: '/tmp/client-a/task-finished-today.md',
+      boardRoot: '/tmp/client-a/',
+      boardDisplayName: 'Client A',
+      listName: '001-Next-abc12',
+      listDisplayName: 'Next',
+      isCompletedList: false,
+      title: 'Finished client task',
+      due: '',
+      labels: [],
+      body: '- [x] (due: 2026-03-10) Send signed proposal',
+      taskSummary: { total: 1, completed: 1, remaining: 0 },
+      taskItems: context.parseTaskListItems('- [x] (due: 2026-03-10) Send signed proposal'),
+      taskDueDates: ['2026-03-10'],
+      incompleteTaskDueDates: [],
     },
     {
       cardPath: '/tmp/home/card-overdue.md',
@@ -649,7 +862,7 @@ function run() {
   plannerState.showCompletedCards = true;
   plannerState.dateFilter = '';
   const plannerCompletedBuckets = context.buildPlannerCalendarCardBuckets(plannerEntries, new context.Date(2026, 2, 1));
-  assert.strictEqual((plannerCompletedBuckets.get('2026-03-09') || []).length, 3, 'expected Planner to show completed-list dated cards when requested');
+  assert.strictEqual((plannerCompletedBuckets.get('2026-03-09') || []).length, 2, 'expected Planner to show completed-list card due dates when requested without showing completed task due markers');
   plannerState.dateFilter = 'overdue';
   const plannerCompletedOverdueBuckets = context.buildPlannerCalendarCardBuckets(plannerEntries, new context.Date(2026, 2, 1));
   assert.strictEqual((plannerCompletedOverdueBuckets.get('2026-03-09') || []).length, 2, 'expected Planner to include completed-list card due dates when completed cards are shown');
@@ -676,4 +889,7 @@ function run() {
   assert.strictEqual(plannerLabelEmptyAgenda.length, 0, 'expected Planner label filter to hide non-matching labels');
 }
 
-run();
+run().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

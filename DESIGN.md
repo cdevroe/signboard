@@ -261,10 +261,17 @@ Modals are white surfaces with 14px radius, 16px or greater padding, and stronge
 
 Tooltips are compact, high-contrast overlays using surface/text inversion and a small pointer. They should explain icon controls without adding visible instructional text to the main UI.
 
+## Accessibility
+
+Focus affordances should be visible for keyboard navigation without making pointer editing feel boxed in. Use `:focus-visible` for card titles, list names, contenteditable fields, and compact icon controls; avoid persistent outlines on the card editor when focus came from mouse or touch.
+
+Motion should respect `prefers-reduced-motion`: drag tilt, hover lift, animated Sortable movement, and nonessential transitions should reduce or stop while preserving clear placement feedback. Forced-colors mode should keep borders, focus, and selected states available through system colors.
+
 ## Do's and Don'ts
 
 - Do keep the board dense, scannable, and calm.
 - Do use primary blue for active, focused, selected, or highest-priority actions only.
+- Do keep keyboard focus visible without adding persistent editor chrome for pointer users.
 - Do use borders and muted text to create hierarchy before adding stronger shadows.
 - Do keep card titles modest and regular weight so many cards can sit together comfortably.
 - Do preserve fixed column width and stable control sizes.

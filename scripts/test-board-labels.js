@@ -30,6 +30,8 @@ async function run() {
       completedListNames: [],
       ignoredCompletedListNames: [],
     });
+    assert.deepStrictEqual(defaults.externalPublishedCalendar, { include: true });
+    assert.deepStrictEqual(defaults.obsidianBase, { managedHash: '', updatedAt: '' });
 
     const settingsPath = path.join(boardPath, 'board-settings.md');
     const writtenRaw = await fs.readFile(settingsPath, 'utf8');
@@ -77,6 +79,13 @@ async function run() {
         autoDetectCompletedLists: false,
         completedListNames: ['003-Done-abc12'],
       },
+      externalPublishedCalendar: {
+        include: false,
+      },
+      obsidianBase: {
+        managedHash: 'a'.repeat(64),
+        updatedAt: '2026-06-09T12:00:00.000Z',
+      },
     });
     const clearedOverrides = await readBoardSettings(boardPath);
     assert.deepStrictEqual(clearedOverrides.themeOverrides, { light: {}, dark: {} });
@@ -86,6 +95,14 @@ async function run() {
       completedListNames: ['003-Done-abc12'],
       ignoredCompletedListNames: [],
     });
+    assert.deepStrictEqual(clearedOverrides.externalPublishedCalendar, { include: false });
+    assert.deepStrictEqual(clearedOverrides.obsidianBase, {
+      managedHash: 'a'.repeat(64),
+      updatedAt: '2026-06-09T12:00:00.000Z',
+    });
+    const clearedRaw = await fs.readFile(settingsPath, 'utf8');
+    assert(clearedRaw.includes('externalPublishedCalendar:'), 'board calendar publishing opt-out should be persisted');
+    assert(clearedRaw.includes('obsidianBase:'), 'managed Obsidian Base metadata should be persisted');
 
     const legacyAppBoardPath = path.join(tmpDir, 'board-app-legacy');
     await fs.mkdir(legacyAppBoardPath, { recursive: true });

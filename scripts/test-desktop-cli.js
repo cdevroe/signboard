@@ -7,6 +7,8 @@ const electronBinary = require('electron');
 const cardFrontmatter = require('../lib/cardFrontmatter');
 const boardLabels = require('../lib/boardLabels');
 
+const CLI_PATH = path.resolve(__dirname, '..', 'bin', 'signboard.js');
+
 async function createFixtureBoard() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-desktop-cli-'));
   const boardRoot = path.join(root, 'Desktop CLI Board');
@@ -86,11 +88,12 @@ async function createImportFixtures(root) {
 }
 
 function runDesktopCli(args, env = {}) {
-  const result = spawnSync(electronBinary, ['.', ...args], {
+  const result = spawnSync(electronBinary, [CLI_PATH, ...args], {
     cwd: path.resolve(__dirname, '..'),
     encoding: 'utf8',
     env: {
       ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
       ...env,
     },
   });
@@ -105,11 +108,12 @@ function runDesktopCli(args, env = {}) {
 }
 
 function runDesktopCliExpectFail(args, env = {}) {
-  const result = spawnSync(electronBinary, ['.', ...args], {
+  const result = spawnSync(electronBinary, [CLI_PATH, ...args], {
     cwd: path.resolve(__dirname, '..'),
     encoding: 'utf8',
     env: {
       ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
       ...env,
     },
   });
@@ -131,6 +135,23 @@ async function main() {
 
   const helpResult = runDesktopCli(['help'], env);
   assert.ok(helpResult.stdout.includes('Signboard CLI'));
+
+  const createdBoardRoot = path.join(fixture.root, 'Created Desktop CLI Board');
+  const createdBoard = JSON.parse(
+    runDesktopCli(['boards', 'create', createdBoardRoot, '--json'], env).stdout
+  );
+  assert.strictEqual(createdBoard.boardRoot, createdBoardRoot);
+  assert.strictEqual(createdBoard.cardFile, '000-hello-stock.md');
+  assert.deepStrictEqual(
+    (await fs.readdir(createdBoardRoot)).sort(),
+    ['000-To-do-stock', '001-Doing-stock', '002-Done-stock', 'XXX-Archive'].sort(),
+  );
+
+  const starterCard = await cardFrontmatter.readCard(
+    path.join(createdBoardRoot, '000-To-do-stock', '000-hello-stock.md')
+  );
+  assert.strictEqual(starterCard.frontmatter.title, '👋 Start Here');
+  assert.ok(starterCard.body.includes('Cmd/Ctrl + K'));
 
   const useResult = runDesktopCli(['use', fixture.boardRoot], env);
   assert.ok(useResult.stdout.includes(fixture.boardRoot));

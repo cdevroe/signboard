@@ -67,10 +67,15 @@ const SHORTCUT_ACTION_DEFINITIONS = Object.freeze({
   addCard: Object.freeze({ key: 'N', usesPrimaryModifier: true }),
   addList: Object.freeze({ key: 'N', usesPrimaryModifier: true, shiftKey: true }),
   kanbanView: Object.freeze({ key: '1', usesPrimaryModifier: true }),
+  tableView: Object.freeze({ key: '1', usesPrimaryModifier: true, altKey: true }),
   calendarView: Object.freeze({ key: '2', usesPrimaryModifier: true }),
   thisWeekView: Object.freeze({ key: '3', usesPrimaryModifier: true }),
   plannerDayView: Object.freeze({ key: '4', usesPrimaryModifier: true }),
   plannerAgendaView: Object.freeze({ key: '5', usesPrimaryModifier: true }),
+  calendarCurrentBoardView: Object.freeze({ key: '2', usesPrimaryModifier: true, altKey: true }),
+  thisWeekCurrentBoardView: Object.freeze({ key: '3', usesPrimaryModifier: true, altKey: true }),
+  plannerDayCurrentBoardView: Object.freeze({ key: '4', usesPrimaryModifier: true, altKey: true }),
+  plannerAgendaCurrentBoardView: Object.freeze({ key: '5', usesPrimaryModifier: true, altKey: true }),
   plannerToggle: Object.freeze({ key: 'P', usesPrimaryModifier: true, shiftKey: true }),
   focusSearch: Object.freeze({ key: 'F', usesPrimaryModifier: true }),
   switchBoard: Object.freeze({ key: 'K', usesPrimaryModifier: true }),
@@ -887,6 +892,9 @@ const DEFAULT_BOARD_WORKFLOW_SETTINGS = Object.freeze({
   completedListNames: Object.freeze([]),
   ignoredCompletedListNames: Object.freeze([]),
 });
+const DEFAULT_BOARD_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS = Object.freeze({
+  include: true,
+});
 const AUTO_COMPLETED_LIST_NAME_KEYS = Object.freeze([
   'complete',
   'completed',
@@ -965,6 +973,16 @@ function normalizeBoardWorkflowSettings(rawWorkflowSettings) {
   };
 }
 
+function normalizeBoardExternalPublishedCalendarSettings(rawCalendarSettings) {
+  const source = rawCalendarSettings && typeof rawCalendarSettings === 'object'
+    ? rawCalendarSettings
+    : {};
+
+  return {
+    include: source.include === false ? false : DEFAULT_BOARD_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS.include,
+  };
+}
+
 function isBoardListCompletedByWorkflow(listName, workflowSettings = getBoardWorkflowSettings()) {
   const normalized = normalizeBoardWorkflowSettings(workflowSettings);
   const identity = normalizeBoardWorkflowListIdentity(listName);
@@ -993,6 +1011,14 @@ function setBoardWorkflowSettings(workflowSettings) {
   getBoardLabelState().workflowSettings = normalizeBoardWorkflowSettings(workflowSettings);
 }
 
+function getBoardExternalPublishedCalendarSettings() {
+  return normalizeBoardExternalPublishedCalendarSettings(getBoardLabelState().externalPublishedCalendarSettings);
+}
+
+function setBoardExternalPublishedCalendarSettings(calendarSettings) {
+  getBoardLabelState().externalPublishedCalendarSettings = normalizeBoardExternalPublishedCalendarSettings(calendarSettings);
+}
+
 function hasThemeModeOverride(themeModeOverrides) {
   return Boolean(themeModeOverrides && typeof themeModeOverrides.boardBackground === 'string' && themeModeOverrides.boardBackground.length > 0);
 }
@@ -1019,6 +1045,7 @@ function getBoardLabelState() {
       notificationSettings: { ...DEFAULT_BOARD_NOTIFICATION_SETTINGS },
       tooltipsEnabled: DEFAULT_BOARD_TOOLTIPS_ENABLED,
       workflowSettings: normalizeBoardWorkflowSettings({}),
+      externalPublishedCalendarSettings: normalizeBoardExternalPublishedCalendarSettings({}),
       workflowRenderRequestId: 0,
       activeSettingsPanel: 'app',
       importInProgress: '',
@@ -1396,7 +1423,7 @@ function getActiveBoardFilterDueDates(
   incompleteTaskDueDateValues = taskDueDateValues,
   activeFilter = getActiveBoardDateFilter(),
 ) {
-  if (activeFilter === BOARD_DATE_FILTER_OVERDUE) {
+  if (activeFilter === BOARD_DATE_FILTER_TODAY || activeFilter === BOARD_DATE_FILTER_OVERDUE) {
     return getCardFilterDueDates(
       cardDueDateValue,
       Array.isArray(incompleteTaskDueDateValues) ? incompleteTaskDueDateValues : taskDueDateValues,
@@ -1607,6 +1634,95 @@ function renderBoardLabelFilterPopover() {
   }
 }
 
+function getLabelPopoverFocusableControls(popover) {
+  if (!(popover instanceof Element)) {
+    return [];
+  }
+
+  return Array.from(popover.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])'))
+    .filter((control) => control instanceof HTMLElement)
+    .filter((control) => {
+      const style = window.getComputedStyle(control);
+      return style.display !== 'none' && style.visibility !== 'hidden';
+    });
+}
+
+function focusLabelPopoverControl(popover, index) {
+  const controls = getLabelPopoverFocusableControls(popover);
+  if (controls.length === 0) {
+    return false;
+  }
+
+  const safeIndex = ((index % controls.length) + controls.length) % controls.length;
+  controls[safeIndex].focus();
+  return true;
+}
+
+function focusFirstLabelPopoverControl(popover) {
+  return focusLabelPopoverControl(popover, 0);
+}
+
+function moveLabelPopoverFocus(popover, offset) {
+  const controls = getLabelPopoverFocusableControls(popover);
+  if (controls.length === 0) {
+    return false;
+  }
+
+  const currentIndex = controls.indexOf(document.activeElement);
+  const fallbackIndex = Number(offset) < 0 ? controls.length - 1 : 0;
+  const nextIndex = currentIndex >= 0 ? currentIndex + Number(offset || 0) : fallbackIndex;
+  return focusLabelPopoverControl(popover, nextIndex);
+}
+
+function handleLabelPopoverKeyboard(event, options = {}) {
+  const popover = options.popover instanceof Element
+    ? options.popover
+    : (event && event.currentTarget instanceof Element ? event.currentTarget : null);
+  if (!event || !popover) {
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof options.close === 'function') {
+      options.close();
+    }
+    const restoreFocusElement = options.restoreFocusElement;
+    if (restoreFocusElement && typeof restoreFocusElement.focus === 'function') {
+      restoreFocusElement.focus();
+    }
+    return;
+  }
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    event.stopPropagation();
+    moveLabelPopoverFocus(popover, 1);
+    return;
+  }
+
+  if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+    event.preventDefault();
+    event.stopPropagation();
+    moveLabelPopoverFocus(popover, -1);
+    return;
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusLabelPopoverControl(popover, 0);
+    return;
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusLabelPopoverControl(popover, getLabelPopoverFocusableControls(popover).length - 1);
+  }
+}
+
 function closeBoardLabelFilterPopover() {
   const popover = document.getElementById('labelFilterPopover');
   if (!popover) {
@@ -1614,6 +1730,7 @@ function closeBoardLabelFilterPopover() {
   }
 
   popover.classList.add('hidden');
+  popover.setAttribute('aria-hidden', 'true');
 }
 
 function positionBoardLabelFilterPopover(anchorElement, popover) {
@@ -1772,6 +1889,9 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
 
   const menu = document.createElement('div');
   menu.className = 'label-popover card-label-popover';
+  menu.setAttribute('role', 'group');
+  menu.setAttribute('aria-label', 'Card labels');
+  menu.setAttribute('aria-hidden', 'false');
   menu.__anchorElement = anchorElement;
   menu.__cardPath = cardPath;
 
@@ -1784,9 +1904,17 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
   menu.addEventListener('click', (event) => {
     event.stopPropagation();
   });
+  menu.addEventListener('keydown', (event) => {
+    handleLabelPopoverKeyboard(event, {
+      popover: menu,
+      close: closeCardLabelPopover,
+      restoreFocusElement: anchorElement,
+    });
+  });
 
   document.body.appendChild(menu);
   positionCardLabelPopover(menu, anchorElement);
+  focusFirstLabelPopoverControl(menu);
 
   state.activeCardLabelPopover = menu;
 }
@@ -2121,9 +2249,11 @@ function persistBoardSettings(options = {}) {
         colorScheme: getBoardColorScheme(),
         themeOverrides: getBoardThemeOverrides(),
         workflow: getBoardWorkflowSettings(),
+        externalPublishedCalendar: getBoardExternalPublishedCalendarSettings(),
       });
       setBoardLabels(result.labels || []);
       setBoardWorkflowSettings(result.workflow || {});
+      setBoardExternalPublishedCalendarSettings(result.externalPublishedCalendar || {});
       const savedSchemeId = result.colorScheme || '';
       if (savedSchemeId && getColorSchemeById(savedSchemeId)) {
         applyColorSchemeById(savedSchemeId, { renderControls: false });
@@ -2135,6 +2265,7 @@ function persistBoardSettings(options = {}) {
         renderBoardThemeSettingsControls();
         renderBoardGeneralSettingsControls();
         renderBoardWorkflowSettingsControls();
+        renderBoardExternalPublishedCalendarSettingsControls();
         renderAppSettingsControls();
       }
       if (shouldRenderControls) {
@@ -2213,21 +2344,105 @@ function renderBoardSettingsPanelState() {
     const isActive = panelId === activePanel;
     button.classList.toggle('is-active', isActive);
     button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    const panel = document.querySelector(`.board-settings-panel[data-settings-panel="${panelId}"]`);
+    if (panel && panel.id) {
+      button.setAttribute('aria-controls', panel.id);
+    }
   }
 
   for (const panel of panels) {
     const panelId = String(panel.getAttribute('data-settings-panel') || '');
-    panel.classList.toggle('is-active', panelId === activePanel);
+    const isActive = panelId === activePanel;
+    panel.classList.toggle('is-active', isActive);
+    panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
   }
 }
 
 function setActiveBoardSettingsPanel(panelId) {
-  const normalizedPanelId = ['app', 'general', 'workflow', 'labels', 'colors', 'import'].includes(panelId)
+  const normalizedPanelId = ['app', 'general', 'obsidian', 'workflow', 'labels', 'colors', 'import'].includes(panelId)
     ? panelId
     : 'app';
   const state = getBoardLabelState();
   state.activeSettingsPanel = normalizedPanelId;
   renderBoardSettingsPanelState();
+}
+
+function getBoardSettingsNavButtons() {
+  return Array.from(document.querySelectorAll('.board-settings-nav-button[data-settings-panel]'))
+    .filter((button) => button instanceof HTMLButtonElement)
+    .filter((button) => !button.disabled);
+}
+
+function focusBoardSettingsNavButton(button) {
+  if (!(button instanceof HTMLButtonElement)) {
+    return false;
+  }
+
+  const panelId = String(button.getAttribute('data-settings-panel') || '');
+  if (!panelId) {
+    return false;
+  }
+
+  button.focus();
+  setActiveBoardSettingsPanel(panelId);
+  return true;
+}
+
+function focusBoardSettingsNavButtonByIndex(index) {
+  const buttons = getBoardSettingsNavButtons();
+  if (buttons.length === 0) {
+    return false;
+  }
+
+  const safeIndex = ((index % buttons.length) + buttons.length) % buttons.length;
+  return focusBoardSettingsNavButton(buttons[safeIndex]);
+}
+
+function moveBoardSettingsNavFocus(button, offset) {
+  const buttons = getBoardSettingsNavButtons();
+  if (buttons.length === 0) {
+    return false;
+  }
+
+  const currentIndex = buttons.indexOf(button);
+  const fallbackIndex = Number(offset) < 0 ? buttons.length - 1 : 0;
+  const nextIndex = currentIndex >= 0 ? currentIndex + Number(offset || 0) : fallbackIndex;
+  return focusBoardSettingsNavButtonByIndex(nextIndex);
+}
+
+function handleBoardSettingsNavKeydown(event) {
+  if (!event || !(event.currentTarget instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const button = event.currentTarget;
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    event.stopPropagation();
+    moveBoardSettingsNavFocus(button, 1);
+    return;
+  }
+
+  if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+    event.preventDefault();
+    event.stopPropagation();
+    moveBoardSettingsNavFocus(button, -1);
+    return;
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusBoardSettingsNavButtonByIndex(0);
+    return;
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusBoardSettingsNavButtonByIndex(getBoardSettingsNavButtons().length - 1);
+  }
 }
 
 function renderBoardGeneralSettingsControls() {
@@ -2295,6 +2510,14 @@ function updateBoardWorkflowCompletedList(listName, enabled) {
   scheduleBoardSettingsSave();
 }
 
+function updateBoardExternalPublishedCalendarInclude(enabled) {
+  setBoardExternalPublishedCalendarSettings({
+    include: Boolean(enabled),
+  });
+  renderBoardExternalPublishedCalendarSettingsControls();
+  scheduleBoardSettingsSave();
+}
+
 function renderWorkflowListRow(listName, workflowSettings) {
   const row = document.createElement('label');
   row.className = 'board-workflow-list-row';
@@ -2328,6 +2551,16 @@ function renderWorkflowListRow(listName, workflowSettings) {
   row.appendChild(checkbox);
   row.appendChild(content);
   return row;
+}
+
+function renderBoardExternalPublishedCalendarSettingsControls() {
+  const includeToggle = document.getElementById('boardSettingsExternalCalendarIncludeToggle');
+  if (!includeToggle) {
+    return;
+  }
+
+  const settings = getBoardExternalPublishedCalendarSettings();
+  includeToggle.checked = settings.include;
 }
 
 async function renderBoardWorkflowSettingsControls() {
@@ -2526,6 +2759,63 @@ function renderBoardImportControls() {
   }
 }
 
+function setBoardSettingsObsidianStatus(message, isError = false) {
+  const status = document.getElementById('boardSettingsObsidianStatus');
+  if (!status) {
+    return;
+  }
+
+  status.textContent = String(message || '');
+  status.classList.toggle('board-settings-status-error', Boolean(isError));
+}
+
+async function generateCurrentBoardObsidianBase() {
+  if (!window.boardRoot || !window.board || typeof window.board.generateObsidianBase !== 'function') {
+    return null;
+  }
+
+  const result = await window.board.generateObsidianBase(window.boardRoot);
+  if (result && result.ok) {
+    if (!result.inVault) {
+      setBoardSettingsObsidianStatus('Move this board into an Obsidian vault before generating a Base.', true);
+      if (typeof showObsidianVaultRequiredModal === 'function') {
+        showObsidianVaultRequiredModal({
+          message: 'Generating an Obsidian Base only works when the current board folder is stored inside an Obsidian vault.',
+        });
+      }
+      return result;
+    }
+
+    const cardCountText = Number.isFinite(Number(result.cardsUpdated))
+      ? ` Prepared ${Number(result.cardsUpdated)} card${Number(result.cardsUpdated) === 1 ? '' : 's'}.`
+      : '';
+    const actionText = result.reason === 'UPDATED'
+      ? 'Updated'
+      : 'Generated';
+    setBoardSettingsObsidianStatus(`${actionText} Signboard Board.base.${cardCountText}`);
+  }
+  return result;
+}
+
+async function openCurrentBoardObsidianBase() {
+  if (!window.boardRoot || !window.board || typeof window.board.openObsidianBase !== 'function') {
+    return null;
+  }
+
+  const result = await window.board.openObsidianBase(window.boardRoot);
+  if (result && result.ok) {
+    setBoardSettingsObsidianStatus('Opened Signboard Board.base.');
+  } else if (result && result.error === 'NOT_IN_OBSIDIAN_VAULT') {
+    setBoardSettingsObsidianStatus('Move this board into an Obsidian vault before opening the Base.', true);
+    if (typeof showObsidianVaultRequiredModal === 'function') {
+      showObsidianVaultRequiredModal({
+        message: 'Opening an Obsidian Base only works when the current board folder is stored inside an Obsidian vault.',
+      });
+    }
+  }
+  return result;
+}
+
 async function runBoardImport(importer) {
   const state = getBoardLabelState();
   if (!window.boardRoot || state.importInProgress) {
@@ -2653,10 +2943,21 @@ function openBoardSettingsModal() {
   renderBoardThemeSettingsControls();
   renderBoardGeneralSettingsControls();
   renderBoardWorkflowSettingsControls();
+  renderBoardExternalPublishedCalendarSettingsControls();
   renderAppSettingsControls();
   renderBoardImportControls();
   setActiveBoardSettingsPanel('app');
-  modal.style.display = 'block';
+  if (typeof setAccessibleModalVisible === 'function') {
+    setAccessibleModalVisible(modal, true, {
+      display: 'block',
+      initialFocus: '#boardSettingsNavApp',
+      labelledBy: 'boardSettingsTitle',
+    });
+  } else {
+    modal.style.display = 'block';
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
 
   if (typeof setBoardInteractive === 'function') {
     setBoardInteractive(false);
@@ -2670,7 +2971,13 @@ async function closeBoardSettingsModal() {
   }
 
   await flushBoardSettingsSave();
-  modal.style.display = 'none';
+  if (typeof setAccessibleModalVisible === 'function') {
+    setAccessibleModalVisible(modal, false);
+  } else {
+    modal.style.display = 'none';
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
 
   if (typeof setBoardInteractive === 'function') {
     setBoardInteractive(true);
@@ -2707,12 +3014,14 @@ async function ensureBoardLabelsLoaded() {
     resetBoardLabelFilter();
     setBoardLabels([]);
     setBoardWorkflowSettings({});
+    setBoardExternalPublishedCalendarSettings({});
     applyColorSchemeById('light', { renderControls: false });
     renderBoardLabelFilterButton();
     renderBoardLabelFilterPopover();
     renderBoardThemeSettingsControls();
     renderBoardGeneralSettingsControls();
     renderBoardWorkflowSettingsControls();
+    renderBoardExternalPublishedCalendarSettingsControls();
     renderAppSettingsControls();
     renderBoardImportControls();
     return;
@@ -2721,6 +3030,7 @@ async function ensureBoardLabelsLoaded() {
   const settings = await window.board.readBoardSettings(window.boardRoot);
   setBoardLabels(settings.labels || []);
   setBoardWorkflowSettings(settings.workflow || {});
+  setBoardExternalPublishedCalendarSettings(settings.externalPublishedCalendar || {});
   const loadedSchemeId = settings.colorScheme || '';
   if (loadedSchemeId && getColorSchemeById(loadedSchemeId)) {
     applyColorSchemeById(loadedSchemeId, { renderControls: false });
@@ -2732,6 +3042,7 @@ async function ensureBoardLabelsLoaded() {
   renderBoardThemeSettingsControls();
   renderBoardGeneralSettingsControls();
   renderBoardWorkflowSettingsControls();
+  renderBoardExternalPublishedCalendarSettingsControls();
   renderAppSettingsControls();
   renderBoardImportControls();
 }
@@ -2765,7 +3076,14 @@ function initializeBoardLabelControls() {
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
+  const quickAddShortcutInput = document.getElementById('boardSettingsQuickAddShortcut');
+  const externalCalendarToggle = document.getElementById('boardSettingsExternalCalendarToggle');
+  const externalCalendarPortInput = document.getElementById('boardSettingsExternalCalendarPort');
+  const externalCalendarCopyButton = document.getElementById('btnCopyExternalCalendarUrl');
+  const externalCalendarIncludeToggle = document.getElementById('boardSettingsExternalCalendarIncludeToggle');
   const autoDetectCompletedListsToggle = document.getElementById('boardSettingsAutoDetectCompletedListsToggle');
+  const generateObsidianBaseButton = document.getElementById('btnGenerateObsidianBase');
+  const openObsidianBaseButton = document.getElementById('btnOpenObsidianBase');
   const importFromTrelloButton = document.getElementById('btnImportBoardFromTrello');
   const importFromObsidianButton = document.getElementById('btnImportBoardFromObsidian');
   const importFromTasksMdButton = document.getElementById('btnImportBoardFromTasksMd');
@@ -2789,18 +3107,29 @@ function initializeBoardLabelControls() {
       renderBoardLabelFilterPopover();
       const isHidden = filterPopover.classList.contains('hidden');
       if (!isHidden) {
-        filterPopover.classList.add('hidden');
+        closeBoardLabelFilterPopover();
         return;
       }
 
+      filterPopover.setAttribute('role', 'group');
+      filterPopover.setAttribute('aria-label', 'Card filters');
       filterPopover.classList.remove('hidden');
+      filterPopover.setAttribute('aria-hidden', 'false');
       positionBoardLabelFilterPopover(filterButton, filterPopover);
+      focusFirstLabelPopoverControl(filterPopover);
     });
   }
 
   if (filterPopover) {
     filterPopover.addEventListener('click', (event) => {
       event.stopPropagation();
+    });
+    filterPopover.addEventListener('keydown', (event) => {
+      handleLabelPopoverKeyboard(event, {
+        popover: filterPopover,
+        close: closeBoardLabelFilterPopover,
+        restoreFocusElement: filterButton,
+      });
     });
   }
 
@@ -2823,12 +3152,14 @@ function initializeBoardLabelControls() {
   }
 
   for (const navButton of settingsNavButtons) {
+    navButton.setAttribute('role', 'tab');
     navButton.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
       const panelId = String(navButton.getAttribute('data-settings-panel') || '');
       setActiveBoardSettingsPanel(panelId);
     });
+    navButton.addEventListener('keydown', handleBoardSettingsNavKeydown);
   }
 
   if (closeSettingsButton) {
@@ -2924,8 +3255,15 @@ function initializeBoardLabelControls() {
   }
 
   if (colorSchemeSelect) {
-    colorSchemeSelect.addEventListener('change', (event) => {
+    colorSchemeSelect.addEventListener('change', async (event) => {
       const schemeId = event.target.value;
+      if (typeof waitForNativeMenuTrackingToSettle === 'function') {
+        await waitForNativeMenuTrackingToSettle();
+      }
+      if (!colorSchemeSelect.isConnected || colorSchemeSelect.value !== schemeId) {
+        return;
+      }
+
       applyColorSchemeById(schemeId);
       scheduleBoardSettingsSave();
     });
@@ -2971,9 +3309,138 @@ function initializeBoardLabelControls() {
     });
   }
 
+  if (quickAddShortcutInput) {
+    quickAddShortcutInput.addEventListener('change', (event) => {
+      if (typeof setAppQuickAddSettings !== 'function') {
+        return;
+      }
+
+      setAppQuickAddSettings({
+        globalShortcut: event.target.value,
+      });
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+    });
+
+    quickAddShortcutInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      quickAddShortcutInput.blur();
+    });
+  }
+
+  if (externalCalendarToggle) {
+    externalCalendarToggle.addEventListener('change', (event) => {
+      if (typeof setAppExternalPublishedCalendarSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppExternalPublishedCalendarSettings();
+      setAppExternalPublishedCalendarSettings({
+        ...currentSettings,
+        enabled: Boolean(event.target.checked),
+      });
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+    });
+  }
+
+  if (externalCalendarPortInput) {
+    externalCalendarPortInput.addEventListener('change', (event) => {
+      if (typeof setAppExternalPublishedCalendarSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppExternalPublishedCalendarSettings();
+      setAppExternalPublishedCalendarSettings({
+        ...currentSettings,
+        port: event.target.value,
+      });
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+    });
+
+    externalCalendarPortInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      externalCalendarPortInput.blur();
+    });
+  }
+
+  if (externalCalendarCopyButton) {
+    externalCalendarCopyButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const status = typeof getAppExternalPublishedCalendarStatus === 'function'
+        ? getAppExternalPublishedCalendarStatus()
+        : {};
+      const url = String(status.url || '').trim();
+      if (!url) {
+        return;
+      }
+
+      try {
+        if (window.electronAPI && typeof window.electronAPI.copyTextToClipboard === 'function') {
+          await window.electronAPI.copyTextToClipboard(url);
+        } else if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          await navigator.clipboard.writeText(url);
+        }
+      } catch (error) {
+        console.error('Unable to copy External Published Calendar URL.', error);
+      }
+    });
+  }
+
+  if (externalCalendarIncludeToggle) {
+    externalCalendarIncludeToggle.addEventListener('change', (event) => {
+      updateBoardExternalPublishedCalendarInclude(Boolean(event.target.checked));
+    });
+  }
+
   if (autoDetectCompletedListsToggle) {
     autoDetectCompletedListsToggle.addEventListener('change', (event) => {
       updateBoardWorkflowAutoDetection(Boolean(event.target.checked));
+    });
+  }
+
+  if (generateObsidianBaseButton) {
+    generateObsidianBaseButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      generateObsidianBaseButton.disabled = true;
+      setBoardSettingsObsidianStatus('Generating Base...');
+      try {
+        await generateCurrentBoardObsidianBase();
+      } catch (error) {
+        console.error('Unable to generate Obsidian Base.', error);
+        setBoardSettingsObsidianStatus('Unable to generate Obsidian Base.', true);
+      } finally {
+        generateObsidianBaseButton.disabled = false;
+      }
+    });
+  }
+
+  if (openObsidianBaseButton) {
+    openObsidianBaseButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openObsidianBaseButton.disabled = true;
+      setBoardSettingsObsidianStatus('Opening Base...');
+      try {
+        await openCurrentBoardObsidianBase();
+      } catch (error) {
+        console.error('Unable to open Obsidian Base.', error);
+        setBoardSettingsObsidianStatus('Unable to open Obsidian Base.', true);
+      } finally {
+        openObsidianBaseButton.disabled = false;
+      }
     });
   }
 

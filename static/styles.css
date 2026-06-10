@@ -3,6 +3,18 @@
 *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 @font-face {
   font-family: "JetBrains Mono Local";
   src:
@@ -184,6 +196,13 @@ body {
   overflow: hidden;
 }
 
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 /* 3) App chrome */
 body > header {
   display: flex;
@@ -332,7 +351,9 @@ body.board-empty #boardMenuButton {
 }
 
 #boardSearchInput {
+  flex: 0 1 220px;
   width: 220px;
+  min-width: 140px;
   max-width: 45vw;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -350,7 +371,7 @@ body.board-empty #boardMenuButton {
 #boardTabsWrapper {
   width: 100%;
   margin-bottom: 0;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
 }
 
@@ -365,7 +386,9 @@ body:not(.board-empty) #boardTabsWrapper {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  min-width: max-content;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 0 2px;
 }
 
@@ -378,6 +401,9 @@ body:not(.board-empty) #boardTabs {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: 0 0 auto;
+  max-width: 180px;
+  min-width: 0;
   border: 1px solid color-mix(in oklab, var(--border) 85%, var(--bg));
   border-bottom-color: color-mix(in oklab, var(--border) 60%, var(--bg));
   border-radius: 10px 10px 0 0;
@@ -399,6 +425,9 @@ body:not(.board-empty) #boardTabs {
   background: transparent;
   color: inherit;
   font: inherit;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   padding: 6px 0 8px;
   cursor: pointer;
@@ -482,8 +511,23 @@ body:not(.board-empty) #boardTabs {
   cursor: grabbing;
 }
 
+.board-tab.is-overflow-hidden {
+  display: none;
+}
+
+.board-tab-more {
+  cursor: default;
+  max-width: none;
+  padding-right: 12px;
+}
+
+.board-tab-more .board-tab-label {
+  font-weight: 600;
+}
+
 .board-tab-add {
   cursor: default;
+  max-width: none;
   opacity: 1;
   transform: translateY(1px);
   padding-right: 12px;
@@ -680,6 +724,7 @@ body.planner-open .planner-overlay {
   box-shadow: none;
   font-size: var(--font-sm);
   font-weight: 600;
+  line-height: 1;
   padding: 6px 11px;
 }
 
@@ -696,6 +741,15 @@ body.planner-open .planner-overlay {
 .planner-view-tab svg {
   width: 15px;
   height: 15px;
+}
+
+.planner-view-tab-icon,
+.planner-view-tab-label,
+.planner-scope-option-icon,
+.planner-scope-option-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .planner-scope-toggle {
@@ -721,6 +775,7 @@ body.planner-open .planner-overlay {
   box-shadow: none;
   font-size: var(--font-sm);
   font-weight: 600;
+  line-height: 1;
   padding: 5px 9px;
 }
 
@@ -746,8 +801,7 @@ body.planner-open .planner-overlay {
 
 .planner-scope-label {
   color: var(--muted);
-  font-family: "JetBrains Mono Local", "JetBrains Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--font-xs);
   font-weight: 600;
   white-space: nowrap;
   margin-bottom: 2px;
@@ -1086,6 +1140,11 @@ body.planner-open .planner-overlay {
   width: 100%;
 }
 
+.board-menu-view-group {
+  position: relative;
+  width: 100%;
+}
+
 .board-menu-action {
   width: 100%;
   display: inline-flex;
@@ -1163,6 +1222,7 @@ main#board {
   -webkit-overflow-scrolling: touch;
 }
 
+main#board.board-view-table,
 main#board.board-view-calendar,
 main#board.board-view-week {
   display: block;
@@ -1173,9 +1233,238 @@ body:not(.board-empty) main#board {
   padding-left: calc(16px + var(--planner-rail-width));
 }
 
+body:not(.board-empty) main#board.board-view-table,
 body:not(.board-empty) main#board.board-view-calendar,
 body:not(.board-empty) main#board.board-view-week {
   padding-left: calc(16px + var(--planner-rail-width));
+}
+
+.board-table-view {
+  width: 100%;
+  min-width: 1080px;
+}
+
+.board-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 8px;
+  min-height: 24px;
+}
+
+.board-table-sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+}
+
+.board-table-sort-label {
+  font-weight: 700;
+  line-height: 1;
+}
+
+.board-table-sort-select {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: var(--font-xs);
+  padding: 4px 28px 4px 8px;
+}
+
+.board-table-sort-select:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 1px;
+}
+
+.board-table-summary {
+  margin: 0;
+  color: var(--muted);
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+.board-table-scroll {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+.board-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--text);
+  font-size: var(--font-sm);
+}
+
+.board-table-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 12px;
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--bg));
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  line-height: 1.2;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.board-table-row {
+  cursor: pointer;
+}
+
+.board-table-cell {
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 78%, var(--bg-card));
+  vertical-align: middle;
+  transition: background .12s ease;
+}
+
+.board-table-row:last-child .board-table-cell {
+  border-bottom: 0;
+}
+
+.board-table-row:hover .board-table-cell {
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--bg));
+}
+
+.board-table-cell-title {
+  width: 34%;
+  min-width: 260px;
+}
+
+.board-table-cell-list {
+  width: 210px;
+}
+
+.board-table-cell-due,
+.board-table-cell-updated,
+.board-table-cell-created,
+.board-table-cell-tasks {
+  width: 130px;
+}
+
+.board-table-cell-links {
+  width: 90px;
+}
+
+.board-table-cell-labels {
+  min-width: 180px;
+}
+
+.board-table-card-title-button {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font-size: var(--font-md);
+  font-weight: 400;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  padding: 2px 0;
+  text-align: left;
+}
+
+.board-table-card-title-button:hover {
+  color: color-mix(in oklab, var(--accent) 70%, var(--text));
+}
+
+.board-table-card-title-button:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 2px;
+}
+
+.board-table-list-select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: var(--font-sm);
+  padding: 6px 30px 6px 9px;
+}
+
+.board-table-list-select:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 1px;
+}
+
+.board-table-due {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.board-table-due.due-date-today {
+  color: var(--due-date-today-color);
+}
+
+.board-table-due.due-date-tomorrow {
+  color: var(--due-date-tomorrow-color);
+}
+
+.board-table-timestamp {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.board-table-task-progress {
+  font-size: var(--font-xs);
+}
+
+.board-table-linked-objects-badge {
+  min-height: 24px;
+}
+
+.board-table-labels {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.board-table-empty-value {
+  color: color-mix(in oklab, var(--muted) 84%, var(--bg-card));
+  font-size: var(--font-xs);
+}
+
+.board-table-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  border: 1px dashed color-mix(in oklab, var(--border) 82%, var(--bg));
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--bg-card) 86%, var(--bg));
+  color: var(--muted);
+  font-size: var(--font-sm);
+  text-align: center;
 }
 
 .board-calendar {
@@ -1837,6 +2126,29 @@ body.board-card-drag-active * {
   font-weight: 400;
   line-height: 1.3;
 }
+.card-title-button {
+  display: inline;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  text-align: left;
+  font: inherit;
+  line-height: inherit;
+}
+.card-title-button:hover {
+  background: transparent;
+}
+.card-title-button:active {
+  transform: none;
+}
+.card-title-button:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 42%, var(--bg-card));
+  outline-offset: 2px;
+}
 .card-body {
   font-size: var(--font-sm);
   color: var(--muted);
@@ -1920,6 +2232,38 @@ body.board-card-drag-active * {
 }
 
 .task-progress-badge-inline {
+  padding: 3px;
+}
+
+.linked-objects-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.linked-objects-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.linked-objects-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.linked-objects-badge-text {
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+.linked-objects-badge-inline {
   padding: 3px;
 }
 
@@ -2033,6 +2377,15 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+
   .sb-tooltip,
   .planner-overlay,
   .planner-rail-button,
@@ -2040,11 +2393,52 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   .planner-close-rail svg {
     transition: none;
   }
+
+  .card:hover > .card-drag-frame,
+  .board-calendar-card:hover .board-temporal-card-frame,
+  .board-this-week-card:hover .board-temporal-card-frame,
+  .planner-calendar-card:hover .board-temporal-card-frame,
+  .planner-this-week-card:hover .board-temporal-card-frame,
+  .card-sortable--dragging > .card-drag-frame,
+  .card-sortable--fallback > .card-drag-frame {
+    transform: none !important;
+  }
 }
 
 @media (hover: none) and (pointer: coarse) {
   .sb-tooltip {
     display: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText !important;
+    outline-offset: 2px !important;
+    box-shadow: none !important;
+  }
+
+  .card > .card-drag-frame,
+  .list,
+  .modal,
+  .label-popover {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+
+  #modalEditCard .cardEditorTimestampMetadata {
+    color: CanvasText;
+  }
+
+  #cardEditorOverType .card-editor-body-url-text {
+    color: LinkText !important;
+  }
+
+  #cardEditorOverType .card-editor-body-url-open {
+    border-color: CanvasText !important;
+    background: ButtonFace !important;
+    color: ButtonText !important;
+    box-shadow: none !important;
   }
 }
 
@@ -2176,22 +2570,39 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .board-switcher-option {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
+  align-items: stretch;
+  gap: 4px;
   width: 100%;
   min-height: 58px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
   color: var(--text);
-  padding: 8px 10px;
-  text-align: left;
+  overflow: hidden;
 }
 
 .board-switcher-option:hover,
 .board-switcher-option.is-active {
   border-color: color-mix(in oklab, var(--accent) 34%, var(--border));
   background: color-mix(in oklab, var(--accent) 10%, var(--bg-card));
+}
+
+.board-switcher-select {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.board-switcher-option-copy {
+  min-width: 0;
 }
 
 .board-switcher-option-title {
@@ -2214,6 +2625,32 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   font-size: var(--font-xs);
 }
 
+.board-switcher-close {
+  align-self: center;
+  justify-self: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: color-mix(in oklab, var(--muted) 82%, var(--text));
+  font-size: 16px;
+  line-height: 1;
+  opacity: .78;
+}
+
+.board-switcher-close:hover {
+  background: color-mix(in oklab, var(--bg-card) 72%, var(--border));
+  opacity: 1;
+}
+
+.board-switcher-select:focus-visible,
+.board-switcher-close:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 55%, var(--bg-card));
+  outline-offset: -2px;
+}
+
 .board-switcher-current {
   border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--border));
   border-radius: 999px;
@@ -2228,6 +2665,84 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   color: var(--muted);
   font-size: var(--font-sm);
   padding: 14px 10px 10px;
+}
+
+.obsidian-vault-required-modal {
+  position: fixed;
+  z-index: 14000;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100vw - 28px));
+  max-width: 420px;
+  padding: 18px;
+}
+
+.obsidian-vault-required-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.obsidian-vault-required-eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.obsidian-vault-required-header h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.obsidian-vault-required-close {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+}
+
+.obsidian-vault-required-close:hover {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+  color: var(--text);
+}
+
+.obsidian-vault-required-copy {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+
+.obsidian-vault-required-copy p {
+  margin: 0;
+}
+
+.obsidian-vault-required-copy p + p {
+  margin-top: 8px;
+}
+
+.obsidian-vault-required-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.obsidian-vault-required-actions button {
+  min-height: 34px;
+  min-width: 72px;
+  padding: 7px 14px;
 }
 
 .about-signboard-modal {
@@ -3037,7 +3552,33 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 40px rgba(16, 24, 40, .12);
-  padding: 16px 16px 50px 10px;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px 16px 12px 10px;
+}
+
+#modalEditCard.card-editor-drop-active {
+  border-color: color-mix(in oklab, var(--accent) 70%, var(--border));
+  box-shadow:
+    0 16px 40px rgba(16, 24, 40, .12),
+    0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+#modalEditCard.card-editor-drop-active::after {
+  content: "Drop files to link";
+  position: absolute;
+  inset: 52px 14px 14px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed color-mix(in oklab, var(--accent) 70%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 88%, transparent);
+  color: var(--text);
+  font-size: var(--font-md);
+  font-weight: 650;
+  pointer-events: none;
 }
 
 #modalEditCard #cardEditorTitle {
@@ -3071,8 +3612,22 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   margin: 0;
 }
 
-.boardSettingsHeader a {
+.boardSettingsHeader a,
+.boardSettingsHeader button {
   color: var(--muted);
+}
+
+.boardSettingsHeader button {
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  line-height: 1;
+}
+
+.boardSettingsHeader button:hover {
+  color: var(--text);
+  background: transparent;
 }
 
 .board-settings-layout {
@@ -3169,7 +3724,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   font-size: var(--font-md);
 }
 
-.board-settings-group label {
+.board-settings-group > label:not(.board-settings-switch) {
   display: block;
   margin-bottom: 6px;
   color: var(--muted);
@@ -3229,9 +3784,34 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   justify-content: flex-end;
 }
 
+.board-settings-status {
+  flex: 0 0 auto;
+  min-width: 96px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  text-align: right;
+}
+
+.board-settings-status.is-success {
+  color: var(--task-progress-complete-color);
+}
+
+.board-settings-status.is-warning {
+  color: var(--due-date-today-color);
+}
+
+.board-settings-status-error {
+  color: var(--due-date-today-color);
+}
+
 #boardSettingsNotificationsTime {
   width: 8ch;
   min-width: 8ch;
+}
+
+#boardSettingsExternalCalendarPort {
+  width: 10ch;
+  min-width: 10ch;
 }
 
 .board-settings-toggle-row {
@@ -3249,6 +3829,12 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  color: inherit;
+  font-size: inherit;
+  text-transform: none;
+  letter-spacing: 0;
   cursor: pointer;
 }
 
@@ -3738,7 +4324,36 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   background: color-mix(in oklab, #dc2626 12%, transparent);
 }
 
-#modalEditCard #cardEditorCardID { cursor: pointer; margin-top: 10px; float: right; font-size: var(--font-sm); color: var(--muted); }
+#modalEditCard #cardEditorCardID {
+  align-self: flex-end;
+  cursor: pointer;
+  margin-top: 10px;
+  float: none;
+  font-size: var(--font-sm);
+  color: var(--muted);
+}
+#modalEditCard #cardEditorCardID,
+#modalEditCard .cardEditorHeaderActions button,
+#modalEditCard .cardEditorMetadataButtons button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font: inherit;
+  line-height: 1;
+}
+#modalEditCard #cardEditorCardID:hover,
+#modalEditCard .cardEditorHeaderActions button:hover,
+#modalEditCard .cardEditorMetadataButtons button:hover {
+  background: transparent;
+  color: var(--text);
+}
+#modalEditCard #cardEditorCardID:active,
+#modalEditCard .cardEditorHeaderActions button:active,
+#modalEditCard .cardEditorMetadataButtons button:active {
+  transform: none;
+}
 #modalEditCard #cardEditorCardDueDateDisplay { font-size: var(--font-sm); color: var(--muted); }
 #modalEditCard #cardEditorSetDueDateLink,
 #modalEditCard #cardEditorSetLabelsLink { text-decoration: none; }
@@ -3747,6 +4362,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 #modalEditCard .cardEditorHeader {
   border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
   min-height: 36px;
   padding: 3px 0;
   display: flex;
@@ -3766,8 +4382,81 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   align-items: center;
   flex-shrink: 0;
 }
-#modalEditCard .cardEditorHeaderActions a { color: var(--muted); }
-#modalEditCard .cardEditorHeaderActions a + a { margin-left: 20px; }
+#modalEditCard .cardEditorHeaderActions a,
+#modalEditCard .cardEditorHeaderActions button { color: var(--muted); }
+#modalEditCard .cardEditorHeaderActions a + a,
+#modalEditCard .cardEditorHeaderActions button + button { margin-left: 20px; }
+.card-editor-open-with-popover,
+.card-editor-linked-objects-popover {
+  position: fixed;
+  min-width: 220px;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+}
+.card-editor-open-with-action {
+  min-height: 36px;
+}
+.card-editor-linked-object-url-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 260px;
+}
+.card-editor-linked-object-url-title {
+  color: var(--text);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 2px 2px 0;
+}
+.card-editor-linked-object-url-label {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  line-height: 1;
+}
+.card-editor-linked-object-url-input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: var(--font-sm);
+  padding: 7px 9px;
+}
+.card-editor-linked-object-url-input:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 1px;
+}
+.card-editor-linked-object-url-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.card-editor-linked-object-url-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.card-editor-linked-object-url-actions button {
+  min-height: 32px;
+  padding: 6px 11px;
+}
+.card-editor-linked-object-url-submit {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.card-editor-linked-object-url-submit:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--accent) 88%, var(--text));
+}
+.card-editor-linked-object-url-cancel {
+  border-color: var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+}
+.card-editor-linked-object-url-cancel:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
+}
 #modalEditCard #cardEditorListSelect {
   width: 100%;
   max-width: 280px;
@@ -3803,14 +4492,32 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 12px;
   padding-left: 16px;
 }
-#modalEditCard .cardEditorMetadataButtons a {
+#modalEditCard .cardEditorMetadataButtons a,
+#modalEditCard .cardEditorMetadataButtons button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: var(--muted);
+}
+#modalEditCard .card-editor-linked-objects-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 18%, var(--bg-card));
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 5px;
+}
+#modalEditCard .card-editor-linked-objects-count[hidden] {
+  display: none;
 }
 #modalEditCard #cardEditorCardDueDateDisplay,
 #modalEditCard #cardEditorCardLabels { margin-right: 0; }
@@ -3824,7 +4531,136 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #modalEditCard #cardEditorCardLabels.card-editor-labels .card-label-chip {
   cursor: inherit;
 }
-#modalEditCard .cardEditorHeader a svg, #modalEditCard .cardEditorMetadataButtons a svg { height: 18px; }
+#modalEditCard .card-editor-related-notes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 16px 0;
+}
+#modalEditCard .card-editor-related-notes[hidden] {
+  display: none;
+}
+#modalEditCard .card-editor-related-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(100%, 380px);
+  min-height: 28px;
+  border: 1px solid color-mix(in oklab, var(--border) 82%, var(--accent));
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--accent));
+  color: var(--text);
+  font-size: var(--font-sm);
+  line-height: 1.2;
+  overflow: hidden;
+}
+#modalEditCard .card-editor-related-note.is-missing {
+  border-color: color-mix(in oklab, #f59e0b 62%, var(--border));
+  background: color-mix(in oklab, var(--bg-card) 84%, #f59e0b);
+}
+#modalEditCard .card-editor-related-note:hover {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--accent));
+}
+#modalEditCard .card-editor-related-note.is-missing:hover {
+  background: color-mix(in oklab, var(--bg-card) 78%, #f59e0b);
+}
+#modalEditCard .card-editor-related-note-open,
+#modalEditCard .card-editor-related-note-remove,
+#modalEditCard .card-editor-related-note-action {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+}
+#modalEditCard .card-editor-related-note-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 2px 4px 8px;
+}
+#modalEditCard .card-editor-related-note-action,
+#modalEditCard .card-editor-related-note-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  flex: 0 0 auto;
+  width: 28px;
+  color: var(--muted);
+  padding: 0;
+}
+#modalEditCard .card-editor-related-note-action {
+  width: 26px;
+}
+#modalEditCard .card-editor-related-note-action:hover,
+#modalEditCard .card-editor-related-note-remove:hover {
+  color: var(--text);
+  background: color-mix(in oklab, var(--border) 55%, transparent);
+}
+#modalEditCard .card-editor-related-note-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+#modalEditCard .card-editor-related-note-icon svg {
+  height: 15px;
+  width: 15px;
+}
+#modalEditCard .card-editor-related-note-icon img {
+  display: block;
+  height: 15px;
+  width: 15px;
+  border-radius: 3px;
+  object-fit: contain;
+}
+#modalEditCard .card-editor-related-note-action svg,
+#modalEditCard .card-editor-related-note-remove svg {
+  height: 14px;
+  width: 14px;
+}
+#modalEditCard .card-editor-related-note-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#modalEditCard .cardEditorTimestampMetadata {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-height: 28px;
+  padding: 7px 16px 0;
+  color: color-mix(in oklab, var(--muted) 92%, var(--text));
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+}
+#modalEditCard .cardEditorTimestampMetadata[hidden] {
+  display: none;
+}
+#modalEditCard .cardEditorTimestampItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+#modalEditCard .cardEditorTimestampLabel {
+  font-weight: 600;
+}
+#modalEditCard .cardEditorTimestampValue {
+  color: inherit;
+}
+#modalEditCard .cardEditorHeader a svg,
+#modalEditCard .cardEditorHeader button svg,
+#modalEditCard .cardEditorMetadataButtons a svg,
+#modalEditCard .cardEditorMetadataButtons button svg { height: 18px; }
 
 @keyframes card-editor-list-move-check-pop {
   0% { transform: translateX(-4px) scale(0.9); }
@@ -3991,12 +4827,78 @@ select:disabled {
   outline: none;
 }
 
+[contenteditable]:focus-visible {
+  outline: none;
+}
+
+:root.sb-keyboard-focus-active [contenteditable]:focus-visible {
+  box-shadow: 0 2px 0 color-mix(in oklab, var(--accent) 60%, var(--bg-card));
+}
+
+:root.sb-keyboard-focus-active #modalEditCard #cardEditorTitle:focus-visible,
+:root.sb-keyboard-focus-active .list-header [contenteditable]:focus-visible {
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--accent) 5%, transparent);
+}
+
 #cardEditorOverType {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
   margin-top: 20px;
 }
 
 #cardEditorOverType .overtype-container {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol", sans-serif !important;
+}
+
+#cardEditorOverType .overtype-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#cardEditorOverType .card-editor-body-url-text {
+  color: color-mix(in oklab, var(--accent) 78%, var(--text));
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+#cardEditorOverType .card-editor-body-url-open {
+  position: absolute;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid color-mix(in oklab, var(--border) 76%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-card) 94%, transparent);
+  color: color-mix(in oklab, var(--accent) 78%, var(--text));
+  box-shadow: 0 2px 8px var(--shadow-card);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#cardEditorOverType .card-editor-body-url-open[hidden] {
+  display: none !important;
+}
+
+#cardEditorOverType .card-editor-body-url-open:hover {
+  border-color: color-mix(in oklab, var(--accent) 44%, var(--border));
+  background: color-mix(in oklab, var(--accent) 10%, var(--bg-card));
+}
+
+#cardEditorOverType .card-editor-body-url-open svg {
+  width: 13px;
+  height: 13px;
+  display: block;
 }
 
 #cardEditorOverType .overtype-toolbar {
@@ -4126,29 +5028,6 @@ select:disabled {
 }
 
 @media (max-width: 1180px) {
-  body:not(.board-empty) > header {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  body:not(.board-empty) .headerTopRow {
-    width: 100%;
-    justify-self: stretch;
-  }
-
-  body:not(.board-empty) .headerControls {
-    width: 100%;
-  }
-
-  body:not(.board-empty) #boardControls {
-    flex-wrap: wrap;
-  }
-
-  body:not(.board-empty) #boardTabsWrapper {
-    width: 100%;
-  }
-
   body:not(.board-empty) #boardTabs {
     padding: 0 2px;
   }
@@ -4195,6 +5074,9 @@ select:disabled {
   main#board {
     padding: 12px;
   }
+  main#board.board-view-table {
+    padding: 12px;
+  }
   main#board.board-view-calendar {
     padding: 12px;
   }
@@ -4204,7 +5086,25 @@ select:disabled {
   body:not(.board-empty) > header {
     padding-left: calc(var(--spacing) + var(--planner-rail-width));
   }
+  body:not(.board-empty) .headerTopRow {
+    align-items: center;
+    flex-direction: row;
+    justify-content: flex-end;
+    width: auto;
+  }
+  body:not(.board-empty) .headerControls {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    width: auto;
+  }
+  body:not(.board-empty) #boardControls {
+    flex-wrap: nowrap;
+  }
+  body:not(.board-empty) #boardSearchInput {
+    min-width: 108px;
+  }
   body:not(.board-empty) main#board,
+  body:not(.board-empty) main#board.board-view-table,
   body:not(.board-empty) main#board.board-view-calendar,
   body:not(.board-empty) main#board.board-view-week {
     padding-left: calc(12px + var(--planner-rail-width));

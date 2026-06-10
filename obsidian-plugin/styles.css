@@ -1,0 +1,19 @@
+.signboard-companion-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.signboard-companion-input-label {
+  display: grid;
+  gap: 8px;
+}
+
+.signboard-companion-input {
+  width: 100%;
+}
+
+.signboard-companion-status {
+  opacity: 0.8;
+}

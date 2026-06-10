@@ -133,6 +133,26 @@ function getPlannerScopeMode() {
   return 'custom';
 }
 
+function applyPlannerScope(scopeValue) {
+  const normalizedScope = String(scopeValue || '').trim().toLowerCase();
+  const state = getPlannerState();
+  const openBoards = getPlannerOpenBoardRoots();
+  const currentBoardRoot = getPlannerCurrentBoardRoot();
+
+  if (normalizedScope === 'current' && currentBoardRoot && openBoards.includes(currentBoardRoot)) {
+    state.selectedBoardRoots = new Set([currentBoardRoot]);
+    state.boardFilterTouched = true;
+  } else {
+    state.selectedBoardRoots = new Set(openBoards);
+    state.boardFilterTouched = false;
+    state.selectedLabelIds = [];
+  }
+
+  if (!canUsePlannerLabelFilters()) {
+    state.selectedLabelIds = [];
+  }
+}
+
 function getPlannerActiveView() {
   return normalizePlannerViewId(getPlannerState().activeView);
 }
@@ -370,6 +390,211 @@ function schedulePlannerRender() {
   }, 150);
 }
 
+async function flushPlannerSearchRender() {
+  const state = getPlannerState();
+  if (state.searchRenderTimer) {
+    clearTimeout(state.searchRenderTimer);
+    state.searchRenderTimer = null;
+  }
+
+  if (!state.isOpen) {
+    return;
+  }
+
+  await renderPlannerView();
+}
+
+function isPlannerSearchResultElementVisible(element) {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden') {
+    return false;
+  }
+
+  return Boolean(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+}
+
+function getPlannerSearchResultButtons() {
+  const selectors = [
+    '.planner-calendar-card',
+    '.planner-this-week-card',
+    '.planner-list-card',
+  ];
+
+  return Array.from(document.querySelectorAll(selectors.join(',')))
+    .filter((button) => button instanceof HTMLButtonElement)
+    .filter((button) => !button.disabled)
+    .filter(isPlannerSearchResultElementVisible);
+}
+
+function focusPlannerSearchResultButton(button) {
+  if (!(button instanceof HTMLButtonElement)) {
+    return false;
+  }
+
+  try {
+    button.focus({ preventScroll: true });
+  } catch {
+    button.focus();
+  }
+
+  if (typeof button.scrollIntoView === 'function') {
+    button.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  }
+
+  return true;
+}
+
+function focusPlannerSearchResultByIndex(index) {
+  const resultButtons = getPlannerSearchResultButtons();
+  if (resultButtons.length === 0) {
+    if (typeof announceSignboardStatus === 'function') {
+      announceSignboardStatus('No matching planner cards.');
+    }
+    return false;
+  }
+
+  const safeIndex = ((index % resultButtons.length) + resultButtons.length) % resultButtons.length;
+  return focusPlannerSearchResultButton(resultButtons[safeIndex]);
+}
+
+function focusFirstPlannerSearchResult() {
+  return focusPlannerSearchResultByIndex(0);
+}
+
+function focusLastPlannerSearchResult() {
+  return focusPlannerSearchResultByIndex(getPlannerSearchResultButtons().length - 1);
+}
+
+function movePlannerSearchResultFocus(offset) {
+  const resultButtons = getPlannerSearchResultButtons();
+  if (resultButtons.length === 0) {
+    if (typeof announceSignboardStatus === 'function') {
+      announceSignboardStatus('No matching planner cards.');
+    }
+    return false;
+  }
+
+  const currentIndex = resultButtons.indexOf(document.activeElement);
+  const fallbackIndex = Number(offset) < 0 ? resultButtons.length - 1 : 0;
+  const nextIndex = currentIndex >= 0 ? currentIndex + Number(offset || 0) : fallbackIndex;
+  return focusPlannerSearchResultByIndex(nextIndex);
+}
+
+function focusPlannerSearchInputForKeyboardNavigation(options = {}) {
+  const searchInput = document.getElementById('plannerSearchInput');
+  if (!searchInput || !isPlannerOpen()) {
+    return false;
+  }
+
+  searchInput.focus();
+  if (options.select !== false && typeof searchInput.select === 'function') {
+    searchInput.select();
+  }
+
+  return true;
+}
+
+async function clearPlannerSearchFromKeyboard(searchInput) {
+  if (!searchInput || (!searchInput.value && !getPlannerSearchQuery())) {
+    return false;
+  }
+
+  searchInput.value = '';
+  setPlannerSearchQuery('');
+  await flushPlannerSearchRender();
+  if (typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus('Planner search cleared.');
+  }
+  return true;
+}
+
+async function handlePlannerSearchInputKeydown(event) {
+  if (!event) {
+    return;
+  }
+
+  if (event.key === 'Enter' || event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    event.stopPropagation();
+    await flushPlannerSearchRender();
+
+    if (event.key === 'ArrowUp') {
+      focusLastPlannerSearchResult();
+      return;
+    }
+
+    focusFirstPlannerSearchResult();
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    const shouldClear = Boolean(event.target && (event.target.value || getPlannerSearchQuery()));
+    if (shouldClear) {
+      event.preventDefault();
+      event.stopPropagation();
+      await clearPlannerSearchFromKeyboard(event.target);
+    }
+  }
+}
+
+function isPlannerSearchResultNavigationTarget(target) {
+  return Boolean(
+    target instanceof HTMLButtonElement &&
+    (
+      target.classList.contains('planner-calendar-card') ||
+      target.classList.contains('planner-this-week-card') ||
+      target.classList.contains('planner-list-card')
+    )
+  );
+}
+
+function handlePlannerSearchResultKeydown(event) {
+  if (!event || !isPlannerSearchResultNavigationTarget(event.target)) {
+    return;
+  }
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    event.stopPropagation();
+    movePlannerSearchResultFocus(1);
+    return;
+  }
+
+  if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+    event.preventDefault();
+    event.stopPropagation();
+    movePlannerSearchResultFocus(-1);
+    return;
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusFirstPlannerSearchResult();
+    return;
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusLastPlannerSearchResult();
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusPlannerSearchInputForKeyboardNavigation();
+  }
+}
+
 function setPlannerDateFilter(filterValue) {
   const normalized = String(filterValue || '').trim();
   const state = getPlannerState();
@@ -426,25 +651,8 @@ function setPlannerBoardSelected(boardRoot, isSelected) {
 }
 
 function setPlannerScope(scopeValue) {
-  const normalizedScope = String(scopeValue || '').trim().toLowerCase();
   const state = getPlannerState();
-  const openBoards = getPlannerOpenBoardRoots();
-
-  if (normalizedScope === 'current') {
-    const currentBoardRoot = getPlannerCurrentBoardRoot();
-    if (currentBoardRoot && openBoards.includes(currentBoardRoot)) {
-      state.selectedBoardRoots = new Set([currentBoardRoot]);
-      state.boardFilterTouched = true;
-    }
-  } else {
-    state.selectedBoardRoots = new Set(openBoards);
-    state.boardFilterTouched = false;
-    state.selectedLabelIds = [];
-  }
-
-  if (!canUsePlannerLabelFilters()) {
-    state.selectedLabelIds = [];
-  }
+  applyPlannerScope(scopeValue);
 
   renderPlannerViewControls();
   renderPlannerFilterPopover();
@@ -521,14 +729,7 @@ function getPlannerVisibleDueDatesForEntry(cardEntry) {
   }
 
   const activeFilter = getPlannerActiveDateFilter();
-  const activeFilterDueDates = getActiveBoardFilterDueDates(
-    cardEntry.due,
-    cardEntry.taskDueDates,
-    cardEntry.incompleteTaskDueDates,
-    activeFilter,
-  );
-
-  return activeFilterDueDates
+  return getTemporalDueDatesForEntry(cardEntry)
     .filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue, activeFilter))
     .sort();
 }
@@ -743,7 +944,11 @@ async function handlePlannerCardDrop(evt, rangePredicate) {
   }
 
   try {
-    await window.board.updateFrontmatter(cardPath, { due: targetDate });
+    if (typeof moveTemporalCardDueDate === 'function') {
+      await moveTemporalCardDueDate(cardPath, sourceDate, targetDate, draggedCard);
+    } else {
+      await window.board.updateFrontmatter(cardPath, { due: targetDate });
+    }
     draggedCard.dataset.due = targetDate;
   } catch (error) {
     console.error('Failed to move Planner card to a new date.', error);
@@ -1563,6 +1768,87 @@ function closePlannerFilterPopoverIfClickOutside(target) {
   closePlannerFilterPopover();
 }
 
+function getPlannerFilterFocusableControls(popover = document.getElementById('plannerFilterPopover')) {
+  if (!popover) {
+    return [];
+  }
+
+  return Array.from(popover.querySelectorAll('button:not(:disabled), input:not(:disabled)'))
+    .filter((control) => control instanceof HTMLElement)
+    .filter((control) => {
+      const style = window.getComputedStyle(control);
+      return style.display !== 'none' && style.visibility !== 'hidden';
+    });
+}
+
+function focusPlannerFilterControl(index) {
+  const controls = getPlannerFilterFocusableControls();
+  if (controls.length === 0) {
+    return false;
+  }
+
+  const safeIndex = ((index % controls.length) + controls.length) % controls.length;
+  controls[safeIndex].focus();
+  return true;
+}
+
+function movePlannerFilterFocus(offset) {
+  const controls = getPlannerFilterFocusableControls();
+  if (controls.length === 0) {
+    return false;
+  }
+
+  const currentIndex = controls.indexOf(document.activeElement);
+  const fallbackIndex = Number(offset) < 0 ? controls.length - 1 : 0;
+  const nextIndex = currentIndex >= 0 ? currentIndex + Number(offset || 0) : fallbackIndex;
+  return focusPlannerFilterControl(nextIndex);
+}
+
+function handlePlannerFilterPopoverKeydown(event) {
+  const popover = document.getElementById('plannerFilterPopover');
+  if (!event || !popover || popover.classList.contains('hidden')) {
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    closePlannerFilterPopover();
+    const filterButton = document.getElementById('plannerFilterButton');
+    if (filterButton && typeof filterButton.focus === 'function') {
+      filterButton.focus();
+    }
+    return;
+  }
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    event.stopPropagation();
+    movePlannerFilterFocus(1);
+    return;
+  }
+
+  if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+    event.preventDefault();
+    event.stopPropagation();
+    movePlannerFilterFocus(-1);
+    return;
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusPlannerFilterControl(0);
+    return;
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusPlannerFilterControl(getPlannerFilterFocusableControls().length - 1);
+  }
+}
+
 function togglePlannerFilterPopover() {
   const popover = document.getElementById('plannerFilterPopover');
   if (!popover) {
@@ -1573,6 +1859,9 @@ function togglePlannerFilterPopover() {
   const isHidden = popover.classList.contains('hidden');
   popover.classList.toggle('hidden', !isHidden);
   popover.setAttribute('aria-hidden', isHidden ? 'false' : 'true');
+  if (isHidden) {
+    focusPlannerFilterControl(0);
+  }
 }
 
 function syncPlannerAvailability() {
@@ -1624,10 +1913,10 @@ async function openPlannerView(options = {}) {
   if (requestedView) {
     state.activeView = normalizePlannerViewId(requestedView);
   }
-  if (!state.isOpen || options.scope === 'all') {
-    state.boardFilterTouched = false;
-    state.selectedBoardRoots = new Set(getPlannerOpenBoardRoots());
-    state.selectedLabelIds = [];
+
+  const requestedScope = String((options && options.scope) || '').trim().toLowerCase();
+  if (!state.isOpen || requestedScope) {
+    applyPlannerScope(requestedScope === 'current' ? 'current' : 'all');
   }
   state.isOpen = true;
   overlay.classList.remove('hidden', 'is-closing');
@@ -1703,7 +1992,7 @@ function handlePlannerViewShortcut(event, options = {}) {
   if (
     !isPlannerOpen() ||
     event.shiftKey ||
-    event.altKey ||
+    (typeof hasPlannerDateViewShortcutModifiers === 'function' && !hasPlannerDateViewShortcutModifiers(event)) ||
     (!ignoreEditableTarget && isEditableShortcutTarget(event.target))
   ) {
     return false;
@@ -1712,6 +2001,9 @@ function handlePlannerViewShortcut(event, options = {}) {
   let nextViewId = '';
   switch (event.code) {
     case 'Digit1':
+      if (event.altKey) {
+        return false;
+      }
       event.preventDefault();
       closePlannerView();
       return true;
@@ -1732,7 +2024,13 @@ function handlePlannerViewShortcut(event, options = {}) {
   }
 
   event.preventDefault();
-  setPlannerActiveView(nextViewId);
+  setPlannerActiveView(nextViewId, { render: false });
+  applyPlannerScope(event.altKey ? 'current' : 'all');
+  renderPlannerViewControls();
+  closePlannerFilterPopover();
+  renderPlannerView().catch((error) => {
+    console.error('Failed to render Planner after shortcut view change.', error);
+  });
   return true;
 }
 
@@ -1788,6 +2086,7 @@ function initializePlannerControls() {
     filterPopover.addEventListener('click', (event) => {
       event.stopPropagation();
     });
+    filterPopover.addEventListener('keydown', handlePlannerFilterPopoverKeydown);
   }
 
   if (searchInput) {
@@ -1796,7 +2095,14 @@ function initializePlannerControls() {
       setPlannerSearchQuery(event.target.value);
       schedulePlannerRender();
     });
+    searchInput.addEventListener('keydown', (event) => {
+      handlePlannerSearchInputKeydown(event).catch((error) => {
+        console.error('Failed to handle Planner search keyboard navigation.', error);
+      });
+    });
   }
+
+  document.addEventListener('keydown', handlePlannerSearchResultKeydown);
 
   state.controlsInitialized = true;
   syncPlannerAvailability();

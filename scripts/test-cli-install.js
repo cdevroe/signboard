@@ -31,6 +31,8 @@ async function testZshInstall() {
   assert.strictEqual(result.scriptPath, scriptPath);
   assert.ok(script.includes(CLI_WRAPPER_MARKER));
   assert.ok(script.includes("/Applications/Signboard.app/Contents/MacOS/Signboard"));
+  assert.ok(script.includes('ELECTRON_RUN_AS_NODE=1'));
+  assert.ok(script.includes('/Applications/Signboard.app/Contents/Resources/app.asar/bin/signboard.js'));
   assert.ok(profile.includes(PROFILE_BLOCK_START));
   assert.ok(profile.includes('export PATH="$HOME/.local/bin:$PATH"'));
 
@@ -63,9 +65,13 @@ async function testFishInstall() {
   });
 
   const profilePath = path.join(homeDir, '.config', 'fish', 'config.fish');
+  const scriptPath = path.join(homeDir, '.local', 'bin', 'signboard');
   const profile = await readFile(profilePath);
+  const script = await readFile(scriptPath);
 
   assert.ok(profile.includes('fish_add_path "$HOME/.local/bin"'));
+  assert.ok(script.includes('ELECTRON_RUN_AS_NODE=1'));
+  assert.ok(script.includes('/opt/Signboard/resources/app.asar/bin/signboard.js'));
 }
 
 async function main() {

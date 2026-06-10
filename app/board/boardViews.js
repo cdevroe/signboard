@@ -1,15 +1,18 @@
 const BOARD_VIEW_IDS = Object.freeze({
   KANBAN: 'kanban',
+  TABLE: 'table',
   CALENDAR: 'calendar',
   THIS_WEEK: 'this-week',
 });
 
 const BOARD_VIEW_OPTIONS = Object.freeze([
-  { id: BOARD_VIEW_IDS.KANBAN, label: 'Kanban' },
+  { id: BOARD_VIEW_IDS.KANBAN, label: 'Kanban', shortcutActionId: 'kanbanView' },
+  { id: BOARD_VIEW_IDS.TABLE, label: 'Table', shortcutActionId: 'tableView' },
 ]);
 
 const BOARD_VIEW_ICON_BY_ID = Object.freeze({
   [BOARD_VIEW_IDS.KANBAN]: 'columns',
+  [BOARD_VIEW_IDS.TABLE]: 'list',
   [BOARD_VIEW_IDS.CALENDAR]: 'calendar',
   [BOARD_VIEW_IDS.THIS_WEEK]: 'clock',
 });
@@ -51,6 +54,10 @@ function getBoardViewState() {
 
 function normalizeBoardViewId(viewId) {
   const normalized = String(viewId || '').trim().toLowerCase();
+  if (normalized === BOARD_VIEW_IDS.TABLE) {
+    return BOARD_VIEW_IDS.TABLE;
+  }
+
   return BOARD_VIEW_IDS.KANBAN;
 }
 
@@ -94,6 +101,10 @@ function setActiveBoardView(viewId, options = {}) {
   closeBoardViewPopover();
   if (typeof closeBoardMenuPopover === 'function') {
     closeBoardMenuPopover();
+  }
+  if (typeof announceSignboardStatus === 'function') {
+    const activeOption = BOARD_VIEW_OPTIONS.find((option) => option.id === normalizedView);
+    announceSignboardStatus(`Switched to ${activeOption ? activeOption.label : normalizedView} view.`);
   }
 
   if (options.render === false) {
@@ -291,13 +302,38 @@ function getBoardListDisplayName(listName) {
   return normalized;
 }
 
-function getTaskItemsDueOnDate(taskItems, dueDateValue) {
+function getOpenTaskDueDatesForEntry(cardEntry) {
+  if (cardEntry && Array.isArray(cardEntry.incompleteTaskDueDates)) {
+    return cardEntry.incompleteTaskDueDates;
+  }
+
+  return cardEntry && Array.isArray(cardEntry.taskDueDates)
+    ? cardEntry.taskDueDates
+    : [];
+}
+
+function getTemporalDueDatesForEntry(cardEntry) {
+  if (!cardEntry) {
+    return [];
+  }
+
+  return getCardFilterDueDates(cardEntry.due, getOpenTaskDueDatesForEntry(cardEntry));
+}
+
+function getTaskItemsDueOnDate(taskItems, dueDateValue, options = {}) {
   const normalizedDueDate = normalizeTaskDueDateValue(dueDateValue);
   if (!normalizedDueDate || !Array.isArray(taskItems)) {
     return [];
   }
 
-  return taskItems.filter((taskItem) => normalizeTaskDueDateValue(taskItem && taskItem.due) === normalizedDueDate);
+  const includeCompleted = options && options.includeCompleted === true;
+  return taskItems.filter((taskItem) => {
+    if (!includeCompleted && taskItem && taskItem.isCompleted) {
+      return false;
+    }
+
+    return normalizeTaskDueDateValue(taskItem && taskItem.due) === normalizedDueDate;
+  });
 }
 
 function formatTemporalTaskTitle(taskItems) {
@@ -330,7 +366,14 @@ function createTemporalPlacementForDate(cardEntry, dueDateValue) {
       temporalDisplaySubtitle: cardEntry.title,
       temporalReason: 'task',
       temporalTaskCount: taskItemsDueOnDate.length,
+      temporalTaskLineIndexes: taskItemsDueOnDate
+        .map((taskItem) => Number(taskItem && taskItem.lineIndex))
+        .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0),
     };
+  }
+
+  if (normalizeTaskDueDateValue(cardEntry && cardEntry.due) !== normalizedDueDate) {
+    return null;
   }
 
   return {
@@ -340,6 +383,75 @@ function createTemporalPlacementForDate(cardEntry, dueDateValue) {
     temporalReason: 'card',
     temporalTaskCount: 0,
   };
+}
+
+function getTemporalTaskLineIndexesFromElement(element) {
+  if (!(element instanceof HTMLElement)) {
+    return [];
+  }
+
+  return String(element.dataset.taskLineIndexes || '')
+    .split(',')
+    .map((value) => Number(value))
+    .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0);
+}
+
+function getTaskLineIndexesDueOnDateFromBody(bodyValue, dueDateValue) {
+  const normalizedDueDate = normalizeTaskDueDateValue(dueDateValue);
+  if (!normalizedDueDate) {
+    return [];
+  }
+
+  return parseTaskListItems(bodyValue)
+    .filter((taskItem) => taskItem && !taskItem.isCompleted)
+    .filter((taskItem) => normalizeTaskDueDateValue(taskItem.due) === normalizedDueDate)
+    .map((taskItem) => Number(taskItem.lineIndex))
+    .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0);
+}
+
+async function moveTemporalTaskDueDate(cardPath, sourceDate, targetDate, taskLineIndexes) {
+  const card = await window.board.readCard(cardPath);
+  const body = String(card && card.body ? card.body : '');
+  const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
+    ? card.frontmatter
+    : {};
+  const lineIndexes = Array.isArray(taskLineIndexes) && taskLineIndexes.length > 0
+    ? taskLineIndexes
+    : getTaskLineIndexesDueOnDateFromBody(body, sourceDate);
+  if (lineIndexes.length === 0) {
+    return false;
+  }
+
+  let nextBody = body;
+  for (const lineIndex of lineIndexes) {
+    nextBody = setTaskListItemDueDateByLineIndex(nextBody, lineIndex, targetDate);
+  }
+
+  await window.board.writeCard(cardPath, {
+    frontmatter,
+    body: nextBody,
+  });
+  return true;
+}
+
+async function moveTemporalCardDueDate(cardPath, sourceDate, targetDate, draggedCard) {
+  const temporalReason = draggedCard instanceof HTMLElement
+    ? String(draggedCard.dataset.temporalReason || '').trim()
+    : '';
+
+  if (temporalReason === 'task') {
+    const updatedTask = await moveTemporalTaskDueDate(
+      cardPath,
+      sourceDate,
+      targetDate,
+      getTemporalTaskLineIndexesFromElement(draggedCard),
+    );
+    if (updatedTask) {
+      return;
+    }
+  }
+
+  await window.board.updateFrontmatter(cardPath, { due: targetDate });
 }
 
 async function collectCardsForCalendar(boardRoot, lists, options = {}) {
@@ -421,14 +533,11 @@ function buildCalendarCardBuckets(cardEntries, monthCursor) {
   const buckets = new Map();
 
   for (const entry of entries) {
-    const dueDates = getCardFilterDueDates(entry.due, entry.taskDueDates);
-    const activeFilterDueDates = getActiveBoardFilterDueDates(
-      entry.due,
-      entry.taskDueDates,
-      entry.incompleteTaskDueDates,
-    );
-    const visibleDueDates = activeFilterDueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
-    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, activeFilterDueDates);
+    const dueDates = getTemporalDueDatesForEntry(entry);
+    const visibleDueDates = dueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, visibleDueDates, {
+      isCompletedList: Boolean(entry.isCompletedList),
+    });
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
 
     if (visibleDueDates.length === 0 || !matchesLabelFilter || !matchesSearchFilter) {
@@ -474,14 +583,11 @@ function buildWeekCardBuckets(cardEntries, weekStartDate) {
   const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
 
   for (const entry of entries) {
-    const dueDates = getCardFilterDueDates(entry.due, entry.taskDueDates);
-    const activeFilterDueDates = getActiveBoardFilterDueDates(
-      entry.due,
-      entry.taskDueDates,
-      entry.incompleteTaskDueDates,
-    );
-    const visibleDueDates = activeFilterDueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
-    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, activeFilterDueDates);
+    const dueDates = getTemporalDueDatesForEntry(entry);
+    const visibleDueDates = dueDates.filter((dateValue) => doesBoardDateFilterMatchDueDate(dateValue));
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(entry.labels, dueDates, visibleDueDates, {
+      isCompletedList: Boolean(entry.isCompletedList),
+    });
     const matchesSearchFilter = cardMatchesBoardSearch(entry.title, entry.body);
     if (visibleDueDates.length === 0 || !matchesLabelFilter || !matchesSearchFilter) {
       continue;
@@ -598,6 +704,7 @@ function closeBoardViewPopover() {
   }
 
   popover.classList.add('hidden');
+  popover.setAttribute('aria-hidden', 'true');
 }
 
 function closeBoardViewPopoverIfClickOutside(target) {
@@ -624,20 +731,22 @@ function renderBoardViewPopover() {
   popover.innerHTML = '';
 
   for (const option of BOARD_VIEW_OPTIONS) {
-    const shortcutActionId = option.id === BOARD_VIEW_IDS.KANBAN
-      ? 'kanbanView'
-      : (option.id === BOARD_VIEW_IDS.CALENDAR ? 'calendarView' : 'thisWeekView');
+    const shortcutActionId = option.shortcutActionId || '';
     const optionButton = document.createElement('button');
     optionButton.type = 'button';
     optionButton.className = 'board-view-option';
     optionButton.dataset.viewId = option.id;
     optionButton.setAttribute('aria-pressed', String(option.id === activeView));
-    optionButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(shortcutActionId));
+    if (shortcutActionId) {
+      optionButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(shortcutActionId));
+    } else {
+      optionButton.removeAttribute('aria-keyshortcuts');
+    }
     optionButton.innerHTML = `
       <span class="board-view-option-check">${option.id === activeView ? '✓' : ''}</span>
       <span class="board-view-option-icon" aria-hidden="true">${getBoardViewIconMarkup(option.id)}</span>
       <span class="board-view-option-label">${option.label}</span>
-      <span class="menu-shortcut-hint board-view-option-shortcut" aria-hidden="true">${getShortcutHintText(shortcutActionId)}</span>
+      <span class="menu-shortcut-hint board-view-option-shortcut" aria-hidden="true">${shortcutActionId ? getShortcutHintText(shortcutActionId) : ''}</span>
     `;
     optionButton.addEventListener('click', (event) => {
       event.preventDefault();
@@ -667,6 +776,7 @@ function toggleBoardViewPopover() {
   renderBoardViewPopover();
   const isHidden = popover.classList.contains('hidden');
   popover.classList.toggle('hidden', !isHidden);
+  popover.setAttribute('aria-hidden', isHidden ? 'false' : 'true');
 }
 
 function initializeBoardViewControls() {
@@ -716,7 +826,7 @@ async function handleCalendarCardDrop(evt, monthCursor) {
   }
 
   try {
-    await window.board.updateFrontmatter(cardPath, { due: targetDate });
+    await moveTemporalCardDueDate(cardPath, sourceDate, targetDate, draggedCard);
     draggedCard.dataset.due = targetDate;
   } catch (error) {
     console.error('Failed to move card to a new calendar date.', error);
@@ -763,6 +873,10 @@ function createTemporalCardElement(cardEntry, isoDate, className, options = {}) 
   cardButton.className = className;
   cardButton.dataset.path = cardEntry.cardPath;
   cardButton.dataset.due = isoDate;
+  cardButton.dataset.temporalReason = cardEntry.temporalReason || 'card';
+  if (Array.isArray(cardEntry.temporalTaskLineIndexes) && cardEntry.temporalTaskLineIndexes.length > 0) {
+    cardButton.dataset.taskLineIndexes = cardEntry.temporalTaskLineIndexes.join(',');
+  }
   cardButton.setAttribute('data-sb-tooltip-disabled', 'true');
 
   const cardFrame = document.createElement('span');
@@ -984,7 +1098,7 @@ async function handleWeekCardDrop(evt, weekStartDate) {
   }
 
   try {
-    await window.board.updateFrontmatter(cardPath, { due: targetDate });
+    await moveTemporalCardDueDate(cardPath, sourceDate, targetDate, draggedCard);
     draggedCard.dataset.due = targetDate;
   } catch (error) {
     console.error('Failed to move card to a new week date.', error);

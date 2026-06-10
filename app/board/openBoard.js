@@ -70,6 +70,77 @@ async function pickAndOpenBoard() {
     return openBoard(authorizedBoardPath);
 }
 
+function formatStarterCardDueDate(offsetDays) {
+    const date = new Date();
+    date.setDate(date.getDate() + Number(offsetDays || 0));
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
+function buildStarterCardContent() {
+    const firstDueDate = formatStarterCardDueDate(1);
+    const secondDueDate = formatStarterCardDueDate(2);
+    const thirdDueDate = formatStarterCardDueDate(3);
+
+    return `👋 Start Here
+
+Welcome to Signboard.
+
+This board lives in a folder on your computer. Lists are folders. Cards are Markdown files. That means your work stays portable, readable, and easy to automate.
+
+## Try these first
+
+- Edit this card title or body.
+- Create a real card from a list actions menu, or press Cmd/Ctrl + N to use Quick Add.
+- Drag a card between To do, Doing, and Done.
+- Add a label or due date to this card.
+- Search from the header, then press Enter to move into matching cards.
+- Archive this card when you are done exploring.
+
+## A tiny pretend plan
+
+Here are a few example tasks so you can see how checklists and task due dates work:
+
+- [ ] (due: ${firstDueDate}) Rename this board to something you actually care about
+- [ ] (due: ${secondDueDate}) Add one real card you need to finish this week
+- [ ] (due: ${thirdDueDate}) Open Planner and look for these dated checklist items
+- [x] Opened Signboard and kicked the tires
+
+## Things worth trying
+
+- Open Planner Calendar or This Week to see dated work across open boards.
+- Switch Board menu > View to Table and scan cards across lists.
+- Open the filter menu and try the Today, Overdue, and label filters.
+- Open Settings and customize labels, completed-list behavior, and board colors.
+- Open Archive from the Board menu after archiving a card or list.
+
+## Keyboard shortcuts
+
+On macOS use Cmd. On Windows and Linux use Ctrl.
+
+- Cmd/Ctrl + / opens the keyboard shortcuts helper
+- Cmd/Ctrl + F focuses search; Enter or Arrow Down moves into matching cards
+- Cmd/Ctrl + K switches between open boards
+- Cmd/Ctrl + N opens Quick Add for any open board
+- Cmd/Ctrl + Shift + N creates a new list
+- Cmd/Ctrl + 1 returns to Kanban
+- Cmd/Ctrl + Option/Alt + 1 opens Table
+- Cmd/Ctrl + 2 opens Planner Calendar for all open boards
+- Cmd/Ctrl + 3 opens Planner This Week for all open boards
+- Cmd/Ctrl + Shift + P opens or closes Planner
+- Cmd/Ctrl + , opens Settings
+- Cmd/Ctrl + Shift + A opens Archive
+- Esc closes open modals and popovers
+
+## One last thing
+
+Keep this card as a reference, or archive it and start fresh.`;
+}
+
 async function openBoard( dir ) {
     const boardPath = await authorizeBoardAccess(dir);
     if (!boardPath) {
@@ -88,14 +159,7 @@ async function openBoard( dir ) {
         await flushBoardLabelSettingsSave();
     }
 
-    const tabResult = ensureBoardInTabs(boardPath);
-    if (tabResult && tabResult.limitReached) {
-        if (typeof alertBoardTabLimit === 'function') {
-            alertBoardTabLimit();
-        }
-        renderBoardTabs();
-        return false;
-    }
+    ensureBoardInTabs(boardPath);
 
     if (typeof migrateAppSettingsFromOpenBoards === 'function') {
         await migrateAppSettingsFromOpenBoards();
@@ -113,54 +177,7 @@ async function openBoard( dir ) {
             window.board.createList(boardPath + 'XXX-Archive'),
         ]);
 
-        await window.board.createCard( boardPath + '000-To-do-stock/000-hello-stock.md', `👋 Start Here
-
-Welcome to Signboard.
-
-This board lives in a folder on your computer. Lists are folders. Cards are Markdown files. That means your work stays portable, readable, and very easy to make your own.
-
-## Try these first
-
-- Edit this card title or body.
-- Drag this card to another list, then drag it back.
-- Create a new card with the + button.
-- Add a label or due date to this card.
-- Archive this card when you are done exploring.
-
-## A tiny pretend plan
-
-Here are a few example tasks so you can see how checklists and task due dates work:
-
-- [ ] (due: 2026-03-11) Rename this board to something you actually care about
-- [ ] (due: 2026-03-12) Add a card for one real task you need to finish this week
-- [ ] (due: 2026-03-13) Create a new list for ideas, errands, or "waiting on"
-- [x] Opened Signboard and kicked the tires
-
-## Things worth trying
-
-- Add a due date to the whole card and open Planner Calendar.
-- Create a few cards and drag them between To do, Doing, and Done.
-- Open Settings and customize labels for your own system.
-- Change the board colors and make the space feel like yours.
-
-## Keyboard shortcuts
-
-On macOS use Cmd. On Windows and Linux use Ctrl.
-
-- Cmd/Ctrl + / opens the keyboard shortcuts helper
-- Cmd/Ctrl + K switches between open boards
-- Cmd/Ctrl + N creates a new card
-- Cmd/Ctrl + Shift + N creates a new list
-- Cmd/Ctrl + 1 opens Kanban view
-- Cmd/Ctrl + 2 opens Planner Calendar
-- Cmd/Ctrl + 3 opens Planner This Week
-- Cmd/Ctrl + , opens Settings
-- Cmd/Ctrl + Shift + D toggles light and dark mode
-- Esc closes open modals
-
-## One last thing
-
-If you want, leave this card here as a little orientation guide. Or archive it immediately and start fresh. Both are valid productivity philosophies.` );
+        await window.board.createCard( boardPath + '000-To-do-stock/000-hello-stock.md', buildStarterCardContent() );
     }
 
     window.boardRoot = boardPath;

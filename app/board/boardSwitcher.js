@@ -108,23 +108,27 @@ function renderBoardSwitcherResults() {
   }
 
   filteredOptions.forEach((option, index) => {
-    const optionButton = document.createElement('button');
+    const optionRow = document.createElement('div');
     const optionId = `boardSwitcherOption-${index}`;
-    optionButton.id = optionId;
-    optionButton.type = 'button';
-    optionButton.className = 'board-switcher-option';
-    optionButton.setAttribute('role', 'option');
-    optionButton.setAttribute('aria-selected', index === boardSwitcherState.activeIndex ? 'true' : 'false');
-    optionButton.dataset.boardPath = option.path;
+    optionRow.id = optionId;
+    optionRow.className = 'board-switcher-option';
+    optionRow.setAttribute('role', 'option');
+    optionRow.setAttribute('aria-selected', index === boardSwitcherState.activeIndex ? 'true' : 'false');
+    optionRow.dataset.boardPath = option.path;
 
     if (index === boardSwitcherState.activeIndex) {
-      optionButton.classList.add('is-active');
+      optionRow.classList.add('is-active');
       input.setAttribute('aria-activedescendant', optionId);
     }
 
     if (option.isCurrent) {
-      optionButton.classList.add('is-current');
+      optionRow.classList.add('is-current');
     }
+
+    const selectButton = document.createElement('button');
+    selectButton.type = 'button';
+    selectButton.className = 'board-switcher-select';
+    selectButton.setAttribute('aria-label', `Switch to ${option.label}`);
 
     const labelWrap = document.createElement('span');
     labelWrap.className = 'board-switcher-option-copy';
@@ -139,29 +143,53 @@ function renderBoardSwitcherResults() {
 
     labelWrap.appendChild(title);
     labelWrap.appendChild(pathText);
-    optionButton.appendChild(labelWrap);
+    selectButton.appendChild(labelWrap);
 
     if (option.isCurrent) {
       const badge = document.createElement('span');
       badge.className = 'board-switcher-current';
       badge.textContent = 'Current';
-      optionButton.appendChild(badge);
+      selectButton.appendChild(badge);
     }
 
-    optionButton.addEventListener('mousedown', (event) => {
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'board-switcher-close';
+    closeButton.setAttribute('aria-label', `Close ${option.label} board`);
+    closeButton.title = `Close ${option.label}`;
+    closeButton.textContent = '×';
+
+    selectButton.addEventListener('mousedown', (event) => {
       event.preventDefault();
     });
 
-    optionButton.addEventListener('mouseenter', () => {
+    optionRow.addEventListener('mouseenter', () => {
+      if (boardSwitcherState.activeIndex === index) {
+        return;
+      }
+
       boardSwitcherState.activeIndex = index;
       renderBoardSwitcherResults();
     });
 
-    optionButton.addEventListener('click', async () => {
+    selectButton.addEventListener('click', async () => {
       await selectBoardSwitcherOption(option);
     });
 
-    results.appendChild(optionButton);
+    closeButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof closeBoardTab === 'function') {
+        await closeBoardTab(option.path);
+      }
+      boardSwitcherState.activeIndex = getBoardSwitcherDefaultActiveIndex(getBoardSwitcherFilteredOptions());
+      renderBoardSwitcherResults();
+      input.focus();
+    });
+
+    optionRow.appendChild(selectButton);
+    optionRow.appendChild(closeButton);
+    results.appendChild(optionRow);
   });
 
   const activeOption = results.querySelector('.board-switcher-option.is-active');
@@ -192,6 +220,7 @@ function openBoardSwitcher() {
   modal.style.display = 'block';
   modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden', 'false');
+  input.setAttribute('aria-expanded', 'true');
   renderBoardSwitcherResults();
 
   input.focus();
@@ -223,6 +252,7 @@ function closeBoardSwitcher() {
   if (input) {
     input.value = '';
     input.removeAttribute('aria-activedescendant');
+    input.setAttribute('aria-expanded', 'false');
   }
 }
 

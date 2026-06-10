@@ -4,14 +4,16 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker, nativeImage, screen } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker, nativeImage, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
-const { randomUUID } = require('crypto');
+const { createHash, randomUUID } = require('crypto');
 const fs = require('fs');
 const fsPromises = fs.promises;
+const http = require('http');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
+const { readCardWithTimestamps } = require('./lib/cardTimestamps');
 const { insertCardFileAtTop } = require('./lib/cardOrdering');
 const { prepareNewCardFrontmatter } = require('./lib/cardLifecycle');
 const {
@@ -25,7 +27,9 @@ const {
 } = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
 const appSettings = require('./lib/appSettings');
+const { buildExternalPublishedCalendarFeed } = require('./lib/externalPublishedCalendar');
 const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
+const obsidianIntegration = require('./lib/obsidianIntegration');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
 const { installCliForCurrentUser } = require('./lib/cliInstall');
@@ -47,6 +51,9 @@ const RUNTIME_APP_ICON_PATH = path.join(__dirname, 'build', 'icon-macos.png');
 const SIGNBOARD_USER_DATA_DIR = String(process.env.SIGNBOARD_USER_DATA_DIR || '').trim();
 const APP_ENTRY_URL = pathToFileURL(path.join(__dirname, 'index.html'));
 const TRUSTED_BOARD_ROOTS_FILE = 'trusted-board-roots.json';
+const LINKED_OBJECT_ICON_DIRECTORY = 'linked-object-icons';
+const LINKED_OBJECT_ICON_MAX_BYTES = 256 * 1024;
+const LINKED_OBJECT_ICON_FETCH_TIMEOUT_MS = 3500;
 const DIRECTORY_SELECTION_MAX_AGE_MS = 5 * 60 * 1000;
 const BOARD_WATCH_RESCAN_DELAY_MS = 180;
 const SUPPORTS_RECURSIVE_WATCH = process.platform === 'darwin' || process.platform === 'win32';
@@ -59,6 +66,10 @@ const dueDateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
 });
+
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal');
+}
 
 function formatDueDateValue(rawDateValue) {
   const dateString = String(rawDateValue || '').trim();
@@ -128,6 +139,23 @@ let mainWindow = null;
 let isAppQuitting = false;
 let mcpPowerSaveBlockerId = null;
 let unresponsiveDialogVisible = false;
+let pendingRendererContextMenuTimer = null;
+let registeredQuickAddGlobalShortcut = '';
+let quickAddGlobalShortcutStatus = {
+  accelerator: '',
+  registered: false,
+  message: '',
+};
+let externalPublishedCalendarServer = null;
+let externalPublishedCalendarSettings = appSettings.DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS();
+let externalPublishedCalendarStatus = {
+  enabled: false,
+  running: false,
+  port: externalPublishedCalendarSettings.port,
+  url: '',
+  message: 'Disabled',
+};
+let pendingSignboardProtocolUrl = '';
 
 function isMcpPowerSaveBlockerActive() {
   return Number.isInteger(mcpPowerSaveBlockerId) && powerSaveBlocker.isStarted(mcpPowerSaveBlockerId);
@@ -653,6 +681,924 @@ function requireActiveBoardRootForSender(sender) {
   return activeBoardRoot;
 }
 
+function resolveTrustedBoardRootForPath(sender, candidatePath) {
+  const normalizedPath = normalizeAbsolutePath(candidatePath);
+  if (!normalizedPath) {
+    return '';
+  }
+
+  const senderState = getSenderBoardAccessState(sender);
+  if (senderState.activeBoardRoot && isPathInsideRoot(senderState.activeBoardRoot, normalizedPath)) {
+    return senderState.activeBoardRoot;
+  }
+
+  const trustedRoots = readTrustedBoardRoots();
+  for (const trustedRoot of trustedRoots) {
+    if (isPathInsideRoot(trustedRoot, normalizedPath)) {
+      return trustedRoot;
+    }
+  }
+
+  return '';
+}
+
+function requireWritableBoardCardPath(sender, candidateBoardRoot, candidatePath) {
+  const normalizedPath = requireWritablePath(sender, candidatePath, { allowTrusted: true });
+  const requestedBoardRoot = resolveReadableBoardRoot(sender, candidateBoardRoot);
+  if (requestedBoardRoot && isPathInsideRoot(requestedBoardRoot, normalizedPath)) {
+    return {
+      boardRoot: requestedBoardRoot,
+      filePath: normalizedPath,
+    };
+  }
+
+  const resolvedBoardRoot = resolveTrustedBoardRootForPath(sender, normalizedPath);
+  if (!resolvedBoardRoot) {
+    throw new Error('UNAUTHORIZED_BOARD_ROOT');
+  }
+
+  return {
+    boardRoot: resolvedBoardRoot,
+    filePath: normalizedPath,
+  };
+}
+
+function requireReadableBoardCardPath(sender, candidateBoardRoot, candidatePath) {
+  const normalizedPath = requireReadablePath(sender, candidatePath);
+  const requestedBoardRoot = resolveReadableBoardRoot(sender, candidateBoardRoot);
+  if (requestedBoardRoot && isPathInsideRoot(requestedBoardRoot, normalizedPath)) {
+    return {
+      boardRoot: requestedBoardRoot,
+      filePath: normalizedPath,
+    };
+  }
+
+  const resolvedBoardRoot = resolveTrustedBoardRootForPath(sender, normalizedPath);
+  if (!resolvedBoardRoot) {
+    throw new Error('UNAUTHORIZED_BOARD_ROOT');
+  }
+
+  return {
+    boardRoot: resolvedBoardRoot,
+    filePath: normalizedPath,
+  };
+}
+
+function normalizeLinkedObjectList(value) {
+  return Array.isArray(value)
+    ? value.filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+    : [];
+}
+
+function getLinkedObjectKey(linkedObject = {}) {
+  const type = String(linkedObject.type || '').trim();
+  if (!type) {
+    return '';
+  }
+
+  if (type === 'file' || type === 'folder') {
+    return `${type}:${normalizeAbsolutePath(linkedObject.path)}`;
+  }
+
+  if (type === 'url') {
+    return `url:${String(linkedObject.url || '').trim()}`;
+  }
+
+  if (type === 'app-link' || type === 'signboard-link') {
+    return `${type}:${String(linkedObject.url || linkedObject.target || '').trim()}`;
+  }
+
+  if (type === 'obsidian-note') {
+    return `obsidian-note:${normalizeAbsolutePath(linkedObject.path) || String(linkedObject.target || '').trim()}`;
+  }
+
+  return `${type}:${String(linkedObject.target || linkedObject.url || linkedObject.path || linkedObject.title || '').trim()}`;
+}
+
+function addLinkedObjectToList(existingObjects, nextObject) {
+  const objects = normalizeLinkedObjectList(existingObjects);
+  const nextKey = getLinkedObjectKey(nextObject);
+  if (!nextKey) {
+    return objects;
+  }
+
+  const filtered = objects.filter((object) => getLinkedObjectKey(object) !== nextKey);
+  filtered.push(nextObject);
+  return filtered;
+}
+
+function replaceLinkedObjectInList(existingObjects, previousObject, nextObject) {
+  const objects = normalizeLinkedObjectList(existingObjects);
+  const previousKey = getLinkedObjectKey(previousObject);
+  const nextKey = getLinkedObjectKey(nextObject);
+  if (!nextKey) {
+    return objects;
+  }
+
+  const filtered = objects.filter((object) => {
+    const objectKey = getLinkedObjectKey(object);
+    return objectKey !== previousKey && objectKey !== nextKey;
+  });
+  filtered.push(nextObject);
+  return filtered;
+}
+
+function getLinkedObjectIconCacheDir() {
+  return path.join(app.getPath('userData'), LINKED_OBJECT_ICON_DIRECTORY);
+}
+
+function getUrlHash(value) {
+  return createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
+}
+
+function getFaviconExtension(contentType = '') {
+  const normalized = String(contentType || '').toLowerCase();
+  if (normalized.includes('png')) return '.png';
+  if (normalized.includes('jpeg') || normalized.includes('jpg')) return '.jpg';
+  if (normalized.includes('svg')) return '.svg';
+  if (normalized.includes('webp')) return '.webp';
+  return '.ico';
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  if (typeof fetch !== 'function') {
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), LINKED_OBJECT_ICON_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function tryCacheFaviconFromUrl(iconUrl, cacheBaseName) {
+  let response = null;
+  try {
+    response = await fetchWithTimeout(iconUrl, {
+      redirect: 'follow',
+      headers: {
+        Accept: 'image/avif,image/webp,image/png,image/svg+xml,image/*,*/*;q=0.8',
+      },
+    });
+  } catch {
+    return '';
+  }
+
+  if (!response || !response.ok) {
+    return '';
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!/^image\//i.test(contentType) && !/icon/i.test(contentType)) {
+    return '';
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  if (!arrayBuffer || arrayBuffer.byteLength <= 0 || arrayBuffer.byteLength > LINKED_OBJECT_ICON_MAX_BYTES) {
+    return '';
+  }
+
+  const cacheDir = getLinkedObjectIconCacheDir();
+  await fsPromises.mkdir(cacheDir, { recursive: true });
+  const iconPath = path.join(cacheDir, `${cacheBaseName}${getFaviconExtension(contentType)}`);
+  await fsPromises.writeFile(iconPath, Buffer.from(arrayBuffer));
+  return iconPath;
+}
+
+async function cacheFaviconForUrl(url) {
+  if (process.env.SIGNBOARD_TEST_DISABLE_FAVICON_FETCH === '1') {
+    return '';
+  }
+
+  let parsedUrl = null;
+  try {
+    parsedUrl = new URL(String(url || ''));
+  } catch {
+    return '';
+  }
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    return '';
+  }
+
+  const cacheBaseName = getUrlHash(`${parsedUrl.protocol}//${parsedUrl.host}`).slice(0, 32);
+  const cacheDir = getLinkedObjectIconCacheDir();
+  try {
+    const existingEntries = await fsPromises.readdir(cacheDir);
+    const existingIcon = existingEntries.find((entry) => entry.startsWith(`${cacheBaseName}.`));
+    if (existingIcon) {
+      return path.join(cacheDir, existingIcon);
+    }
+  } catch {
+    // Cache directory may not exist yet.
+  }
+
+  const candidates = [new URL('/favicon.ico', parsedUrl.origin).href];
+  try {
+    const pageResponse = await fetchWithTimeout(parsedUrl.href, {
+      redirect: 'follow',
+      headers: {
+        Accept: 'text/html,application/xhtml+xml',
+      },
+    });
+    if (pageResponse && pageResponse.ok && String(pageResponse.headers.get('content-type') || '').includes('html')) {
+      const html = await pageResponse.text();
+      const iconMatch = html.match(/<link[^>]+rel=["'][^"']*(?:icon|apple-touch-icon)[^"']*["'][^>]*>/i);
+      const hrefMatch = iconMatch && iconMatch[0].match(/\shref=["']([^"']+)["']/i);
+      if (hrefMatch && hrefMatch[1]) {
+        candidates.unshift(new URL(hrefMatch[1], parsedUrl.href).href);
+      }
+    }
+  } catch {
+    // Fall back to /favicon.ico.
+  }
+
+  for (const candidate of [...new Set(candidates)]) {
+    const iconPath = await tryCacheFaviconFromUrl(candidate, cacheBaseName);
+    if (iconPath) {
+      return iconPath;
+    }
+  }
+
+  return '';
+}
+
+function getDisplayNameForPath(targetPath) {
+  const normalizedPath = normalizeAbsolutePath(targetPath);
+  if (!normalizedPath) {
+    return '';
+  }
+
+  return path.basename(normalizedPath.replace(/[\\/]+$/, '')) || normalizedPath;
+}
+
+function validateExternalAppUrl(rawUrl, { allowWeb = false } = {}) {
+  const candidate = String(rawUrl || '').trim();
+  if (!candidate) {
+    return null;
+  }
+
+  let parsedUrl = null;
+  try {
+    parsedUrl = new URL(candidate);
+  } catch {
+    return null;
+  }
+
+  const blockedProtocols = new Set(['file:', 'javascript:', 'data:']);
+  if (blockedProtocols.has(parsedUrl.protocol)) {
+    return null;
+  }
+
+  if (!allowWeb && ['http:', 'https:'].includes(parsedUrl.protocol)) {
+    return null;
+  }
+
+  return parsedUrl;
+}
+
+function normalizeWebUrlCandidate(rawUrl) {
+  const rawCandidate = String(rawUrl || '').trim();
+  if (!rawCandidate) {
+    return null;
+  }
+
+  const candidate = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(rawCandidate)
+    ? rawCandidate
+    : `https://${rawCandidate}`;
+
+  try {
+    const parsedUrl = new URL(candidate);
+    return ['http:', 'https:'].includes(parsedUrl.protocol) ? parsedUrl : null;
+  } catch {
+    return null;
+  }
+}
+
+async function buildLinkedObjectFromRendererInput(sender, input = {}) {
+  const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const requestedType = String(source.type || '').trim();
+
+  if (requestedType === 'file' || requestedType === 'folder') {
+    let selectedPath = consumePendingSelection(sender, source.token, ['file', 'directory']);
+    if (!selectedPath && process.env.SIGNBOARD_TEST_ALLOW_DIRECT_LINKED_OBJECT_PATHS === '1') {
+      selectedPath = normalizeAbsolutePath(source.path);
+    }
+    if (!selectedPath) {
+      throw new Error('INVALID_SELECTION_TOKEN');
+    }
+
+    const stats = await fsPromises.stat(selectedPath);
+    const type = stats.isDirectory() ? 'folder' : 'file';
+    return {
+      type,
+      title: String(source.title || '').trim() || getDisplayNameForPath(selectedPath),
+      path: selectedPath,
+    };
+  }
+
+  if (requestedType === 'url') {
+    const parsedUrl = normalizeWebUrlCandidate(source.url);
+    if (!parsedUrl) {
+      throw new Error('INVALID_URL');
+    }
+
+    const faviconPath = await cacheFaviconForUrl(parsedUrl.href);
+    return {
+      type: 'url',
+      title: String(source.title || '').trim() || parsedUrl.hostname || parsedUrl.href,
+      url: parsedUrl.href,
+      ...(faviconPath ? { faviconPath } : {}),
+    };
+  }
+
+  if (requestedType === 'app-link' || requestedType === 'signboard-link') {
+    const parsedUrl = validateExternalAppUrl(source.url || source.target, { allowWeb: false });
+    if (!parsedUrl) {
+      throw new Error('INVALID_URL');
+    }
+
+    const type = parsedUrl.protocol === 'signboard:' ? 'signboard-link' : 'app-link';
+    return {
+      type,
+      title: String(source.title || '').trim() || (type === 'signboard-link' ? 'Signboard link' : parsedUrl.protocol.replace(/:$/, '')),
+      url: parsedUrl.href,
+    };
+  }
+
+  if (requestedType === 'obsidian-note') {
+    let notePath = consumePendingSelection(sender, source.token, ['file']);
+    if (!notePath && process.env.SIGNBOARD_TEST_ALLOW_DIRECT_LINKED_OBJECT_PATHS === '1') {
+      notePath = normalizeAbsolutePath(source.path);
+    }
+    if (!notePath) {
+      notePath = normalizeAbsolutePath(source.path);
+    }
+    const title = String(source.title || '').trim();
+    return {
+      type: 'obsidian-note',
+      ...(title ? { title } : {}),
+      target: String(source.target || '').trim(),
+      ...(notePath ? { path: notePath } : {}),
+    };
+  }
+
+  throw new Error('UNSUPPORTED_LINKED_OBJECT_TYPE');
+}
+
+async function buildLinkedObjectFromLocalPath(localPath) {
+  const selectedPath = normalizeAbsolutePath(localPath);
+  if (!selectedPath) {
+    return null;
+  }
+
+  let stats = null;
+  try {
+    stats = await fsPromises.stat(selectedPath);
+  } catch {
+    return null;
+  }
+
+  const type = stats.isDirectory() ? 'folder' : 'file';
+  return {
+    type,
+    title: getDisplayNameForPath(selectedPath),
+    path: selectedPath,
+  };
+}
+
+async function writeDroppedLinkedObjectsToCard(event, cardPath, droppedPaths) {
+  const filePath = requireWritablePath(event.sender, cardPath, { allowTrusted: true });
+  const normalizedPaths = Array.isArray(droppedPaths)
+    ? droppedPaths.map((droppedPath) => normalizeAbsolutePath(droppedPath)).filter(Boolean)
+    : [];
+
+  if (normalizedPaths.length === 0) {
+    return { ok: false, error: 'NO_DROPPED_FILES' };
+  }
+
+  const currentCard = await cardFrontmatter.readCard(filePath);
+  let nextLinkedObjects = currentCard.frontmatter.linked_objects;
+  const linkedObjects = [];
+
+  for (const droppedPath of normalizedPaths.slice(0, 25)) {
+    const linkedObject = await buildLinkedObjectFromLocalPath(droppedPath);
+    if (!linkedObject) {
+      continue;
+    }
+
+    nextLinkedObjects = addLinkedObjectToList(nextLinkedObjects, linkedObject);
+    linkedObjects.push(linkedObject);
+  }
+
+  if (linkedObjects.length === 0) {
+    return { ok: false, error: 'NO_SUPPORTED_DROPPED_FILES' };
+  }
+
+  const nextFrontmatter = normalizeCardFrontmatterForBoardPath(event.sender, filePath, {
+    ...currentCard.frontmatter,
+    linked_objects: normalizeLinkedObjectList(nextLinkedObjects),
+  });
+
+  await cardFrontmatter.writeCard(filePath, {
+    frontmatter: nextFrontmatter,
+    body: currentCard.body,
+  });
+  await autoSyncManagedObsidianBaseForCardPath(event.sender, filePath);
+
+  return {
+    ok: true,
+    linkedObjects,
+    frontmatter: nextFrontmatter,
+  };
+}
+
+async function writeLinkedObjectToCard(event, cardPath, input) {
+  const filePath = requireWritablePath(event.sender, cardPath, { allowTrusted: true });
+  const linkedObject = await buildLinkedObjectFromRendererInput(event.sender, input);
+  const currentCard = await cardFrontmatter.readCard(filePath);
+  const nextFrontmatter = normalizeCardFrontmatterForBoardPath(event.sender, filePath, {
+    ...currentCard.frontmatter,
+    linked_objects: addLinkedObjectToList(currentCard.frontmatter.linked_objects, linkedObject),
+  });
+
+  await cardFrontmatter.writeCard(filePath, {
+    frontmatter: nextFrontmatter,
+    body: currentCard.body,
+  });
+  await autoSyncManagedObsidianBaseForCardPath(event.sender, filePath);
+
+  return {
+    ok: true,
+    linkedObject,
+    frontmatter: nextFrontmatter,
+  };
+}
+
+async function openLinkedObjectFromRenderer(event, cardPath, input) {
+  requireReadablePath(event.sender, cardPath);
+  const linkedObject = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const type = String(linkedObject.type || '').trim();
+  const skippedExternalOpen = process.env.SIGNBOARD_TEST_DISABLE_EXTERNAL_OPEN === '1';
+  let openTarget = '';
+
+  if (type === 'obsidian-note') {
+    const relatedTarget = String(linkedObject.target || linkedObject.raw || '').trim();
+    if (relatedTarget) {
+      const resolvedNote = await obsidianIntegration.resolveObsidianRelatedNote({
+        cardPath,
+        related: relatedTarget,
+      });
+      if (resolvedNote.ok) {
+        openTarget = resolvedNote.obsidianUri;
+      } else {
+        return resolvedNote;
+      }
+    }
+
+    if (!openTarget) {
+      const notePath = normalizeAbsolutePath(linkedObject.path);
+      if (notePath) {
+        try {
+          await fsPromises.access(notePath);
+          openTarget = obsidianIntegration.buildObsidianOpenUri(notePath);
+        } catch {
+          openTarget = '';
+        }
+      }
+    }
+
+    if (!openTarget) {
+      return { ok: false, error: 'NOTE_NOT_FOUND' };
+    }
+
+    if (!skippedExternalOpen) {
+      await shell.openExternal(openTarget);
+    }
+    return { ok: true, type, openTarget, skippedExternalOpen };
+  }
+
+  if (type === 'file' || type === 'folder') {
+    const targetPath = normalizeAbsolutePath(linkedObject.path);
+    if (!targetPath) {
+      return { ok: false, error: 'INVALID_PATH' };
+    }
+
+    if (!skippedExternalOpen) {
+      const errorMessage = await shell.openPath(targetPath);
+      if (errorMessage) {
+        return { ok: false, error: errorMessage };
+      }
+    }
+    return { ok: true, type, openTarget: targetPath, skippedExternalOpen };
+  }
+
+  if (type === 'url') {
+    const parsedUrl = validateExternalAppUrl(linkedObject.url, { allowWeb: true });
+    if (!parsedUrl || !['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return { ok: false, error: 'INVALID_URL' };
+    }
+
+    if (!skippedExternalOpen) {
+      await shell.openExternal(parsedUrl.href);
+    }
+    return { ok: true, type, openTarget: parsedUrl.href, skippedExternalOpen };
+  }
+
+  if (type === 'app-link' || type === 'signboard-link') {
+    const parsedUrl = validateExternalAppUrl(linkedObject.url || linkedObject.target, { allowWeb: false });
+    if (!parsedUrl) {
+      return { ok: false, error: 'INVALID_URL' };
+    }
+
+    if (parsedUrl.protocol === 'signboard:') {
+      if (!skippedExternalOpen) {
+        await dispatchSignboardProtocolUrl(parsedUrl.href);
+      }
+      return { ok: true, type: 'signboard-link', openTarget: parsedUrl.href, skippedExternalOpen };
+    }
+
+    if (!skippedExternalOpen) {
+      await shell.openExternal(parsedUrl.href);
+    }
+    return { ok: true, type, openTarget: parsedUrl.href, skippedExternalOpen };
+  }
+
+  return { ok: false, error: 'UNSUPPORTED_LINKED_OBJECT_TYPE' };
+}
+
+async function getLinkedObjectStatusFromRenderer(event, cardPath, input) {
+  requireReadablePath(event.sender, cardPath);
+  const linkedObject = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const type = String(linkedObject.type || '').trim();
+
+  if (type === 'obsidian-note') {
+    const relatedTarget = String(linkedObject.target || linkedObject.raw || '').trim();
+    if (relatedTarget) {
+      const resolvedNote = await obsidianIntegration.resolveObsidianRelatedNote({
+        cardPath,
+        related: relatedTarget,
+      });
+      if (resolvedNote.ok) {
+        return {
+          ok: true,
+          type,
+          status: 'available',
+          missing: false,
+          notePath: resolvedNote.notePath,
+          obsidianUri: resolvedNote.obsidianUri,
+        };
+      }
+
+      return {
+        ok: true,
+        type,
+        status: resolvedNote.error === 'NOTE_NOT_FOUND' ? 'missing' : 'unavailable',
+        missing: resolvedNote.error === 'NOTE_NOT_FOUND',
+        error: resolvedNote.error,
+        notePath: resolvedNote.notePath || '',
+        vaultRoot: resolvedNote.vaultRoot || '',
+      };
+    }
+
+    const notePath = normalizeAbsolutePath(linkedObject.path);
+    if (!notePath) {
+      return { ok: true, type, status: 'missing', missing: true, error: 'NOTE_NOT_FOUND' };
+    }
+
+    try {
+      await fsPromises.access(notePath);
+      return {
+        ok: true,
+        type,
+        status: 'available',
+        missing: false,
+        notePath,
+        obsidianUri: obsidianIntegration.buildObsidianOpenUri(notePath),
+      };
+    } catch {
+      return { ok: true, type, status: 'missing', missing: true, error: 'NOTE_NOT_FOUND', notePath };
+    }
+  }
+
+  if (type === 'file' || type === 'folder') {
+    const targetPath = normalizeAbsolutePath(linkedObject.path);
+    if (!targetPath) {
+      return { ok: true, type, status: 'missing', missing: true, error: 'INVALID_PATH' };
+    }
+
+    try {
+      await fsPromises.access(targetPath);
+      return { ok: true, type, status: 'available', missing: false, path: targetPath };
+    } catch {
+      return { ok: true, type, status: 'missing', missing: true, error: 'PATH_NOT_FOUND', path: targetPath };
+    }
+  }
+
+  return { ok: true, type, status: 'unknown', missing: false };
+}
+
+async function getMissingObsidianNoteRecreatePath(cardPath, linkedObject) {
+  const relatedTarget = String(linkedObject.target || linkedObject.raw || '').trim();
+  if (relatedTarget) {
+    const resolvedNote = await obsidianIntegration.resolveObsidianRelatedNote({
+      cardPath,
+      related: relatedTarget,
+    });
+    if (resolvedNote.ok) {
+      return {
+        ok: false,
+        error: 'NOTE_ALREADY_EXISTS',
+        notePath: resolvedNote.notePath,
+        linkTarget: relatedTarget,
+      };
+    }
+    if (resolvedNote.error === 'NOTE_NOT_FOUND' && resolvedNote.notePath) {
+      return {
+        ok: true,
+        notePath: resolvedNote.notePath,
+        linkTarget: relatedTarget,
+      };
+    }
+    return {
+      ok: false,
+      error: resolvedNote.error || 'NOTE_NOT_FOUND',
+      notePath: resolvedNote.notePath || '',
+    };
+  }
+
+  const notePath = normalizeAbsolutePath(linkedObject.path);
+  if (!notePath) {
+    return { ok: false, error: 'NOTE_NOT_FOUND', notePath: '' };
+  }
+
+  try {
+    await fsPromises.access(notePath);
+    return { ok: false, error: 'NOTE_ALREADY_EXISTS', notePath };
+  } catch {
+    return { ok: true, notePath, linkTarget: '' };
+  }
+}
+
+async function recreateLinkedObsidianNoteFromRenderer(event, boardRootInput, cardPathInput, input) {
+  const { boardRoot, filePath } = requireWritableBoardCardPath(event.sender, boardRootInput, cardPathInput);
+  const linkedObject = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  if (String(linkedObject.type || '').trim() !== 'obsidian-note') {
+    return { ok: false, error: 'UNSUPPORTED_LINKED_OBJECT_TYPE' };
+  }
+
+  const card = await cardFrontmatter.readCard(filePath);
+  const recreateTarget = await getMissingObsidianNoteRecreatePath(filePath, linkedObject);
+  if (!recreateTarget.ok) {
+    return recreateTarget;
+  }
+
+  const result = await obsidianIntegration.createLinkedObsidianNoteAtPath({
+    boardRoot,
+    cardPath: filePath,
+    card,
+    notePath: recreateTarget.notePath,
+  });
+  if (!result.ok) {
+    return result;
+  }
+
+  const linkTarget = recreateTarget.linkTarget || result.linkTarget;
+  const nextLinkedObject = await buildLinkedObjectFromRendererInput(event.sender, {
+    type: 'obsidian-note',
+    target: linkTarget,
+    path: result.notePath,
+  });
+  const nextRelated = obsidianIntegration.addUniqueStringListValue(card.frontmatter.related, linkTarget);
+  const nextFrontmatter = obsidianIntegration.normalizeSignboardCardFrontmatter({
+    boardRoot,
+    cardPath: filePath,
+    frontmatter: {
+      ...card.frontmatter,
+      linked_objects: replaceLinkedObjectInList(card.frontmatter.linked_objects, linkedObject, nextLinkedObject),
+      related: nextRelated,
+    },
+  });
+
+  await cardFrontmatter.writeCard(filePath, {
+    frontmatter: nextFrontmatter,
+    body: card.body,
+  });
+  await autoSyncManagedObsidianBaseForBoard(boardRoot);
+
+  return {
+    ...result,
+    ok: true,
+    linkedObject: nextLinkedObject,
+    frontmatter: nextFrontmatter,
+  };
+}
+
+async function relinkObsidianNoteFromRenderer(event, boardRootInput, cardPathInput, previousInput, nextInput) {
+  const { boardRoot, filePath } = requireWritableBoardCardPath(event.sender, boardRootInput, cardPathInput);
+  const previousObject = previousInput && typeof previousInput === 'object' && !Array.isArray(previousInput) ? previousInput : {};
+  const nextSource = nextInput && typeof nextInput === 'object' && !Array.isArray(nextInput) ? nextInput : {};
+  if (String(previousObject.type || '').trim() !== 'obsidian-note') {
+    return { ok: false, error: 'UNSUPPORTED_LINKED_OBJECT_TYPE' };
+  }
+
+  const notePath = consumePendingSelection(event.sender, nextSource.token, ['file'])
+    || (process.env.SIGNBOARD_TEST_ALLOW_DIRECT_LINKED_OBJECT_PATHS === '1' ? normalizeAbsolutePath(nextSource.path) : '');
+  if (!notePath) {
+    return { ok: false, error: 'INVALID_SELECTION_TOKEN' };
+  }
+  if (path.extname(notePath).toLowerCase() !== '.md') {
+    return { ok: false, error: 'INVALID_OBSIDIAN_NOTE' };
+  }
+
+  const vaultRoot = await obsidianIntegration.findObsidianVaultRoot(filePath);
+  if (!vaultRoot) {
+    return { ok: false, error: 'NOT_IN_OBSIDIAN_VAULT' };
+  }
+  if (!isPathInsideRoot(vaultRoot, notePath)) {
+    return { ok: false, error: 'NOTE_OUTSIDE_OBSIDIAN_VAULT' };
+  }
+
+  const linkTarget = `[[${obsidianIntegration.toObsidianLinkTarget(vaultRoot, notePath)}]]`;
+  const nextLinkedObject = await buildLinkedObjectFromRendererInput(event.sender, {
+    type: 'obsidian-note',
+    title: String(nextSource.title || path.basename(notePath, path.extname(notePath)) || '').trim(),
+    target: linkTarget,
+    path: notePath,
+  });
+  const currentCard = await cardFrontmatter.readCard(filePath);
+  const nextRelated = obsidianIntegration.normalizeStringList(currentCard.frontmatter.related)
+    .filter((item) => item !== previousObject.target && item !== previousObject.raw);
+  if (!nextRelated.includes(linkTarget)) {
+    nextRelated.push(linkTarget);
+  }
+
+  const nextFrontmatter = obsidianIntegration.normalizeSignboardCardFrontmatter({
+    boardRoot,
+    cardPath: filePath,
+    frontmatter: {
+      ...currentCard.frontmatter,
+      linked_objects: replaceLinkedObjectInList(currentCard.frontmatter.linked_objects, previousObject, nextLinkedObject),
+      related: nextRelated,
+    },
+  });
+
+  await cardFrontmatter.writeCard(filePath, {
+    frontmatter: nextFrontmatter,
+    body: currentCard.body,
+  });
+  await autoSyncManagedObsidianBaseForBoard(boardRoot);
+
+  return {
+    ok: true,
+    linkedObject: nextLinkedObject,
+    frontmatter: nextFrontmatter,
+    notePath,
+    linkTarget,
+  };
+}
+
+function isBoardCardPath(boardRoot, candidatePath) {
+  const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
+  const normalizedPath = normalizeAbsolutePath(candidatePath);
+  if (!normalizedBoardRoot || !normalizedPath || !normalizedPath.endsWith('.md')) {
+    return false;
+  }
+
+  if (!isPathInsideRoot(normalizedBoardRoot, normalizedPath)) {
+    return false;
+  }
+
+  const parentDirectory = path.dirname(normalizedPath);
+  if (parentDirectory === normalizedBoardRoot) {
+    return false;
+  }
+
+  return path.basename(normalizedPath) !== 'board-settings.md';
+}
+
+function normalizeCardFrontmatterForBoardPath(sender, cardPath, frontmatter = {}) {
+  const boardRoot = resolveTrustedBoardRootForPath(sender, cardPath);
+  if (!isBoardCardPath(boardRoot, cardPath)) {
+    return frontmatter;
+  }
+
+  return obsidianIntegration.normalizeSignboardCardFrontmatter({
+    boardRoot,
+    cardPath,
+    frontmatter,
+  });
+}
+
+async function refreshCardSignboardMetadata(boardRoot, cardPath) {
+  if (!isBoardCardPath(boardRoot, cardPath)) {
+    return null;
+  }
+
+  const card = await cardFrontmatter.readCard(cardPath);
+  const nextFrontmatter = obsidianIntegration.normalizeSignboardCardFrontmatter({
+    boardRoot,
+    cardPath,
+    frontmatter: card.frontmatter,
+  });
+
+  await cardFrontmatter.writeCard(cardPath, {
+    frontmatter: nextFrontmatter,
+    body: card.body,
+  });
+
+  return nextFrontmatter;
+}
+
+async function refreshBoardSignboardMetadata(boardRoot) {
+  const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
+  if (!normalizedBoardRoot) {
+    return { cardsUpdated: 0 };
+  }
+
+  const listNames = await listBoardDirectories(normalizedBoardRoot);
+  let cardsUpdated = 0;
+
+  for (const listName of listNames) {
+    const listPath = path.join(normalizedBoardRoot, listName);
+    const cardFileNames = await listMarkdownCardFileNames(listPath);
+    for (const cardFileName of cardFileNames) {
+      await refreshCardSignboardMetadata(normalizedBoardRoot, path.join(listPath, cardFileName));
+      cardsUpdated += 1;
+    }
+  }
+
+  return { cardsUpdated };
+}
+
+async function syncManagedObsidianBaseForBoard(boardRoot, options = {}) {
+  const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
+  if (!normalizedBoardRoot) {
+    return { ok: false, error: 'INVALID_BOARD_ROOT' };
+  }
+
+  const settings = await boardLabels.readBoardSettings(normalizedBoardRoot, { ensureFile: true });
+  const metadataResult = options.refreshMetadata === true
+    ? await refreshBoardSignboardMetadata(normalizedBoardRoot)
+    : { cardsUpdated: 0 };
+  const baseResult = await obsidianIntegration.writeManagedObsidianBaseFile(normalizedBoardRoot, {
+    force: options.force === true,
+    managedHash: settings.obsidianBase && settings.obsidianBase.managedHash,
+  });
+
+  if (
+    baseResult.inVault &&
+    baseResult.managedHash &&
+    baseResult.reason !== 'USER_MODIFIED' &&
+    (!settings.obsidianBase || settings.obsidianBase.managedHash !== baseResult.managedHash)
+  ) {
+    await boardLabels.updateBoardSettings(normalizedBoardRoot, {
+      obsidianBase: {
+        managedHash: baseResult.managedHash,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  return {
+    ...baseResult,
+    ...metadataResult,
+  };
+}
+
+async function syncManagedObsidianBaseForCardPath(sender, cardPath, options = {}) {
+  const boardRoot = resolveTrustedBoardRootForPath(sender, cardPath);
+  if (!isBoardCardPath(boardRoot, cardPath)) {
+    return { ok: false, error: 'NOT_BOARD_CARD' };
+  }
+
+  return syncManagedObsidianBaseForBoard(boardRoot, options);
+}
+
+async function autoSyncManagedObsidianBaseForBoard(boardRoot, options = {}) {
+  try {
+    return await syncManagedObsidianBaseForBoard(boardRoot, options);
+  } catch (error) {
+    console.error('Failed to sync managed Obsidian Base.', error);
+    return { ok: false, error: 'OBSIDIAN_BASE_SYNC_FAILED' };
+  }
+}
+
+async function autoSyncManagedObsidianBaseForCardPath(sender, cardPath, options = {}) {
+  try {
+    return await syncManagedObsidianBaseForCardPath(sender, cardPath, options);
+  } catch (error) {
+    console.error('Failed to sync managed Obsidian Base for card.', error);
+    return { ok: false, error: 'OBSIDIAN_BASE_SYNC_FAILED' };
+  }
+}
+
 function authorizeTrustedBoardRootForSender(sender, boardRoot) {
   const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
   const trustedRoots = readTrustedBoardRoots();
@@ -731,6 +1677,18 @@ async function listBoardDirectories(boardRoot, options = {}) {
     .filter((entryName) => includeArchive || entryName !== 'XXX-Archive');
 }
 
+async function listMarkdownCardFileNames(listPath) {
+  const entries = await fsPromises.readdir(listPath, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+    .map((entry) => entry.name)
+    .sort((left, right) => left.localeCompare(right, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+      ignorePunctuation: true,
+    }));
+}
+
 function sanitizeImportedName(value) {
   return String(value || '').replace(/[<>:"/\\|?*\x00-\x1F]/g, '').trim() || 'untitled';
 }
@@ -766,8 +1724,361 @@ function escapeMarkdownTitle(text) {
   return String(text || '').replace(/([#*_`\[\]])/g, '\\$1');
 }
 
+function isSignboardProtocolUrl(candidateUrl) {
+  try {
+    return new URL(String(candidateUrl || '')).protocol === 'signboard:';
+  } catch {
+    return false;
+  }
+}
+
+function parseSignboardProtocolUrl(candidateUrl) {
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(String(candidateUrl || ''));
+  } catch {
+    return null;
+  }
+
+  if (parsedUrl.protocol !== 'signboard:') {
+    return null;
+  }
+
+  const action = parsedUrl.hostname || parsedUrl.pathname.replace(/^\/+/, '');
+  if (action === 'open-card') {
+    const cardId = String(parsedUrl.searchParams.get('id') || '').trim();
+    if (!cardId || !/^[A-Za-z0-9]{5,64}$/.test(cardId)) {
+      return null;
+    }
+
+    return {
+      action,
+      cardId,
+    };
+  }
+
+  if (action === 'open-board') {
+    const boardPath = normalizeBoardRootPath(parsedUrl.searchParams.get('path') || '');
+    if (!boardPath || !path.isAbsolute(boardPath)) {
+      return null;
+    }
+
+    return {
+      action,
+      boardPath,
+    };
+  }
+
+  return null;
+}
+
+async function pathLooksLikeSignboardBoardRoot(boardRoot) {
+  const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
+  if (!normalizedBoardRoot) {
+    return false;
+  }
+
+  let entries = [];
+  try {
+    const stats = await fsPromises.stat(normalizedBoardRoot);
+    if (!stats.isDirectory()) {
+      return false;
+    }
+    entries = await fsPromises.readdir(normalizedBoardRoot, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+
+  const hasBoardSettings = entries.some((entry) => entry.isFile() && entry.name === 'board-settings.md');
+  if (hasBoardSettings) {
+    return true;
+  }
+
+  return entries.some((entry) => (
+    entry.isDirectory() &&
+    (/^\d{3}-.+/.test(entry.name) || entry.name === 'XXX-Archive')
+  ));
+}
+
+async function confirmOpenBoardProtocolTarget(boardRoot) {
+  if (process.env.SIGNBOARD_TEST_AUTO_CONFIRM_OPEN_BOARD_PROTOCOL === '1') {
+    return true;
+  }
+
+  const parentWindow = getMainWindow();
+  const result = await dialog.showMessageBox(parentWindow || undefined, {
+    type: 'question',
+    buttons: ['Open Board', 'Cancel'],
+    cancelId: 1,
+    defaultId: 0,
+    title: 'Open Signboard Board?',
+    message: 'Open this folder in Signboard?',
+    detail: `Signboard was asked to open this board folder:\n\n${boardRoot}\n\nIf you continue, this folder will be added to Signboard's trusted boards so the app can read and write cards in it.`,
+    noLink: true,
+  });
+
+  return result.response === 0;
+}
+
+async function resolveSignboardOpenBoardProtocolLink(boardPath) {
+  const boardRoot = normalizeBoardRootPath(boardPath);
+  if (!boardRoot) {
+    return { ok: false, action: 'open-board', error: 'INVALID_BOARD_ROOT' };
+  }
+
+  const trustedRoots = readTrustedBoardRoots();
+  if (trustedRoots.has(boardRoot)) {
+    return {
+      ok: true,
+      action: 'open-board',
+      boardRoot,
+      alreadyTrusted: true,
+    };
+  }
+
+  if (!await pathLooksLikeSignboardBoardRoot(boardRoot)) {
+    return {
+      ok: false,
+      action: 'open-board',
+      boardRoot,
+      error: 'NOT_SIGNBOARD_BOARD',
+    };
+  }
+
+  const vaultRoot = await obsidianIntegration.findObsidianVaultRoot(boardRoot);
+  if (!vaultRoot) {
+    return {
+      ok: false,
+      action: 'open-board',
+      boardRoot,
+      error: 'NOT_IN_OBSIDIAN_VAULT',
+    };
+  }
+
+  if (!await confirmOpenBoardProtocolTarget(boardRoot)) {
+    return {
+      ok: false,
+      action: 'open-board',
+      boardRoot,
+      error: 'USER_CANCELLED',
+    };
+  }
+
+  addTrustedBoardRoot(boardRoot);
+
+  return {
+    ok: true,
+    action: 'open-board',
+    boardRoot,
+    vaultRoot,
+    addedTrustedRoot: true,
+  };
+}
+
+async function findCardInBoardRootBySignboardId(boardRoot, cardId) {
+  const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
+  const normalizedCardId = String(cardId || '').trim();
+  if (!normalizedBoardRoot || !normalizedCardId) {
+    return null;
+  }
+
+  let listEntries = [];
+  try {
+    listEntries = await fsPromises.readdir(normalizedBoardRoot, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  for (const listEntry of listEntries) {
+    if (!listEntry.isDirectory()) {
+      continue;
+    }
+
+    const listPath = path.join(normalizedBoardRoot, listEntry.name);
+    let cardEntries = [];
+    try {
+      cardEntries = await fsPromises.readdir(listPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    const filenameMatch = cardEntries.find((cardEntry) => (
+      cardEntry.isFile() &&
+      cardEntry.name.endsWith('.md') &&
+      obsidianIntegration.getCardFileId(cardEntry.name) === normalizedCardId
+    ));
+
+    if (filenameMatch) {
+      return {
+        boardRoot: normalizedBoardRoot,
+        cardPath: path.join(listPath, filenameMatch.name),
+      };
+    }
+  }
+
+  for (const listEntry of listEntries) {
+    if (!listEntry.isDirectory()) {
+      continue;
+    }
+
+    const listPath = path.join(normalizedBoardRoot, listEntry.name);
+    let cardEntries = [];
+    try {
+      cardEntries = await fsPromises.readdir(listPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const cardEntry of cardEntries) {
+      if (!cardEntry.isFile() || !cardEntry.name.endsWith('.md')) {
+        continue;
+      }
+
+      const cardPath = path.join(listPath, cardEntry.name);
+      try {
+        const card = await cardFrontmatter.readCard(cardPath);
+        if (String(card.frontmatter.signboard_id || '').trim() === normalizedCardId) {
+          return {
+            boardRoot: normalizedBoardRoot,
+            cardPath,
+          };
+        }
+      } catch {
+        // Ignore malformed cards while resolving a deep link.
+      }
+    }
+  }
+
+  return null;
+}
+
+async function resolveSignboardProtocolLink(candidateUrl) {
+  const parsed = parseSignboardProtocolUrl(candidateUrl);
+  if (!parsed) {
+    return null;
+  }
+
+  if (parsed.action === 'open-board') {
+    return resolveSignboardOpenBoardProtocolLink(parsed.boardPath);
+  }
+
+  const trustedRoots = Array.from(readTrustedBoardRoots());
+  for (const boardRoot of trustedRoots) {
+    const match = await findCardInBoardRootBySignboardId(boardRoot, parsed.cardId);
+    if (match) {
+      return {
+        ok: true,
+        ...match,
+        cardId: parsed.cardId,
+      };
+    }
+  }
+
+  return {
+    ok: false,
+    action: 'open-card',
+    error: 'CARD_NOT_FOUND',
+    cardId: parsed.cardId,
+  };
+}
+
+async function dispatchSignboardProtocolUrl(candidateUrl) {
+  const win = getMainWindow();
+  if (!win || win.isDestroyed() || !candidateUrl) {
+    pendingSignboardProtocolUrl = candidateUrl || pendingSignboardProtocolUrl;
+    return;
+  }
+
+  const resolved = await resolveSignboardProtocolLink(candidateUrl);
+  if (!resolved) {
+    return;
+  }
+
+  if (win.webContents.isLoading()) {
+    pendingSignboardProtocolUrl = candidateUrl;
+    return;
+  }
+
+  if (resolved.action === 'open-board') {
+    win.webContents.send('open-signboard-board-link', resolved);
+    return;
+  }
+
+  win.webContents.send('open-signboard-card-link', resolved);
+}
+
+function queueSignboardProtocolUrl(candidateUrl) {
+  if (!isSignboardProtocolUrl(candidateUrl)) {
+    return false;
+  }
+
+  pendingSignboardProtocolUrl = String(candidateUrl || '');
+  return true;
+}
+
+async function flushPendingSignboardProtocolUrl() {
+  const nextUrl = pendingSignboardProtocolUrl;
+  pendingSignboardProtocolUrl = '';
+  if (nextUrl) {
+    await dispatchSignboardProtocolUrl(nextUrl);
+  }
+}
+
+function findSignboardProtocolUrlInArgs(argv = []) {
+  return (Array.isArray(argv) ? argv : []).find((arg) => isSignboardProtocolUrl(arg)) || '';
+}
+
+function registerSignboardProtocolClient() {
+  if (process.defaultApp && process.argv.length >= 2) {
+    return app.setAsDefaultProtocolClient('signboard', process.execPath, [path.resolve(process.argv[1])]);
+  }
+
+  return app.setAsDefaultProtocolClient('signboard');
+}
+
+if (!isCliMode && !isMcpServerMode && !isMcpConfigMode) {
+  const gotSingleInstanceLock = app.requestSingleInstanceLock();
+  if (!gotSingleInstanceLock) {
+    app.quit();
+  } else {
+    app.on('second-instance', (_event, argv = []) => {
+      const protocolUrl = findSignboardProtocolUrlInArgs(argv);
+      if (protocolUrl) {
+        dispatchSignboardProtocolUrl(protocolUrl).catch((error) => {
+          console.error('Failed to handle signboard:// URL from second instance.', error);
+        });
+      }
+      ensureMainWindowVisible();
+    });
+  }
+}
+
+app.on('open-url', (event, protocolUrl) => {
+  if (!isSignboardProtocolUrl(protocolUrl)) {
+    return;
+  }
+
+  event.preventDefault();
+  if (!app.isReady()) {
+    queueSignboardProtocolUrl(protocolUrl);
+    return;
+  }
+
+  dispatchSignboardProtocolUrl(protocolUrl).catch((error) => {
+    console.error('Failed to handle signboard:// URL.', error);
+  });
+});
+
 app.on('ready', () => {
-  app.setName('SignBoard');
+  app.setName('Signboard');
+
+  if (!isCliMode && !isMcpServerMode && !isMcpConfigMode) {
+    try {
+      registerSignboardProtocolClient();
+    } catch (error) {
+      console.error('Failed to register signboard:// protocol handler.', error);
+    }
+  }
 
   if (process.platform === 'darwin' && app.dock && fs.existsSync(RUNTIME_APP_ICON_PATH)) {
     const dockIcon = nativeImage.createFromPath(RUNTIME_APP_ICON_PATH);
@@ -972,11 +2283,33 @@ function showRendererContextMenu(win, params = {}) {
     return;
   }
 
-  Menu.buildFromTemplate(template).popup({
-    window: win,
+  const menu = Menu.buildFromTemplate(template);
+  const popupOptions = {
     x: Number.isFinite(params.x) ? params.x : undefined,
     y: Number.isFinite(params.y) ? params.y : undefined,
-  });
+  };
+
+  if (pendingRendererContextMenuTimer) {
+    clearTimeout(pendingRendererContextMenuTimer);
+    pendingRendererContextMenuTimer = null;
+  }
+
+  pendingRendererContextMenuTimer = setTimeout(() => {
+    pendingRendererContextMenuTimer = null;
+
+    if (!win || win.isDestroyed() || isAppQuitting) {
+      return;
+    }
+
+    try {
+      menu.popup({
+        window: win,
+        ...popupOptions,
+      });
+    } catch (error) {
+      console.error('Unable to show renderer context menu.', error);
+    }
+  }, 0);
 }
 
 function createWindow() {
@@ -1052,7 +2385,7 @@ function createWindow() {
   const shouldOpenExternally = (url) => {
     try {
       const parsed = new URL(url);
-      return ['http:', 'https:', 'mailto:'].includes(parsed.protocol);
+      return ['http:', 'https:', 'mailto:', 'obsidian:', 'signboard:'].includes(parsed.protocol);
     } catch {
       return false;
     }
@@ -1070,6 +2403,12 @@ function createWindow() {
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (shouldOpenExternally(url)) {
+      if (isSignboardProtocolUrl(url)) {
+        dispatchSignboardProtocolUrl(url).catch((error) => {
+          console.error('Failed to handle signboard:// URL from renderer.', error);
+        });
+        return { action: 'deny' };
+      }
       shell.openExternal(url);
       return { action: 'deny' };
     }
@@ -1085,6 +2424,12 @@ function createWindow() {
     event.preventDefault();
 
     if (shouldOpenExternally(url)) {
+      if (isSignboardProtocolUrl(url)) {
+        dispatchSignboardProtocolUrl(url).catch((error) => {
+          console.error('Failed to handle signboard:// URL from renderer navigation.', error);
+        });
+        return;
+      }
       shell.openExternal(url);
     }
   });
@@ -1181,6 +2526,12 @@ function createWindow() {
     win.maximize();
   }
 
+  win.webContents.once('did-finish-load', () => {
+    flushPendingSignboardProtocolUrl().catch((error) => {
+      console.error('Failed to dispatch pending signboard:// URL.', error);
+    });
+  });
+
   win.loadFile('index.html');
   return win;
 }
@@ -1207,9 +2558,7 @@ function ensureMainWindowVisible() {
     return null;
   }
 
-  if (!Menu.getApplicationMenu()) {
-    buildApplicationMenu();
-  }
+  ensureApplicationMenu();
 
   if (win.isMinimized()) {
     win.restore();
@@ -1223,7 +2572,7 @@ function ensureMainWindowVisible() {
   return win;
 }
 
-function sendToMainWindow(channel) {
+function sendToMainWindow(channel, ...args) {
   const win = ensureMainWindowVisible();
   if (!win || win.isDestroyed()) {
     return;
@@ -1232,13 +2581,295 @@ function sendToMainWindow(channel) {
   if (win.webContents.isLoadingMainFrame()) {
     win.webContents.once('did-finish-load', () => {
       if (!win.isDestroyed()) {
-        win.webContents.send(channel);
+        win.webContents.send(channel, ...args);
       }
     });
     return;
   }
 
-  win.webContents.send(channel);
+  win.webContents.send(channel, ...args);
+}
+
+function getQuickAddGlobalShortcutStatus() {
+  return { ...quickAddGlobalShortcutStatus };
+}
+
+function unregisterQuickAddGlobalShortcut() {
+  if (!registeredQuickAddGlobalShortcut || !globalShortcut) {
+    registeredQuickAddGlobalShortcut = '';
+    return;
+  }
+
+  try {
+    globalShortcut.unregister(registeredQuickAddGlobalShortcut);
+  } catch (error) {
+    console.error('Failed to unregister quick add global shortcut.', error);
+  } finally {
+    registeredQuickAddGlobalShortcut = '';
+  }
+}
+
+function applyQuickAddGlobalShortcut(settings = {}) {
+  const normalizedSettings = appSettings.normalizeAppSettings(settings);
+  const accelerator = normalizedSettings.quickAdd.globalShortcut;
+
+  if (
+    accelerator &&
+    registeredQuickAddGlobalShortcut === accelerator &&
+    quickAddGlobalShortcutStatus.registered
+  ) {
+    return getQuickAddGlobalShortcutStatus();
+  }
+
+  if (registeredQuickAddGlobalShortcut) {
+    unregisterQuickAddGlobalShortcut();
+  }
+
+  quickAddGlobalShortcutStatus = {
+    accelerator,
+    registered: false,
+    message: '',
+  };
+
+  if (!accelerator || isMcpServerMode || isMcpConfigMode || isCliMode) {
+    return getQuickAddGlobalShortcutStatus();
+  }
+
+  try {
+    const registered = globalShortcut.register(accelerator, () => {
+      sendToMainWindow('open-quick-add-card');
+    });
+
+    if (!registered) {
+      quickAddGlobalShortcutStatus = {
+        accelerator,
+        registered: false,
+        message: 'Shortcut unavailable',
+      };
+      return getQuickAddGlobalShortcutStatus();
+    }
+
+    registeredQuickAddGlobalShortcut = accelerator;
+    quickAddGlobalShortcutStatus = {
+      accelerator,
+      registered: true,
+      message: '',
+    };
+  } catch (error) {
+    quickAddGlobalShortcutStatus = {
+      accelerator,
+      registered: false,
+      message: 'Shortcut unavailable',
+    };
+    console.error('Failed to register quick add global shortcut.', error);
+  }
+
+  return getQuickAddGlobalShortcutStatus();
+}
+
+function getExternalPublishedCalendarUrl(settings = externalPublishedCalendarSettings) {
+  const normalizedSettings = appSettings.normalizeExternalPublishedCalendarSettings(settings);
+  if (!normalizedSettings.enabled || !normalizedSettings.token) {
+    return '';
+  }
+
+  return `http://127.0.0.1:${normalizedSettings.port}/external-published-calendar/${encodeURIComponent(normalizedSettings.token)}.ics`;
+}
+
+function getExternalPublishedCalendarStatus() {
+  return {
+    ...externalPublishedCalendarStatus,
+    url: getExternalPublishedCalendarUrl(externalPublishedCalendarSettings),
+  };
+}
+
+function withRuntimeAppSettings(settings) {
+  return {
+    ...settings,
+    globalShortcutStatus: getQuickAddGlobalShortcutStatus(),
+    externalPublishedCalendarStatus: getExternalPublishedCalendarStatus(),
+  };
+}
+
+async function stopExternalPublishedCalendarServer() {
+  if (!externalPublishedCalendarServer) {
+    return;
+  }
+
+  const server = externalPublishedCalendarServer;
+  externalPublishedCalendarServer = null;
+
+  await new Promise((resolve) => {
+    server.close(() => resolve());
+  });
+}
+
+async function createExternalPublishedCalendarFeed() {
+  const boardRoots = Array.from(readTrustedBoardRoots());
+  return buildExternalPublishedCalendarFeed({
+    boardRoots,
+    readBoardSettings: (boardRoot) => boardLabels.readBoardSettings(boardRoot, { ensureFile: false }),
+    listLists: (boardRoot) => listBoardDirectories(boardRoot),
+    listCards: (listPath) => listMarkdownCardFileNames(listPath),
+    readCard: (cardPath) => cardFrontmatter.readCard(cardPath),
+    getBoardName: (boardRoot) => path.basename(String(boardRoot || '').replace(/[\\/]+$/, '')),
+  });
+}
+
+async function handleExternalPublishedCalendarRequest(request, response) {
+  const settings = appSettings.normalizeExternalPublishedCalendarSettings(externalPublishedCalendarSettings);
+  const expectedPath = settings.token
+    ? `/external-published-calendar/${encodeURIComponent(settings.token)}.ics`
+    : '';
+
+  try {
+    const requestUrl = new URL(request.url || '/', `http://127.0.0.1:${settings.port}`);
+    if (requestUrl.pathname !== expectedPath) {
+      response.writeHead(requestUrl.pathname.startsWith('/external-published-calendar/') ? 403 : 404, {
+        'Content-Type': 'text/plain; charset=utf-8',
+      });
+      response.end('Not found');
+      return;
+    }
+
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      response.writeHead(405, {
+        Allow: 'GET, HEAD',
+        'Content-Type': 'text/plain; charset=utf-8',
+      });
+      response.end('Method not allowed');
+      return;
+    }
+
+    const feed = request.method === 'HEAD' ? '' : await createExternalPublishedCalendarFeed();
+    response.writeHead(200, {
+      'Cache-Control': 'no-store',
+      'Content-Disposition': 'inline; filename="signboard-external-published-calendar.ics"',
+      'Content-Type': 'text/calendar; charset=utf-8',
+    });
+    response.end(feed);
+  } catch (error) {
+    console.error('Failed to serve External Published Calendar feed.', error);
+    response.writeHead(500, {
+      'Content-Type': 'text/plain; charset=utf-8',
+    });
+    response.end('Unable to build calendar feed');
+  }
+}
+
+async function startExternalPublishedCalendarServer(settings) {
+  const normalizedSettings = appSettings.normalizeExternalPublishedCalendarSettings(settings);
+  if (
+    externalPublishedCalendarServer &&
+    externalPublishedCalendarStatus.running &&
+    externalPublishedCalendarSettings.port === normalizedSettings.port &&
+    externalPublishedCalendarSettings.token === normalizedSettings.token
+  ) {
+    externalPublishedCalendarSettings = normalizedSettings;
+    externalPublishedCalendarStatus = {
+      enabled: true,
+      running: true,
+      port: normalizedSettings.port,
+      url: getExternalPublishedCalendarUrl(normalizedSettings),
+      message: 'Publishing',
+    };
+    return;
+  }
+
+  await stopExternalPublishedCalendarServer();
+  externalPublishedCalendarSettings = normalizedSettings;
+
+  await new Promise((resolve) => {
+    const server = http.createServer((request, response) => {
+      handleExternalPublishedCalendarRequest(request, response);
+    });
+
+    server.on('error', (error) => {
+      if (externalPublishedCalendarServer === server) {
+        externalPublishedCalendarServer = null;
+      }
+      externalPublishedCalendarStatus = {
+        enabled: true,
+        running: false,
+        port: normalizedSettings.port,
+        url: getExternalPublishedCalendarUrl(normalizedSettings),
+        message: error && error.code === 'EADDRINUSE'
+          ? 'Port unavailable'
+          : 'Unable to publish',
+      };
+      console.error('Failed to start External Published Calendar server.', error);
+      resolve();
+    });
+
+    server.listen(normalizedSettings.port, '127.0.0.1', () => {
+      externalPublishedCalendarServer = server;
+      externalPublishedCalendarStatus = {
+        enabled: true,
+        running: true,
+        port: normalizedSettings.port,
+        url: getExternalPublishedCalendarUrl(normalizedSettings),
+        message: 'Publishing',
+      };
+      resolve();
+    });
+  });
+}
+
+async function applyExternalPublishedCalendarSettings(settings = {}) {
+  const normalizedSettings = appSettings.normalizeAppSettings(settings).externalPublishedCalendar;
+  externalPublishedCalendarSettings = normalizedSettings;
+
+  if (!normalizedSettings.enabled) {
+    await stopExternalPublishedCalendarServer();
+    externalPublishedCalendarStatus = {
+      enabled: false,
+      running: false,
+      port: normalizedSettings.port,
+      url: '',
+      message: 'Disabled',
+    };
+    return;
+  }
+
+  await startExternalPublishedCalendarServer(normalizedSettings);
+}
+
+async function ensureExternalPublishedCalendarToken(settings = {}) {
+  const normalizedSettings = appSettings.normalizeAppSettings(settings);
+  if (
+    !normalizedSettings.externalPublishedCalendar.enabled ||
+    normalizedSettings.externalPublishedCalendar.token
+  ) {
+    return normalizedSettings;
+  }
+
+  return appSettings.updateAppSettings(app.getPath('userData'), {
+    externalPublishedCalendar: {
+      ...normalizedSettings.externalPublishedCalendar,
+      token: randomUUID(),
+    },
+  });
+}
+
+async function readAppSettingsWithRuntimeStatus() {
+  const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
+  const settings = await ensureExternalPublishedCalendarToken(rawSettings);
+  return withRuntimeAppSettings(settings);
+}
+
+async function updateAppSettingsWithRuntimeStatus(partialSettings = {}) {
+  const rawSettings = await appSettings.updateAppSettings(app.getPath('userData'), partialSettings);
+  const settings = await ensureExternalPublishedCalendarToken(rawSettings);
+  applyQuickAddGlobalShortcut(settings);
+  await applyExternalPublishedCalendarSettings(settings);
+  return withRuntimeAppSettings(settings);
+}
+
+async function initializeAppRuntimeSettings() {
+  const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
+  const settings = await ensureExternalPublishedCalendarToken(rawSettings);
+  applyQuickAddGlobalShortcut(settings);
+  await applyExternalPublishedCalendarSettings(settings);
 }
 
 function buildMcpConfigTemplate() {
@@ -1346,6 +2977,48 @@ async function installCliFromApp() {
 function printMcpConfigToStdout() {
   const config = buildMcpConfigTemplate();
   process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
+}
+
+function exitCliProcess(exitCode) {
+  const code = Number.isInteger(exitCode) ? exitCode : 0;
+  let didExit = false;
+  const finish = () => {
+    if (didExit) {
+      return;
+    }
+    didExit = true;
+    process.exit(code);
+  };
+
+  const fallbackTimer = setTimeout(finish, 250);
+  if (typeof fallbackTimer.unref === 'function') {
+    fallbackTimer.unref();
+  }
+
+  try {
+    process.stdout.write('', () => {
+      process.stderr.write('', () => {
+        clearTimeout(fallbackTimer);
+        finish();
+      });
+    });
+  } catch {
+    clearTimeout(fallbackTimer);
+    finish();
+  }
+}
+
+function runCliMode() {
+  runCli(signboardArgs, {
+    commandName: app.isPackaged ? 'Signboard' : 'signboard',
+    stdout: process.stdout,
+    stderr: process.stderr,
+  }).then((exitCode) => {
+    exitCliProcess(exitCode);
+  }).catch((error) => {
+    console.error(error.message || error);
+    exitCliProcess(1);
+  });
 }
 
 function getUpdatePreferencesPath() {
@@ -1889,6 +3562,20 @@ function buildApplicationMenu() {
       sendToMainWindow('toggle-theme-mode');
     },
   });
+  const createKanbanViewMenuItem = () => ({
+    label: 'Kanban View',
+    accelerator: 'CmdOrCtrl+1',
+    click: () => {
+      sendToMainWindow('switch-board-view', 'kanban');
+    },
+  });
+  const createTableViewMenuItem = () => ({
+    label: 'Table View',
+    accelerator: 'CmdOrCtrl+Alt+1',
+    click: () => {
+      sendToMainWindow('switch-board-view', 'table');
+    },
+  });
   const createAboutSignboardMenuItem = () => ({
     label: 'About Signboard',
     click: () => {
@@ -1942,6 +3629,9 @@ function buildApplicationMenu() {
   template.push({
     label: 'View',
     submenu: [
+      createKanbanViewMenuItem(),
+      createTableViewMenuItem(),
+      { type: 'separator' },
       createToggleThemeMenuItem(),
       { type: 'separator' },
       { role: 'reload' },
@@ -1997,19 +3687,74 @@ function buildApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+function applicationMenuHasRequiredActions(menu = Menu.getApplicationMenu()) {
+  if (!menu || !Array.isArray(menu.items)) {
+    return false;
+  }
+
+  const requiredLabels = new Set([
+    'About Signboard',
+    'Copy MCP Config',
+    'Keyboard Shortcuts',
+    'Kanban View',
+    'Table View',
+  ]);
+  const seenLabels = new Set();
+  const visitItems = (items = []) => {
+    for (const item of items) {
+      if (!item) {
+        continue;
+      }
+
+      if (typeof item.label === 'string' && item.label) {
+        seenLabels.add(item.label);
+      }
+
+      if (item.submenu && Array.isArray(item.submenu.items)) {
+        visitItems(item.submenu.items);
+      }
+    }
+  };
+
+  visitItems(menu.items);
+  for (const label of requiredLabels) {
+    if (!seenLabels.has(label)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function ensureApplicationMenu() {
+  if (!applicationMenuHasRequiredActions()) {
+    buildApplicationMenu();
+  }
+}
+
 ipcMain.handle('board-call', async (event, payload = {}) => {
   const operation = typeof payload.op === 'string' ? payload.op : '';
   const args = Array.isArray(payload.args) ? payload.args : [];
 
   switch (operation) {
-    case 'authorizeBoardSelection':
-      return authorizeBoardSelectionForSender(event.sender, args[0]);
+    case 'authorizeBoardSelection': {
+      const result = authorizeBoardSelectionForSender(event.sender, args[0]);
+      if (result && result.ok && result.boardRoot) {
+        await autoSyncManagedObsidianBaseForBoard(result.boardRoot, { refreshMetadata: true });
+      }
+      return result;
+    }
 
     case 'adoptLegacyBoardRoots':
       return adoptLegacyBoardRootsForSender(event.sender, args[0]);
 
-    case 'setActiveBoardRoot':
-      return authorizeTrustedBoardRootForSender(event.sender, args[0]);
+    case 'setActiveBoardRoot': {
+      const result = authorizeTrustedBoardRootForSender(event.sender, args[0]);
+      if (result && result.ok && result.boardRoot) {
+        await autoSyncManagedObsidianBaseForBoard(result.boardRoot, { refreshMetadata: true });
+      }
+      return result;
+    }
 
     case 'clearActiveBoardRoot': {
       await stopBoardWatchForSender(event.sender);
@@ -2025,15 +3770,7 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
 
     case 'listCards': {
       const listPath = requireReadablePath(event.sender, args[0]);
-      const entries = await fsPromises.readdir(listPath, { withFileTypes: true });
-      return entries
-        .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
-        .map((entry) => entry.name)
-        .sort((left, right) => left.localeCompare(right, undefined, {
-          numeric: true,
-          sensitivity: 'base',
-          ignorePunctuation: true,
-        }));
+      return listMarkdownCardFileNames(listPath);
     }
 
     case 'countCards': {
@@ -2093,9 +3830,102 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       return { ok: true };
     }
 
+    case 'openCardDefault': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      const errorMessage = await shell.openPath(filePath);
+      return errorMessage ? { ok: false, error: errorMessage } : { ok: true };
+    }
+
+    case 'openCardInObsidian': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      const obsidianUri = obsidianIntegration.buildObsidianOpenUri(filePath);
+      if (!obsidianUri) {
+        return { ok: false, error: 'INVALID_PATH' };
+      }
+      await shell.openExternal(obsidianUri);
+      return { ok: true, obsidianUri };
+    }
+
+    case 'openRelatedObsidianNote': {
+      const { boardRoot, filePath } = requireReadableBoardCardPath(event.sender, args[0], args[1]);
+      const related = String(args[2] || '');
+      const resolvedNote = await obsidianIntegration.resolveObsidianRelatedNote({
+        boardRoot,
+        cardPath: filePath,
+        related,
+      });
+      if (!resolvedNote.ok) {
+        return resolvedNote;
+      }
+
+      const skippedExternalOpen = process.env.SIGNBOARD_TEST_DISABLE_EXTERNAL_OPEN === '1';
+      if (!skippedExternalOpen) {
+        await shell.openExternal(resolvedNote.obsidianUri);
+      }
+
+      return {
+        ...resolvedNote,
+        skippedExternalOpen,
+      };
+    }
+
+    case 'addLinkedObject': {
+      return writeLinkedObjectToCard(event, args[0], args[1]);
+    }
+
+    case 'addDroppedLinkedObjects': {
+      return writeDroppedLinkedObjectsToCard(event, args[0], args[1]);
+    }
+
+    case 'openLinkedObject': {
+      return openLinkedObjectFromRenderer(event, args[0], args[1]);
+    }
+
+    case 'getLinkedObjectStatus': {
+      return getLinkedObjectStatusFromRenderer(event, args[0], args[1]);
+    }
+
+    case 'recreateLinkedObsidianNote': {
+      return recreateLinkedObsidianNoteFromRenderer(event, args[0], args[1], args[2]);
+    }
+
+    case 'relinkLinkedObsidianNote': {
+      return relinkObsidianNoteFromRenderer(event, args[0], args[1], args[2], args[3]);
+    }
+
+    case 'copyCardObsidianUri': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      const obsidianUri = obsidianIntegration.buildObsidianOpenUri(filePath);
+      clipboard.writeText(obsidianUri);
+      return { ok: true, obsidianUri };
+    }
+
+    case 'copyCardSignboardUri': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      const card = await cardFrontmatter.readCard(filePath);
+      const cardId = obsidianIntegration.getSignboardCardId(filePath, card.frontmatter);
+      const signboardUri = obsidianIntegration.buildSignboardCardUri(cardId);
+      clipboard.writeText(signboardUri);
+      return { ok: true, signboardUri };
+    }
+
+    case 'getCardExternalLinks': {
+      const filePath = requireReadablePath(event.sender, args[0]);
+      const card = await cardFrontmatter.readCard(filePath);
+      const cardId = obsidianIntegration.getSignboardCardId(filePath, card.frontmatter);
+      const vaultRoot = await obsidianIntegration.findObsidianVaultRoot(filePath);
+      return {
+        ok: true,
+        obsidianUri: obsidianIntegration.buildObsidianOpenUri(filePath),
+        signboardUri: obsidianIntegration.buildSignboardCardUri(cardId),
+        inObsidianVault: Boolean(vaultRoot),
+        vaultRoot,
+      };
+    }
+
     case 'readCard': {
       const filePath = requireReadablePath(event.sender, args[0]);
-      return cardFrontmatter.readCard(filePath);
+      return readCardWithTimestamps(filePath);
     }
 
     case 'listArchiveEntries': {
@@ -2112,13 +3942,27 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     case 'writeCard': {
       const filePath = requireWritablePath(event.sender, args[0]);
       const card = args[1] && typeof args[1] === 'object' ? args[1] : {};
-      await cardFrontmatter.writeCard(filePath, card);
+      await cardFrontmatter.writeCard(filePath, {
+        ...card,
+        frontmatter: normalizeCardFrontmatterForBoardPath(event.sender, filePath, card.frontmatter),
+      });
+      await autoSyncManagedObsidianBaseForCardPath(event.sender, filePath);
       return { ok: true };
     }
 
     case 'updateFrontmatter': {
       const filePath = requireWritablePath(event.sender, args[0], { allowTrusted: true });
-      return cardFrontmatter.updateFrontmatter(filePath, args[1]);
+      const currentCard = await cardFrontmatter.readCard(filePath);
+      const nextFrontmatter = normalizeCardFrontmatterForBoardPath(event.sender, filePath, {
+        ...currentCard.frontmatter,
+        ...(args[1] && typeof args[1] === 'object' && !Array.isArray(args[1]) ? args[1] : {}),
+      });
+      await cardFrontmatter.writeCard(filePath, {
+        frontmatter: nextFrontmatter,
+        body: currentCard.body,
+      });
+      await autoSyncManagedObsidianBaseForCardPath(event.sender, filePath);
+      return cardFrontmatter.normalizeFrontmatter(nextFrontmatter);
     }
 
     case 'normalizeFrontmatter':
@@ -2145,20 +3989,82 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     }
 
     case 'createCard': {
-      const filePath = requireWritablePath(event.sender, args[0]);
+      const filePath = requireWritablePath(event.sender, args[0], { allowTrusted: true });
       const content = String(args[1] || '');
       const lines = content.split(/\r?\n/);
       const title = (lines.shift() || '').trim();
       const body = lines.join('\n').replace(/^\n+/, '');
+      const frontmatter = normalizeCardFrontmatterForBoardPath(event.sender, filePath, prepareNewCardFrontmatter({
+        title: title || 'Untitled',
+      }));
 
       await cardFrontmatter.writeCard(filePath, {
-        frontmatter: prepareNewCardFrontmatter({
-          title: title || 'Untitled',
-        }),
+        frontmatter,
         body,
       });
+      await autoSyncManagedObsidianBaseForCardPath(event.sender, filePath);
 
       return { ok: true };
+    }
+
+    case 'generateObsidianBase': {
+      const boardRoot = requireWritableBoardRoot(event.sender, args[0], { allowTrusted: true });
+      return syncManagedObsidianBaseForBoard(boardRoot, {
+        force: true,
+        refreshMetadata: true,
+      });
+    }
+
+    case 'openObsidianBase': {
+      const boardRoot = requireReadableBoardRoot(event.sender, args[0]);
+      const baseResult = await syncManagedObsidianBaseForBoard(boardRoot, { refreshMetadata: true });
+      if (!baseResult.inVault) {
+        return {
+          ...baseResult,
+          ok: false,
+          error: 'NOT_IN_OBSIDIAN_VAULT',
+        };
+      }
+      const basePath = baseResult.basePath || path.join(boardRoot, obsidianIntegration.DEFAULT_BASE_FILE_NAME);
+      const obsidianUri = obsidianIntegration.buildObsidianOpenUri(basePath);
+      await shell.openExternal(obsidianUri);
+      return { ...baseResult, ok: true, basePath, obsidianUri };
+    }
+
+    case 'createLinkedObsidianNote': {
+      const { boardRoot, filePath } = requireWritableBoardCardPath(event.sender, args[0], args[1]);
+      const card = await cardFrontmatter.readCard(filePath);
+      const result = await obsidianIntegration.createLinkedObsidianNote({
+        boardRoot,
+        cardPath: filePath,
+        card,
+      });
+      const linkedObject = await buildLinkedObjectFromRendererInput(event.sender, {
+        type: 'obsidian-note',
+        target: result.linkTarget,
+        path: result.notePath,
+      });
+      const nextRelated = obsidianIntegration.addUniqueStringListValue(card.frontmatter.related, result.linkTarget);
+      const nextFrontmatter = obsidianIntegration.normalizeSignboardCardFrontmatter({
+        boardRoot,
+        cardPath: filePath,
+        frontmatter: {
+          ...card.frontmatter,
+          linked_objects: addLinkedObjectToList(card.frontmatter.linked_objects, linkedObject),
+          related: nextRelated,
+        },
+      });
+
+      await cardFrontmatter.writeCard(filePath, {
+        frontmatter: nextFrontmatter,
+        body: card.body,
+      });
+      await autoSyncManagedObsidianBaseForBoard(boardRoot);
+
+      return {
+        ...result,
+        linkedObject,
+      };
     }
 
     case 'archiveCard': {
@@ -2235,6 +4141,9 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
         await recordCardListMove(boardRoot, movedCardPath, sourceListPath, targetListPath);
       }
 
+      await refreshCardSignboardMetadata(boardRoot, movedCardPath);
+      await autoSyncManagedObsidianBaseForBoard(boardRoot);
+
       return {
         ok: true,
         cardFile: movedCardFile,
@@ -2264,6 +4173,7 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
         replaceTrustedBoardRoot(sourcePath, destinationPath);
         senderState.activeBoardRoot = destinationPath;
         await stopBoardWatchForSender(event.sender);
+        await autoSyncManagedObsidianBaseForBoard(destinationPath, { refreshMetadata: true });
       }
 
       return { ok: true };
@@ -2288,10 +4198,12 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
         throw new Error('INVALID_SELECTION_TOKEN');
       }
 
-      return importTrello({
+      const result = await importTrello({
         boardRoot,
         sourcePath,
       });
+      await autoSyncManagedObsidianBaseForBoard(boardRoot, { refreshMetadata: true });
+      return result;
     }
 
     case 'importObsidian': {
@@ -2305,10 +4217,12 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
         throw new Error('INVALID_SELECTION_TOKEN');
       }
 
-      return importObsidian({
+      const result = await importObsidian({
         boardRoot,
         sourcePaths,
       });
+      await autoSyncManagedObsidianBaseForBoard(boardRoot, { refreshMetadata: true });
+      return result;
     }
 
     case 'importTasksMd': {
@@ -2322,10 +4236,12 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
         throw new Error('INVALID_SELECTION_TOKEN');
       }
 
-      return importTasksMd({
+      const result = await importTasksMd({
         boardRoot,
         sourcePaths,
       });
+      await autoSyncManagedObsidianBaseForBoard(boardRoot, { refreshMetadata: true });
+      return result;
     }
 
     default:
@@ -2355,6 +4271,46 @@ ipcMain.handle('choose-directory', async (event, { defaultPath } = {}) => {
     path: selectedPath,
     token: storePendingDirectorySelection(event.sender, selectedPath),
   };
+});
+
+ipcMain.handle('pick-linked-objects', async (event, { mode, defaultPath } = {}) => {
+  const normalizedMode = mode === 'folder' ? 'folder' : 'file';
+  const result = await dialog.showOpenDialog({
+    title: normalizedMode === 'folder' ? 'Select linked folder' : 'Select linked files',
+    buttonLabel: 'Link',
+    defaultPath,
+    properties: normalizedMode === 'folder'
+      ? ['openDirectory', 'multiSelections']
+      : ['openFile', 'multiSelections'],
+  });
+
+  if (result.canceled) {
+    return null;
+  }
+
+  const selections = [];
+  for (const rawPath of result.filePaths || []) {
+    const selectedPath = normalizeAbsolutePath(rawPath);
+    if (!selectedPath) {
+      continue;
+    }
+
+    let stats = null;
+    try {
+      stats = await fsPromises.stat(selectedPath);
+    } catch {
+      continue;
+    }
+
+    const kind = stats.isDirectory() ? 'directory' : 'file';
+    selections.push({
+      path: selectedPath,
+      kind: kind === 'directory' ? 'folder' : 'file',
+      token: storePendingSelection(event.sender, selectedPath, kind),
+    });
+  }
+
+  return selections;
 });
 
 ipcMain.handle('pick-import-sources', async (event, { importer, defaultPath } = {}) => {
@@ -2462,13 +4418,23 @@ ipcMain.handle('open-external-url', async (_event, rawUrl) => {
     return { ok: false, error: 'INVALID_URL' };
   }
 
-  if (!['http:', 'https:', 'mailto:'].includes(parsedUrl.protocol)) {
+  if (!['http:', 'https:', 'mailto:', 'obsidian:', 'signboard:'].includes(parsedUrl.protocol)) {
     return { ok: false, error: 'UNSUPPORTED_PROTOCOL' };
   }
 
   try {
+    if (parsedUrl.protocol === 'signboard:') {
+      await dispatchSignboardProtocolUrl(parsedUrl.href);
+      return { ok: true, openTarget: parsedUrl.href };
+    }
+
+    const skippedExternalOpen = process.env.SIGNBOARD_TEST_DISABLE_EXTERNAL_OPEN === '1';
+    if (skippedExternalOpen) {
+      return { ok: true, openTarget: parsedUrl.href, skippedExternalOpen };
+    }
+
     await shell.openExternal(parsedUrl.href);
-    return { ok: true };
+    return { ok: true, openTarget: parsedUrl.href };
   } catch (error) {
     return { ok: false, error: error?.message || 'OPEN_EXTERNAL_FAILED' };
   }
@@ -2485,12 +4451,19 @@ ipcMain.handle('get-app-info', async () => ({
 }));
 
 ipcMain.handle('read-app-settings', async () => (
-  appSettings.readAppSettings(app.getPath('userData'))
+  readAppSettingsWithRuntimeStatus()
 ));
 
 ipcMain.handle('update-app-settings', async (_event, partialSettings = {}) => (
-  appSettings.updateAppSettings(app.getPath('userData'), partialSettings)
+  updateAppSettingsWithRuntimeStatus(partialSettings)
 ));
+
+ipcMain.handle('get-global-shortcut-status', async () => getQuickAddGlobalShortcutStatus());
+
+ipcMain.handle('copy-text-to-clipboard', async (_event, text = '') => {
+  clipboard.writeText(String(text || ''));
+  return { ok: true };
+});
 
 ipcMain.handle('migrate-app-settings-from-board', async (event, boardRoot) => {
   const normalizedBoardRoot = requireReadableBoardRoot(event.sender, boardRoot);
@@ -2502,7 +4475,10 @@ ipcMain.handle('migrate-app-settings-from-board', async (event, boardRoot) => {
   );
 
   await boardLabels.readBoardSettings(normalizedBoardRoot, { ensureFile: true });
-  return migrationResult;
+  return {
+    ...migrationResult,
+    settings: withRuntimeAppSettings(migrationResult.settings),
+  };
 });
 
 ipcMain.handle('notify-due-cards', async (_event, payload = {}) => {
@@ -2539,62 +4515,47 @@ ipcMain.handle('check-for-updates', async () => {
   return { ok: true };
 });
 
-app.whenReady().then(async () => {
-  if (isMcpConfigMode) {
-    printMcpConfigToStdout();
-    app.quit();
-    return;
-  }
-
-  if (isMcpServerMode) {
-    if (!isMcpPowerSaveBlockerActive()) {
-      mcpPowerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+if (isCliMode) {
+  runCliMode();
+} else {
+  app.whenReady().then(async () => {
+    if (isMcpConfigMode) {
+      printMcpConfigToStdout();
+      app.quit();
+      return;
     }
 
-    if (app.dock && typeof app.dock.hide === 'function') {
-      app.dock.hide();
-    }
+    if (isMcpServerMode) {
+      if (!isMcpPowerSaveBlockerActive()) {
+        mcpPowerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+      }
 
-    await startSignboardMcpServer({
-      appVersion: app.getVersion(),
-      trustedBoardRoots: Array.from(readTrustedBoardRoots()),
-      onStop: () => {
-        if (isMcpPowerSaveBlockerActive()) {
-          powerSaveBlocker.stop(mcpPowerSaveBlockerId);
-        }
-        mcpPowerSaveBlockerId = null;
-        app.quit();
-      },
-    });
-    return;
-  }
+      if (app.dock && typeof app.dock.hide === 'function') {
+        app.dock.hide();
+      }
 
-  if (isCliMode) {
-    if (app.dock && typeof app.dock.hide === 'function') {
-      app.dock.hide();
-    }
-
-    let exitCode = 0;
-    try {
-      exitCode = await runCli(signboardArgs, {
-        commandName: app.isPackaged ? 'Signboard' : 'signboard',
-        stdout: process.stdout,
-        stderr: process.stderr,
+      await startSignboardMcpServer({
+        appVersion: app.getVersion(),
+        trustedBoardRoots: Array.from(readTrustedBoardRoots()),
+        onStop: () => {
+          if (isMcpPowerSaveBlockerActive()) {
+            powerSaveBlocker.stop(mcpPowerSaveBlockerId);
+          }
+          mcpPowerSaveBlockerId = null;
+          app.quit();
+        },
       });
-    } catch (error) {
-      console.error(error.message || error);
-      exitCode = 1;
+      return;
     }
 
-    app.exit(Number.isInteger(exitCode) ? exitCode : 0);
-    return;
-  }
-
-  await loadUpdatePreferences();
-  createWindow();
-  buildApplicationMenu();
-  setupAutoUpdater();
-});
+    await loadUpdatePreferences();
+    await initializeAppRuntimeSettings();
+    queueSignboardProtocolUrl(findSignboardProtocolUrlInArgs(process.argv));
+    createWindow();
+    buildApplicationMenu();
+    setupAutoUpdater();
+  });
+}
 
 app.on('activate', () => {
   if (isCliMode) {
@@ -2605,6 +4566,14 @@ app.on('activate', () => {
   if (win) {
     return;
   }
+});
+
+app.on('browser-window-focus', () => {
+  if (isCliMode || isMcpServerMode || isMcpConfigMode) {
+    return;
+  }
+
+  ensureApplicationMenu();
 });
 
 app.on('before-quit', () => {
@@ -2619,6 +4588,15 @@ app.on('before-quit', () => {
     clearInterval(updateState.checkIntervalId);
     updateState.checkIntervalId = null;
   }
+
+  if (externalPublishedCalendarServer) {
+    externalPublishedCalendarServer.close();
+    externalPublishedCalendarServer = null;
+  }
+});
+
+app.on('will-quit', () => {
+  unregisterQuickAddGlobalShortcut();
 });
 
 app.on('window-all-closed', () => {

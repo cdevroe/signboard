@@ -85,6 +85,7 @@ function openAddCardModalForList(listPath, anchorElement) {
 
 function closeListActionsPopover() {
   const popover = document.getElementById('listActionsPopover');
+  const state = getListActionsPopoverState();
   if (!popover) {
     return;
   }
@@ -92,8 +93,9 @@ function closeListActionsPopover() {
   popover.classList.add('hidden');
   popover.setAttribute('aria-hidden', 'true');
   popover.innerHTML = '';
+  popover.setAttribute('role', 'group');
+  popover.setAttribute('aria-label', `Actions for ${state.listDisplayName || 'list'}`);
 
-  const state = getListActionsPopoverState();
   state.anchorElement = null;
   state.listPath = '';
   state.listDisplayName = '';
@@ -147,6 +149,88 @@ function closeListActionsPopoverIfClickOutside(target) {
   closeListActionsPopover();
 }
 
+function getListActionsPopoverOptions(popover = document.getElementById('listActionsPopover')) {
+  if (!popover) {
+    return [];
+  }
+
+  return Array.from(popover.querySelectorAll('.list-actions-option:not(:disabled)'))
+    .filter((option) => option instanceof HTMLButtonElement)
+    .filter((option) => {
+      const style = window.getComputedStyle(option);
+      return style.display !== 'none' && style.visibility !== 'hidden';
+    });
+}
+
+function focusListActionsPopoverOption(index) {
+  const options = getListActionsPopoverOptions();
+  if (options.length === 0) {
+    return false;
+  }
+
+  const safeIndex = ((index % options.length) + options.length) % options.length;
+  options[safeIndex].focus();
+  return true;
+}
+
+function moveListActionsPopoverFocus(offset) {
+  const options = getListActionsPopoverOptions();
+  if (options.length === 0) {
+    return false;
+  }
+
+  const currentIndex = options.indexOf(document.activeElement);
+  const fallbackIndex = Number(offset) < 0 ? options.length - 1 : 0;
+  const nextIndex = currentIndex >= 0 ? currentIndex + Number(offset || 0) : fallbackIndex;
+  return focusListActionsPopoverOption(nextIndex);
+}
+
+function handleListActionsPopoverKeydown(event) {
+  const popover = document.getElementById('listActionsPopover');
+  if (!event || !popover || popover.classList.contains('hidden')) {
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    const state = getListActionsPopoverState();
+    const anchorElement = state.anchorElement;
+    closeListActionsPopover();
+    if (anchorElement && typeof anchorElement.focus === 'function') {
+      anchorElement.focus();
+    }
+    return;
+  }
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    event.stopPropagation();
+    moveListActionsPopoverFocus(1);
+    return;
+  }
+
+  if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+    event.preventDefault();
+    event.stopPropagation();
+    moveListActionsPopoverFocus(-1);
+    return;
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusListActionsPopoverOption(0);
+    return;
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault();
+    event.stopPropagation();
+    focusListActionsPopoverOption(getListActionsPopoverOptions().length - 1);
+  }
+}
+
 async function handleArchiveCardsInList(listPath, listDisplayName) {
   const cardFiles = await window.board.listCards(listPath);
   if (!Array.isArray(cardFiles) || cardFiles.length === 0) {
@@ -166,12 +250,61 @@ async function handleArchiveCardsInList(listPath, listDisplayName) {
   }
 
   await renderBoard();
+  if (typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus(`Archived ${cardFiles.length} card${cardFiles.length === 1 ? '' : 's'}.`);
+  }
 }
 
 async function handleArchiveList(listPath) {
   closeListActionsPopover();
   await window.board.archiveList(listPath);
   await renderBoard();
+  if (typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus('Archived list.');
+  }
+}
+
+async function handleMoveListByOffset(listPath, offset) {
+  const normalizedBoardRoot = typeof normalizeBoardRootPath === 'function'
+    ? normalizeBoardRootPath(window.boardRoot)
+    : String(window.boardRoot || '').trim();
+  const directoryName = typeof getListDirectoryNameFromPath === 'function'
+    ? getListDirectoryNameFromPath(listPath)
+    : String(listPath || '').replace(/\/+$/, '').split('/').pop();
+  const direction = Number(offset) < 0 ? 'left' : 'right';
+
+  if (!normalizedBoardRoot || !directoryName) {
+    return;
+  }
+
+  const listNames = (await window.board.listLists(normalizedBoardRoot))
+    .filter(Boolean)
+    .sort((left, right) => {
+      if (typeof compareListDirectoryNames === 'function') {
+        return compareListDirectoryNames(left, right);
+      }
+      return String(left || '').localeCompare(String(right || ''), undefined, { numeric: true });
+    });
+  const currentIndex = listNames.indexOf(directoryName);
+  const targetIndex = currentIndex + (direction === 'left' ? -1 : 1);
+
+  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= listNames.length) {
+    if (typeof announceSignboardStatus === 'function') {
+      announceSignboardStatus(`Cannot move list ${direction}.`);
+    }
+    return;
+  }
+
+  const nextOrder = listNames.slice();
+  const [movedList] = nextOrder.splice(currentIndex, 1);
+  nextOrder.splice(targetIndex, 0, movedList);
+
+  closeListActionsPopover();
+  await reorderBoardLists(normalizedBoardRoot, nextOrder);
+  await renderBoard();
+  if (typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus(`Moved list ${direction}.`);
+  }
 }
 
 function createListActionsOption(label, options = {}) {
@@ -225,6 +358,8 @@ function renderListActionsPopover() {
 
   const state = getListActionsPopoverState();
   popover.innerHTML = '';
+  popover.setAttribute('role', 'group');
+  popover.setAttribute('aria-label', `Actions for ${state.listDisplayName || 'list'}`);
 
   const addCardButton = createListActionsOption('Add new card', {
     shortcutActionId: 'addCard',
@@ -240,6 +375,18 @@ function renderListActionsPopover() {
         anchorElement: state.anchorElement,
         afterListPath: state.listPath,
       });
+    },
+  });
+
+  const moveListLeftButton = createListActionsOption('Move list left', {
+    onClick: async () => {
+      await handleMoveListByOffset(state.listPath, -1);
+    },
+  });
+
+  const moveListRightButton = createListActionsOption('Move list right', {
+    onClick: async () => {
+      await handleMoveListByOffset(state.listPath, 1);
     },
   });
 
@@ -261,12 +408,15 @@ function renderListActionsPopover() {
 
   popover.appendChild(addCardButton);
   popover.appendChild(addListButton);
+  popover.appendChild(moveListLeftButton);
+  popover.appendChild(moveListRightButton);
   popover.appendChild(archiveCardsButton);
   popover.appendChild(archiveListButton);
   popover.setAttribute('aria-hidden', 'false');
   popover.onclick = (event) => {
     event.stopPropagation();
   };
+  popover.onkeydown = handleListActionsPopoverKeydown;
 
   return popover;
 }
@@ -311,4 +461,8 @@ function toggleListActionsPopover({
   renderListActionsPopover();
   popover.classList.remove('hidden');
   positionListActionsPopover(anchorElement, popover);
+  const firstOption = popover.querySelector('.list-actions-option:not(:disabled)');
+  if (firstOption && typeof firstOption.focus === 'function') {
+    firstOption.focus();
+  }
 }
