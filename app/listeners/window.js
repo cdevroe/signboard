@@ -134,16 +134,10 @@ async function handleBoardViewShortcut(e, options = {}) {
             await openPlannerViewForShortcut('this-week', { scope: shortcutScope });
             return true;
         case 'Digit4':
-            if (!e.altKey) {
-                return false;
-            }
             e.preventDefault();
             await openPlannerViewForShortcut('day', { scope: shortcutScope });
             return true;
         case 'Digit5':
-            if (!e.altKey) {
-                return false;
-            }
             e.preventDefault();
             await openPlannerViewForShortcut('agenda', { scope: shortcutScope });
             return true;
@@ -480,10 +474,9 @@ function isWorkspaceViewShortcut(event) {
             return true;
         case 'Digit2':
         case 'Digit3':
-            return true;
         case 'Digit4':
         case 'Digit5':
-            return event.altKey || Boolean(typeof isPlannerOpen === 'function' && isPlannerOpen());
+            return true;
         default:
             return isDigit1ShortcutEvent(event);
     }

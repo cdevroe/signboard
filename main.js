@@ -2070,7 +2070,7 @@ app.on('open-url', (event, protocolUrl) => {
 });
 
 app.on('ready', () => {
-  app.setName('SignBoard');
+  app.setName('Signboard');
 
   if (!isCliMode && !isMcpServerMode && !isMcpConfigMode) {
     try {
@@ -2558,9 +2558,7 @@ function ensureMainWindowVisible() {
     return null;
   }
 
-  if (!Menu.getApplicationMenu()) {
-    buildApplicationMenu();
-  }
+  ensureApplicationMenu();
 
   if (win.isMinimized()) {
     win.restore();
@@ -3689,6 +3687,51 @@ function buildApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+function applicationMenuHasRequiredActions(menu = Menu.getApplicationMenu()) {
+  if (!menu || !Array.isArray(menu.items)) {
+    return false;
+  }
+
+  const requiredLabels = new Set([
+    'About Signboard',
+    'Copy MCP Config',
+    'Keyboard Shortcuts',
+    'Kanban View',
+    'Table View',
+  ]);
+  const seenLabels = new Set();
+  const visitItems = (items = []) => {
+    for (const item of items) {
+      if (!item) {
+        continue;
+      }
+
+      if (typeof item.label === 'string' && item.label) {
+        seenLabels.add(item.label);
+      }
+
+      if (item.submenu && Array.isArray(item.submenu.items)) {
+        visitItems(item.submenu.items);
+      }
+    }
+  };
+
+  visitItems(menu.items);
+  for (const label of requiredLabels) {
+    if (!seenLabels.has(label)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function ensureApplicationMenu() {
+  if (!applicationMenuHasRequiredActions()) {
+    buildApplicationMenu();
+  }
+}
+
 ipcMain.handle('board-call', async (event, payload = {}) => {
   const operation = typeof payload.op === 'string' ? payload.op : '';
   const args = Array.isArray(payload.args) ? payload.args : [];
@@ -4517,6 +4560,14 @@ app.on('activate', () => {
   if (win) {
     return;
   }
+});
+
+app.on('browser-window-focus', () => {
+  if (isCliMode || isMcpServerMode || isMcpConfigMode) {
+    return;
+  }
+
+  ensureApplicationMenu();
 });
 
 app.on('before-quit', () => {

@@ -17,7 +17,7 @@ This guide covers the Signboard command-line interface.
 
 ## How to Run It
 
-On macOS and Linux, the desktop app can install the Signboard wrapper from `Help > Install Signboard CLI`. Sorry for those of you on Windows, but you can use WSL (it is good, and you should!).
+On macOS and Linux, the desktop app can install the Signboard wrapper from `Help > Install Signboard CLI`. On Windows, use the packaged executable directly or run the CLI from a source checkout/WSL environment.
 
 Once installed, try it out!
 
@@ -27,7 +27,13 @@ signboard --help
 
 The installed wrapper runs the packaged CLI in Electron's Node mode, so terminal commands do not open or quit the desktop app window.
 
-If you need to run the packaged CLI at its full path, use Electron's Node mode and point it at the bundled CLI script:
+If you need to run the packaged CLI at its full path, direct CLI invocations are supported:
+
+```bash
+/Applications/Signboard.app/Contents/MacOS/Signboard cards --due next:7
+```
+
+The installed wrapper uses Electron's Node mode and points at the bundled CLI script:
 
 ```bash
 ELECTRON_RUN_AS_NODE=1 \
@@ -44,7 +50,7 @@ Most commands operate on one board root. To simplify subsequent calls, you can f
 signboard use /Path/To/Board
 ```
 
-You can always supply a differen't board's path with `--board`.
+You can always supply a different board path with `--board`.
 
 Example: 
 
@@ -444,7 +450,7 @@ signboard import trello --file ~/Downloads/trello-export.json
 
 ### Import from Obsidian
 
-You can import any Markdown files. But also Signboard supports the frontmatter and metadata created by most of the leading popular community kanban plugins for Obsidian.
+You can import Markdown files. Signboard also supports the frontmatter and metadata created by common community kanban plugins for Obsidian.
 
 ```bash
 signboard import obsidian --source ~/Vault/Kanban.md

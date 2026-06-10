@@ -1,6 +1,6 @@
 # Signboard
 
-A local-first board desktop app built with HTML, CSS, and JavaScript. Signboard stores your lists as directories and cards as Markdown files on disk.
+Signboard is a local-first desktop kanban app that stores your lists as directories and cards as Markdown files on disk.
 
 Signboard is free for personal use. If you are using Signboard for your work it would be appreciated if you purchase a commercial license to sponsor future development. See the app's "Sponsor" button.
 
@@ -13,6 +13,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 
 ## ✨ Highlights
 - 📂 Cards saved as Markdown files
+- 💎 Full Obsidian support
 - 🖌️ Color scheme per board (several to choose from!)
 - 🌙 Light and dark mode variants for all color schemes
 - 🏷 Custom labels per board
@@ -25,6 +26,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - ✅ Completed-list workflow settings that preserve due-date history
 - ✅ Progress counters on cards
 - 🔎 Live search
+- 🗄️ Linked files and URLs on cards
 - 🧲 Drag-and-drop card movement
 - ⚡ Unlimited open boards with overflow tabs and a quick switcher
 - ⌨️ Keyboard shortcuts
@@ -68,8 +70,8 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + 2`: open Planner Calendar for all open boards
 - `Cmd/Ctrl + 3`: open Planner This Week for all open boards
 - `Cmd/Ctrl + Shift + P`: open or close Planner
-- `Cmd/Ctrl + 4`: switch to Planner Day view for all open boards when Planner is open
-- `Cmd/Ctrl + 5`: switch to Planner Agenda view for all open boards when Planner is open
+- `Cmd/Ctrl + 4`: open Planner Day for all open boards
+- `Cmd/Ctrl + 5`: open Planner Agenda for all open boards
 - `Cmd/Ctrl + Option/Alt + 2`: open Planner Calendar for the current board
 - `Cmd/Ctrl + Option/Alt + 3`: open Planner This Week for the current board
 - `Cmd/Ctrl + Option/Alt + 4`: open Planner Day for the current board
@@ -174,15 +176,15 @@ Import options:
 
 ## Obsidian Integration
 
-Signboard boards can live inside an Obsidian vault. A good layout is `Vault/Signboard/<Board Name>/`; avoid making a board a nested Obsidian vault with its own `.obsidian` folder. You can move an existing board into a vault later with `Settings > General > Move Board`.
+Signboard boards can live inside an Obsidian vault. A good layout is `Vault/Project/Signboard/<Board Name>/`; avoid making a board a nested Obsidian vault with its own `.obsidian` folder. You can move an existing board into a vault with `Settings > General > Move Board`.
 
-When cards are created or edited, Signboard writes flat Obsidian-friendly properties such as `title`, `signboard_id`, `signboard_board`, `signboard_list`, `status`, `signboard_uri`, and `related`. If the board is inside a detected vault, the card editor's Open With menu shows Obsidian actions for opening the card and copying an Obsidian URI.
+If the board is inside a detected vault, the card's Open With menu shows Obsidian actions for opening the card and copying an Obsidian URI.
 
-Use the paperclip control next to labels to link Obsidian notes, local files, folders, web URLs, app deep links, and `signboard://` links. You can also drag local files onto the open card editor to link them to that card. Signboard-created Obsidian notes are named `Linked Signboard Note.md` when available and start empty except for link metadata. If a board is not inside a vault, Signboard explains that requirement before creating linked Obsidian notes or Bases. Local files stay wherever they are on the user's computer. URL chips open in the default browser and use locally cached favicons when available. Linked objects appear in the card editor as removable chips, and cards with linked objects show a paperclip count in Kanban and Table views. If a linked Obsidian note is missing, Signboard marks the chip as missing and lets you remove, recreate, or relink it explicitly.
+Use the paperclip control next to labels to link Obsidian notes, local files, folders, web URLs, app deep links, and `signboard://` links. You can also drag local files onto the open card editor to link them to that card.
 
-Inside a vault, Signboard automatically creates `Signboard Board.base` for Obsidian Bases and keeps it current while it is still Signboard-managed. If you customize the Base in Obsidian, Signboard leaves it alone until you choose Settings > Obsidian > Generate Base again. The generated Base filters the board's Markdown cards and exposes card titles plus common Signboard properties for table/card views.
+Inside a vault, Signboard automatically creates `Signboard Board.base` for Obsidian Bases and keeps it current while it is still Signboard-managed. If you customize the Base in Obsidian, Signboard leaves it alone until you choose Settings > Obsidian > Generate Base again.
 
-An optional desktop-only Obsidian companion plugin lives in `obsidian-plugin/`. Copy or symlink it into a vault as `.obsidian/plugins/signboard-companion` and enable it to open/copy Signboard links, attach active Obsidian notes to Signboard cards, handle `obsidian://signboard?cardId=...`, and right-click a folder to `Create Signboard`. Folder conversion asks first, adds board metadata/list folders, treats existing child folders as lists, moves top-level Markdown notes into a To-do list, and opens the board in Signboard. If you delete a note that is linked from Signboard cards, the plugin asks before removing those linked objects from card frontmatter.
+An optional desktop-only Obsidian companion plugin lives in `obsidian-plugin/`. Enable it to open/copy Signboard links, attach active Obsidian notes to Signboard cards, handle `obsidian://signboard?cardId=...`, and right-click a folder to `Create Signboard`.
 
 Example task checklist syntax:
 
@@ -225,7 +227,18 @@ npm run test:mcp
 npm run test:cli
 npm run test:cli-install
 npm run test:desktop-cli
+npm run test:card-ordering
+npm run test:board-views
+npm run test:card-timestamps
+npm run test:timestamp
+npm run test:external-calendar
+npm run test:archive
 npm run test:playwright
+npm run test:import-trello
+npm run test:import-obsidian
+npm run test:import-tasksmd
+npm run test:obsidian-plugin
+npm run release:verify
 ```
 
 Playwright Electron tests do not explicitly bring the Signboard window to the foreground by default. Set `SIGNBOARD_PLAYWRIGHT_FOREGROUND=1` before `npm run test:playwright` when you want the app focused while debugging.

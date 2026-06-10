@@ -244,6 +244,8 @@ Use it when you want to answer questions like:
 - `Cmd/Ctrl + Option/Alt + 1`: Table, closing Planner if it is open
 - `Cmd/Ctrl + 2`: Planner Calendar for all open boards
 - `Cmd/Ctrl + 3`: Planner This Week for all open boards
+- `Cmd/Ctrl + 4`: Planner Day for all open boards
+- `Cmd/Ctrl + 5`: Planner Agenda for all open boards
 - `Cmd/Ctrl + Option/Alt + 2`: Planner Calendar for the current board
 - `Cmd/Ctrl + Option/Alt + 3`: Planner This Week for the current board
 - `Cmd/Ctrl + Option/Alt + 4`: Planner Day for the current board
@@ -420,8 +422,8 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + 2`: open Planner Calendar for all open boards
 - `Cmd/Ctrl + 3`: open Planner This Week for all open boards
 - `Cmd/Ctrl + Shift + P`: open or close Planner
-- `Cmd/Ctrl + 4`: switch to Planner Day view for all open boards when Planner is open
-- `Cmd/Ctrl + 5`: switch to Planner Agenda view for all open boards when Planner is open
+- `Cmd/Ctrl + 4`: open Planner Day for all open boards
+- `Cmd/Ctrl + 5`: open Planner Agenda for all open boards
 - `Cmd/Ctrl + Option/Alt + 2`: open Planner Calendar for the current board
 - `Cmd/Ctrl + Option/Alt + 3`: open Planner This Week for the current board
 - `Cmd/Ctrl + Option/Alt + 4`: open Planner Day for the current board

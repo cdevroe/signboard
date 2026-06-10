@@ -28,7 +28,7 @@ File: `main.js`
 - Registers IPC handler `pick-import-sources` to open native file/directory pickers for Trello JSON and Obsidian markdown/vault sources.
 - Registers IPC handler `check-for-updates` for renderer-triggered manual update checks.
 - Registers the `signboard://` protocol in desktop mode, resolves `open-card` links by scanning trusted board roots for matching card IDs, and resolves `open-board` links only for board-looking folders inside an Obsidian vault after prompting before adding a new trusted root.
-- Builds a native app menu with board view, Settings, theme, and `Check for Updates...` actions.
+- Builds a native app menu with board view, Settings, theme, and `Check for Updates...` actions, and validates/rebuilds it on focus if required Signboard actions are missing.
 - Registers the optional app-level Quick Add global shortcut with Electron `globalShortcut` while Signboard is running; the shortcut focuses the main window and opens the same renderer Quick Add card modal as `Cmd/Ctrl + N`.
 - Runs the opt-in External Published Calendar HTTP server on `127.0.0.1:<port>` while enabled, protected by a stable per-install token in the subscription URL.
 - Help menu includes `Copy MCP Config` to copy a ready-to-paste Signboard MCP JSON snippet.
@@ -275,9 +275,10 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - `Cmd/Ctrl + Option/Alt + 1`: switch to Table and close Planner if it is open.
   - `Cmd/Ctrl + 2`: open Planner Calendar from the board, or switch to Calendar inside Planner, scoped to all open boards.
   - `Cmd/Ctrl + 3`: open Planner This Week from the board, or switch to This Week inside Planner, scoped to all open boards.
+  - `Cmd/Ctrl + 4`: open Planner Day from the board, or switch to Day inside Planner, scoped to all open boards.
+  - `Cmd/Ctrl + 5`: open Planner Agenda from the board, or switch to Agenda inside Planner, scoped to all open boards.
   - `Cmd/Ctrl + Option/Alt + 2/3/4/5`: open or switch to the matching Planner date view scoped to the current board.
   - `Cmd/Ctrl + Shift + P`: open/close Planner.
-  - While Planner is open, `Cmd/Ctrl + 4` switches Planner Day and `Cmd/Ctrl + 5` switches Planner Agenda, scoped to all open boards.
   - `Cmd/Ctrl + ,`: open Settings from renderer key handling and the native menu accelerator.
   - `Cmd/Ctrl + Shift + D`: toggle light/dark mode through the native menu accelerator.
   - `Cmd + Control + Shift + C` on macOS / `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes without closing the active screen.

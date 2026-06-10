@@ -102,6 +102,11 @@ The server currently exposes these tools:
 - `signboard_update_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports section edits, note insertion, label operations, and `dryRun`)
 - `signboard_duplicate_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports title/body override, label operations, and `dryRun`)
 - `signboard_archive_card` (write mode only)
+- `signboard_archive_list` (write mode only)
+- `signboard_list_archive_entries`
+- `signboard_read_archive_entry`
+- `signboard_restore_archived_card` (write mode only)
+- `signboard_restore_archived_list` (write mode only)
 - `signboard_move_card` (write mode only)
 - `signboard_create_list` (write mode only)
 - `signboard_rename_board` (write mode only)

@@ -375,6 +375,71 @@ test('keeps add modals hidden on startup', async ({ page }) => {
   await expect(page.locator('#boardMenuPopover')).toBeHidden();
 });
 
+test('installs native application menu actions', async ({ electronApp }) => {
+  const snapshot = await electronApp.evaluate(({ Menu, app }) => {
+    const appMenu = Menu.getApplicationMenu();
+    const serializeMenuItem = (item) => ({
+      label: item.label || item.role || item.type || '',
+      role: item.role || '',
+      enabled: item.enabled,
+      submenu: item.submenu ? item.submenu.items.map(serializeMenuItem) : [],
+    });
+
+    return {
+      appName: app.getName(),
+      platform: process.platform,
+      menu: appMenu ? appMenu.items.map(serializeMenuItem) : [],
+    };
+  });
+
+  const findMenu = (label) => snapshot.menu.find((item) => item.label === label);
+  const getSubmenuLabels = (label) => {
+    const menu = findMenu(label);
+    expect(menu, `Expected native ${label} menu`).toBeTruthy();
+    return menu.submenu.map((item) => item.label);
+  };
+
+  expect(snapshot.appName).toBe('Signboard');
+  expect(snapshot.menu.map((item) => item.label)).toEqual(expect.arrayContaining([
+    'File',
+    'Edit',
+    'View',
+    'Window',
+    'Help',
+  ]));
+
+  const helpLabels = getSubmenuLabels('Help');
+  expect(helpLabels).toEqual(expect.arrayContaining([
+    'Documentation',
+    'Install Signboard CLI',
+    'Copy MCP Config',
+    'Keyboard Shortcuts',
+    'Signboard Releases',
+  ]));
+
+  const viewLabels = getSubmenuLabels('View');
+  expect(viewLabels).toEqual(expect.arrayContaining([
+    'Kanban View',
+    'Table View',
+    'Toggle Light/Dark Mode',
+  ]));
+
+  if (snapshot.platform === 'darwin') {
+    const appLabels = getSubmenuLabels('Signboard');
+    expect(appLabels).toEqual(expect.arrayContaining([
+      'About Signboard',
+      'Switch Board...',
+      'Settings...',
+      'Check for Updates...',
+    ]));
+  } else {
+    expect(helpLabels).toEqual(expect.arrayContaining([
+      'About Signboard',
+      'Check for Updates...',
+    ]));
+  }
+});
+
 test('explains Obsidian-only actions outside an Obsidian vault', async ({ page, boardRoot }) => {
   await openFirstCardInEditor(page);
   await page.locator('#cardEditorOpenWithLink').click();
@@ -1877,6 +1942,15 @@ test('opens Planner across currently open boards', async ({ electronApp, boardRo
   await page.keyboard.press(getShortcut('1'));
   await expect(page.locator('#plannerOverlay')).toBeHidden();
 
+  await page.keyboard.press(getShortcut('5'));
+  await expect(page.locator('#plannerOverlay')).toBeVisible();
+  await expect(page.locator('.planner-agenda')).toBeVisible();
+  await expect(page.locator('#plannerScopeLabel')).toHaveText('2 boards');
+  await expect(page.locator('.planner-list-card').filter({ hasText: 'Polish homepage copy' })).toBeVisible();
+
+  await page.keyboard.press(getShortcut('1'));
+  await expect(page.locator('#plannerOverlay')).toBeHidden();
+
   await page.keyboard.press(getCurrentBoardPlannerShortcut('4'));
   await expect(page.locator('#plannerOverlay')).toBeVisible();
   await expect(page.locator('.planner-day')).toBeVisible();
@@ -2010,14 +2084,14 @@ test('opens settings from the renderer keyboard shortcut', async ({ page }) => {
   await expect(notificationsDetails).toHaveAttribute('aria-hidden', 'true');
 });
 
-test('opens Planner from an active editor view shortcut after closing the editor', async ({ page }) => {
+test('opens Planner Agenda from an active editor view shortcut after closing the editor', async ({ page }) => {
   await openFirstCardInEditor(page);
 
-  await page.keyboard.press(getShortcut('2'));
+  await page.keyboard.press(getShortcut('5'));
 
   await expect(page.locator('#modalEditCard')).toBeHidden();
   await expect(page.locator('#plannerOverlay')).toBeVisible();
-  await expect(page.locator('.planner-calendar')).toBeVisible();
+  await expect(page.locator('.planner-agenda')).toBeVisible();
 });
 
 test('cycles board color schemes without closing an active editor', async ({ page }) => {
