@@ -53,6 +53,12 @@ function configureAddCardModal(listPath) {
   }
 
   hiddenListPath.value = normalizeListPathForCardCreation(listPath);
+  if (typeof resetCardCreationLabelSelection === 'function') {
+    resetCardCreationLabelSelection('add-card');
+  }
+  if (typeof initializeCardCreationLabelButton === 'function') {
+    initializeCardCreationLabelButton('add-card');
+  }
   btnAddCard.onclick = async (event) => {
     event.stopPropagation();
 
@@ -64,9 +70,15 @@ function configureAddCardModal(listPath) {
 
     await processAddNewCard(userInput.value, activeListPath.value, {
       openAfterCreate: Boolean(event && event.shiftKey),
+      frontmatter: typeof getCardCreationFrontmatter === 'function'
+        ? getCardCreationFrontmatter('add-card')
+        : {},
     });
     userInput.value = '';
     activeListPath.value = '';
+    if (typeof resetCardCreationLabelSelection === 'function') {
+      resetCardCreationLabelSelection('add-card');
+    }
   };
 }
 

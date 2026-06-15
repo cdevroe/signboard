@@ -1,4 +1,5 @@
 const fs = require('fs').promises;
+const net = require('net');
 const os = require('os');
 const path = require('path');
 const electronBinary = require('electron');
@@ -48,6 +49,26 @@ function getCurrentWeekDate(dayOffset) {
   const today = new Date();
   const mondayFirstOffset = (today.getDay() + 6) % 7;
   return new Date(today.getFullYear(), today.getMonth(), today.getDate() - mondayFirstOffset + dayOffset);
+}
+
+async function getAvailableLoopbackPort() {
+  return await new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      const port = address && typeof address === 'object' ? address.port : 0;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(port);
+      });
+    });
+  });
 }
 
 async function openCurrentBoardPlannerView(page, shortcut, viewSelector) {
@@ -862,6 +883,18 @@ test('does not throw when formatting invalid due date values', async ({ page }) 
   });
 });
 
+test('closes the card date picker before opening the label picker', async ({ page }) => {
+  const firstCard = page.locator('.list').first().locator('.card').first();
+  await firstCard.hover();
+
+  await firstCard.locator('.due-date-action').click();
+  await expect(page.locator('.sb-themed-fdatepicker')).toBeVisible();
+
+  await firstCard.locator('.card-label-button').click();
+  await expect(page.locator('.sb-themed-fdatepicker')).toBeHidden();
+  await expect(page.locator('.card-label-popover')).toBeVisible();
+});
+
 test('navigates board search results from the keyboard', async ({ page }) => {
   const searchInput = page.locator('#boardSearchInput');
   const planCardButton = page.locator('.card-title-button').filter({ hasText: 'Plan release notes' });
@@ -910,7 +943,7 @@ test('navigates board popovers and settings sections from the keyboard', async (
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('#labelFilterPopover input').nth(1)).toBeFocused();
   await page.keyboard.press('End');
-  await expect(page.locator('#labelFilterPopover input').nth(3)).toBeFocused();
+  await expect(page.locator('#labelFilterPopover input').last()).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.locator('#labelFilterPopover')).toBeHidden();
   await expect(filterButton).toBeFocused();
@@ -2422,6 +2455,7 @@ test('persists the global quick add shortcut setting', async ({ page }) => {
 });
 
 test('publishes the External Published Calendar and respects board opt-out', async ({ page, boardRoot, request }) => {
+  const calendarPort = await getAvailableLoopbackPort();
   await cardFrontmatter.updateFrontmatter(
     path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md'),
     { due: '2026-04-05' },
@@ -2434,6 +2468,7 @@ test('publishes the External Published Calendar and respects board opt-out', asy
   const calendarToggle = page.locator('#boardSettingsExternalCalendarToggle');
   const calendarStatus = page.locator('#boardSettingsExternalCalendarStatus');
   const calendarPortGroup = page.locator('#boardSettingsExternalCalendarPortGroup');
+  const calendarPortInput = page.locator('#boardSettingsExternalCalendarPort');
   const calendarUrlGroup = page.locator('#boardSettingsExternalCalendarUrlGroup');
   const calendarUrlInput = page.locator('#boardSettingsExternalCalendarUrl');
 
@@ -2450,22 +2485,28 @@ test('publishes the External Published Calendar and respects board opt-out', asy
   await expect(calendarUrlGroup).toBeVisible();
   await expect(calendarUrlGroup).toHaveAttribute('aria-hidden', 'false');
 
+  await calendarPortInput.fill(String(calendarPort));
+  await calendarPortInput.press('Enter');
+  await expect(calendarPortInput).toHaveValue(String(calendarPort));
+
   await expect.poll(async () => {
     return await page.evaluate(async () => {
       const settings = await window.electronAPI.readAppSettings();
       return {
         enabled: settings.externalPublishedCalendar.enabled,
+        port: settings.externalPublishedCalendar.port,
         running: settings.externalPublishedCalendarStatus.running,
         url: settings.externalPublishedCalendarStatus.url,
       };
     });
   }).toMatchObject({
     enabled: true,
+    port: calendarPort,
     running: true,
   });
 
   await expect(calendarStatus).toContainText('Publishing');
-  await expect(calendarUrlInput).toHaveValue(/http:\/\/127\.0\.0\.1:48273\/external-published-calendar\/.+\.ics/);
+  await expect(calendarUrlInput).toHaveValue(new RegExp(`http://127\\.0\\.0\\.1:${calendarPort}/external-published-calendar/.+\\.ics`));
 
   const calendarUrl = await calendarUrlInput.inputValue();
   const response = await request.get(calendarUrl);

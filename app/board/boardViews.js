@@ -312,12 +312,25 @@ function getOpenTaskDueDatesForEntry(cardEntry) {
     : [];
 }
 
+function getOpenTaskStartDatesForEntry(cardEntry) {
+  if (cardEntry && Array.isArray(cardEntry.incompleteTaskStartDates)) {
+    return cardEntry.incompleteTaskStartDates;
+  }
+
+  return cardEntry && Array.isArray(cardEntry.taskStartDates)
+    ? cardEntry.taskStartDates
+    : [];
+}
+
 function getTemporalDueDatesForEntry(cardEntry) {
   if (!cardEntry) {
     return [];
   }
 
-  return getCardFilterDueDates(cardEntry.due, getOpenTaskDueDatesForEntry(cardEntry));
+  return getCardFilterDueDates(
+    [cardEntry.start, cardEntry.due],
+    [...getOpenTaskStartDatesForEntry(cardEntry), ...getOpenTaskDueDatesForEntry(cardEntry)],
+  );
 }
 
 function getTaskItemsDueOnDate(taskItems, dueDateValue, options = {}) {
@@ -336,6 +349,22 @@ function getTaskItemsDueOnDate(taskItems, dueDateValue, options = {}) {
   });
 }
 
+function getTaskItemsStartingOnDate(taskItems, startDateValue, options = {}) {
+  const normalizedStartDate = normalizeTaskStartDateValue(startDateValue);
+  if (!normalizedStartDate || !Array.isArray(taskItems)) {
+    return [];
+  }
+
+  const includeCompleted = options && options.includeCompleted === true;
+  return taskItems.filter((taskItem) => {
+    if (!includeCompleted && taskItem && taskItem.isCompleted) {
+      return false;
+    }
+
+    return normalizeTaskStartDateValue(taskItem && taskItem.start) === normalizedStartDate;
+  });
+}
+
 function formatTemporalTaskTitle(taskItems) {
   if (!Array.isArray(taskItems) || taskItems.length === 0) {
     return 'Task due';
@@ -350,6 +379,10 @@ function formatTemporalTaskTitle(taskItems) {
   }
 
   return `${firstTaskText} +${additionalCount} more`;
+}
+
+function formatTemporalStartTitle(titleText) {
+  return `Start: ${truncateCalendarCardTitle(titleText)}`;
 }
 
 function createTemporalPlacementForDate(cardEntry, dueDateValue) {
@@ -373,7 +406,31 @@ function createTemporalPlacementForDate(cardEntry, dueDateValue) {
   }
 
   if (normalizeTaskDueDateValue(cardEntry && cardEntry.due) !== normalizedDueDate) {
-    return null;
+    const taskItemsStartingOnDate = getTaskItemsStartingOnDate(cardEntry.taskItems, normalizedDueDate);
+    if (taskItemsStartingOnDate.length > 0) {
+      return {
+        ...cardEntry,
+        temporalDisplayTitle: formatTemporalStartTitle(formatTemporalTaskTitle(taskItemsStartingOnDate)),
+        temporalDisplaySubtitle: cardEntry.title,
+        temporalReason: 'task-start',
+        temporalTaskCount: taskItemsStartingOnDate.length,
+        temporalTaskLineIndexes: taskItemsStartingOnDate
+          .map((taskItem) => Number(taskItem && taskItem.lineIndex))
+          .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0),
+      };
+    }
+
+    if (normalizeTaskStartDateValue(cardEntry && cardEntry.start) !== normalizedDueDate) {
+      return null;
+    }
+
+    return {
+      ...cardEntry,
+      temporalDisplayTitle: formatTemporalStartTitle(cardEntry.title),
+      temporalDisplaySubtitle: '',
+      temporalReason: 'card-start',
+      temporalTaskCount: 0,
+    };
   }
 
   return {
@@ -409,6 +466,19 @@ function getTaskLineIndexesDueOnDateFromBody(bodyValue, dueDateValue) {
     .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0);
 }
 
+function getTaskLineIndexesStartingOnDateFromBody(bodyValue, startDateValue) {
+  const normalizedStartDate = normalizeTaskStartDateValue(startDateValue);
+  if (!normalizedStartDate) {
+    return [];
+  }
+
+  return parseTaskListItems(bodyValue)
+    .filter((taskItem) => taskItem && !taskItem.isCompleted)
+    .filter((taskItem) => normalizeTaskStartDateValue(taskItem.start) === normalizedStartDate)
+    .map((taskItem) => Number(taskItem.lineIndex))
+    .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0);
+}
+
 async function moveTemporalTaskDueDate(cardPath, sourceDate, targetDate, taskLineIndexes) {
   const card = await window.board.readCard(cardPath);
   const body = String(card && card.body ? card.body : '');
@@ -434,6 +504,31 @@ async function moveTemporalTaskDueDate(cardPath, sourceDate, targetDate, taskLin
   return true;
 }
 
+async function moveTemporalTaskStartDate(cardPath, sourceDate, targetDate, taskLineIndexes) {
+  const card = await window.board.readCard(cardPath);
+  const body = String(card && card.body ? card.body : '');
+  const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
+    ? card.frontmatter
+    : {};
+  const lineIndexes = Array.isArray(taskLineIndexes) && taskLineIndexes.length > 0
+    ? taskLineIndexes
+    : getTaskLineIndexesStartingOnDateFromBody(body, sourceDate);
+  if (lineIndexes.length === 0) {
+    return false;
+  }
+
+  let nextBody = body;
+  for (const lineIndex of lineIndexes) {
+    nextBody = setTaskListItemStartDateByLineIndex(nextBody, lineIndex, targetDate);
+  }
+
+  await window.board.writeCard(cardPath, {
+    frontmatter,
+    body: nextBody,
+  });
+  return true;
+}
+
 async function moveTemporalCardDueDate(cardPath, sourceDate, targetDate, draggedCard) {
   const temporalReason = draggedCard instanceof HTMLElement
     ? String(draggedCard.dataset.temporalReason || '').trim()
@@ -449,6 +544,23 @@ async function moveTemporalCardDueDate(cardPath, sourceDate, targetDate, dragged
     if (updatedTask) {
       return;
     }
+  }
+
+  if (temporalReason === 'task-start') {
+    const updatedTask = await moveTemporalTaskStartDate(
+      cardPath,
+      sourceDate,
+      targetDate,
+      getTemporalTaskLineIndexesFromElement(draggedCard),
+    );
+    if (updatedTask) {
+      return;
+    }
+  }
+
+  if (temporalReason === 'card-start') {
+    await window.board.updateFrontmatter(cardPath, { start: targetDate });
+    return;
   }
 
   await window.board.updateFrontmatter(cardPath, { due: targetDate });
@@ -512,6 +624,7 @@ async function collectCardsForCalendar(boardRoot, lists, options = {}) {
         listDisplayName,
         isCompletedList: Boolean(isCompletedList),
         title: truncateCalendarCardTitle(frontmatter.title),
+        start: String(frontmatter.start || '').trim(),
         due: String(frontmatter.due || '').trim(),
         labels: Array.isArray(frontmatter.labels)
           ? frontmatter.labels.map((labelId) => String(labelId))
@@ -519,6 +632,8 @@ async function collectCardsForCalendar(boardRoot, lists, options = {}) {
         body,
         taskSummary: getTaskListSummary(body),
         taskItems,
+        taskStartDates: typeof getTaskListStartDates === 'function' ? getTaskListStartDates(body) : [],
+        incompleteTaskStartDates: typeof getIncompleteTaskListStartDates === 'function' ? getIncompleteTaskListStartDates(body) : [],
         taskDueDates: getTaskListDueDates(body),
         incompleteTaskDueDates: getIncompleteTaskListDueDates(body),
       };

@@ -5,11 +5,14 @@ async function createCardElement(cardPath) {
     ? isBoardListCompletedByWorkflow(listDirectoryName)
     : false;
   const titleContent = card.frontmatter.title || '';
+  let startDateValue = String(card.frontmatter.start || '').trim();
   let dueDateValue = String(card.frontmatter.due || '').trim();
   let selectedLabelIds = Array.isArray(card.frontmatter.labels)
     ? card.frontmatter.labels.map((labelId) => String(labelId))
     : [];
   const taskSummary = getTaskListSummary(card.body);
+  const taskStartDates = typeof getTaskListStartDates === 'function' ? getTaskListStartDates(card.body) : [];
+  const incompleteTaskStartDates = typeof getIncompleteTaskListStartDates === 'function' ? getIncompleteTaskListStartDates(card.body) : taskStartDates;
   const taskDueDates = getTaskListDueDates(card.body);
   const incompleteTaskDueDates = getIncompleteTaskListDueDates(card.body);
   const linkedObjectCount = typeof getFrontmatterLinkedObjectCount === 'function'
@@ -58,6 +61,19 @@ async function createCardElement(cardPath) {
   const metadata = document.createElement('div');
   metadata.className = 'metadata';
 
+  const startButton = document.createElement('button');
+  startButton.type = 'button';
+  startButton.className = 'metadata-action start-date-action';
+
+  const startIcon = document.createElement('i');
+  startIcon.setAttribute('data-feather', 'play-circle');
+  startButton.appendChild(startIcon);
+
+  const formattedStart = document.createElement('span');
+  formattedStart.className = 'formatted-date';
+  startButton.appendChild(formattedStart);
+  metadata.appendChild(startButton);
+
   const dueButton = document.createElement('button');
   dueButton.type = 'button';
   dueButton.className = 'metadata-action due-date-action';
@@ -99,6 +115,32 @@ async function createCardElement(cardPath) {
   cardLabelsWrap.className = 'card-labels';
   metadata.appendChild(cardLabelsWrap);
 
+  function getAllCardFilterDates() {
+    return getCardFilterDueDates(
+      [startDateValue, dueDateValue],
+      [...taskStartDates, ...taskDueDates],
+    );
+  }
+
+  function getActiveCardFilterDates() {
+    return getActiveBoardFilterDueDates(
+      [startDateValue, dueDateValue],
+      [...taskStartDates, ...taskDueDates],
+      [...incompleteTaskStartDates, ...incompleteTaskDueDates],
+    );
+  }
+
+  async function renderStartDateDisplay() {
+    if (!startDateValue) {
+      formattedStart.textContent = '';
+      setDueDateVisualClass(startButton, '');
+      return;
+    }
+
+    formattedStart.textContent = await window.board.formatDueDate(startDateValue);
+    setDueDateVisualClass(startButton, startDateValue);
+  }
+
   async function renderDueDateDisplay() {
     if (!dueDateValue) {
       formattedDue.textContent = '';
@@ -111,15 +153,25 @@ async function createCardElement(cardPath) {
   }
 
   function setMetadataActionVisibility() {
+    const hasStartDate = startDateValue.length > 0;
     const hasDueDate = dueDateValue.length > 0;
     const hasLabels = selectedLabelIds.length > 0;
     const hasTasks = taskSummary.total > 0;
     const hasLinkedObjects = linkedObjectCount > 0;
-    const hasAnyMetadata = hasDueDate || hasLabels || hasTasks || hasLinkedObjects;
+    const hasAnyMetadata = hasStartDate || hasDueDate || hasLabels || hasTasks || hasLinkedObjects;
 
     metadata.classList.toggle('metadata-discovery', !hasAnyMetadata);
+    startButton.classList.toggle('metadata-action-empty', !hasStartDate);
     dueButton.classList.toggle('metadata-action-empty', !hasDueDate);
     labelButton.classList.toggle('metadata-action-empty', !hasLabels);
+
+    if (hasStartDate) {
+      startButton.title = 'Change start date';
+      startButton.setAttribute('aria-label', 'Change start date');
+    } else {
+      startButton.title = 'Set start date';
+      startButton.setAttribute('aria-label', 'Set start date');
+    }
 
     if (hasDueDate) {
       dueButton.title = 'Change due date';
@@ -171,6 +223,22 @@ async function createCardElement(cardPath) {
     setMetadataActionVisibility();
   }
 
+  async function updateCardStartDate(nextStartDateValue) {
+    startDateValue = String(nextStartDateValue || '').trim();
+    const nextStartDate = startDateValue.length > 0 ? startDateValue : null;
+
+    card.frontmatter.start = nextStartDate;
+    await window.board.updateFrontmatter(cardPath, { start: nextStartDate });
+    await renderStartDateDisplay();
+    setMetadataActionVisibility();
+
+    const cardDates = getAllCardFilterDates();
+    const activeFilterDates = getActiveCardFilterDates();
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDates, activeFilterDates, { isCompletedList })) {
+      await renderBoard();
+    }
+  }
+
   async function updateCardDueDate(nextDueDateValue) {
     dueDateValue = String(nextDueDateValue || '').trim();
     const nextDueDate = dueDateValue.length > 0 ? dueDateValue : null;
@@ -180,9 +248,9 @@ async function createCardElement(cardPath) {
     await renderDueDateDisplay();
     setMetadataActionVisibility();
 
-    const cardDueDates = getCardFilterDueDates(dueDateValue, taskDueDates);
-    const activeFilterDueDates = getActiveBoardFilterDueDates(dueDateValue, taskDueDates, incompleteTaskDueDates);
-    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates, activeFilterDueDates, { isCompletedList })) {
+    const cardDates = getAllCardFilterDates();
+    const activeFilterDates = getActiveCardFilterDates();
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDates, activeFilterDates, { isCompletedList })) {
       await renderBoard();
     }
   }
@@ -196,9 +264,9 @@ async function createCardElement(cardPath) {
     await window.board.updateFrontmatter(cardPath, { labels: selectedLabelIds });
     renderCardLabels();
 
-    const cardDueDates = getCardFilterDueDates(dueDateValue, taskDueDates);
-    const activeFilterDueDates = getActiveBoardFilterDueDates(dueDateValue, taskDueDates, incompleteTaskDueDates);
-    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDueDates, activeFilterDueDates, { isCompletedList })) {
+    const cardDates = getAllCardFilterDates();
+    const activeFilterDates = getActiveCardFilterDates();
+    if (isBoardLabelFilterActive() && !cardMatchesBoardLabelFilter(selectedLabelIds, cardDates, activeFilterDates, { isCompletedList })) {
       await renderBoard();
     }
   }
@@ -214,8 +282,21 @@ async function createCardElement(cardPath) {
     );
   }
 
+  await renderStartDateDisplay();
   await renderDueDateDisplay();
   renderCardLabels();
+
+  startButton.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openDueDatePickerAtTrigger({
+      triggerElement: startButton,
+      dueDateValue: startDateValue,
+      onSelect: async (value) => {
+        await updateCardStartDate(value);
+      },
+    });
+  });
 
   dueButton.addEventListener('click', async (event) => {
     event.preventDefault();
@@ -252,8 +333,8 @@ async function createCardElement(cardPath) {
 
   const matchesLabelFilter = cardMatchesBoardLabelFilter(
     selectedLabelIds,
-    getCardFilterDueDates(dueDateValue, taskDueDates),
-    getActiveBoardFilterDueDates(dueDateValue, taskDueDates, incompleteTaskDueDates),
+    getAllCardFilterDates(),
+    getActiveCardFilterDates(),
     { isCompletedList },
   );
   const matchesSearchFilter = cardMatchesBoardSearch(card.frontmatter.title, card.body);

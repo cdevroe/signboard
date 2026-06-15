@@ -27,17 +27,17 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `app/signboard.js` - Generated concatenated renderer file loaded by `index.html`.
 - `app/utilities/santizeFileName.js` - Filename sanitization + random suffix helper.
-- `app/utilities/taskList.js` - Task checklist parser, due-marker helpers, all/open task due-date sets, task-summary counters, and task progress badge creation.
+- `app/utilities/taskList.js` - Task checklist parser, start/due marker helpers, all/open task date sets, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and incomplete task due markers, skipping completed workflow lists.
 - `app/utilities/accessibility.js` - Shared renderer accessibility helpers for modal focus restoration/trapping, background inert state, live status announcements, stable DOM IDs, reduced-motion checks, and deferring DOM mutations until native menu/select popup tracking settles on macOS.
 - `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, reduced-motion handling, and drag text-selection lock used by Kanban and temporal card drag/drop.
 - `app/utilities/cardTimestamps.js` - Renderer card timestamp formatting helpers for editor metadata and Table age columns.
 - `app/utilities/linkedObjects.js` - Shared renderer helpers for counting structured `linked_objects` and legacy `related` links, plus paperclip count badge creation for Kanban/Table.
 - `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification/Quick Add global shortcut/External Published Calendar controls, persistence scheduling, and one-time migration from legacy board settings.
-- `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` + label filters, with date filters ignoring completed task due markers and completed workflow lists), keyboard-operable card label popovers, Settings modal board panels/nav, Obsidian Base generation controls, and Trello/Obsidian import panel wiring + summary rendering.
+- `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` / next-range date filters + label filters, with date filters ignoring completed task date markers and completed workflow lists), keyboard-operable card label popovers with inline label creation, new-card label selection helpers, Settings modal board panels/nav, Obsidian Base generation controls, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state, input handling for title/body filtering, and keyboard navigation from the search field through visible card results.
-- `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card due/open task due markers, and source-list/source-board pills on temporal cards.
-- `app/board/tableView.js` - Board-scoped Table view rendering, dense row metadata including Created/Updated age columns and linked-object counts, board filter/search reuse, Table sort controls, and list-column card moves through the top-of-list move IPC path.
+- `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card start/due and open task start/due markers, and source-list/source-board pills on temporal cards.
+- `app/board/tableView.js` - Board-scoped Table view rendering, dense row metadata including Start/Due, Created/Updated age columns, and linked-object counts, board filter/search reuse, Table sort controls, and list-column card moves through the top-of-list move IPC path.
 - `app/board/plannerView.js` - Workspace-level Planner overlay with Calendar, This Week, Day, and Agenda views across currently open boards, all/current/custom board scope controls, Planner-local search/date/completed-card/board/active-board-label filters, keyboard navigation for Planner search/filter controls, left-rail open/close behavior, and Planner card opening that switches the active board when needed.
 - `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing with keyboard result navigation, detail-pane rendering, incremental result loading, and restore flows.
 - `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder), keyboard navigation/close behavior for visible tabs, responsive `N more` overflow for unbounded open boards, plus the shared safe board-switch helper used by tab clicks and the switcher.
@@ -53,7 +53,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/modals/toggleAddCardModal.js` - Add-card modal position/toggle.
 - `app/modals/toggleAddListModal.js` - Add-list modal position/toggle.
 - `app/modals/toggleAddCardToListModal.js` - Cross-list add-card modal toggle.
-- `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, Created/Updated timestamp display, active-card top-of-list moves from the dropdown/directional controls, debounced + serialized saves, clean-editor reloads after external/MCP card edits, fresh duplicate lifecycle metadata, raw body URL detection/open controls, linked-object paperclip controls including inline URL/app-link entry, Obsidian rename reconciliation between `linked_objects` and `related` wikilinks, missing-note status rendering with recreate/relink/remove actions, drag/drop local-file linking, Open With/Obsidian actions, and task-line due-date controls aligned from measured line coordinates.
+- `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, card start/due metadata controls, Created/Updated timestamp display, active-card top-of-list moves from the dropdown/directional controls, debounced + serialized saves, clean-editor reloads after external/MCP card edits, fresh duplicate lifecycle metadata, raw body URL detection/open controls, linked-object paperclip controls including inline URL/app-link entry, Obsidian rename reconciliation between `linked_objects` and `related` wikilinks, missing-note status rendering with recreate/relink/remove actions, drag/drop local-file linking, Open With/Obsidian actions, and task-line start/due date controls aligned from measured line coordinates.
 - `app/listeners/window.js` - Keyboard shortcuts, menu/global-command listeners, Quick Add card modal wiring with board/list selection across open boards, board view switching, Planner toggle/view shortcut handling including all-open-board and current-board date-view scopes, Settings fallback handling, quick board switcher shortcut handling, color cycling, active-card move/archive shortcuts, active-editor closing for workspace-level shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, Obsidian-vault-required info modal controls, sponsorship modal triggers, and external board-change auto-refresh sync loop, including clean open-editor refreshes.
 - `app/ui/theme.js` - Theme toggle + OverType theme integration, including the theme shortcut hint/state in the board menu.
@@ -61,7 +61,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Shared/library code
 
-- `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support.
+- `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support, including `start` and `due` date normalization.
 - `lib/cardLifecycle.js` - Shared card lifecycle metadata helper for `createdAt`, compact `activity` trails, archive frontmatter state, and moved/restored transitions.
 - `lib/cardTimestamps.js` - Shared timestamp resolver for desktop reads, CLI card records/JSON output, and MCP card responses, preferring frontmatter/activity creation data and filesystem modification data.
 - `lib/cardOrdering.js` - Shared list-card ordering helper used by main-process/MCP restore and move flows to insert a card at the top while renumbering existing files.
@@ -77,8 +77,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/cardBodyEdits.js` - Shared Markdown body-edit helpers for replacing heading sections, inserting text below headings, and appending timestamped note list items.
 - `lib/boardCreation.js` - Shared default board scaffolding for MCP and CLI-created boards, including default list folders and the starter card body/frontmatter.
 - `lib/mcpServer.js` - Headless MCP stdio server for agent access to board/list/card/settings/archive operations inside configured or desktop-trusted roots, safe board creation, archive browse/read/restore tools, Trello/Obsidian/Tasks.md imports, dry-run card writes, and timestamp/task metadata on card tools.
-- `lib/cliApp.js` - CLI command parsing/output for `use`, `boards`, `lists`, `cards`, `archive`, `settings`, and path-based `import` commands, including board creation, card duplicate/template commands, section/note card edits, dry-run previews, JSON timestamp output, and `--task-status open|any` for card due filtering.
-- `lib/cliBoard.js` - CLI list/card filesystem operations, record loading, card duplication/template creation, section/note body edits, explicit label clearing, due/search/label filtering, and created/updated age sorting; overdue task filtering defaults to incomplete/open task markers unless callers pass `--task-status any`.
+- `lib/cliApp.js` - CLI command parsing/output for `use`, `boards`, `lists`, `cards`, `archive`, `settings`, and path-based `import` commands, including board creation, card duplicate/template commands, `--start` writes, section/note card edits, dry-run previews, JSON timestamp/date output, and `--task-status open|any` for card due filtering.
+- `lib/cliBoard.js` - CLI list/card filesystem operations, record loading, card duplication/template creation, section/note body edits, explicit label clearing, due/search/label filtering, start/task-date metadata output, and created/updated age sorting; overdue task filtering defaults to incomplete/open task markers unless callers pass `--task-status any`.
 - `lib/cliInstall.js` - User-level CLI shim + shell profile installation; packaged shims run `app.asar/bin/signboard.js` under `ELECTRON_RUN_AS_NODE` instead of launching the desktop lifecycle.
 
 ## Scripts (`scripts/`)
@@ -96,7 +96,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-import-obsidian.js` - Obsidian importer assertions for kanban/task/CardBoard cases, due conversion, and source-prefix naming.
 - `scripts/test-obsidian-integration.js` - Obsidian outbound integration assertions for URI/deep-link helpers, flat card properties, managed generated Bases YAML, linked notes, and linked-note resolution.
 - `scripts/test-obsidian-plugin.js` - Pure helper assertions for the optional Obsidian companion plugin.
-- `scripts/test-task-list-parser.js` - Task checklist parser assertions (`completed/total` and task due-date extraction).
+- `scripts/test-task-list-parser.js` - Task checklist parser assertions (`completed/total` and task start/due date extraction).
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
 - `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux plus curated public-download guidance.

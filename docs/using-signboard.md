@@ -8,7 +8,7 @@ This guide covers the desktop app and the core workflow for managing a project i
 - [Create or Open a Board](#create-or-open-a-board)
 - [Work with Lists](#work-with-lists)
 - [Work with Cards](#work-with-cards)
-- [Due Dates, Labels, and Checklists](#due-dates-labels-and-checklists)
+- [Start Dates, Due Dates, Labels, and Checklists](#start-dates-due-dates-labels-and-checklists)
 - [Search, Filters, and Open Boards](#search-filters-and-open-boards)
 - [Board and Planner Views](#board-and-planner-views)
 - [Planner](#planner)
@@ -152,9 +152,15 @@ New or edited cards include flat Obsidian-friendly properties such as `title`, `
 
 Signboard also includes an optional desktop-only Obsidian companion plugin in `obsidian-plugin/`. Copy or symlink that folder into your vault as `.obsidian/plugins/signboard-companion` and enable it from Obsidian's Community plugins settings. The plugin can open and copy Signboard links, attach the active Obsidian note to a Signboard card, open cards by `obsidian://signboard?cardId=...`, and add a folder context-menu action named `Create Signboard`. That action asks first, then adds board metadata/list folders, treats existing child folders as lists, moves top-level Markdown notes into a To-do list, and opens the board in Signboard. When you delete an Obsidian note that is linked from Signboard cards, the plugin asks before removing those linked objects from the cards.
 
-## Due Dates, Labels, and Checklists
+## Start Dates, Due Dates, Labels, and Checklists
 
 These features are what make cards show up in Planner and filters.
+
+### Card start dates
+
+Every card can have a start date in addition to a due date. Use a start date when work is scheduled to begin or become actionable before it is due.
+
+Start dates appear on cards, in Table's `Start` column, in Planner date views, and in date-aware filters.
 
 ### Card due dates
 
@@ -167,23 +173,25 @@ Once a card has a due date, it becomes visible in:
 - Planner
 - daily due notifications if enabled in app settings
 
-### Task list items with due dates
+### Task list items with start and due dates
 
-Signboard also understands due dates inside Markdown task lists.
+Signboard also understands start and due dates inside Markdown task lists.
 
 Example:
 
 ```md
 - [ ] Draft release notes
-- [ ] (due: 2026-04-05) Send beta build
+- [ ] (start: 2026-04-02) Draft beta announcement
+- [ ] (start: 2026-04-03) (due: 2026-04-05) Send beta build
+- [ ] (scheduled: 2026-04-06) Follow up with testers
 - [x] Review copy
 ```
 
-Task due dates are separate from the card’s main due date. Open checklist item due dates are included in Planner and board date filters, so a card can surface because one of its unchecked checklist items is due even if the card itself has no top-level due date. Once that checklist item is checked off, its due date stays in the Markdown but no longer keeps the card in date-based views. CLI due filters expose `--task-status open|any` when you need to choose whether checked task due markers count.
+Task dates are separate from the card’s main start and due dates. Open checklist item start/due dates are included in Planner and board date filters, so a card can surface because one of its unchecked checklist items is dated even if the card itself has no top-level date. Once that checklist item is checked off, its date stays in the Markdown but no longer keeps the card in date-based views. CLI due filters expose `--task-status open|any` when you need to choose whether checked task due markers count.
 
 ### Labels
 
-Labels are defined per board. Add them in `Settings > Labels`, then assign them to cards from the card editor.
+Labels are defined per board. Add them in `Settings > Labels`, or create a new label directly from the label picker while editing or creating a card.
 
 Labels are useful for:
 
@@ -209,7 +217,7 @@ From the search field, press `Enter` or `Arrow Down` to focus the first visible 
 
 ### Date and Label filters
 
-Use the filter button in the header to narrow the visible cards by due today, overdue, and your board labels.
+Use the filter button in the header to narrow the visible cards by `Today`, `Overdue`, `Next 7 days`, `Next 14 days`, `Next 30 days`, and your board labels.
 
 When a filter popover is open, use arrow keys, `Home`, and `End` to move through its controls. Press `Esc` to close the popover and return focus to the button that opened it.
 
@@ -219,19 +227,19 @@ Board context can be Kanban or Table. Dated planning happens in Planner.
 
 ### Kanban
 
-Kanban is the board view. Use it for day-to-day drag-and-drop organization. Cards show compact metadata for due dates, checklist progress, labels, and linked-object counts.
+Kanban is the board view. Use it for day-to-day drag-and-drop organization. Cards show compact metadata for start dates, due dates, checklist progress, labels, and linked-object counts.
 
 ### Table
 
-Table is an active-board view for scanning cards in board/list order. It uses the same board search, label filters, Today/Overdue date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.
+Table is an active-board view for scanning cards in board/list order. It uses the same board search, label filters, date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.
 
 Open `Board menu > View > Table`. Click a card title or row to open the normal card editor. Use the row's list dropdown to move a card to another list; moved cards land at the top of the destination list.
 
-Table includes `Updated` and `Created` columns plus a sort control. Sort by `Updated, oldest first` to find cards you have not touched in a while, or by `Created, oldest first` to find your oldest cards. Search and filters apply first, then the Table sort orders the visible cards.
+Table includes `Start`, `Due`, `Updated`, and `Created` columns plus a sort control. Sort by `Updated, oldest first` to find cards you have not touched in a while, or by `Created, oldest first` to find your oldest cards. Search and filters apply first, then the Table sort orders the visible cards.
 
 ### Dated Views
 
-Planner Calendar, This Week, Day, and Agenda place cards and due task items on dates across your open boards. Calendar and This Week use Monday-first weeks.
+Planner Calendar, This Week, Day, and Agenda place cards and dated task items on dates across your open boards. Calendar and This Week use Monday-first weeks.
 
 Use it when you want to answer questions like:
 
@@ -271,7 +279,7 @@ Planner cards show their source as `Board · List`, with that source pill tinted
 
 Planner defaults to all open boards. Use the scope toggle to narrow to the current board, or use the filter menu to choose a custom set of open boards.
 
-Planner search matches card title, body, board name, and list name. Planner filters can narrow by date (`Today` or `Overdue`), completed-card visibility, and open board. When Planner is scoped to the current board only, the filter menu also includes that board's labels.
+Planner search matches card title, body, board name, and list name. Planner filters can narrow by date (`Today`, `Overdue`, `Next 7 days`, `Next 14 days`, or `Next 30 days`), completed-card visibility, and open board. When Planner is scoped to the current board only, the filter menu also includes that board's labels.
 
 From Planner search, press `Enter` or `Arrow Down` to focus the first visible Planner card. Arrow keys move through the visible Planner cards, `Enter` or `Space` opens the focused card, and `Esc` returns focus to Planner search.
 
@@ -371,7 +379,7 @@ The board `General` section lets you:
 
 The `Workflow` section controls which lists count as completed work for the current board.
 
-Completed-list cards and checked-off task due markers keep their due dates, but Planner date views, Planner date filters, board date filters, and daily due reminders hide them by default so finished work does not look actionable.
+Completed-list cards and checked-off task date markers keep their dates, but Planner date views, Planner date filters, board date filters, and daily due reminders hide them by default so finished work does not look actionable.
 
 Auto-detection is enabled by default. You can turn it off, manually choose completed lists, or uncheck an auto-detected list.
 

@@ -76,7 +76,7 @@ async function run() {
     }, null, 2), 'utf8');
 
     await fs.writeFile(path.join(cardBoardVault, 'daily.md'), [
-      `- [ ] Ship to beta @due(${todayIso}) #launch`,
+      `- [ ] Ship to beta @scheduled(${todayIso}) @due(${todayIso}) #launch`,
       '- [ ] Write changelog',
       `- [x] Sent announcement @due(${todayIso}) #launch @completed(${todayIso}T09:00:00)`,
     ].join('\n'), 'utf8');
@@ -125,6 +125,7 @@ async function run() {
     const todayFiles = await listMarkdownFiles(path.join(boardRoot, cardBoardTodayDir));
     const todayCard = await cardFrontmatter.readCard(path.join(boardRoot, cardBoardTodayDir, todayFiles[0]));
     assert.strictEqual(todayCard.frontmatter.title, 'Ship to beta');
+    assert.strictEqual(todayCard.frontmatter.start, todayIso);
     assert.strictEqual(todayCard.frontmatter.due, todayIso);
 
     const cardBoardCompletedDir = directoryNames.find((name) => getListDisplayName(name) === 'Daily Board - Completed');

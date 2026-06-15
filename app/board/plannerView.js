@@ -158,12 +158,9 @@ function getPlannerActiveView() {
 }
 
 function getPlannerActiveDateFilter() {
-  const normalized = String(getPlannerState().dateFilter || '').trim();
-  if (normalized === BOARD_DATE_FILTER_TODAY || normalized === BOARD_DATE_FILTER_OVERDUE) {
-    return normalized;
-  }
-
-  return BOARD_DATE_FILTER_NONE;
+  return typeof normalizeBoardDateFilter === 'function'
+    ? normalizeBoardDateFilter(getPlannerState().dateFilter)
+    : BOARD_DATE_FILTER_NONE;
 }
 
 function getPlannerShowCompletedCards() {
@@ -596,10 +593,9 @@ function handlePlannerSearchResultKeydown(event) {
 }
 
 function setPlannerDateFilter(filterValue) {
-  const normalized = String(filterValue || '').trim();
   const state = getPlannerState();
-  state.dateFilter = (normalized === BOARD_DATE_FILTER_TODAY || normalized === BOARD_DATE_FILTER_OVERDUE)
-    ? normalized
+  state.dateFilter = typeof normalizeBoardDateFilter === 'function'
+    ? normalizeBoardDateFilter(filterValue)
     : BOARD_DATE_FILTER_NONE;
   renderPlannerViewControls();
   renderPlannerFilterPopover();
@@ -1536,10 +1532,8 @@ function renderPlannerViewControls() {
   if (filterButton) {
     const activeFilterParts = [];
     const activeDateFilter = getPlannerActiveDateFilter();
-    if (activeDateFilter === BOARD_DATE_FILTER_TODAY) {
-      activeFilterParts.push('Today');
-    } else if (activeDateFilter === BOARD_DATE_FILTER_OVERDUE) {
-      activeFilterParts.push('Overdue');
+    if (activeDateFilter) {
+      activeFilterParts.push(getBoardDateFilterLabel(activeDateFilter));
     }
 
     if (selectedBoards.length !== openBoards.length) {
@@ -1591,6 +1585,9 @@ function renderPlannerFilterPopover() {
     { value: BOARD_DATE_FILTER_NONE, label: 'All dated cards' },
     { value: BOARD_DATE_FILTER_TODAY, label: 'Today' },
     { value: BOARD_DATE_FILTER_OVERDUE, label: 'Overdue' },
+    { value: BOARD_DATE_FILTER_NEXT_7, label: 'Next 7 days' },
+    { value: BOARD_DATE_FILTER_NEXT_14, label: 'Next 14 days' },
+    { value: BOARD_DATE_FILTER_NEXT_30, label: 'Next 30 days' },
   ];
 
   for (const option of dateOptions) {

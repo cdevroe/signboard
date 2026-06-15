@@ -455,6 +455,11 @@ async function run() {
   assert.strictEqual(filterButton.classList.contains('is-active'), true);
   assert.strictEqual(filterButton.getAttribute('data-active-filters'), '2');
 
+  filterState.filterIds = [];
+  filterState.activeDateFilter = 'next:7';
+  context.renderBoardLabelFilterButton();
+  assert.strictEqual(filterButton.getAttribute('aria-label'), 'Filter cards: Next 7 days');
+
   assert.deepStrictEqual(
     toPlain(context.getCardFilterDueDates('2026-03-10', ['2026-03-09', '2026-03-10'])),
     ['2026-03-09', '2026-03-10'],
@@ -473,6 +478,17 @@ async function run() {
   assert.strictEqual(context.cardMatchesBoardLabelFilter([], ['2026-03-10']), false);
   assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-09'), true);
   assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-10'), false);
+  filterState.activeDateFilter = 'next:7';
+  assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-10'), true);
+  assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-17'), true);
+  assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-18'), false);
+  assert.strictEqual(context.cardMatchesBoardLabelFilter([], ['2026-03-12']), true);
+  assert.deepStrictEqual(
+    toPlain(context.getActiveBoardFilterDueDates('', ['2026-03-12'], [])),
+    [],
+    'expected next-range active-filter due dates to ignore completed task dates',
+  );
+  filterState.activeDateFilter = 'overdue';
   assert.strictEqual(
     context.cardMatchesBoardLabelFilter([], ['2026-03-09'], []),
     false,
@@ -513,7 +529,7 @@ async function run() {
   const tableHeader = context.createBoardTableHeader();
   assert.deepStrictEqual(
     toPlain(tableHeader.children[0].children.map((headerCell) => headerCell.textContent)),
-    ['Due', 'Updated', 'Created', 'Tasks', 'Links', 'Card', 'List', 'Labels'],
+    ['Start', 'Due', 'Updated', 'Created', 'Tasks', 'Links', 'Card', 'List', 'Labels'],
     'expected table columns to keep the configured order',
   );
 
@@ -578,6 +594,7 @@ async function run() {
 
   assert(filterPopover.textContent.includes('Today'), 'expected Today row in filter popover');
   assert(filterPopover.textContent.includes('Overdue'), 'expected Overdue row in filter popover');
+  assert(filterPopover.textContent.includes('Next 7 days'), 'expected Next 7 days row in filter popover');
   assert(findFirstByClass(filterPopover, 'label-popover-separator'), 'expected separator in filter popover');
   assert(findFirstByClass(filterPopover, 'label-popover-labels-scroll'), 'expected scroll container for long label lists');
 
@@ -588,6 +605,38 @@ async function run() {
   const todayTaskBody = '- [ ] (due: 2026-03-10) Prep launch';
   const todayTaskItems = context.parseTaskListItems(todayTaskBody);
   const entries = [
+    {
+      cardPath: '/tmp/task-starts-soon.md',
+      listName: '003-In Progress-abc12',
+      listDisplayName: 'In Progress',
+      title: 'Task starts soon',
+      start: '',
+      due: '',
+      labels: [],
+      body: '- [ ] (start: 2026-03-12) Draft outline',
+      taskSummary: { total: 1, completed: 0, remaining: 1 },
+      taskItems: context.parseTaskListItems('- [ ] (start: 2026-03-12) Draft outline'),
+      taskStartDates: ['2026-03-12'],
+      incompleteTaskStartDates: ['2026-03-12'],
+      taskDueDates: [],
+      incompleteTaskDueDates: [],
+    },
+    {
+      cardPath: '/tmp/card-starts-soon.md',
+      listName: '001-Backlog-abc12',
+      listDisplayName: 'Backlog',
+      title: 'Card starts soon',
+      start: '2026-03-12',
+      due: '',
+      labels: [],
+      body: 'Body',
+      taskSummary: { total: 0, completed: 0, remaining: 0 },
+      taskItems: [],
+      taskStartDates: [],
+      incompleteTaskStartDates: [],
+      taskDueDates: [],
+      incompleteTaskDueDates: [],
+    },
     {
       cardPath: '/tmp/task-today.md',
       listName: '003-In Progress-abc12',
@@ -682,6 +731,15 @@ async function run() {
   assert.strictEqual(overdueWeekEntries.length, 2, 'expected overdue view to ignore completed overdue task placements in week view');
   assert.strictEqual(overdueWeekEntries[0].temporalReason, 'card');
   assert.strictEqual(overdueWeekBuckets.has('2026-03-10'), false);
+
+  filterState.activeDateFilter = 'next:7';
+  const nextCalendarBuckets = context.buildCalendarCardBuckets(entries, new context.Date(2026, 2, 1));
+  const nextStartEntries = nextCalendarBuckets.get('2026-03-12') || [];
+  assert.deepStrictEqual(
+    toPlain(nextStartEntries.map((entry) => entry.temporalReason).sort()),
+    ['card-start', 'task-start'],
+    'expected next-range calendar view to include card and task start placements',
+  );
 
   const tableLists = [
     {

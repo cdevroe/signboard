@@ -1,4 +1,5 @@
 const BOARD_TABLE_COLUMNS = Object.freeze([
+  { id: 'start', label: 'Start' },
   { id: 'due', label: 'Due' },
   { id: 'updated', label: 'Updated' },
   { id: 'created', label: 'Created' },
@@ -76,15 +77,22 @@ function getBoardTableListOptions(listEntries) {
 
 function boardTableEntryMatchesFilters(entry) {
   const labels = Array.isArray(entry.labels) ? entry.labels : [];
+  const taskStartDates = Array.isArray(entry.taskStartDates) ? entry.taskStartDates : [];
+  const incompleteTaskStartDates = Array.isArray(entry.incompleteTaskStartDates)
+    ? entry.incompleteTaskStartDates
+    : taskStartDates;
   const taskDueDates = Array.isArray(entry.taskDueDates) ? entry.taskDueDates : [];
   const incompleteTaskDueDates = Array.isArray(entry.incompleteTaskDueDates)
     ? entry.incompleteTaskDueDates
     : taskDueDates;
-  const cardDueDates = getCardFilterDueDates(entry.due, taskDueDates);
+  const cardDueDates = getCardFilterDueDates(
+    [entry.start, entry.due],
+    [...taskStartDates, ...taskDueDates],
+  );
   const activeFilterDueDates = getActiveBoardFilterDueDates(
-    entry.due,
-    taskDueDates,
-    incompleteTaskDueDates,
+    [entry.start, entry.due],
+    [...taskStartDates, ...taskDueDates],
+    [...incompleteTaskStartDates, ...incompleteTaskDueDates],
   );
 
   return cardMatchesBoardLabelFilter(labels, cardDueDates, activeFilterDueDates, {
@@ -114,12 +122,15 @@ async function collectBoardTableCards(boardRoot, listsWithCards) {
             listDisplayName: listEntry.listDisplayName,
             isCompletedList: Boolean(listEntry.isCompletedList),
             title: normalizeBoardTableTitle(frontmatter.title),
+            start: String(frontmatter.start || '').trim(),
             due: String(frontmatter.due || '').trim(),
             labels: Array.isArray(frontmatter.labels)
               ? frontmatter.labels.map((labelId) => String(labelId))
               : [],
             body,
             taskSummary: getTaskListSummary(body),
+            taskStartDates: typeof getTaskListStartDates === 'function' ? getTaskListStartDates(body) : [],
+            incompleteTaskStartDates: typeof getIncompleteTaskListStartDates === 'function' ? getIncompleteTaskListStartDates(body) : [],
             taskDueDates: getTaskListDueDates(body),
             incompleteTaskDueDates: getIncompleteTaskListDueDates(body),
             linkedObjectCount: typeof getFrontmatterLinkedObjectCount === 'function'
@@ -439,6 +450,50 @@ function getBoardTableDisplayDueDates(entry) {
   };
 }
 
+function getBoardTableDisplayStartDates(entry) {
+  if (entry.start) {
+    return {
+      startDates: [entry.start],
+      prefix: '',
+    };
+  }
+
+  const taskStartDates = Array.isArray(entry.incompleteTaskStartDates) && entry.incompleteTaskStartDates.length > 0
+    ? entry.incompleteTaskStartDates
+    : [];
+
+  return {
+    startDates: getCardFilterDueDates('', taskStartDates),
+    prefix: 'Task: ',
+  };
+}
+
+async function createBoardTableStartCell(entry) {
+  const cell = document.createElement('td');
+  cell.className = 'board-table-cell board-table-cell-start';
+
+  const displayStart = getBoardTableDisplayStartDates(entry);
+  const firstStartDate = displayStart.startDates[0] || '';
+  if (!firstStartDate) {
+    const empty = document.createElement('span');
+    empty.className = 'board-table-empty-value';
+    empty.textContent = 'None';
+    cell.appendChild(empty);
+    return cell;
+  }
+
+  const startEl = document.createElement('span');
+  startEl.className = 'board-table-start';
+  const formattedStart = await window.board.formatDueDate(firstStartDate);
+  const extraCount = Math.max(0, displayStart.startDates.length - 1);
+  startEl.textContent = `${displayStart.prefix}${formattedStart}${extraCount > 0 ? ` +${extraCount}` : ''}`;
+  startEl.title = formatLongDueDateLabel(firstStartDate);
+  setDueDateVisualClass(startEl, firstStartDate);
+  cell.appendChild(startEl);
+
+  return cell;
+}
+
 async function createBoardTableDueCell(entry) {
   const cell = document.createElement('td');
   cell.className = 'board-table-cell board-table-cell-due';
@@ -555,6 +610,7 @@ async function createBoardTableRow(entry, listOptions) {
     toggleEditCardModal(entry.cardPath);
   });
 
+  row.appendChild(await createBoardTableStartCell(entry));
   row.appendChild(await createBoardTableDueCell(entry));
   row.appendChild(createBoardTableTimestampCell(entry, 'updatedAt'));
   row.appendChild(createBoardTableTimestampCell(entry, 'createdAt'));

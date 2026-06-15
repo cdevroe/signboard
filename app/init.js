@@ -1025,9 +1025,17 @@ async function init() {
         if (!activeListPath) {
             return;
         }
-        await processAddNewCard(userInput.value, activeListPath.value, { openAfterCreate: true });
+        await processAddNewCard(userInput.value, activeListPath.value, {
+            openAfterCreate: true,
+            frontmatter: typeof getCardCreationFrontmatter === 'function'
+                ? getCardCreationFrontmatter('add-card')
+                : {},
+        });
         userInput.value = '';
         activeListPath.value = '';
+        if (typeof resetCardCreationLabelSelection === 'function') {
+            resetCardCreationLabelSelection('add-card');
+        }
     });
     const userInputCardName = document.getElementById('userInputCardName');
     userInputCardName.addEventListener('keydown', async (key) => {

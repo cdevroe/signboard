@@ -87,7 +87,7 @@ contextBridge.exposeInMainWorld('board', {
     invokeBoard('updateBoardThemeOverrides', boardRoot, themeOverrides),
   updateBoardSettings: async (boardRoot, partialSettings) =>
     invokeBoard('updateBoardSettings', boardRoot, partialSettings),
-  createCard: async (filePath, content) => invokeBoard('createCard', filePath, content),
+  createCard: async (filePath, content, options) => invokeBoard('createCard', filePath, content, options),
   generateObsidianBase: async (boardRoot) => invokeBoard('generateObsidianBase', boardRoot),
   openObsidianBase: async (boardRoot) => invokeBoard('openObsidianBase', boardRoot),
   createLinkedObsidianNote: async (boardRoot, filePath) =>

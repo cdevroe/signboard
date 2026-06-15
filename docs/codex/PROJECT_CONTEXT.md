@@ -164,8 +164,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Loads board label definitions and temporary filter state before rendering cards.
 - `app/board/tableView.js`:
   - Renders active-board cards in board/list order as a dense table.
-  - Shows `Updated`, `Created`, and linked-object count columns plus a compact sort control for board order, oldest/newest updated, oldest/newest created, due date, and title.
-  - Reuses board search, label filters, Today/Overdue date filters, task progress badges, linked-object counts, and completed-list workflow handling.
+  - Shows `Start`, `Due`, `Updated`, `Created`, and linked-object count columns plus a compact sort control for board order, oldest/newest updated, oldest/newest created, due date, and title.
+  - Reuses board search, label filters, Today/Overdue/next-range date filters, task progress badges, linked-object counts, and completed-list workflow handling.
   - Moves a card to another list through the row list dropdown by calling the same top-of-list move IPC path as the card editor.
   - Defers row list dropdown DOM updates until macOS native menu tracking has settled.
 - `app/board/archiveBrowser.js`:
@@ -178,15 +178,15 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Opens the `Cmd/Ctrl + K` board switcher overlay.
   - Filters currently open boards by visible board name, highlights autocomplete results, closes open boards from result rows, and delegates switching to the shared board switch helper.
 - `app/board/boardViews.js`:
-  - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, open task due-date placement, and temporal card rendering.
+  - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, open task start/due date placement, and temporal card rendering.
   - Owns board-facing Kanban/Table view state and the Board menu view popover.
   - Shows task progress badges and source-list/source-board pills on temporal cards, tinting source-board pills from each board's color scheme when available.
 - `app/board/plannerView.js`:
   - Owns the workspace Planner overlay opened from the left rail or `Cmd/Ctrl + Shift + P`.
   - Scopes Planner data to currently open board tabs only and defaults to all open boards.
   - Offers quick `All Boards` and `Current Board` scope controls plus custom board selection in the filter menu.
-  - Renders Planner Calendar, This Week, Day, and Agenda views from card due dates and incomplete task-level due markers.
-  - Uses Planner-local search plus `Today` / `Overdue`, completed-card visibility, and open-board filters; label filters appear only when scoped to the active board.
+  - Renders Planner Calendar, This Week, Day, and Agenda views from card start/due dates and incomplete task-level start/due markers.
+  - Uses Planner-local search plus `Today` / `Overdue` / next-range date filters, completed-card visibility, and open-board filters; label filters appear only when scoped to the active board.
   - Lets keyboard users move from Planner search into visible Planner cards, move between cards with arrows, return to search with `Esc`, and traverse the Planner filter popover with arrows.
   - Hides cards from completed workflow lists by default while preserving their due-date metadata; the Planner filter menu can show completed dated cards when needed.
   - Opens Planner cards through the normal editor, switching the active board behind the overlay first when the card belongs to a different board.
@@ -203,7 +203,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Keeps the popover labelled, focuses the first enabled action on open, supports arrow-key / `Home` / `End` / `Esc` option navigation, and announces completed list actions through the shared live status helper.
 - `app/cards/createCardElement.js`:
   - Reads card frontmatter/body preview.
-  - Computes task summary + task due dates from card body checklist lines.
+  - Computes task summary + task start/due dates from card body checklist lines.
   - Shows task progress badge on board cards.
   - Shows linked-object count badges on board cards.
   - Shows label chips and a tag-icon picker on each card.
@@ -211,14 +211,14 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Renders each card as a list item with a native button title so cards can be opened by keyboard and announced with stable labels.
 - `app/board/boardLabels.js`:
   - Owns board label state in the renderer.
-  - Renders the header filter dropdown with mutually exclusive `Today` / `Overdue` date filters plus multi-select OR label filters.
+  - Renders the header filter dropdown with mutually exclusive `Today` / `Overdue` / next-range date filters plus multi-select OR label filters.
   - Keeps the header filter popover, card label popover, and Settings section nav keyboard-operable with arrow keys, `Home`, `End`, and opener focus restoration on popover `Esc`.
-  - Evaluates date filters from card due dates and incomplete task due markers, ignoring completed task due markers.
+  - Evaluates date filters from card start/due dates and incomplete task start/due markers, ignoring completed task date markers.
   - Combines date filters, label filters, and board search with AND logic when determining visibility.
   - Owns board workflow settings for completed-list auto-detection, ignored auto-detected lists, and manual completed-list selection.
   - Keeps filter state temporary only; opening or switching boards resets the active date + label filters.
   - Keeps the filter toolbar button icon-only and applies an accent-tinted active state when any filter is set; active summary text lives in tooltip/ARIA copy.
-  - Handles card label popovers, Settings modal board panels, and the board import UI/actions.
+  - Handles card label popovers with inline label creation, new-card label selection, Settings modal board panels, and the board import UI/actions.
   - Persists board labels through preload APIs.
 - `app/board/boardSearch.js`:
   - Stores the current search query/tokens.
@@ -231,6 +231,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Quick Add card submissions can target any currently open/trusted board, request opening the created card immediately with the notes field focused, and switch to the target board first when `Shift + Enter` creates a card outside the active board.
 - `app/modals/toggleEditCardModal.js`:
   - Loads card into OverType editor.
+  - Displays and edits card-level start/due dates from frontmatter.
   - Displays quiet `Created` and `Updated` card timestamps from the normalized desktop read metadata.
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.
@@ -239,15 +240,15 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Detects raw `http(s)`/`www` URLs in the body without rewriting Markdown, visually marks them in the OverType preview, and opens them through `window.electronAPI.openExternal` from the inline open button or Cmd/Ctrl-click.
   - Moves active cards to selected/adjacent lists from the list dropdown, arrow action, and keyboard shortcuts by calling the main-process `moveCardToTop` IPC path, which inserts at the top of the destination list.
   - Defers list-dropdown moves until macOS native menu tracking has settled before disabling controls or refreshing editor state.
-  - Renders task-line due-date controls at the start of each parsed checklist line in the editor.
+  - Renders task-line start/due date controls at the start of each parsed checklist line in the editor.
   - Uses measured textarea line-start coordinates for control placement so wrapped lines do not drift button positions.
-  - Handles due date picker, labels picker, linked-object paperclip menu, local-file drag/drop linking, duplicate, archive, and Open With actions.
+  - Handles date pickers, labels picker, linked-object paperclip menu, local-file drag/drop linking, duplicate, archive, and Open With actions.
   - The Open With menu covers default-app file actions and copied Signboard links for every board; Obsidian open/URI actions are shown only when the card is inside a detected vault.
   - Card duplication now resets archive/lifecycle fields and seeds a fresh `created` event.
 - `app/utilities/taskList.js`:
   - Parses checklist items from card markdown body.
-  - Computes task summary (`total`, `completed`, `remaining`) and task due-date sets.
-  - Creates task progress badge elements and updates task-line due markers by line index.
+  - Computes task summary (`total`, `completed`, `remaining`) and task start/due date sets.
+  - Creates task progress badge elements and updates task-line start/due markers by line index.
 - `app/utilities/dueNotifications.js`:
   - Collects due items from both card-level due dates and incomplete task-level due markers, skipping cards in completed workflow lists.
   - Builds notification body text that includes board/card title and task summary text for task due items.
@@ -314,14 +315,16 @@ File: `lib/cardFrontmatter.js`
   - Legacy heading-only format (`# Title` first line)
 - Normalizes metadata:
   - `Title` -> `title`
+  - `scheduled` / `startDate` / `scheduledDate` / `Start-date` / `Start` / `Scheduled` -> `start`
   - `Due-date` -> `due`
   - `Labels` -> `labels`
-- Standardizes due date to `YYYY-MM-DD` when possible.
+- Standardizes start and due dates to `YYYY-MM-DD` when possible.
 - Ensures deterministic write order:
   1) `title`
-  2) optional `due`
-  3) optional `labels` (non-empty only)
-  4) other keys sorted alphabetically
+  2) optional `start`
+  3) optional `due`
+  4) optional `labels` (non-empty only)
+  5) other keys sorted alphabetically
 
 File: `lib/cardLifecycle.js`
 
@@ -375,7 +378,7 @@ File: `lib/obsidianIntegration.js`
 ## Importers
 Files: `lib/importers/*`
 
-- `lib/importers/trello.js` imports Trello board JSON into Signboard lists/cards, preserving labels, checklists, comments, attachments, due dates, and archive routing for closed Trello content.
+- `lib/importers/trello.js` imports Trello board JSON into Signboard lists/cards, preserving labels, checklists, comments, attachments, start/due dates, and archive routing for closed Trello content.
 - `lib/importers/obsidian.js` imports:
   - markdown-backed `obsidian-kanban` boards
   - generic task-based Obsidian markdown scopes
@@ -423,8 +426,8 @@ Files: `lib/importers/*`
 
 ### CLI internals
 - `lib/boardCreation.js` owns shared default board scaffolding for MCP and CLI-created boards.
-- `lib/cliBoard.js` owns CLI list/card filesystem operations, including due filtering with `--due-source any|card|task`, `--task-status open|any`, card duplication/template creation, targeted Markdown section edits, timestamped notes, explicit label clearing, and card write dry-run payloads.
-- `lib/taskList.js` exposes shared task parsing and due-date helpers for CLI filtering.
+- `lib/cliBoard.js` owns CLI list/card filesystem operations, including due filtering with `--due-source any|card|task`, `--task-status open|any`, `--start` card writes, card duplication/template creation, targeted Markdown section edits, timestamped notes, explicit label clearing, and card write dry-run payloads.
+- `lib/taskList.js` exposes shared task parsing and start/due date helpers for CLI filtering and JSON metadata.
 - `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including board creation, archive listing/read/restore flows, card write previews, and path-based Trello/Obsidian/Tasks.md imports.
 - `lib/cliInstall.js` owns user-level CLI shim + shell profile installation, including the packaged-app Node-mode wrapper.
 - `lib/cliState.js` persists the currently selected board for subsequent CLI commands.
@@ -454,7 +457,7 @@ CLI overdue behavior:
 ### MCP smoke test
 - `npm run test:mcp`
 - Script: `scripts/test-mcp-server.js`
-- Asserts card tool outputs include `taskSummary` + `taskDueDates`, verifies trusted-root config and board-name resolution, verifies archive browse/read/restore tools, and covers Trello/Obsidian/Tasks.md import tools.
+- Asserts card tool outputs include `taskSummary` + task date metadata, verifies trusted-root config and board-name resolution, verifies archive browse/read/restore tools, and covers Trello/Obsidian/Tasks.md import tools.
 
 ### CLI smoke test
 - `npm run test:cli`
@@ -478,7 +481,7 @@ CLI overdue behavior:
 ### Task list parser tests
 - `npm run test:task-list`
 - Script: `scripts/test-task-list-parser.js`
-- Covers checklist completion variants and task due-date extraction.
+- Covers checklist completion variants and task start/due date extraction.
 
 ### Due notification tests
 - `npm run test:due-notifications`

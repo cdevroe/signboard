@@ -130,18 +130,24 @@ Import tools also take absolute external source paths, and those paths must reso
 - `card.timestamps.createdAt`: ISO timestamp for when the card was created, preferring Signboard card metadata and falling back to filesystem timestamps for older cards
 - `card.timestamps.updatedAt`: ISO timestamp from the card file's filesystem modification time when available
 - `taskSummary`: `{ total, completed, remaining }`
-- `taskDueDates`: sorted unique ISO dates found in task lines (`YYYY-MM-DD`)
+- `card.start`: optional card start/scheduled date (`YYYY-MM-DD`) when present
+- `card.due`: optional card due date (`YYYY-MM-DD`) when present
+- `taskStartDates`: sorted unique ISO start/scheduled dates found in task lines (`YYYY-MM-DD`)
+- `taskDueDates`: sorted unique ISO due dates found in task lines (`YYYY-MM-DD`)
 
 Task parsing rules:
 
 - Checklist items are recognized from markdown checkbox lines (for example: `- [ ]`, `- [x]`, `- [X]`, `- [x ]`, `- [ x]`, `- [ x ]`).
-- Task-level due dates are recognized only when the task content starts with:
+- Task-level date markers are recognized when the task content starts with one or more of:
+  - `(start: YYYY-MM-DD)`
+  - `(scheduled: YYYY-MM-DD)`
   - `(due: YYYY-MM-DD)`
 
 Example:
 
 ```md
-- [ ] (due: 2026-03-20) Draft announcement
+- [ ] (start: 2026-03-18) (due: 2026-03-20) Draft announcement
+- [ ] (scheduled: 2026-03-21) Follow up
 - [x ] Confirm reviewers
 ```
 
@@ -154,6 +160,7 @@ Returned metadata shape:
     "completed": 1,
     "remaining": 1
   },
+  "taskStartDates": ["2026-03-18", "2026-03-21"],
   "taskDueDates": ["2026-03-20"]
 }
 ```
@@ -206,7 +213,7 @@ If neither `SIGNBOARD_MCP_ALLOWED_ROOTS` nor desktop trusted board roots are ava
 - The process communicates over stdio (MCP JSON-RPC framing).
 - The stdio parser accepts both header-framed MCP and newline-delimited JSON-RPC payloads.
 - `signboard_list_board_views` reports the board-scoped Kanban and Table views; dated Calendar/This Week/Day/Agenda planning is handled by the desktop Planner overlay.
-- Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`).
+- Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`), including optional `start` and `due` fields.
 - `signboard_create_card` and `signboard_update_card` normalize literal `\n` / `\N` escape sequences in body input into real line breaks.
 - `signboard_update_card` can replace a Markdown heading section (`replaceSection` + `body`), insert text after a heading (`insertAfterHeading` + `insertText`), append a note under `## Notes` (`addNote`), and clear/add/remove labels without replacing the full body.
 - `dryRun: true` on card create/update/duplicate returns the planned card payload without writing a file.

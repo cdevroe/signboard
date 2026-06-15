@@ -18,7 +18,16 @@ function loadTaskListUtilities() {
 
 function run() {
   const context = loadTaskListUtilities();
-  const { getTaskListSummary, getTaskListDueDates, getIncompleteTaskListDueDates } = context;
+  const {
+    getTaskListSummary,
+    getTaskListDueDates,
+    getIncompleteTaskListDueDates,
+    getTaskListStartDates,
+    getIncompleteTaskListStartDates,
+    parseTaskListItems,
+    setTaskListItemStartDateByLineIndex,
+    setTaskListItemDueDateByLineIndex,
+  } = context;
   const toPlain = (value) => JSON.parse(JSON.stringify(value));
 
   const baseline = [
@@ -61,6 +70,36 @@ function run() {
     toPlain(getIncompleteTaskListDueDates(withTaskDueDates)),
     ['2026-03-20', '2026-03-22'],
     'Expected completed task due dates to be ignored when collecting incomplete task due dates',
+  );
+
+  const withStartAndDueDates = [
+    '- [ ] (start: 2026-03-18) (due: 2026-03-20) Task one',
+    '- [x ] (scheduled: 2026-03-19) (due: 2026-03-21) Task two',
+    '- [ ] (due: 2026-03-22) (start: 2026-03-17) Task three',
+  ].join('\n');
+  assert.deepStrictEqual(
+    toPlain(getTaskListStartDates(withStartAndDueDates)),
+    ['2026-03-17', '2026-03-18', '2026-03-19'],
+    'Expected unique sorted task start dates',
+  );
+  assert.deepStrictEqual(
+    toPlain(getIncompleteTaskListStartDates(withStartAndDueDates)),
+    ['2026-03-17', '2026-03-18'],
+    'Expected completed task start dates to be ignored when collecting incomplete task start dates',
+  );
+  const parsedStartDueTask = toPlain(parseTaskListItems(withStartAndDueDates)[0]);
+  assert.strictEqual(parsedStartDueTask.start, '2026-03-18');
+  assert.strictEqual(parsedStartDueTask.due, '2026-03-20');
+  assert.strictEqual(parsedStartDueTask.contentWithoutDateMarkers, 'Task one');
+  assert.strictEqual(
+    setTaskListItemDueDateByLineIndex('- [ ] (start: 2026-03-18) Task one', 0, '2026-03-20'),
+    '- [ ] (start: 2026-03-18) (due: 2026-03-20) Task one',
+    'Expected setting a due date to preserve an existing start marker',
+  );
+  assert.strictEqual(
+    setTaskListItemStartDateByLineIndex('- [ ] (due: 2026-03-20) Task one', 0, '2026-03-18'),
+    '- [ ] (start: 2026-03-18) (due: 2026-03-20) Task one',
+    'Expected setting a start date to preserve an existing due marker',
   );
 
   const withOnlyCompletedDueTasks = [

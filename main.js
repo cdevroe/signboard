@@ -3991,10 +3991,15 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     case 'createCard': {
       const filePath = requireWritablePath(event.sender, args[0], { allowTrusted: true });
       const content = String(args[1] || '');
+      const createOptions = args[2] && typeof args[2] === 'object' && !Array.isArray(args[2]) ? args[2] : {};
+      const initialFrontmatter = createOptions.frontmatter && typeof createOptions.frontmatter === 'object' && !Array.isArray(createOptions.frontmatter)
+        ? createOptions.frontmatter
+        : {};
       const lines = content.split(/\r?\n/);
       const title = (lines.shift() || '').trim();
       const body = lines.join('\n').replace(/^\n+/, '');
       const frontmatter = normalizeCardFrontmatterForBoardPath(event.sender, filePath, prepareNewCardFrontmatter({
+        ...initialFrontmatter,
         title: title || 'Untitled',
       }));
 

@@ -174,6 +174,7 @@
 
   <div id="modalAddCard" class="modal hidden" role="dialog" aria-modal="true" aria-label="Add card" aria-hidden="true">
     <input id="userInput" type="text" placeholder="A small task" aria-label="Card title">
+    <button id="newCardLabelButton" class="new-card-label-button" type="button" title="Set labels" aria-label="Set labels"><i data-feather="tag"></i><span class="new-card-label-button-text">Labels</span></button>
     <input id="hiddenListPath" type="hidden" value="">
     <p class="new-card-modal-helper"><kbd>Shift</kbd> + <kbd>Enter</kbd> to create and open</p>
     <button id="btnAddCard" title="Add card">Add card</button>
@@ -183,6 +184,7 @@
     <p><select id="userInputBoardPath" aria-label="Board"></select></p>
     <p><select id="userInputListPath" aria-label="List"></select></p>
     <p class="modalAddCardToListInputRow"><input id="userInputCardName" type="text" placeholder="Go fishing" aria-label="Card title"></p>
+    <button id="quickAddCardLabelButton" class="new-card-label-button" type="button" title="Set labels" aria-label="Set labels"><i data-feather="tag"></i><span class="new-card-label-button-text">Labels</span></button>
     <p class="new-card-modal-helper"><kbd>Shift</kbd> + <kbd>Enter</kbd> to create and open</p>
     <button id="btnAddCardToList" title="Add card to selected list">Add</button>
   </div>
@@ -662,6 +664,7 @@
     <div>
       <h2 id="cardEditorTitle" contenteditable="true" role="textbox" aria-label="Card title" aria-multiline="false" spellcheck="true"></h2>
       <div class="cardEditorMetadataButtons">
+        <button type="button" id="cardEditorSetStartDateLink" title="Edit Start Date" aria-label="Edit start date"><i data-feather="play-circle"></i> <span id="cardEditorCardStartDateDisplay" title="This card's start date"></span></button>
         <button type="button" id="cardEditorSetDueDateLink" title="Edit Due Date" aria-label="Edit due date"><i data-feather="clock"></i> <span id="cardEditorCardDueDateDisplay" title="This card's due date"></span></button>
         <button type="button" id="cardEditorSetLabelsLink" title="Edit Labels" aria-label="Edit labels"><i data-feather="tag"></i> <span id="cardEditorCardLabels" title="This card's labels"></span></button>
         <button type="button" id="cardEditorLinkedObjectsLink" title="Linked objects" aria-label="Linked objects" aria-expanded="false"><i data-feather="paperclip"></i> <span id="cardEditorLinkedObjectsCount" class="card-editor-linked-objects-count" hidden></span></button>

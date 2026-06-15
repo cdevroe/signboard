@@ -1241,7 +1241,7 @@ body:not(.board-empty) main#board.board-view-week {
 
 .board-table-view {
   width: 100%;
-  min-width: 1080px;
+  min-width: 1210px;
 }
 
 .board-table-header {
@@ -1352,6 +1352,7 @@ body:not(.board-empty) main#board.board-view-week {
   width: 210px;
 }
 
+.board-table-cell-start,
 .board-table-cell-due,
 .board-table-cell-updated,
 .board-table-cell-created,
@@ -1408,6 +1409,7 @@ body:not(.board-empty) main#board.board-view-week {
   outline-offset: 1px;
 }
 
+.board-table-start,
 .board-table-due {
   display: inline-flex;
   align-items: center;
@@ -1419,10 +1421,12 @@ body:not(.board-empty) main#board.board-view-week {
   white-space: nowrap;
 }
 
+.board-table-start.due-date-today,
 .board-table-due.due-date-today {
   color: var(--due-date-today-color);
 }
 
+.board-table-start.due-date-tomorrow,
 .board-table-due.due-date-tomorrow {
   color: var(--due-date-tomorrow-color);
 }
@@ -4287,6 +4291,70 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   width: 100%;
 }
 
+.card-label-create-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.card-label-create-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: var(--font-sm);
+  padding: 6px 8px;
+}
+
+.card-label-create-input:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 1px;
+}
+
+.card-label-create-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.card-label-create-button {
+  min-height: 32px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.new-card-label-button {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 34px;
+  margin-top: 8px;
+  font-size: var(--font-sm);
+  padding: 6px 10px;
+}
+
+.new-card-label-button svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+
+.new-card-label-button-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.new-card-label-button.has-labels {
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+  color: color-mix(in oklab, var(--accent) 80%, var(--text));
+}
+
 .list-actions-option {
   width: 100%;
   display: flex;
@@ -4354,10 +4422,14 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #modalEditCard .cardEditorMetadataButtons button:active {
   transform: none;
 }
+#modalEditCard #cardEditorCardStartDateDisplay,
 #modalEditCard #cardEditorCardDueDateDisplay { font-size: var(--font-sm); color: var(--muted); }
+#modalEditCard #cardEditorSetStartDateLink,
 #modalEditCard #cardEditorSetDueDateLink,
 #modalEditCard #cardEditorSetLabelsLink { text-decoration: none; }
+#modalEditCard .cardEditorMetadataButtons #cardEditorSetStartDateLink.due-date-today,
 #modalEditCard .cardEditorMetadataButtons #cardEditorSetDueDateLink.due-date-today { color: var(--due-date-today-color); }
+#modalEditCard .cardEditorMetadataButtons #cardEditorSetStartDateLink.due-date-tomorrow,
 #modalEditCard .cardEditorMetadataButtons #cardEditorSetDueDateLink.due-date-tomorrow { color: var(--due-date-tomorrow-color); }
 
 #modalEditCard .cardEditorHeader {
@@ -4519,6 +4591,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #modalEditCard .card-editor-linked-objects-count[hidden] {
   display: none;
 }
+#modalEditCard #cardEditorCardStartDateDisplay,
 #modalEditCard #cardEditorCardDueDateDisplay,
 #modalEditCard #cardEditorCardLabels { margin-right: 0; }
 #modalEditCard #cardEditorCardLabels.card-editor-labels {
@@ -4907,7 +4980,7 @@ select:disabled {
 
 #cardEditorOverType .overtype-input,
 #cardEditorOverType .overtype-preview {
-  padding-left: 29px !important;
+  padding-left: 49px !important;
 }
 
 #cardEditorOverType .task-line-due-layer {
@@ -4917,6 +4990,7 @@ select:disabled {
   z-index: 6;
 }
 
+#cardEditorOverType .task-line-start-control,
 #cardEditorOverType .task-line-due-control {
   position: absolute;
   display: inline-flex;
@@ -4934,17 +5008,20 @@ select:disabled {
   cursor: pointer;
 }
 
+#cardEditorOverType .task-line-start-control:hover,
 #cardEditorOverType .task-line-due-control:hover {
   border-color: color-mix(in oklab, var(--accent) 48%, var(--border));
   color: color-mix(in oklab, var(--accent) 78%, var(--text));
 }
 
+#cardEditorOverType .task-line-start-control.has-start,
 #cardEditorOverType .task-line-due-control.has-due {
   border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
   background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
   color: color-mix(in oklab, var(--accent) 80%, var(--text));
 }
 
+#cardEditorOverType .task-line-start-control svg,
 #cardEditorOverType .task-line-due-control svg {
   width: 14px;
   height: 14px;

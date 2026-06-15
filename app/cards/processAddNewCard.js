@@ -19,7 +19,13 @@ async function processAddNewCard( cardName, listPath, options = {} ){
 
     const cardPath = listPath + fileName;
 
-    await window.board.createCard( cardPath, cardName);
+    const initialFrontmatter = options && options.frontmatter && typeof options.frontmatter === 'object'
+        ? options.frontmatter
+        : {};
+
+    await window.board.createCard( cardPath, cardName, {
+        frontmatter: initialFrontmatter,
+    });
 
     const shouldRerenderActiveBoard = !targetBoardRoot || targetBoardRoot === activeBoardRoot;
     await closeAllModals(createCloseAllModalsRequest(), { rerender: shouldRerenderActiveBoard });

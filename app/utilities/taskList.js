@@ -1,8 +1,8 @@
 const TASK_LIST_ITEM_PATTERN = /^(\s*[-*+]\s*\[([\sxX✓✔]*)\]\s*)(.*)$/;
-const TASK_DUE_MARKER_PATTERN = /^\(due:\s*(\d{4}-\d{2}-\d{2})\)\s*/i;
-const TASK_DUE_MARKER_LOOSE_PATTERN = /^\(due:\s*([^)]+)\)\s*/i;
+const TASK_DATE_MARKER_PATTERN = /^\((due|start|scheduled):\s*(\d{4}-\d{2}-\d{2})\)\s*/i;
+const TASK_DATE_MARKER_LOOSE_PATTERN = /^\((due|start|scheduled):\s*([^)]+)\)\s*/i;
 
-function normalizeTaskDueDateValue(dateValue) {
+function normalizeTaskDateValue(dateValue) {
   const normalized = String(dateValue || '').trim();
   if (!normalized) {
     return '';
@@ -14,6 +14,48 @@ function normalizeTaskDueDateValue(dateValue) {
   }
 
   return normalized;
+}
+
+function normalizeTaskDueDateValue(dateValue) {
+  return normalizeTaskDateValue(dateValue);
+}
+
+function normalizeTaskStartDateValue(dateValue) {
+  return normalizeTaskDateValue(dateValue);
+}
+
+function parseTaskDateMarkers(contentValue) {
+  let remaining = String(contentValue || '').replace(/^\s+/, '');
+  let due = '';
+  let start = '';
+  let consumedAnyMarker = false;
+
+  while (remaining) {
+    const strictMatch = remaining.match(TASK_DATE_MARKER_PATTERN);
+    const looseMatch = remaining.match(TASK_DATE_MARKER_LOOSE_PATTERN);
+    const markerMatch = strictMatch || looseMatch;
+    if (!markerMatch) {
+      break;
+    }
+
+    consumedAnyMarker = true;
+    const markerName = String(markerMatch[1] || '').trim().toLowerCase();
+    const markerValue = strictMatch ? normalizeTaskDateValue(markerMatch[2]) : '';
+    if (markerValue) {
+      if (markerName === 'due') {
+        due = markerValue;
+      } else {
+        start = markerValue;
+      }
+    }
+    remaining = remaining.slice(markerMatch[0].length);
+  }
+
+  return {
+    due,
+    start,
+    contentWithoutDateMarkers: consumedAnyMarker ? remaining : String(contentValue || '').replace(/^\s+/, ''),
+  };
 }
 
 function parseTaskListItemLine(lineValue) {
@@ -34,24 +76,16 @@ function parseTaskListItemLine(lineValue) {
   const content = String(match[3] || '');
   const normalizedContent = content.replace(/^\s+/, '');
 
-  let contentWithoutDue = normalizedContent;
-  const looseMarkerMatch = normalizedContent.match(TASK_DUE_MARKER_LOOSE_PATTERN);
-  if (looseMarkerMatch) {
-    contentWithoutDue = normalizedContent.slice(looseMarkerMatch[0].length);
-  }
-
-  let due = '';
-  const strictMarkerMatch = normalizedContent.match(TASK_DUE_MARKER_PATTERN);
-  if (strictMarkerMatch) {
-    due = normalizeTaskDueDateValue(strictMarkerMatch[1]);
-  }
+  const dateMarkers = parseTaskDateMarkers(normalizedContent);
 
   return {
     prefix,
     isCompleted,
     content,
-    contentWithoutDue,
-    due,
+    contentWithoutDue: dateMarkers.contentWithoutDateMarkers,
+    contentWithoutDateMarkers: dateMarkers.contentWithoutDateMarkers,
+    due: dateMarkers.due,
+    start: dateMarkers.start,
   };
 }
 
@@ -136,6 +170,32 @@ function getIncompleteTaskListDueDates(bodyValue) {
   return [...dueSet].sort();
 }
 
+function getTaskListStartDates(bodyValue) {
+  const items = parseTaskListItems(bodyValue);
+  const startSet = new Set();
+  for (const item of items) {
+    if (item.start) {
+      startSet.add(item.start);
+    }
+  }
+
+  return [...startSet].sort();
+}
+
+function getIncompleteTaskListStartDates(bodyValue) {
+  const items = parseTaskListItems(bodyValue);
+  const startSet = new Set();
+  for (const item of items) {
+    if (item.isCompleted || !item.start) {
+      continue;
+    }
+
+    startSet.add(item.start);
+  }
+
+  return [...startSet].sort();
+}
+
 function createTaskProgressBadge(taskSummary, className = '') {
   const summary = taskSummary && typeof taskSummary === 'object' ? taskSummary : {};
   const total = Number(summary.total) || 0;
@@ -168,7 +228,7 @@ function createTaskProgressBadge(taskSummary, className = '') {
   return badge;
 }
 
-function setTaskListItemDueDateByLineIndex(bodyValue, lineIndex, dueDateValue) {
+function setTaskListItemDateByLineIndex(bodyValue, lineIndex, dateKind, dateValue) {
   const body = String(bodyValue || '');
   const requestedLineIndex = Number(lineIndex);
   if (!Number.isInteger(requestedLineIndex) || requestedLineIndex < 0) {
@@ -185,13 +245,25 @@ function setTaskListItemDueDateByLineIndex(bodyValue, lineIndex, dueDateValue) {
     return body;
   }
 
-  const normalizedDueDate = normalizeTaskDueDateValue(dueDateValue);
+  const normalizedKind = String(dateKind || '').trim().toLowerCase() === 'start' ? 'start' : 'due';
+  const normalizedDate = normalizeTaskDateValue(dateValue);
   const trimmedContent = String(parsedLine.contentWithoutDue || '').trimStart();
-  const duePrefix = normalizedDueDate ? `(due: ${normalizedDueDate}) ` : '';
-  lines[requestedLineIndex] = `${parsedLine.prefix}${duePrefix}${trimmedContent}`;
+  const startValue = normalizedKind === 'start' ? normalizedDate : parsedLine.start;
+  const dueValue = normalizedKind === 'due' ? normalizedDate : parsedLine.due;
+  const startPrefix = startValue ? `(start: ${startValue}) ` : '';
+  const duePrefix = dueValue ? `(due: ${dueValue}) ` : '';
+  lines[requestedLineIndex] = `${parsedLine.prefix}${startPrefix}${duePrefix}${trimmedContent}`;
 
   const newline = body.includes('\r\n') ? '\r\n' : '\n';
   return lines.join(newline);
+}
+
+function setTaskListItemDueDateByLineIndex(bodyValue, lineIndex, dueDateValue) {
+  return setTaskListItemDateByLineIndex(bodyValue, lineIndex, 'due', dueDateValue);
+}
+
+function setTaskListItemStartDateByLineIndex(bodyValue, lineIndex, startDateValue) {
+  return setTaskListItemDateByLineIndex(bodyValue, lineIndex, 'start', startDateValue);
 }
 
 function setTaskListItemCompletionByLineIndex(bodyValue, lineIndex, isCompleted) {

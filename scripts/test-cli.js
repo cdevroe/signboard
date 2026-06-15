@@ -208,6 +208,7 @@ async function createImportFixtures(root) {
         idList: 'trello-list-1',
         name: 'Imported pitch',
         desc: 'Imported from Trello.',
+        start: '2026-03-21',
         due: '2026-03-22',
         closed: false,
         pos: 1,
@@ -226,7 +227,7 @@ async function createImportFixtures(root) {
     '---',
     '',
     '## Inbox',
-    '- [ ] Draft intro @{2026-03-24} #Writing',
+    '- [ ] Draft intro @start(2026-03-21) @{2026-03-24} #Writing',
     '',
     '## Done',
     '- [x] Sent final #Done',
@@ -463,6 +464,10 @@ async function main() {
       'Lead from template',
       '--remove-label',
       'Template',
+      '--start',
+      '2026-03-25',
+      '--due',
+      '2026-03-26',
       '--dry-run',
       '--json',
     ], env).stdout
@@ -471,6 +476,8 @@ async function main() {
   assert.strictEqual(duplicatePreview.operation, 'duplicate-card');
   assert.strictEqual(duplicatePreview.listDisplayName, 'Waiting');
   assert.strictEqual(duplicatePreview.title, 'Lead from template');
+  assert.strictEqual(duplicatePreview.start, '2026-03-25');
+  assert.strictEqual(duplicatePreview.due, '2026-03-26');
   assert.ok(duplicatePreview.labels.includes('urgent'));
   assert.ok(!duplicatePreview.labels.includes('template'));
   assert.ok(duplicatePreview.timestamps.createdAt);
@@ -491,11 +498,17 @@ async function main() {
       'Lead from template',
       '--remove-label',
       'Template',
+      '--start',
+      '2026-03-25',
+      '--due',
+      '2026-03-26',
       '--json',
     ], env).stdout
   );
   assert.strictEqual(duplicatedCard.listDisplayName, 'Waiting');
   assert.strictEqual(duplicatedCard.title, 'Lead from template');
+  assert.strictEqual(duplicatedCard.start, '2026-03-25');
+  assert.strictEqual(duplicatedCard.due, '2026-03-26');
   assert.ok(duplicatedCard.labels.includes('urgent'));
   assert.ok(!duplicatedCard.labels.includes('template'));
   assert.strictEqual(duplicatedCard.taskSummary.total, 1);
@@ -637,6 +650,8 @@ async function main() {
       'Needs approval',
       '--body',
       'Waiting on leadership',
+      '--start',
+      '2026-03-18',
       '--due',
       '2026-03-20',
       '--label',
@@ -645,6 +660,7 @@ async function main() {
     ], env).stdout
   );
   assert.strictEqual(createdCard.listDisplayName, 'Waiting');
+  assert.strictEqual(createdCard.start, '2026-03-18');
   assert.strictEqual(createdCard.due, '2026-03-20');
   assert.deepStrictEqual(createdCard.labels, ['client']);
 
@@ -655,6 +671,8 @@ async function main() {
       '--card',
       createdCard.id,
       '--due',
+      'none',
+      '--start',
       'none',
       '--add-label',
       'Urgent',
@@ -667,6 +685,7 @@ async function main() {
   );
   assert.strictEqual(editedCard.listDisplayName, 'Doing');
   assert.ok(editedCard.fileName.startsWith('000-'));
+  assert.strictEqual(editedCard.start, null);
   assert.strictEqual(editedCard.due, null);
   assert.deepStrictEqual(editedCard.labels.sort(), ['client', 'urgent']);
   assert.ok(editedCard.body.includes('Escalated yesterday.'));
@@ -683,6 +702,7 @@ async function main() {
   );
   assert.strictEqual(readCard.title, 'Needs approval');
   assert.strictEqual(readCard.listDisplayName, 'Doing');
+  assert.strictEqual(readCard.start, null);
   assert.ok(readCard.timestamps.createdAt);
   assert.ok(readCard.timestamps.updatedAt);
 
@@ -801,6 +821,7 @@ async function main() {
     ], env).stdout
   );
   assert.strictEqual(trelloCards.length, 1);
+  assert.strictEqual(trelloCards[0].start, '2026-03-21');
   assert.strictEqual(trelloCards[0].due, '2026-03-22');
 
   const obsidianImport = JSON.parse(
@@ -825,6 +846,7 @@ async function main() {
     ], env).stdout
   );
   assert.strictEqual(obsidianCards.length, 1);
+  assert.strictEqual(obsidianCards[0].start, '2026-03-21');
   assert.strictEqual(obsidianCards[0].due, '2026-03-24');
   assert.ok(obsidianCards[0].labelNames.includes('Writing'));
 

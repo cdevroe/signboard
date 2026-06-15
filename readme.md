@@ -17,7 +17,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 🖌️ Color scheme per board (several to choose from!)
 - 🌙 Light and dark mode variants for all color schemes
 - 🏷 Custom labels per board
-- 🗓 Card due dates and task list item due dates
+- 🗓 Card start/due dates and task list item start/due dates
 - 📋 Kanban and Table board views, including card age columns and sorting in Table
 - 🗂 Planner overlay for actionable dated work across open boards
 - 📆 Optional local External Published Calendar feed for calendar app subscriptions
@@ -139,7 +139,7 @@ signboard lists rename "Waiting" "Blocked"
 signboard cards --due next:7
 signboard cards "To do"
 signboard cards --label Urgent --search launch
-signboard cards create --list "To do" --title "Ship release notes" --due 2026-03-20
+signboard cards create --list "To do" --title "Ship release notes" --start 2026-03-18 --due 2026-03-20
 signboard cards edit --card ab123 --due none --move-to Doing
 signboard cards duplicate --card ab123 --list Leads --remove-label Template --dry-run --json
 signboard cards create --from-card ab123 --list Leads --title "New lead"
@@ -192,7 +192,9 @@ Example task checklist syntax:
 
 ```md
 - [ ] Draft update
+- [ ] (start: 2026-03-18) Outline proposal
 - [x ] (due: 2026-03-20) Send proposal
+- [ ] (scheduled: 2026-03-21) Follow up
 - [ X] Confirm scope
 - [ x ] Share notes
 ```

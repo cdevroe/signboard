@@ -1026,6 +1026,14 @@ function hasThemeModeOverride(themeModeOverrides) {
 const BOARD_DATE_FILTER_NONE = '';
 const BOARD_DATE_FILTER_TODAY = 'today';
 const BOARD_DATE_FILTER_OVERDUE = 'overdue';
+const BOARD_DATE_FILTER_NEXT_7 = 'next:7';
+const BOARD_DATE_FILTER_NEXT_14 = 'next:14';
+const BOARD_DATE_FILTER_NEXT_30 = 'next:30';
+const BOARD_DATE_FILTER_NEXT_DAY_COUNTS = Object.freeze({
+  [BOARD_DATE_FILTER_NEXT_7]: 7,
+  [BOARD_DATE_FILTER_NEXT_14]: 14,
+  [BOARD_DATE_FILTER_NEXT_30]: 30,
+});
 const BOARD_LABEL_SCROLL_THRESHOLD = 11;
 
 function getBoardLabelState() {
@@ -1036,6 +1044,7 @@ function getBoardLabelState() {
       filterIds: [],
       activeDateFilter: BOARD_DATE_FILTER_NONE,
       activeCardLabelPopover: null,
+      cardCreationLabelIdsByContext: new Map(),
       colorScheme: '',
       themeOverrides: { light: {}, dark: {} },
       themePalettes: {
@@ -1330,6 +1339,10 @@ function normalizeBoardDateFilter(value) {
     return BOARD_DATE_FILTER_OVERDUE;
   }
 
+  if (Object.prototype.hasOwnProperty.call(BOARD_DATE_FILTER_NEXT_DAY_COUNTS, normalized)) {
+    return normalized;
+  }
+
   return BOARD_DATE_FILTER_NONE;
 }
 
@@ -1348,6 +1361,11 @@ function getBoardDateFilterLabel(filterValue) {
 
   if (filterValue === BOARD_DATE_FILTER_OVERDUE) {
     return 'Overdue';
+  }
+
+  const nextDayCount = BOARD_DATE_FILTER_NEXT_DAY_COUNTS[filterValue];
+  if (nextDayCount) {
+    return `Next ${nextDayCount} days`;
   }
 
   return '';
@@ -1370,6 +1388,19 @@ function normalizeBoardFilterDueDate(value) {
   return parseIsoDateStringToLocalDate(normalized) ? normalized : '';
 }
 
+function addDaysToBoardFilterDate(isoDate, dayCount) {
+  const parsedDate = parseIsoDateStringToLocalDate(isoDate);
+  if (!parsedDate) {
+    return '';
+  }
+
+  parsedDate.setDate(parsedDate.getDate() + Number(dayCount || 0));
+  const year = parsedDate.getFullYear();
+  const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+  const day = String(parsedDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function doesBoardDateFilterMatchDueDate(dueDateValue, activeFilter = getActiveBoardDateFilter()) {
   const normalizedDueDate = normalizeBoardFilterDueDate(dueDateValue);
   if (!normalizedDueDate) {
@@ -1387,6 +1418,12 @@ function doesBoardDateFilterMatchDueDate(dueDateValue, activeFilter = getActiveB
 
   if (activeFilter === BOARD_DATE_FILTER_OVERDUE) {
     return normalizedDueDate < todayIsoDate;
+  }
+
+  const nextDayCount = BOARD_DATE_FILTER_NEXT_DAY_COUNTS[activeFilter];
+  if (nextDayCount) {
+    const endIsoDate = addDaysToBoardFilterDate(todayIsoDate, nextDayCount);
+    return normalizedDueDate >= todayIsoDate && normalizedDueDate <= endIsoDate;
   }
 
   return true;
@@ -1423,7 +1460,7 @@ function getActiveBoardFilterDueDates(
   incompleteTaskDueDateValues = taskDueDateValues,
   activeFilter = getActiveBoardDateFilter(),
 ) {
-  if (activeFilter === BOARD_DATE_FILTER_TODAY || activeFilter === BOARD_DATE_FILTER_OVERDUE) {
+  if (activeFilter !== BOARD_DATE_FILTER_NONE) {
     return getCardFilterDueDates(
       cardDueDateValue,
       Array.isArray(incompleteTaskDueDateValues) ? incompleteTaskDueDateValues : taskDueDateValues,
@@ -1569,6 +1606,9 @@ function renderBoardLabelFilterPopover() {
 
   popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_TODAY, 'Today', 'sun'));
   popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_OVERDUE, 'Overdue', 'alert-circle'));
+  popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_NEXT_7, 'Next 7 days', 'calendar'));
+  popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_NEXT_14, 'Next 14 days', 'calendar'));
+  popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_NEXT_30, 'Next 30 days', 'calendar'));
 
   const separator = document.createElement('div');
   separator.className = 'label-popover-separator';
@@ -1811,6 +1851,69 @@ function positionCardLabelPopover(popover, anchorElement) {
   popover.style.left = `${Math.min(window.innerWidth - 260, Math.max(8, bounds.left - 60))}px`;
 }
 
+function createCardLabelCreateForm(knownSelection, unknownLabelIds, onChange) {
+  const form = document.createElement('form');
+  form.className = 'card-label-create-form';
+  form.noValidate = true;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'card-label-create-input';
+  input.placeholder = 'New label';
+  input.setAttribute('aria-label', 'New label name');
+  form.appendChild(input);
+
+  const button = document.createElement('button');
+  button.type = 'submit';
+  button.className = 'card-label-create-button';
+  button.textContent = 'Add';
+  form.appendChild(button);
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const labelName = String(input.value || '').trim();
+    if (!labelName) {
+      input.setAttribute('aria-invalid', 'true');
+      input.focus();
+      return;
+    }
+
+    input.removeAttribute('aria-invalid');
+    input.disabled = true;
+    button.disabled = true;
+
+    try {
+      const createdLabel = addBoardLabelDefinition({
+        name: labelName,
+        renderSettings: false,
+      });
+      await flushBoardSettingsSave();
+      if (createdLabel && createdLabel.id) {
+        knownSelection.add(createdLabel.id);
+      }
+
+      const orderedKnownSelection = getBoardLabels()
+        .map((entry) => entry.id)
+        .filter((entryId) => knownSelection.has(entryId));
+      await onChange([...orderedKnownSelection, ...unknownLabelIds]);
+      closeCardLabelPopover();
+      if (typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus(`Created label "${labelName}".`);
+      }
+    } catch (error) {
+      console.error('Unable to create label.', error);
+      input.disabled = false;
+      button.disabled = false;
+      input.setAttribute('aria-invalid', 'true');
+      input.focus();
+    }
+  });
+
+  return form;
+}
+
 function createCardLabelPopoverContent(selectedLabelIds, onChange) {
   const labels = getBoardLabels();
   const knownLabelIds = new Set(labels.map((label) => label.id));
@@ -1822,9 +1925,8 @@ function createCardLabelPopoverContent(selectedLabelIds, onChange) {
   if (labels.length === 0) {
     const emptyState = document.createElement('p');
     emptyState.className = 'label-popover-empty';
-    emptyState.textContent = 'No labels yet. Add labels in Settings.';
+    emptyState.textContent = 'No labels yet.';
     fragment.appendChild(emptyState);
-    return fragment;
   }
 
   for (const label of labels) {
@@ -1869,12 +1971,22 @@ function createCardLabelPopoverContent(selectedLabelIds, onChange) {
     fragment.appendChild(unknownHint);
   }
 
+  const separator = document.createElement('div');
+  separator.className = 'label-popover-separator';
+  separator.setAttribute('aria-hidden', 'true');
+  fragment.appendChild(separator);
+  fragment.appendChild(createCardLabelCreateForm(knownSelection, unknownLabelIds, onChange));
+
   return fragment;
 }
 
 function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onChange) {
   const state = getBoardLabelState();
   const popover = state.activeCardLabelPopover;
+
+  if (typeof destroyActiveDueDatePicker === 'function') {
+    destroyActiveDueDatePicker();
+  }
 
   if (popover && popover.__anchorElement === anchorElement) {
     closeCardLabelPopover();
@@ -1892,6 +2004,9 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
   menu.setAttribute('role', 'group');
   menu.setAttribute('aria-label', 'Card labels');
   menu.setAttribute('aria-hidden', 'false');
+  menu.setAttribute('data-sb-modal-layer', '');
+  menu.inert = false;
+  menu.removeAttribute('data-sb-modal-inert');
   menu.__anchorElement = anchorElement;
   menu.__cardPath = cardPath;
 
@@ -1917,6 +2032,97 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
   focusFirstLabelPopoverControl(menu);
 
   state.activeCardLabelPopover = menu;
+}
+
+function normalizeCardCreationLabelContext(contextId) {
+  return String(contextId || 'default').trim() || 'default';
+}
+
+function getCardCreationLabelIds(contextId = 'default') {
+  const state = getBoardLabelState();
+  const key = normalizeCardCreationLabelContext(contextId);
+  const values = state.cardCreationLabelIdsByContext.get(key);
+  return Array.isArray(values) ? values.slice() : [];
+}
+
+function getCardCreationLabelButton(contextId = 'default') {
+  const key = normalizeCardCreationLabelContext(contextId);
+  const buttonId = key === 'quick-add' ? 'quickAddCardLabelButton' : 'newCardLabelButton';
+  return document.getElementById(buttonId);
+}
+
+function renderCardCreationLabelButton(contextId = 'default') {
+  const button = getCardCreationLabelButton(contextId);
+  if (!button) {
+    return;
+  }
+
+  const selectedLabelIds = getCardCreationLabelIds(contextId);
+  const labelNames = selectedLabelIds
+    .map((labelId) => getBoardLabelById(labelId))
+    .filter(Boolean)
+    .map((label) => String(label.name || '').trim())
+    .filter(Boolean);
+  const text = button.querySelector('.new-card-label-button-text');
+  const summary = labelNames.length === 0
+    ? 'Labels'
+    : (labelNames.length === 1 ? labelNames[0] : `${labelNames.length} labels`);
+
+  if (text) {
+    text.textContent = summary;
+  }
+  button.classList.toggle('has-labels', labelNames.length > 0);
+  button.setAttribute('aria-label', labelNames.length > 0 ? `Edit labels: ${labelNames.join(', ')}` : 'Set labels');
+  button.title = labelNames.length > 0 ? `Labels: ${labelNames.join(', ')}` : 'Set labels';
+}
+
+function setCardCreationLabelIds(contextId = 'default', labelIds = []) {
+  const state = getBoardLabelState();
+  const key = normalizeCardCreationLabelContext(contextId);
+  const normalizedIds = Array.isArray(labelIds)
+    ? labelIds.map((labelId) => String(labelId)).filter(Boolean)
+    : [];
+
+  if (normalizedIds.length > 0) {
+    state.cardCreationLabelIdsByContext.set(key, normalizedIds);
+  } else {
+    state.cardCreationLabelIdsByContext.delete(key);
+  }
+
+  renderCardCreationLabelButton(key);
+}
+
+function resetCardCreationLabelSelection(contextId = 'default') {
+  setCardCreationLabelIds(contextId, []);
+}
+
+function getCardCreationFrontmatter(contextId = 'default') {
+  const labelIds = getCardCreationLabelIds(contextId);
+  return labelIds.length > 0 ? { labels: labelIds } : {};
+}
+
+function initializeCardCreationLabelButton(contextId = 'default') {
+  const key = normalizeCardCreationLabelContext(contextId);
+  const button = getCardCreationLabelButton(key);
+  if (!button) {
+    return;
+  }
+
+  button.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    toggleCardLabelSelector(
+      button,
+      '',
+      getCardCreationLabelIds(key),
+      async (nextLabelIds) => {
+        setCardCreationLabelIds(key, nextLabelIds);
+      },
+    );
+  };
+
+  renderCardCreationLabelButton(key);
 }
 
 function createBoardSettingsLabelRow(label, index) {
@@ -2110,27 +2316,33 @@ function getNextBoardLabelColors() {
   return { ...colorPair };
 }
 
-function addBoardLabelDefinition() {
+function addBoardLabelDefinition(options = {}) {
+  const sourceOptions = typeof options === 'string' ? { name: options } : (options && typeof options === 'object' ? options : {});
   const labels = getBoardLabels();
   const nextIndex = labels.length + 1;
+  const requestedName = String(sourceOptions.name || '').trim();
   const candidateColors = getNextBoardLabelColors();
   const colors = createReadableLabelColors(candidateColors.colorLight, candidateColors.colorLight);
+  const newLabel = {
+    id: generateBoardLabelId(),
+    name: requestedName || `Label ${nextIndex}`,
+    colorLight: colors.colorLight,
+    colorDark: colors.colorDark,
+  };
 
   const nextLabels = [
     ...labels.map((label) => ({ ...label })),
-    {
-      id: generateBoardLabelId(),
-      name: `Label ${nextIndex}`,
-      colorLight: colors.colorLight,
-      colorDark: colors.colorDark,
-    },
+    newLabel,
   ];
 
   setBoardLabels(nextLabels);
-  renderBoardSettingsLabels();
+  if (sourceOptions.renderSettings !== false) {
+    renderBoardSettingsLabels();
+  }
   renderBoardLabelFilterButton();
   renderBoardLabelFilterPopover();
   scheduleBoardLabelSettingsSave();
+  return newLabel;
 }
 
 async function removeBoardLabelReferencesFromCards(labelId) {

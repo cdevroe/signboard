@@ -996,6 +996,8 @@ function renderCardEditorRelatedNotes(frontmatter = {}) {
 }
 
 async function renderActiveEditorMetadata(frontmatter = {}, timestamps) {
+    const cardEditorCardStartDateDisplay = document.getElementById('cardEditorCardStartDateDisplay');
+    const cardEditorSetStartDateLink = document.getElementById('cardEditorSetStartDateLink');
     const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
     const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
 
@@ -1005,17 +1007,26 @@ async function renderActiveEditorMetadata(frontmatter = {}, timestamps) {
         renderCardEditorTimestamps(timestamps);
     }
 
-    if (!cardEditorCardDueDateDisplay) {
-        return;
+    if (cardEditorCardStartDateDisplay) {
+        const startValue = String(frontmatter.start || '').trim();
+        if (startValue) {
+            cardEditorCardStartDateDisplay.textContent = await window.board.formatDueDate(startValue);
+            setDueDateVisualClass(cardEditorSetStartDateLink, startValue);
+        } else {
+            cardEditorCardStartDateDisplay.textContent = '';
+            setDueDateVisualClass(cardEditorSetStartDateLink, '');
+        }
     }
 
-    const dueValue = String(frontmatter.due || '').trim();
-    if (dueValue) {
-        cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(dueValue);
-        setDueDateVisualClass(cardEditorSetDueDateLink, dueValue);
-    } else {
-        cardEditorCardDueDateDisplay.textContent = '';
-        setDueDateVisualClass(cardEditorSetDueDateLink, '');
+    if (cardEditorCardDueDateDisplay) {
+        const dueValue = String(frontmatter.due || '').trim();
+        if (dueValue) {
+            cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(dueValue);
+            setDueDateVisualClass(cardEditorSetDueDateLink, dueValue);
+        } else {
+            cardEditorCardDueDateDisplay.textContent = '';
+            setDueDateVisualClass(cardEditorSetDueDateLink, '');
+        }
     }
 }
 
@@ -1952,6 +1963,22 @@ function getTaskLineDueControlIconMarkup(hasDueDate) {
     return '<i data-feather="calendar" aria-hidden="true"></i>';
 }
 
+function getTaskLineStartControlIconMarkup(hasStartDate) {
+    if (
+        window.feather &&
+        window.feather.icons &&
+        typeof window.feather.icons['play-circle']?.toSvg === 'function'
+    ) {
+        return window.feather.icons['play-circle'].toSvg({
+            width: 16,
+            height: 16,
+            stroke: 'currentColor',
+        });
+    }
+
+    return '<i data-feather="play-circle" aria-hidden="true"></i>';
+}
+
 function getTaskLineCheckboxIconMarkup(isCompleted) {
     const iconName = isCompleted ? 'check-square' : 'square';
     if (
@@ -2247,7 +2274,7 @@ function setupTaskLineDueDateControls(editor) {
                 continue;
             }
 
-            const controlLeft = Math.max(1, Math.round(linePosition.left - textarea.scrollLeft - 38));
+            const controlLeft = Math.max(1, Math.round(linePosition.left - textarea.scrollLeft - 58));
 
             const checkbox = document.createElement('button');
             checkbox.type = 'button';
@@ -2283,12 +2310,58 @@ function setupTaskLineDueDateControls(editor) {
 
             layer.appendChild(checkbox);
 
+            const startButton = document.createElement('button');
+            startButton.type = 'button';
+            startButton.className = 'task-line-start-control';
+            startButton.dataset.lineIndex = String(taskItem.lineIndex);
+            startButton.style.top = `${buttonTop}px`;
+            startButton.style.left = `${Math.round(controlLeft + 20)}px`;
+
+            if (taskItem.start) {
+                const startLabel = formatLongDueDateLabel(taskItem.start);
+                startButton.classList.add('has-start');
+                startButton.title = `Starts ${startLabel}`;
+                startButton.setAttribute('aria-label', `Starts ${startLabel}. Change start date.`);
+            } else {
+                startButton.title = 'Set task start date';
+                startButton.setAttribute('aria-label', 'Set task start date');
+            }
+
+            startButton.innerHTML = getTaskLineStartControlIconMarkup(Boolean(taskItem.start));
+            startButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const targetLineIndex = Number(startButton.dataset.lineIndex);
+                const liveTaskItems = parseTaskListItems(textarea.value);
+                const liveTaskItem = liveTaskItems.find((item) => item.lineIndex === targetLineIndex);
+                if (!liveTaskItem) {
+                    return;
+                }
+
+                openDueDatePickerAtTrigger({
+                    triggerElement: startButton,
+                    dueDateValue: liveTaskItem.start,
+                    onSelect: async (value) => {
+                        const nextValue = setTaskListItemStartDateByLineIndex(textarea.value, targetLineIndex, value);
+                        if (nextValue === textarea.value) {
+                            return;
+                        }
+
+                        const caretPosition = getLineEndOffsetByLineIndex(nextValue, targetLineIndex);
+                        applyEditorTextareaValuePreservingScroll(textarea, nextValue, caretPosition);
+                    },
+                });
+            });
+
+            layer.appendChild(startButton);
+
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'task-line-due-control';
             button.dataset.lineIndex = String(taskItem.lineIndex);
             button.style.top = `${buttonTop}px`;
-            button.style.left = `${Math.round(controlLeft + 20)}px`;
+            button.style.left = `${Math.round(controlLeft + 40)}px`;
 
             if (taskItem.due) {
                 const dueLabel = formatLongDueDateLabel(taskItem.due);
@@ -2420,6 +2493,8 @@ async function toggleEditCardModal(cardPath, options = {}) {
     };
 
     const cardEditorTitle = document.getElementById('cardEditorTitle');
+    const cardEditorCardStartDateDisplay = document.getElementById('cardEditorCardStartDateDisplay');
+    const cardEditorSetStartDateLink = document.getElementById('cardEditorSetStartDateLink');
     const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
     const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
     const cardEditorSetLabelsLink = document.getElementById('cardEditorSetLabelsLink');
@@ -2428,11 +2503,18 @@ async function toggleEditCardModal(cardPath, options = {}) {
     setActiveEditorDiskState(cardPath, card);
     cardEditorCardPath.value = cardPath;
     cardEditorTitle.textContent = card.frontmatter.title || '';
+    cardEditorCardStartDateDisplay.textContent = '';
+    setDueDateVisualClass(cardEditorSetStartDateLink, '');
     cardEditorCardDueDateDisplay.textContent = '';
     setDueDateVisualClass(cardEditorSetDueDateLink, '');
     setEditorLabelDisplay(card.frontmatter.labels);
     renderCardEditorRelatedNotes(card.frontmatter);
     renderCardEditorTimestamps(card.timestamps);
+
+    if (card.frontmatter.start) {
+        cardEditorCardStartDateDisplay.textContent = await window.board.formatDueDate(card.frontmatter.start);
+        setDueDateVisualClass(cardEditorSetStartDateLink, card.frontmatter.start);
+    }
 
     if (card.frontmatter.due) {
         cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(card.frontmatter.due);
@@ -2477,6 +2559,22 @@ async function toggleEditCardModal(cardPath, options = {}) {
         const cardEditorContents = document.getElementsByClassName('overtype-input');
         await handleNotesSave(cardEditorContents[0].value,false);
     };
+
+    const openStartDatePickerControl = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const editorFrontmatter = getEditorFrontmatter();
+        openDueDatePickerAtTrigger({
+            triggerElement: cardEditorSetStartDateLink,
+            dueDateValue: editorFrontmatter.start,
+            onSelect: async (value) => {
+                await handleMetadataSave(value, 'start');
+            },
+        });
+    };
+    if (cardEditorSetStartDateLink) {
+        cardEditorSetStartDateLink.onclick = openStartDatePickerControl;
+    }
 
     const openDueDatePickerControl = (e) => {
         e.preventDefault();
@@ -2639,20 +2737,21 @@ async function handleNotesSave(value,instance) {
 };
 
 async function handleMetadataSave(value,metaName) {
-    if (metaName !== 'due') {
+    const normalizedMetaName = String(metaName || '').trim();
+    if (normalizedMetaName !== 'start' && normalizedMetaName !== 'due') {
         return;
     }
 
     const cardEditorContents = document.getElementsByClassName('overtype-input');
     const frontmatter = getEditorFrontmatter();
 
-    const normalizedDueValue = value instanceof Date
+    const normalizedDateValue = value instanceof Date
         ? value.toISOString().slice(0, 10)
         : String(value || '').trim();
 
     const normalizedFrontmatter = await window.board.normalizeFrontmatter({
         ...frontmatter,
-        due: normalizedDueValue.length > 0 ? normalizedDueValue : null,
+        [normalizedMetaName]: normalizedDateValue.length > 0 ? normalizedDateValue : null,
     });
 
     setEditorFrontmatter(normalizedFrontmatter);
@@ -2661,16 +2760,7 @@ async function handleMetadataSave(value,metaName) {
     await flushEditorSaveIfNeeded();
     await enqueueEditorSave(pendingEditorBody);
 
-    const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
-    const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
-
-    if ( normalizedFrontmatter.due ) {
-        cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(normalizedFrontmatter.due);
-        setDueDateVisualClass(cardEditorSetDueDateLink, normalizedFrontmatter.due);
-    } else {
-        cardEditorCardDueDateDisplay.textContent = '';
-        setDueDateVisualClass(cardEditorSetDueDateLink, '');
-    }
+    await renderActiveEditorMetadata(normalizedFrontmatter);
 
     return;
 };
