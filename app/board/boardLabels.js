@@ -1829,6 +1829,11 @@ function closeCardLabelPopover() {
   state.activeCardLabelPopover = null;
 }
 
+function isCardLabelPopoverOpen() {
+  const state = getBoardLabelState();
+  return Boolean(state.activeCardLabelPopover && state.activeCardLabelPopover.parentNode);
+}
+
 function closeCardLabelSelectorIfClickOutside(target) {
   const state = getBoardLabelState();
   const popover = state.activeCardLabelPopover;
@@ -1842,6 +1847,36 @@ function closeCardLabelSelectorIfClickOutside(target) {
   }
 
   closeCardLabelPopover();
+}
+
+async function openBoardLabelSettingsFromPopover() {
+  if (!window.boardRoot) {
+    return;
+  }
+
+  closeBoardLabelFilterPopover();
+  closeCardLabelPopover();
+  if (typeof closeCardDatePopover === 'function') {
+    closeCardDatePopover();
+  }
+  if (typeof closeBoardMenuPopover === 'function') {
+    closeBoardMenuPopover();
+  }
+  if (typeof closeBoardViewPopover === 'function') {
+    closeBoardViewPopover();
+  }
+  if (typeof closeListActionsPopover === 'function') {
+    closeListActionsPopover();
+  }
+  if (typeof closeAllModals === 'function') {
+    await closeAllModals({ key: 'Escape' });
+  }
+
+  await ensureBoardLabelsLoaded();
+  openBoardSettingsModal({
+    panel: 'labels',
+    initialFocus: '#boardSettingsLabels .board-settings-label-name, #btnAddBoardLabel',
+  });
 }
 
 function positionCardLabelPopover(popover, anchorElement) {
@@ -1914,6 +1949,46 @@ function createCardLabelCreateForm(knownSelection, unknownLabelIds, onChange) {
   return form;
 }
 
+function createCardLabelPopoverHeader() {
+  const header = document.createElement('div');
+  header.className = 'card-label-popover-header';
+
+  const title = document.createElement('span');
+  title.className = 'card-label-popover-title';
+  title.textContent = 'Labels';
+
+  const settingsButton = document.createElement('button');
+  settingsButton.type = 'button';
+  settingsButton.className = 'card-label-settings-shortcut';
+  settingsButton.title = 'Open label settings';
+  settingsButton.setAttribute('aria-label', 'Open label settings');
+  settingsButton.innerHTML = '<i data-feather="settings"></i>';
+  settingsButton.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await openBoardLabelSettingsFromPopover();
+  });
+
+  header.append(title, settingsButton);
+  return header;
+}
+
+function focusFirstCardLabelPopoverControl(popover) {
+  if (!popover || typeof popover.querySelector !== 'function') {
+    return false;
+  }
+
+  const preferredControl = popover.querySelector(
+    '.label-popover-row input:not(:disabled), .card-label-create-input:not(:disabled)',
+  );
+  if (preferredControl && typeof preferredControl.focus === 'function') {
+    preferredControl.focus();
+    return true;
+  }
+
+  return focusFirstLabelPopoverControl(popover);
+}
+
 function createCardLabelPopoverContent(selectedLabelIds, onChange) {
   const labels = getBoardLabels();
   const knownLabelIds = new Set(labels.map((label) => label.id));
@@ -1921,6 +1996,7 @@ function createCardLabelPopoverContent(selectedLabelIds, onChange) {
   const knownSelection = new Set(selectedLabelIds.filter((labelId) => knownLabelIds.has(labelId)));
 
   const fragment = document.createDocumentFragment();
+  fragment.appendChild(createCardLabelPopoverHeader());
 
   if (labels.length === 0) {
     const emptyState = document.createElement('p');
@@ -1987,6 +2063,9 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
   if (typeof destroyActiveDueDatePicker === 'function') {
     destroyActiveDueDatePicker();
   }
+  if (typeof closeCardDatePopover === 'function') {
+    closeCardDatePopover();
+  }
 
   if (popover && popover.__anchorElement === anchorElement) {
     closeCardLabelPopover();
@@ -2028,8 +2107,11 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
   });
 
   document.body.appendChild(menu);
+  if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
+    feather.replace();
+  }
   positionCardLabelPopover(menu, anchorElement);
-  focusFirstLabelPopoverControl(menu);
+  focusFirstCardLabelPopoverControl(menu);
 
   state.activeCardLabelPopover = menu;
 }
@@ -3143,11 +3225,18 @@ async function moveCurrentBoardDirectory(nextParentDirectory) {
   return moveBoardDirectory(nextBoardRoot);
 }
 
-function openBoardSettingsModal() {
+function openBoardSettingsModal(options = {}) {
   const modal = document.getElementById('modalBoardSettings');
   if (!modal) {
     return;
   }
+
+  const panel = typeof options === 'string'
+    ? options
+    : String(options.panel || 'app');
+  const initialFocus = options && typeof options === 'object' && options.initialFocus
+    ? options.initialFocus
+    : (panel === 'labels' ? '#boardSettingsNavLabels' : '#boardSettingsNavApp');
 
   closeBoardLabelFilterPopover();
   closeCardLabelPopover();
@@ -3158,11 +3247,11 @@ function openBoardSettingsModal() {
   renderBoardExternalPublishedCalendarSettingsControls();
   renderAppSettingsControls();
   renderBoardImportControls();
-  setActiveBoardSettingsPanel('app');
+  setActiveBoardSettingsPanel(panel);
   if (typeof setAccessibleModalVisible === 'function') {
     setAccessibleModalVisible(modal, true, {
       display: 'block',
-      initialFocus: '#boardSettingsNavApp',
+      initialFocus,
       labelledBy: 'boardSettingsTitle',
     });
   } else {
@@ -3310,6 +3399,9 @@ function initializeBoardLabelControls() {
         return;
       }
       closeCardLabelPopover();
+      if (typeof closeCardDatePopover === 'function') {
+        closeCardDatePopover();
+      }
       if (typeof closeBoardViewPopover === 'function') {
         closeBoardViewPopover();
       }

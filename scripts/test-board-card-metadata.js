@@ -214,23 +214,33 @@ function createContext(cardFactory, callbacks, options = {}) {
     ? options.getCardFilterDueDates
     : (cardDueDateValue, taskDueDates = []) => {
       const dueDates = new Set();
-      if (cardDueDateValue) {
-        dueDates.add(String(cardDueDateValue));
+      const addDate = (dateValue) => {
+        if (dateValue) {
+          dueDates.add(String(dateValue));
+        }
+      };
+      if (Array.isArray(cardDueDateValue)) {
+        cardDueDateValue.forEach(addDate);
+      } else {
+        addDate(cardDueDateValue);
       }
       for (const taskDueDate of Array.isArray(taskDueDates) ? taskDueDates : []) {
-        dueDates.add(String(taskDueDate));
+        addDate(taskDueDate);
       }
       return [...dueDates];
     };
   const getActiveBoardFilterDueDates = typeof options.getActiveBoardFilterDueDates === 'function'
     ? options.getActiveBoardFilterDueDates
     : (cardDueDateValue, taskDueDates = []) => getCardFilterDueDates(cardDueDateValue, taskDueDates);
+  const formatDueDate = typeof options.formatDueDate === 'function'
+    ? options.formatDueDate
+    : async (dueDate) => `Formatted ${dueDate}`;
 
   const context = {
     window: {
       board: {
         readCard: async () => cardFactory(),
-        formatDueDate: async (dueDate) => `Formatted ${dueDate}`,
+        formatDueDate,
         updateFrontmatter: async () => {},
       },
     },
@@ -306,27 +316,18 @@ async function run() {
 
   const cardNoMetadata = await contextNoMetadata.createCardElement('/tmp/card-a.md');
   const metadataNoMetadata = findFirstByClass(cardNoMetadata, 'metadata');
-  const dueButtonNoMetadata = findFirstByClass(cardNoMetadata, 'due-date-action');
+  const dateButtonNoMetadata = findFirstByClass(cardNoMetadata, 'card-date-action');
   const labelButtonNoMetadata = findFirstByClass(cardNoMetadata, 'card-label-button');
 
   assert(metadataNoMetadata, 'expected card metadata container');
-  assert(dueButtonNoMetadata, 'expected due date button');
+  assert(dateButtonNoMetadata, 'expected date button');
   assert(labelButtonNoMetadata, 'expected label button');
   assert(metadataNoMetadata.classList.contains('metadata-discovery'));
-  assert(dueButtonNoMetadata.classList.contains('metadata-action-empty'));
+  assert(dateButtonNoMetadata.classList.contains('metadata-action-empty'));
   assert(labelButtonNoMetadata.classList.contains('metadata-action-empty'));
-  assert.strictEqual(dueButtonNoMetadata.tagName, 'BUTTON');
-  assert.strictEqual(dueButtonNoMetadata.getAttribute('aria-label'), 'Set due date');
-
-  const dueClick = clickEvent();
-  await dueButtonNoMetadata.dispatch('click', dueClick);
-  assert.strictEqual(dueClick.preventDefaultCalled, true);
-  assert.strictEqual(dueClick.stopPropagationCalled, true);
-  assert.strictEqual(dueDateCalls.length, 1);
-  assert.strictEqual(Boolean(dueDateCalls[0][0]), true);
-  assert.strictEqual(dueDateCalls[0][0].triggerElement, dueButtonNoMetadata);
-  assert.strictEqual(dueDateCalls[0][0].dueDateValue, '');
-  assert.strictEqual(typeof dueDateCalls[0][0].onSelect, 'function');
+  assert.strictEqual(dateButtonNoMetadata.tagName, 'BUTTON');
+  assert.strictEqual(dateButtonNoMetadata.getAttribute('aria-label'), 'Set dates');
+  assert.strictEqual(dueDateCalls.length, 0);
 
   const labelClick = clickEvent();
   await labelButtonNoMetadata.dispatch('click', labelClick);
@@ -352,14 +353,49 @@ async function run() {
   );
 
   const cardDueOnly = await contextDueOnly.createCardElement('/tmp/card-b.md');
-  const dueButtonDueOnly = findFirstByClass(cardDueOnly, 'due-date-action');
+  const dateButtonDueOnly = findFirstByClass(cardDueOnly, 'card-date-action');
   const labelButtonDueOnly = findFirstByClass(cardDueOnly, 'card-label-button');
 
-  assert(dueButtonDueOnly, 'expected due button on due-date card');
+  assert(dateButtonDueOnly, 'expected date button on due-date card');
   assert(labelButtonDueOnly, 'expected label button on due-date card');
-  assert.strictEqual(dueButtonDueOnly.classList.contains('metadata-action-empty'), false);
+  assert.strictEqual(dateButtonDueOnly.classList.contains('metadata-action-empty'), false);
   assert.strictEqual(labelButtonDueOnly.classList.contains('metadata-action-empty'), true);
-  assert(dueButtonDueOnly.textContent.includes('Formatted 2026-03-14'));
+  assert(dateButtonDueOnly.textContent.includes('Due Formatted 2026-03-14'));
+  assert.strictEqual(dateButtonDueOnly.getAttribute('aria-label'), 'Due Formatted 2026-03-14. Change dates.');
+
+  const contextDateRange = createContext(
+    () => ({
+      frontmatter: {
+        title: 'Card Date Range',
+        labels: [],
+        start: '2026-03-10',
+        due: '2026-03-14',
+      },
+      body: 'Body',
+    }),
+    {
+      toggleCardLabelSelector: () => {},
+      toggleEditCardModal: async () => {},
+      openDueDatePickerAtTrigger: () => {},
+    },
+    {
+      formatDueDate: async (dateValue) => ({
+        '2026-03-10': 'Mar 10',
+        '2026-03-14': 'Mar 14',
+      }[dateValue] || String(dateValue || '')),
+    },
+  );
+
+  const cardDateRange = await contextDateRange.createCardElement('/tmp/card-range.md');
+  const dateButtonDateRange = findFirstByClass(cardDateRange, 'card-date-action');
+
+  assert(dateButtonDateRange, 'expected date button on ranged card');
+  assert.strictEqual(dateButtonDateRange.classList.contains('metadata-action-empty'), false);
+  assert(dateButtonDateRange.textContent.includes('Mar 10-14'));
+  assert.strictEqual(
+    dateButtonDateRange.getAttribute('aria-label'),
+    'Dates Mar 10 through Mar 14. Change dates.',
+  );
 
   const contextLabelOnly = createContext(
     () => ({
@@ -379,14 +415,14 @@ async function run() {
 
   const cardLabelOnly = await contextLabelOnly.createCardElement('/tmp/card-c.md');
   const metadataLabelOnly = findFirstByClass(cardLabelOnly, 'metadata');
-  const dueButtonLabelOnly = findFirstByClass(cardLabelOnly, 'due-date-action');
+  const dateButtonLabelOnly = findFirstByClass(cardLabelOnly, 'card-date-action');
   const labelButtonLabelOnly = findFirstByClass(cardLabelOnly, 'card-label-button');
 
   assert(metadataLabelOnly, 'expected label-only metadata');
-  assert(dueButtonLabelOnly, 'expected due button on label-only card');
+  assert(dateButtonLabelOnly, 'expected date button on label-only card');
   assert(labelButtonLabelOnly, 'expected label button on label-only card');
   assert.strictEqual(metadataLabelOnly.classList.contains('metadata-discovery'), false);
-  assert.strictEqual(dueButtonLabelOnly.classList.contains('metadata-action-empty'), true);
+  assert.strictEqual(dateButtonLabelOnly.classList.contains('metadata-action-empty'), true);
   assert.strictEqual(labelButtonLabelOnly.classList.contains('metadata-action-empty'), false);
   assert.strictEqual(labelButtonLabelOnly.getAttribute('aria-label'), 'Edit labels');
 

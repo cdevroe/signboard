@@ -28,6 +28,13 @@ function getBoardRenderState() {
 function destroyBoardSortables() {
   const state = getBoardRenderState();
 
+  if (typeof endBoardCardDragTilt === 'function') {
+    endBoardCardDragTilt();
+  }
+  if (typeof unlockBoardCardTextSelection === 'function') {
+    unlockBoardCardTextSelection();
+  }
+
   for (const sortable of state.activeSortables) {
     if (sortable && typeof sortable.destroy === 'function') {
       sortable.destroy();
@@ -317,6 +324,9 @@ async function renderBoard() {
   const boardRoot = window.boardRoot; // set in the drop-zone handler
 
   closeCardLabelPopover();
+  if (typeof closeCardDatePopover === 'function') {
+    closeCardDatePopover();
+  }
   if (typeof closeListActionsPopover === 'function') {
     closeListActionsPopover();
   }

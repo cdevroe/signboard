@@ -2200,21 +2200,24 @@ body.board-card-drag-active * {
   pointer-events: auto;
 }
 
+.card-date-action,
 .due-date-action {
   display: inline-flex;
   align-items: center;
   margin-right: 4px;
 }
 
+.card-date-action .card-date-label,
 .due-date-action .formatted-date {
   vertical-align: top;
+  white-space: nowrap;
 }
 
-.due-date-action.due-date-today {
+.metadata-action.due-date-today {
   color: var(--due-date-today-color);
 }
 
-.due-date-action.due-date-tomorrow {
+.metadata-action.due-date-tomorrow {
   color: var(--due-date-tomorrow-color);
 }
 
@@ -2425,6 +2428,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   .card > .card-drag-frame,
   .list,
   .modal,
+  .card-date-popover,
   .label-popover {
     border: 1px solid CanvasText;
     box-shadow: none;
@@ -4186,6 +4190,150 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   z-index: 11000;
 }
 
+.card-label-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 2px 6px;
+}
+
+.card-label-popover-title {
+  font-size: var(--font-sm);
+  font-weight: 650;
+}
+
+.card-label-settings-shortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.card-label-settings-shortcut:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.card-label-settings-shortcut svg {
+  width: 15px;
+  height: 15px;
+}
+
+.card-date-popover {
+  position: fixed;
+  z-index: 12030;
+  width: min(260px, calc(100vw - 16px));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: 0 12px 30px var(--shadow-card);
+  padding: 8px;
+}
+
+.card-date-popover-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.card-date-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 2px 4px;
+}
+
+.card-date-popover-title {
+  font-size: var(--font-sm);
+  font-weight: 650;
+}
+
+.card-date-popover-close,
+.card-date-popover-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.card-date-popover-close:hover,
+.card-date-popover-clear:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.card-date-popover-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-date-popover-row:not(.has-clear) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.card-date-popover-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+  text-align: left;
+}
+
+.card-date-popover-field:hover {
+  border-color: var(--border);
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--border));
+}
+
+.card-date-popover-field-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--font-sm);
+}
+
+.card-date-popover-field-value {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  white-space: nowrap;
+}
+
+.card-date-popover-field-value.is-empty {
+  color: color-mix(in oklab, var(--muted) 76%, var(--bg-card));
+}
+
 .list-actions-popover {
   position: fixed;
   z-index: 11010;
@@ -4788,6 +4936,7 @@ select:disabled {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 0 14px 34px var(--shadow-card);
+  z-index: 12070;
 }
 
 .sb-themed-fdatepicker .fdatepicker-header {

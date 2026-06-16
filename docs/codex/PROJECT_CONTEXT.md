@@ -204,6 +204,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/cards/createCardElement.js`:
   - Reads card frontmatter/body preview.
   - Computes task summary + task start/due dates from card body checklist lines.
+  - Shows card-level start/due dates through one compact Dates metadata control and body-level popover.
   - Shows task progress badge on board cards.
   - Shows linked-object count badges on board cards.
   - Shows label chips and a tag-icon picker on each card.
@@ -213,12 +214,13 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Owns board label state in the renderer.
   - Renders the header filter dropdown with mutually exclusive `Today` / `Overdue` / next-range date filters plus multi-select OR label filters.
   - Keeps the header filter popover, card label popover, and Settings section nav keyboard-operable with arrow keys, `Home`, `End`, and opener focus restoration on popover `Esc`.
+  - Provides a card-label popover gear shortcut that opens the board's Labels settings panel.
   - Evaluates date filters from card start/due dates and incomplete task start/due markers, ignoring completed task date markers.
   - Combines date filters, label filters, and board search with AND logic when determining visibility.
   - Owns board workflow settings for completed-list auto-detection, ignored auto-detected lists, and manual completed-list selection.
   - Keeps filter state temporary only; opening or switching boards resets the active date + label filters.
   - Keeps the filter toolbar button icon-only and applies an accent-tinted active state when any filter is set; active summary text lives in tooltip/ARIA copy.
-  - Handles card label popovers with inline label creation, new-card label selection, Settings modal board panels, and the board import UI/actions.
+  - Handles card label popovers with inline label creation and a Labels settings shortcut, new-card label selection, Settings modal board panels, and the board import UI/actions.
   - Persists board labels through preload APIs.
 - `app/board/boardSearch.js`:
   - Stores the current search query/tokens.
@@ -231,7 +233,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
   - Quick Add card submissions can target any currently open/trusted board, request opening the created card immediately with the notes field focused, and switch to the target board first when `Shift + Enter` creates a card outside the active board.
 - `app/modals/toggleEditCardModal.js`:
   - Loads card into OverType editor.
-  - Displays and edits card-level start/due dates from frontmatter.
+  - Displays and edits card-level start/due dates from frontmatter with separate editor controls.
   - Displays quiet `Created` and `Updated` card timestamps from the normalized desktop read metadata.
   - Saves title/body/frontmatter through `window.board.writeCard`.
   - Debounces editor body writes and serializes save order to prevent stale overwrite races.

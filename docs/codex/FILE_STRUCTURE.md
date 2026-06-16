@@ -34,7 +34,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/cardTimestamps.js` - Renderer card timestamp formatting helpers for editor metadata and Table age columns.
 - `app/utilities/linkedObjects.js` - Shared renderer helpers for counting structured `linked_objects` and legacy `related` links, plus paperclip count badge creation for Kanban/Table.
 - `app/appSettings.js` - Renderer app-settings state, app-wide tooltip/notification/Quick Add global shortcut/External Published Calendar controls, persistence scheduling, and one-time migration from legacy board settings.
-- `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` / next-range date filters + label filters, with date filters ignoring completed task date markers and completed workflow lists), keyboard-operable card label popovers with inline label creation, new-card label selection helpers, Settings modal board panels/nav, Obsidian Base generation controls, and Trello/Obsidian import panel wiring + summary rendering.
+- `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` / next-range date filters + label filters, with date filters ignoring completed task date markers and completed workflow lists), keyboard-operable card label popovers with inline label creation and Labels settings shortcut, new-card label selection helpers, Settings modal board panels/nav, Obsidian Base generation controls, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state, input handling for title/body filtering, and keyboard navigation from the search field through visible card results.
 - `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card start/due and open task start/due markers, and source-list/source-board pills on temporal cards.
 - `app/board/tableView.js` - Board-scoped Table view rendering, dense row metadata including Start/Due, Created/Updated age columns, and linked-object counts, board filter/search reuse, Table sort controls, and list-column card moves through the top-of-list move IPC path.
@@ -42,7 +42,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing with keyboard result navigation, detail-pane rendering, incremental result loading, and restore flows.
 - `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder), keyboard navigation/close behavior for visible tabs, responsive `N more` overflow for unbounded open boards, plus the shared safe board-switch helper used by tab clicks and the switcher.
 - `app/board/boardSwitcher.js` - Quick board switcher overlay for `Cmd/Ctrl + K`, filtering and closing currently open boards and delegating selected board changes to the shared switch helper.
-- `app/cards/createCardElement.js` - Card DOM rendering, task progress and linked-object badge display, list-item/card-title button semantics, and click behavior.
+- `app/cards/createCardElement.js` - Card DOM rendering, compact start/due date metadata popover, task progress and linked-object badge display, list-item/card-title button semantics, and click behavior.
 - `app/cards/processAddNewCard.js` - New card creation flow, including open-board targeting and optional create-and-open behavior.
 - `app/cards/processAddNewList.js` - New list creation flow.
 - `app/lists/listActionsPopover.js` - List action popover rendering for adding cards/lists, moving lists left/right, archiving cards/lists, keyboard option navigation, shortcut hints, and status announcements.
@@ -86,7 +86,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-frontmatter.js` - Node assertions for frontmatter behavior.
 - `scripts/test-board-labels.js` - Node assertions for board label settings defaults/migration/filter logic.
 - `scripts/test-app-settings.js` - Node assertions for app-wide settings persistence and one-time board-settings migration.
-- `scripts/test-board-card-metadata.js` - Board card metadata rendering assertions (due/labels/task badge behavior).
+- `scripts/test-board-card-metadata.js` - Board card metadata rendering assertions (compact start/due ranges, labels, task badge behavior).
 - `scripts/test-board-views.js` - Kanban/Table/Planner rendering and filter helper assertions.
 - `scripts/test-card-timestamps.js` - Card timestamp normalization assertions for frontmatter, activity, and filesystem fallback behavior.
 - `scripts/test-archive.js` - Archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.

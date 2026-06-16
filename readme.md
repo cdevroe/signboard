@@ -17,7 +17,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 🖌️ Color scheme per board (several to choose from!)
 - 🌙 Light and dark mode variants for all color schemes
 - 🏷 Custom labels per board
-- 🗓 Card start/due dates and task list item start/due dates
+- 🗓 Compact card start/due date ranges and task list item start/due dates
 - 📋 Kanban and Table board views, including card age columns and sorting in Table
 - 🗂 Planner overlay for actionable dated work across open boards
 - 📆 Optional local External Published Calendar feed for calendar app subscriptions

@@ -101,7 +101,7 @@ Click a card to open it. In the card editor you can:
 
 - Rename the card
 - Edit the Markdown body
-- Set a due date
+- Set start and due dates
 - Add or remove labels
 - Move the card to another list
 - Move it to the next list
@@ -160,7 +160,7 @@ These features are what make cards show up in Planner and filters.
 
 Every card can have a start date in addition to a due date. Use a start date when work is scheduled to begin or become actionable before it is due.
 
-Start dates appear on cards, in Table's `Start` column, in Planner date views, and in date-aware filters.
+Start dates appear on cards, in Table's `Start` column, in Planner date views, and in date-aware filters. On Kanban cards, start and due dates share one compact `Dates` control. Click the clock icon or date range on a card to open both fields.
 
 ### Card due dates
 
@@ -168,7 +168,7 @@ Every card can have a due date.
 
 Once a card has a due date, it becomes visible in:
 
-- due date displays on the card
+- date displays on the card
 - due-date-aware filters
 - Planner
 - daily due notifications if enabled in app settings
@@ -191,7 +191,7 @@ Task dates are separate from the card’s main start and due dates. Open checkli
 
 ### Labels
 
-Labels are defined per board. Add them in `Settings > Labels`, or create a new label directly from the label picker while editing or creating a card.
+Labels are defined per board. Add them in `Settings > Labels`, or create a new label directly from the label picker while editing or creating a card. The label picker also has a gear button that opens the board's Labels settings for renaming labels or changing colors.
 
 Labels are useful for:
 
@@ -227,7 +227,7 @@ Board context can be Kanban or Table. Dated planning happens in Planner.
 
 ### Kanban
 
-Kanban is the board view. Use it for day-to-day drag-and-drop organization. Cards show compact metadata for start dates, due dates, checklist progress, labels, and linked-object counts.
+Kanban is the board view. Use it for day-to-day drag-and-drop organization. Cards show compact metadata for start/due date ranges, checklist progress, labels, and linked-object counts.
 
 ### Table
 

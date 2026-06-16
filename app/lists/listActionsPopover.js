@@ -114,6 +114,11 @@ function closeListActionsPopover() {
   state.cardCount = 0;
 }
 
+function isListActionsPopoverOpen() {
+  const popover = document.getElementById('listActionsPopover');
+  return Boolean(popover && !popover.classList.contains('hidden'));
+}
+
 function positionListActionsPopover(anchorElement, popover) {
   if (!(anchorElement instanceof Element) || !(popover instanceof Element)) {
     return;

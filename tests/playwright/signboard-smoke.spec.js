@@ -317,6 +317,72 @@ async function openCardInEditor(page, listIndex, cardIndex = 0) {
   await expect(page.locator('#cardEditorOverType .overtype-input')).toBeVisible();
 }
 
+async function closeCardClickProbeUi(page, state) {
+  if (state.editorOpen) {
+    await page.locator('#cardEditorClose').click();
+    await expect(page.locator('#modalEditCard')).toBeHidden();
+    return;
+  }
+
+  if (state.datePickerOpen || state.labelPopoverOpen || state.cardDatePopoverOpen) {
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => {
+      if (typeof destroyActiveDueDatePicker === 'function') {
+        destroyActiveDueDatePicker();
+      }
+      if (typeof closeCardDatePopover === 'function') {
+        closeCardDatePopover();
+      }
+      if (typeof closeCardLabelSelector === 'function') {
+        closeCardLabelSelector();
+      }
+    });
+  }
+}
+
+async function getCardClickProbeState(page) {
+  return await page.evaluate(() => {
+    const modalEditCard = document.getElementById('modalEditCard');
+    const editorOpen = Boolean(
+      modalEditCard &&
+      !modalEditCard.classList.contains('hidden') &&
+      modalEditCard.getAttribute('aria-hidden') !== 'true' &&
+      modalEditCard.style.display !== 'none'
+    );
+
+    return {
+      editorOpen,
+      datePickerOpen: Boolean(document.querySelector('.sb-themed-fdatepicker, .flatpickr-calendar.open, .flatpickr-calendar.inline')),
+      cardDatePopoverOpen: Boolean(document.querySelector('.card-date-popover')),
+      labelPopoverOpen: Boolean(document.querySelector('.card-label-selector-popover, .label-popover')),
+    };
+  });
+}
+
+async function getCardClickProbeTarget(page, point) {
+  return await page.evaluate(({ x, y }) => {
+    const element = document.elementFromPoint(x, y);
+    const describe = (target) => {
+      if (!(target instanceof Element)) {
+        return null;
+      }
+
+      return {
+        tagName: target.tagName.toLowerCase(),
+        id: target.id || '',
+        className: typeof target.className === 'string' ? target.className : '',
+      };
+    };
+
+    return {
+      element: describe(element),
+      button: describe(element && element.closest('button')),
+      metadataAction: describe(element && element.closest('.metadata-action')),
+      card: describe(element && element.closest('.card')),
+    };
+  }, point);
+}
+
 async function setEditorBody(page, body) {
   await page.locator('#cardEditorOverType .overtype-input').evaluate((element, nextBody) => {
     element.value = String(nextBody || '');
@@ -394,6 +460,67 @@ test('keeps add modals hidden on startup', async ({ page }) => {
   await expect(page.locator('#modalAddCardToList')).toBeHidden();
   await expect(page.locator('#modalAddList')).toBeHidden();
   await expect(page.locator('#boardMenuPopover')).toBeHidden();
+});
+
+test('responds to sampled card surface clicks immediately after startup', async ({ page }) => {
+  const card = page.locator('.list').first().locator('.card').first();
+  await expect(card).toBeVisible();
+
+  const box = await card.boundingBox();
+  expect(box).toBeTruthy();
+
+  const horizontalSamples = [0.02, 0.16, 0.33, 0.5, 0.67, 0.84, 0.98];
+  const verticalSamples = [0.04, 0.22, 0.5, 0.78, 0.96];
+  const misses = [];
+
+  for (const yRatio of verticalSamples) {
+    for (const xRatio of horizontalSamples) {
+      const point = {
+        x: box.x + Math.max(2, Math.min(box.width - 2, box.width * xRatio)),
+        y: box.y + Math.max(2, Math.min(box.height - 2, box.height * yRatio)),
+      };
+      const roundedPoint = {
+        x: Math.round(point.x),
+        y: Math.round(point.y),
+      };
+      const target = await getCardClickProbeTarget(page, point);
+
+      await page.mouse.click(point.x, point.y);
+      const state = await getCardClickProbeState(page);
+
+      if (!state.editorOpen && !state.datePickerOpen && !state.cardDatePopoverOpen && !state.labelPopoverOpen) {
+        misses.push({
+          point: roundedPoint,
+          ratio: {
+            x: xRatio,
+            y: yRatio,
+          },
+          target,
+        });
+      }
+
+      await closeCardClickProbeUi(page, state);
+    }
+  }
+
+  expect(misses, JSON.stringify(misses, null, 2)).toEqual([]);
+});
+
+test('opens a card when a startup board refresh lands between pointer down and up', async ({ page }) => {
+  const card = page.locator('.list').first().locator('.card').first();
+  await expect(card).toBeVisible();
+
+  const box = await card.boundingBox();
+  expect(box).toBeTruthy();
+
+  await page.mouse.move(box.x + (box.width / 2), box.y + (box.height / 2));
+  await page.mouse.down();
+  await page.evaluate(async () => {
+    await renderBoard();
+  });
+  await page.mouse.up();
+
+  await expect(page.locator('#modalEditCard')).toBeVisible();
 });
 
 test('installs native application menu actions', async ({ electronApp }) => {
@@ -883,15 +1010,143 @@ test('does not throw when formatting invalid due date values', async ({ page }) 
   });
 });
 
+test('renders card start and due dates as a compact date range', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+
+  await cardFrontmatter.updateFrontmatter(cardPath, {
+    start: '2026-06-17',
+    due: '2026-06-26',
+  });
+  await page.evaluate(async () => {
+    await renderBoard();
+  });
+
+  const firstCard = page.locator('.list').first().locator('.card').first();
+  const dateButton = firstCard.locator('.card-date-action');
+  await expect(dateButton).toContainText('Jun 17-26');
+  await expect(dateButton).toHaveAttribute('aria-label', 'Dates Jun 17 through Jun 26. Change dates.');
+
+  await dateButton.click();
+  const datePopover = page.locator('.card-date-popover');
+  await expect(datePopover).toBeVisible();
+  await expect(datePopover.getByRole('button', { name: 'Change start date' })).toContainText('Jun 17');
+  await expect(datePopover.getByRole('button', { name: 'Change due date' })).toContainText('Jun 26');
+});
+
+test('keeps the card date popover open during a pending board refresh', async ({ page }) => {
+  const firstCard = page.locator('.list').first().locator('.card').first();
+  await firstCard.hover();
+
+  await firstCard.locator('.card-date-action').click();
+  const datePopover = page.locator('.card-date-popover');
+  await expect(datePopover).toBeVisible();
+
+  const popoverBox = await datePopover.boundingBox();
+  expect(popoverBox).toBeTruthy();
+
+  await page.mouse.move(
+    popoverBox.x + (popoverBox.width / 2),
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await page.evaluate(async () => {
+    await runExternalBoardRefresh();
+  });
+
+  await page.mouse.move(
+    popoverBox.x + popoverBox.width + 24,
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await expect(datePopover).toBeVisible();
+});
+
+test('keeps the card label picker open during a pending board refresh', async ({ page }) => {
+  const firstCard = page.locator('.list').first().locator('.card').first();
+  await firstCard.hover();
+
+  await firstCard.locator('.card-label-button').click();
+  const labelPopover = page.locator('.card-label-popover');
+  await expect(labelPopover).toBeVisible();
+
+  const popoverBox = await labelPopover.boundingBox();
+  expect(popoverBox).toBeTruthy();
+
+  await page.mouse.move(
+    popoverBox.x + (popoverBox.width / 2),
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await page.evaluate(async () => {
+    await runExternalBoardRefresh();
+  });
+
+  await page.mouse.move(
+    popoverBox.x + popoverBox.width + 24,
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await expect(labelPopover).toBeVisible();
+});
+
+test('keeps the list actions popover open during a pending board refresh', async ({ page }) => {
+  const firstList = page.locator('.list').first();
+  await expect(firstList).toBeVisible();
+
+  await firstList.locator('.list-actions-button').click();
+  const listActionsPopover = page.locator('#listActionsPopover');
+  await expect(listActionsPopover).toBeVisible();
+
+  const popoverBox = await listActionsPopover.boundingBox();
+  expect(popoverBox).toBeTruthy();
+
+  await page.mouse.move(
+    popoverBox.x + (popoverBox.width / 2),
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await page.evaluate(async () => {
+    await runExternalBoardRefresh();
+  });
+
+  await page.mouse.move(
+    popoverBox.x + popoverBox.width + 24,
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await expect(listActionsPopover).toBeVisible();
+});
+
+test('opens board label settings from the card label picker shortcut', async ({ page }) => {
+  const firstCard = page.locator('.list').first().locator('.card').first();
+  await firstCard.hover();
+
+  await firstCard.locator('.card-label-button').click();
+  const labelPopover = page.locator('.card-label-popover');
+  await expect(labelPopover).toBeVisible();
+
+  await labelPopover.getByRole('button', { name: 'Open label settings' }).click();
+
+  await expect(labelPopover).toBeHidden();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await expect(page.locator('#boardSettingsNavLabels')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#boardSettingsPanelLabels')).toHaveAttribute('aria-hidden', 'false');
+  await expect(page.locator('#boardSettingsLabels .board-settings-label-name').first()).toBeFocused();
+});
+
 test('closes the card date picker before opening the label picker', async ({ page }) => {
   const firstCard = page.locator('.list').first().locator('.card').first();
   await firstCard.hover();
 
-  await firstCard.locator('.due-date-action').click();
+  await firstCard.locator('.card-date-action').click();
+  const datePopover = page.locator('.card-date-popover');
+  await expect(datePopover).toBeVisible();
+  await datePopover.getByRole('button', { name: 'Set due date' }).click();
   await expect(page.locator('.sb-themed-fdatepicker')).toBeVisible();
 
   await firstCard.locator('.card-label-button').click();
   await expect(page.locator('.sb-themed-fdatepicker')).toBeHidden();
+  await expect(datePopover).toBeHidden();
   await expect(page.locator('.card-label-popover')).toBeVisible();
 });
 

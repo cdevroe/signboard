@@ -189,6 +189,9 @@ function isBoardDragInProgress() {
 
 function isExternalBoardRefreshBlocked() {
     return isBoardDragInProgress()
+        || (typeof isCardDatePopoverOpen === 'function' && isCardDatePopoverOpen())
+        || (typeof isCardLabelPopoverOpen === 'function' && isCardLabelPopoverOpen())
+        || (typeof isListActionsPopoverOpen === 'function' && isListActionsPopoverOpen())
         || isModalOpen('modalEditCard')
         || isModalOpen('modalBoardSettings')
         || isModalOpen('modalArchiveBrowser')
@@ -624,6 +627,9 @@ function toggleBoardMenuPopover() {
     if (typeof closeCardLabelPopover === 'function') {
         closeCardLabelPopover();
     }
+    if (typeof closeCardDatePopover === 'function') {
+        closeCardDatePopover();
+    }
     if (typeof closeListActionsPopover === 'function') {
         closeListActionsPopover();
     }
@@ -924,6 +930,9 @@ async function init() {
         initializeAccessibilityHelpers();
     }
     initializeTooltips();
+    if (typeof initializeBoardCardPointerActivationFallback === 'function') {
+        initializeBoardCardPointerActivationFallback();
+    }
 
     if (window.electronAPI && typeof window.electronAPI.onOpenSignboardCardLink === 'function') {
         window.electronAPI.onOpenSignboardCardLink((payload) => {
@@ -1073,6 +1082,9 @@ async function init() {
 
         closeLabelFilterIfClickOutside(e.target);
         closeCardLabelSelectorIfClickOutside(e.target);
+        if (typeof closeCardDatePopoverIfClickOutside === 'function') {
+            closeCardDatePopoverIfClickOutside(e.target);
+        }
         if (typeof closeBoardViewPopoverIfClickOutside === 'function') {
             closeBoardViewPopoverIfClickOutside(e.target);
         }

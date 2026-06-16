@@ -29,7 +29,8 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - The sponsorship modal opens from the Board menu "Sponsor" action, About modal action, and fixed bottom-right "Sponsor" pill; the pill hides on compact windows to avoid covering board lists.
 - Quick Add card creation supports board/list selection across open boards, an optional app-level global shortcut while Signboard is running, and `Shift + Enter` to create, immediately open, and focus the notes field on the new card.
 - Card `start` frontmatter and task `(start: YYYY-MM-DD)` / `(scheduled: YYYY-MM-DD)` markers feed Kanban, Table, Planner, CLI, MCP, and importers alongside due dates; completed checklist date markers and completed-list cards stay non-actionable by default.
-- Card label popovers can create board labels inline, and Add Card/Quick Add can preselect active-board labels before creating a card.
+- Kanban cards show card-level `start` and `due` through one compact Dates control and body-level popover; the card editor keeps separate start/due controls.
+- Card label popovers can create board labels inline, open the board's Labels settings from a gear shortcut, and Add Card/Quick Add can preselect active-board labels before creating a card.
 - External Published Calendar is opt-in in App Settings, served only on `127.0.0.1`, and board inclusion is controlled in each board's Workflow settings.
 - Completed-list workflow settings live in board settings; Planner, board date filters, and due notifications treat completed-list cards as non-actionable by default while preserving due dates.
 - Completed task-list item date markers should not keep cards in Planner/date-filter views; only incomplete task start/due markers should place cards there.
