@@ -851,13 +851,14 @@ async function collectPlannerCardsForBoard(boardRoot) {
 
   const fallbackBoardName = getBoardLabelFromPath(normalizedBoardRoot);
   try {
-    const [boardDisplayName, lists, boardSettings] = await Promise.all([
-      Promise.resolve(window.board.getBoardName(normalizedBoardRoot)).catch(() => fallbackBoardName),
-      window.board.listLists(normalizedBoardRoot),
-      typeof window.board.readBoardSettings === 'function'
-        ? window.board.readBoardSettings(normalizedBoardRoot).catch(() => ({}))
-        : Promise.resolve({}),
-    ]);
+    const snapshot = await readBoardSnapshotForRender(normalizedBoardRoot, {
+      includeBoardSettings: true,
+      includeTimestamps: false,
+      includeTaskItems: true,
+    });
+    const boardDisplayName = snapshot.boardName || fallbackBoardName;
+    const lists = snapshot.lists;
+    const boardSettings = snapshot.boardSettings || {};
     const boardSourceTheme = typeof getBoardTemporalSourceTheme === 'function'
       ? getBoardTemporalSourceTheme(boardSettings || {})
       : null;

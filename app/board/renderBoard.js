@@ -351,27 +351,27 @@ async function renderBoard() {
 
   try {
     const boardNameEl = document.getElementById('boardName');
-    const [boardName, lists] = await Promise.all([
-      window.board.getBoardName(boardRoot),
-      window.board.listLists(boardRoot),
+    const activeBoardView = typeof getActiveBoardView === 'function'
+      ? getActiveBoardView()
+      : 'kanban';
+    const [snapshot] = await Promise.all([
+      readBoardSnapshotForRender(boardRoot, {
+        includeBoardSettings: false,
+        includeTimestamps: activeBoardView === 'table',
+        includeTaskItems: false,
+      }),
       ensureBoardLabelsLoaded(),
     ]);
+    const boardName = snapshot.boardName || window.board.getBoardName(boardRoot);
+    const listsWithCards = snapshot.lists.map((listEntry) => ({
+      listName: listEntry.listName,
+      listPath: listEntry.listPath,
+      cards: Array.isArray(listEntry.cards) ? listEntry.cards : [],
+    }));
 
     if (!isCurrentBoardRenderRequest(requestId)) {
       return;
     }
-
-    const activeBoardView = typeof getActiveBoardView === 'function'
-      ? getActiveBoardView()
-      : 'kanban';
-
-    const listsWithCards = await Promise.all(
-      lists.map(async (listName) => {
-        const listPath = boardRoot + listName;
-        const cards = await window.board.listCards(listPath);
-        return { listName, listPath, cards };
-      })
-    );
 
     if (activeBoardView === 'table' && typeof renderTableBoard === 'function') {
       const tableBuild = await renderTableBoard(boardRoot, listsWithCards);
@@ -443,25 +443,24 @@ async function renderBoard() {
         group: 'lists',
         animation: (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) ? 0 : 150,
         onEnd: async (evt) => {
-          const finalOrder = [...evt.to.querySelectorAll('.list')].map((list) =>
-            list.getAttribute('data-path')
-          );
+          const finalOrder = [...evt.to.querySelectorAll('.list')]
+            .map((list) => list.getAttribute('data-path'))
+            .filter(Boolean);
 
-          let directoryCounter = 0;
-          for (const directoryPath of finalOrder) {
-            const directoryNumber = (directoryCounter).toLocaleString('en-US', {
-              minimumIntegerDigits: 3,
-              useGrouping: false
-            });
+          try {
+            if (!window.board || typeof window.board.reorderLists !== 'function') {
+              throw new Error('List reorder is unavailable.');
+            }
 
-            const newDirectoryName = window.boardRoot + directoryNumber + await window.board.getListDirectoryName(directoryPath).slice(3);
-
-            await window.board.moveCard(directoryPath, newDirectoryName);
-
-            directoryCounter++;
+            await window.board.reorderLists(finalOrder);
+          } catch (error) {
+            console.error('Failed to reorder lists.', error);
+            if (typeof announceSignboardStatus === 'function') {
+              announceSignboardStatus('List order could not be saved.');
+            }
+          } finally {
+            await renderBoard();
           }
-
-          await renderBoard();
         }
       }));
     }

@@ -69,8 +69,14 @@ async function createListElement(name, listPath, cardNames, options = {}) {
   cardsEl.setAttribute('aria-label', `${listName.textContent || 'List'} cards`);
   listEl.appendChild(cardsEl);
 
+  const cardItems = Array.isArray(cardNames) ? cardNames : [];
   const cardElements = await Promise.all(
-    cardNames.map((cardName) => createCardElement(listPath + '/' + cardName))
+    cardItems.map((cardItem) => {
+      const cardPath = typeof getBoardSnapshotCardPath === 'function'
+        ? getBoardSnapshotCardPath(listPath, cardItem)
+        : `${listPath}/${cardItem}`;
+      return createCardElement(cardPath, { cardRecord: cardItem });
+    })
   );
 
   for (const cardEl of cardElements) {
@@ -88,62 +94,25 @@ async function createListElement(name, listPath, cardNames, options = {}) {
       draggable: '.card',
       disabled: isBoardLabelFilterActive(),
       onEnd: async (evt) => {
-          const movedCardOriginalPath = evt && evt.item ? evt.item.getAttribute('data-path') : '';
-          const sourceListPath = evt && evt.from ? evt.from.dataset.path : '';
           const targetListPath = evt && evt.to ? evt.to.dataset.path : '';
+          const finalOrder = [...evt.to.querySelectorAll('.card')]
+            .map((card) => card.getAttribute('data-path'))
+            .filter(Boolean);
 
-          const finalOrder = [...evt.to.querySelectorAll('.card')].map(card =>
-              card.getAttribute('data-path')  // array of CURRENT filenames in final order
-          );
+          try {
+            if (!window.board || typeof window.board.reorderCardsInList !== 'function') {
+              throw new Error('Card reorder is unavailable.');
+            }
 
-          const allCardsInList = await window.board.listCards(evt.to.dataset.path);
-
-          let tempFileCounter = 0;
-          for (const fileName of allCardsInList) {
-              await window.board.moveCard(evt.to.dataset.path + '/' + fileName, evt.to.dataset.path + '/' + fileName.replace('.md','.tmp'));
+            await window.board.reorderCardsInList(targetListPath, finalOrder);
+          } catch (error) {
+            console.error('Failed to reorder cards.', error);
+            if (typeof announceSignboardStatus === 'function') {
+              announceSignboardStatus('Card order could not be saved.');
+            }
+          } finally {
+            await renderBoard();
           }
-
-          let fileCounter = 0;
-          let movedCardNextPath = '';
-          for (const filePath of finalOrder) {
-
-              let fileNumber = (fileCounter).toLocaleString('en-US', {
-                  minimumIntegerDigits: 3,
-                  useGrouping: false
-              });
-
-              let adjustedFrom;
-
-              if ( !filePath.includes( evt.to.dataset.path ) ) {
-                  adjustedFrom = filePath;
-              } else {
-                  adjustedFrom = filePath.replace('.md','.tmp');
-              }
-
-              let adjustedTo = evt.to.dataset.path + '/' + fileNumber + await window.board.getCardFileName(filePath).slice(3).replace('.tmp','.md');
-
-              await window.board.moveCard(adjustedFrom, adjustedTo);
-              if (movedCardOriginalPath && filePath === movedCardOriginalPath) {
-                movedCardNextPath = adjustedTo;
-              }
-
-              fileCounter++;
-
-          }
-
-          if (
-            movedCardNextPath &&
-            sourceListPath &&
-            targetListPath &&
-            sourceListPath !== targetListPath &&
-            window.board &&
-            typeof window.board.recordCardListMove === 'function'
-          ) {
-            await window.board.recordCardListMove(movedCardNextPath, sourceListPath, targetListPath);
-          }
-
-          await renderBoard();
-          
       }
     }));
   };

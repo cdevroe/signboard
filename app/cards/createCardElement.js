@@ -572,8 +572,13 @@ async function toggleCardDateSelector(options = {}) {
   focusFirstCardDatePopoverControl(popover);
 }
 
-async function createCardElement(cardPath) {
-  const card = await window.board.readCard(cardPath);
+async function createCardElement(cardPath, options = {}) {
+  const suppliedCard = options && typeof options === 'object'
+    ? (typeof getBoardSnapshotCardData === 'function'
+      ? getBoardSnapshotCardData(options.card || options.cardRecord)
+      : (options.card || options.cardRecord || null))
+    : null;
+  const card = suppliedCard || await window.board.readCard(cardPath);
   const listDirectoryName = String(cardPath || '').replace(/\\/g, '/').split('/').slice(-2, -1)[0] || '';
   const isCompletedList = typeof isBoardListCompletedByWorkflow === 'function'
     ? isBoardListCompletedByWorkflow(listDirectoryName)
@@ -584,11 +589,19 @@ async function createCardElement(cardPath) {
   let selectedLabelIds = Array.isArray(card.frontmatter.labels)
     ? card.frontmatter.labels.map((labelId) => String(labelId))
     : [];
-  const taskSummary = getTaskListSummary(card.body);
-  const taskStartDates = typeof getTaskListStartDates === 'function' ? getTaskListStartDates(card.body) : [];
-  const incompleteTaskStartDates = typeof getIncompleteTaskListStartDates === 'function' ? getIncompleteTaskListStartDates(card.body) : taskStartDates;
-  const taskDueDates = getTaskListDueDates(card.body);
-  const incompleteTaskDueDates = getIncompleteTaskListDueDates(card.body);
+  const taskSummary = card.taskSummary && typeof card.taskSummary === 'object'
+    ? card.taskSummary
+    : getTaskListSummary(card.body);
+  const taskStartDates = Array.isArray(card.taskStartDates)
+    ? card.taskStartDates
+    : (typeof getTaskListStartDates === 'function' ? getTaskListStartDates(card.body) : []);
+  const incompleteTaskStartDates = Array.isArray(card.incompleteTaskStartDates)
+    ? card.incompleteTaskStartDates
+    : (typeof getIncompleteTaskListStartDates === 'function' ? getIncompleteTaskListStartDates(card.body) : taskStartDates);
+  const taskDueDates = Array.isArray(card.taskDueDates) ? card.taskDueDates : getTaskListDueDates(card.body);
+  const incompleteTaskDueDates = Array.isArray(card.incompleteTaskDueDates)
+    ? card.incompleteTaskDueDates
+    : getIncompleteTaskListDueDates(card.body);
   const linkedObjectCount = typeof getFrontmatterLinkedObjectCount === 'function'
     ? getFrontmatterLinkedObjectCount(card.frontmatter)
     : 0;

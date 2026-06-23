@@ -458,6 +458,29 @@ async function waitForBoardWatch(page) {
   }, { timeout: 5000 }).toBeGreaterThan(0);
 }
 
+async function removePathWithRetries(targetPath, options = {}) {
+  const retryableCodes = new Set(['EBUSY', 'ENOTEMPTY', 'EPERM']);
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      await fs.rm(targetPath, options);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!error || !retryableCodes.has(error.code) || attempt === 5) {
+        throw error;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 75 * (attempt + 1)));
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+}
+
 const test = base.extend({
   boardRoot: async ({}, use) => {
     const fixture = await createFixtureBoard();
@@ -465,7 +488,7 @@ const test = base.extend({
     try {
       await use(fixture.boardRoot);
     } finally {
-      await fs.rm(fixture.root, { recursive: true, force: true });
+      await removePathWithRetries(fixture.root, { recursive: true, force: true });
     }
   },
 
@@ -475,7 +498,7 @@ const test = base.extend({
     try {
       await use(userDataDir);
     } finally {
-      await fs.rm(userDataDir, { recursive: true, force: true });
+      await removePathWithRetries(userDataDir, { recursive: true, force: true });
     }
   },
 
@@ -787,7 +810,14 @@ test('exposes Obsidian actions and generates a board Base', async ({ page, board
   await page.locator('#cardEditorLinkedObjectsLink').click();
   await expect(page.locator('#cardEditorLinkedObjectsPopover')).toBeVisible();
   await page.locator('#cardEditorLinkedObjectsPopover').getByRole('button', { name: 'Create Linked Obsidian Note' }).click();
-  await fs.access(linkedNotePath);
+  await expect.poll(async () => {
+    try {
+      await fs.access(linkedNotePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }).toBe(true);
   const linkedNoteRaw = await fs.readFile(linkedNotePath, 'utf8');
   expect(linkedNoteRaw).toContain('signboard_card_id: stock');
   expect(linkedNoteRaw).not.toContain('# Plan release notes');
@@ -860,7 +890,14 @@ test('exposes Obsidian actions and generates a board Base', async ({ page, board
   await expect(page.locator('#signboardStatusRegion'))
     .toHaveText('Linked note not found.');
   await page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Recreate Renamed Project Brief' }).click();
-  await fs.access(renamedLinkedNotePath);
+  await expect.poll(async () => {
+    try {
+      await fs.access(renamedLinkedNotePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }).toBe(true);
   await expect(page.locator('#cardEditorRelatedNotes .card-editor-related-note.is-missing')).toHaveCount(0);
   await expect(page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Open Renamed Project Brief' })).toBeVisible();
   await page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Remove Renamed Project Brief' }).click();

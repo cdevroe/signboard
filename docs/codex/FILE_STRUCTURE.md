@@ -9,7 +9,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
-- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and main-process-triggered renderer events, including board switcher/view/settings/Quick Add/signboard-card-link/signboard-board-link events, clipboard text copy, Smart Card Actions, Ollama model inspection, archive browse/read/restore, board duplication, Obsidian actions, dropped-file path extraction for linked objects, and top-of-list card move calls.
+- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and main-process-triggered renderer events, including board switcher/view/settings/Quick Add/signboard-card-link/signboard-board-link events, clipboard text copy, Smart Card Actions, Ollama model inspection, archive browse/read/restore, board snapshot reads, board duplication, Obsidian actions, dropped-file path extraction for linked objects, and transactional card/list reorder plus top-of-list card move calls.
 - `index.html` - App shell, header board tab strip, left-edge Planner rail/overlay markup, fixed Sponsor pill, board-menu view/archive/switcher modal markup (including `#boardViewButton`, `#modalKeyboardShortcuts`, `#modalBoardSwitcher`, `#modalArchiveBrowser`, and `#modalObsidianVaultRequired`), and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `docs/release-template.md` - Curated GitHub release-body template for public download links.
@@ -36,6 +36,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/appSettings.js` - Renderer app-settings state, app-wide Settings/Notifications/Smart Actions controls, tooltip/notification/Quick Add global shortcut/AI assistance/External Published Calendar persistence scheduling, and one-time migration from legacy board settings; shared defaults/normalizers come from `shared/appSettingsSchema.js`.
 - `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` / next-range date filters + label filters, with date filters ignoring completed task date markers and completed workflow lists), keyboard-operable card label popovers with inline label creation and Labels settings shortcut, new-card label selection helpers, Settings modal app/current-board panel nav, General board rename/move/duplicate controls, Obsidian Base generation controls, and Trello/Obsidian import panel wiring + summary rendering.
 - `app/board/boardSearch.js` - Board search state, input handling for title/body filtering, and keyboard navigation from the search field through visible card results.
+- `app/board/boardSnapshot.js` - Renderer adapter for batched `readBoardSnapshot` results, with fallback to legacy per-list/per-card reads for tests or older bridges.
 - `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, Kanban/Table board view state and menu controls, Calendar/This Week layout helpers, temporal card placement by card start/due and open task start/due markers, and source-list/source-board pills on temporal cards.
 - `app/board/tableView.js` - Board-scoped Table view rendering, dense row metadata including Start/Due, Created/Updated age columns, and linked-object counts, board filter/search reuse, Table list filter and sort controls, checkbox/shift-range bulk selection, bulk archive/move/label/date actions, and list-column card moves through the top-of-list move IPC path.
 - `app/board/plannerView.js` - Workspace-level Planner overlay with Calendar, This Week, Day, and Agenda views across currently open boards, all/current/custom board scope controls, Planner-local search/date/completed-card/board/active-board-label filters, keyboard navigation for Planner search/filter controls, left-rail open/close behavior, and Planner card opening that switches the active board when needed.
@@ -47,7 +48,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/cards/processAddNewList.js` - New list creation flow.
 - `app/lists/listActionsPopover.js` - List action popover rendering for adding cards/lists, moving lists left/right, archiving cards/lists, keyboard option navigation, shortcut hints, and status announcements.
 - `app/lists/createListElement.js` - List DOM rendering with labelled section/list semantics, sanitized rename, card DnD handling, and cross-list move lifecycle logging.
-- `app/board/renderBoard.js` - Whole-board render (with concurrent card-list reads), active Kanban/Table view dispatch, and Kanban list DnD handling.
+- `app/board/renderBoard.js` - Whole-board render using batched board snapshots, active Kanban/Table view dispatch, and Kanban list DnD handling through main-process transactional reorder.
 - `app/board/openBoard.js` - Board open/init logic and starter content.
 - `app/modals/closeAllModals.js` - Modal close logic + editor cleanup + conditional rerender + board interaction lock/unlock.
 - `app/modals/toggleAddCardModal.js` - Add-card modal position/toggle.
@@ -62,10 +63,12 @@ This map focuses on source and operational files. Large generated/vendor folders
 ## Shared/library code
 
 - `shared/appSettingsSchema.js` - Pure app-settings defaults and normalizers shared by the main process and renderer bundle; the single source for built-in Smart Card Action prompts.
+- `lib/atomicFile.js` - Shared durable write helper that writes to a same-directory temp file, fsyncs, renames into place, and best-effort fsyncs the containing directory.
+- `lib/boardSnapshot.js` - Main-process batched board reader used by renderer Kanban/Table/Planner views; returns list/card records, opt-in timestamps/task metadata/board settings, and per-card/list read errors.
 - `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support, including `start` and `due` date normalization.
 - `lib/cardLifecycle.js` - Shared card lifecycle metadata helper for `createdAt`, compact `activity` trails, archive frontmatter state, and moved/restored transitions.
 - `lib/cardTimestamps.js` - Shared timestamp resolver for desktop reads, CLI card records/JSON output, and MCP card responses, preferring frontmatter/activity creation data and filesystem modification data.
-- `lib/cardOrdering.js` - Shared list-card ordering helper used by main-process/MCP restore and move flows to insert a card at the top while renumbering existing files.
+- `lib/cardOrdering.js` - Shared transactional ordering helpers used by main-process/MCP restore and move flows to insert a card at the top, reorder cards in a list, and reorder list directories while staging temp names and rolling back on failures.
 - `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
 - `lib/boardLabels.js` - Board-level label/theme/workflow/External Published Calendar inclusion settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
 - `lib/boardDuplication.js` - Board folder duplication helper used by desktop Settings; copies board contents, assigns fresh copied-card IDs, refreshes copied Signboard metadata, rewrites internal `signboard://open-card` references, rewrites copied local linked-object paths, and resets copied managed Base state.
@@ -89,6 +92,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `scripts/test-frontmatter.js` - Node assertions for frontmatter behavior.
 - `scripts/test-board-labels.js` - Node assertions for board label settings defaults/migration/filter logic.
+- `scripts/test-board-snapshot.js` - Node assertions for batched board snapshot list/card reads, task metadata, timestamps, board settings, and archive inclusion behavior.
 - `scripts/test-board-duplication.js` - Node assertions for board folder duplication, copied-card ID refresh, internal Signboard link rewrites, linked-object path rewrites, and copied managed Base reset behavior.
 - `scripts/test-app-settings.js` - Node assertions for app-wide settings persistence, including AI settings, and one-time board-settings migration.
 - `scripts/test-ai-task-suggestions.js` - Node assertions for Ollama model-list/chat request construction, Smart Card Action output parsing including label references, and AI checklist suggestion cleanup without live network calls.

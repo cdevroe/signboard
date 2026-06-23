@@ -188,9 +188,17 @@ async function collectBoardTableCards(boardRoot, listsWithCards) {
   const rowsByList = await Promise.all(
     listEntries.map(async (listEntry) => {
       const rows = await Promise.all(
-        listEntry.cards.map(async (cardName) => {
-          const cardPath = `${listEntry.listPath}/${cardName}`;
-          const card = await window.board.readCard(cardPath);
+        listEntry.cards.map(async (cardItem) => {
+          const cardName = typeof getBoardSnapshotCardName === 'function'
+            ? getBoardSnapshotCardName(cardItem)
+            : String(cardItem || '');
+          const cardPath = typeof getBoardSnapshotCardPath === 'function'
+            ? getBoardSnapshotCardPath(listEntry.listPath, cardItem)
+            : `${listEntry.listPath}/${cardName}`;
+          const snapshotCard = typeof getBoardSnapshotCardData === 'function'
+            ? getBoardSnapshotCardData(cardItem)
+            : null;
+          const card = snapshotCard || await window.board.readCard(cardPath);
           const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
             ? card.frontmatter
             : {};
@@ -211,11 +219,19 @@ async function collectBoardTableCards(boardRoot, listsWithCards) {
               ? frontmatter.labels.map((labelId) => String(labelId))
               : [],
             body,
-            taskSummary: getTaskListSummary(body),
-            taskStartDates: typeof getTaskListStartDates === 'function' ? getTaskListStartDates(body) : [],
-            incompleteTaskStartDates: typeof getIncompleteTaskListStartDates === 'function' ? getIncompleteTaskListStartDates(body) : [],
-            taskDueDates: getTaskListDueDates(body),
-            incompleteTaskDueDates: getIncompleteTaskListDueDates(body),
+            taskSummary: card.taskSummary && typeof card.taskSummary === 'object'
+              ? card.taskSummary
+              : getTaskListSummary(body),
+            taskStartDates: Array.isArray(card.taskStartDates)
+              ? card.taskStartDates
+              : (typeof getTaskListStartDates === 'function' ? getTaskListStartDates(body) : []),
+            incompleteTaskStartDates: Array.isArray(card.incompleteTaskStartDates)
+              ? card.incompleteTaskStartDates
+              : (typeof getIncompleteTaskListStartDates === 'function' ? getIncompleteTaskListStartDates(body) : []),
+            taskDueDates: Array.isArray(card.taskDueDates) ? card.taskDueDates : getTaskListDueDates(body),
+            incompleteTaskDueDates: Array.isArray(card.incompleteTaskDueDates)
+              ? card.incompleteTaskDueDates
+              : getIncompleteTaskListDueDates(body),
             linkedObjectCount: typeof getFrontmatterLinkedObjectCount === 'function'
               ? getFrontmatterLinkedObjectCount(frontmatter)
               : 0,

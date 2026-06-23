@@ -16,6 +16,7 @@ cat \
   app/appSettings.js \
   app/board/boardLabels.js \
   app/board/boardSearch.js \
+  app/board/boardSnapshot.js \
   app/board/boardViews.js \
   app/board/tableView.js \
   app/board/plannerView.js \

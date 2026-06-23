@@ -14,7 +14,8 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
 const { readCardWithTimestamps } = require('./lib/cardTimestamps');
-const { insertCardFileAtTop } = require('./lib/cardOrdering');
+const { insertCardFileAtTop, reorderCardFilesInList, reorderListDirectories } = require('./lib/cardOrdering');
+const { readBoardSnapshot } = require('./lib/boardSnapshot');
 const { prepareNewCardFrontmatter } = require('./lib/cardLifecycle');
 const {
   archiveCard,
@@ -4066,6 +4067,14 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       return listBoardDirectories(boardRoot, { includeArchive: true });
     }
 
+    case 'readBoardSnapshot': {
+      const boardRoot = requireReadableBoardRoot(event.sender, args[0]);
+      const options = args[1] && typeof args[1] === 'object' && !Array.isArray(args[1])
+        ? args[1]
+        : {};
+      return readBoardSnapshot(boardRoot, options);
+    }
+
     case 'startBoardWatch':
       return startBoardWatchForSender(event.sender, args[0]);
 
@@ -4373,6 +4382,67 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       const fromListPath = requireWritablePath(event.sender, args[1]);
       const toListPath = requireWritablePath(event.sender, args[2]);
       return recordCardListMove(boardRoot, cardPath, fromListPath, toListPath);
+    }
+
+    case 'reorderCardsInList': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const targetListPath = requireWritablePath(event.sender, args[0]);
+      const rawOrderedCardPaths = Array.isArray(args[1]) ? args[1] : [];
+      const orderedCardPaths = rawOrderedCardPaths
+        .map((cardPath) => requireWritablePath(event.sender, cardPath))
+        .filter((cardPath) => cardPath.endsWith('.md'));
+      const archiveRoot = path.join(boardRoot, 'XXX-Archive');
+
+      if (targetListPath === boardRoot || targetListPath === archiveRoot || isPathInsideRoot(archiveRoot, targetListPath)) {
+        throw new Error('INVALID_TARGET_LIST');
+      }
+
+      const targetStats = await fsPromises.stat(targetListPath);
+      if (!targetStats.isDirectory()) {
+        throw new Error('INVALID_TARGET_LIST');
+      }
+
+      for (const cardPath of orderedCardPaths) {
+        const sourceListPath = path.dirname(cardPath);
+        if (sourceListPath === archiveRoot || isPathInsideRoot(archiveRoot, sourceListPath)) {
+          throw new Error('SOURCE_CARD_CANNOT_BE_ARCHIVED');
+        }
+      }
+
+      const reorderedCards = await reorderCardFilesInList(targetListPath, orderedCardPaths);
+      let movedAcrossLists = false;
+
+      for (const cardEntry of reorderedCards) {
+        const sourceListPath = path.dirname(cardEntry.sourcePath);
+        if (sourceListPath !== targetListPath) {
+          movedAcrossLists = true;
+          await recordCardListMove(boardRoot, cardEntry.cardPath, sourceListPath, targetListPath);
+          await refreshCardSignboardMetadata(boardRoot, cardEntry.cardPath);
+        }
+      }
+
+      if (movedAcrossLists) {
+        await autoSyncManagedObsidianBaseForBoard(boardRoot);
+      }
+
+      return {
+        ok: true,
+        cards: reorderedCards,
+      };
+    }
+
+    case 'reorderLists': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const rawOrderedListPaths = Array.isArray(args[0]) ? args[0] : [];
+      const orderedListPaths = rawOrderedListPaths
+        .map((listPath) => requireWritablePath(event.sender, listPath))
+        .filter((listPath) => path.dirname(listPath) === boardRoot && path.basename(listPath) !== 'XXX-Archive');
+
+      const reorderedLists = await reorderListDirectories(boardRoot, orderedListPaths);
+      return {
+        ok: true,
+        lists: reorderedLists,
+      };
     }
 
     case 'moveCardToTop': {

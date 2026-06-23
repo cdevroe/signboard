@@ -11,6 +11,7 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Read [docs/codex/FILE_STRUCTURE.md](./docs/codex/FILE_STRUCTURE.md) for the repository map.
 - Read [DESIGN.md](./DESIGN.md) before changing the default theme, visual system, or UI component styling.
 - Treat `app/signboard.js` as generated output; edit source modules in `app/**` or shared renderer modules such as `shared/appSettingsSchema.js`, then run `./buildjs.sh`.
+- Use `lib/atomicFile.js` for durable writes to Signboard-managed card, settings, sidecar, and Obsidian integration files.
 - Keep keyboard shortcut behavior, `index.html` shortcut help, and user-facing shortcut docs in sync.
 - Keep modal focus handling, live status announcements, reduced-motion behavior, forced-colors behavior, and keyboard-only focus styling in sync with `app/utilities/accessibility.js` and `static/styles.css`.
 - Mark body-level popovers that must remain interactive while a modal is active with `data-sb-modal-layer`, so the modal background inert handler does not disable them.
@@ -18,10 +19,12 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Keep native app menu actions and the Playwright native-menu regression aligned when changing menu behavior.
 - Defer DOM/layout mutations after macOS native menu or `<select>` popup interactions with `waitForNativeMenuTrackingToSettle()` before replacing, disabling, rerendering, or moving controls.
 - Keep card drag/drop clone and placeholder behavior in sync with `app/utilities/cardDragTilt.js` and `static/styles.css`.
+- Keep card/list drag/drop filesystem ordering on the main-process transactional helpers in `lib/cardOrdering.js`; do not move reorder loops back into renderer code.
 - MCP allowed roots include both explicit MCP roots and desktop trusted board roots; keep root loading, `get_config`, `signboard_list_boards`, and board-name resolution tests aligned.
 - CLI and MCP board discovery/creation should stay aligned: `signboard boards list` and `signboard_list_boards` report the same known-board metadata shape where applicable, while `signboard boards create` and `signboard_create_board` scaffold the same default lists and starter card.
 - Quick board switching uses `Cmd/Ctrl + K`, searches all currently open boards, and should keep tab switching, overflow tab switching, and switcher switching on the same safe board-switch helper.
 - Planner is the workspace-level home for Calendar, This Week, Day, and Agenda, including all-open-board and current-board shortcut scopes; keep `app/board/plannerView.js`, Kanban/Table board rendering, Table bulk-selection behavior, search/filter behavior, and shortcut docs aligned.
+- Normal board rendering uses `readBoardSnapshot` and `app/board/boardSnapshot.js` to batch list/card reads for Kanban, Table, and Planner; keep snapshot shape and consumers aligned.
 - Workspace-level keyboard shortcuts close the active card editor before changing context; editor-scoped card move/archive shortcuts should keep acting on the open card.
 - External board-change sync should refresh board cards and unchanged open card editors after MCP/card-file edits without overwriting local editor changes.
 - Card timestamp UI and automation surfaces use `timestamps.createdAt` and `timestamps.updatedAt`; keep editor timestamp display, Table age columns/sorting, CLI age sorts, and MCP card responses aligned with the shared timestamp helpers.

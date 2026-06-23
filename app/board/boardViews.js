@@ -579,9 +579,17 @@ async function collectCardsForCalendar(boardRoot, lists, options = {}) {
     : String(boardRoot || '');
 
   const listEntries = await Promise.all(
-    listNames.map(async (listName) => {
-      const listPath = `${boardRoot}${listName}`;
-      const cardNames = await window.board.listCards(listPath);
+    listNames.map(async (listEntry) => {
+      const isSnapshotList = listEntry && typeof listEntry === 'object' && !Array.isArray(listEntry);
+      const listName = isSnapshotList
+        ? String(listEntry.listName || '').trim()
+        : String(listEntry || '').trim();
+      const listPath = isSnapshotList
+        ? String(listEntry.listPath || (typeof joinBoardSnapshotPath === 'function' ? joinBoardSnapshotPath(boardRoot, listName) : `${boardRoot}${listName}`)).trim()
+        : `${boardRoot}${listName}`;
+      const cardNames = isSnapshotList && Array.isArray(listEntry.cards)
+        ? listEntry.cards
+        : await window.board.listCards(listPath);
       return {
         listName,
         listDisplayName: getBoardListDisplayName(listName),
@@ -595,24 +603,31 @@ async function collectCardsForCalendar(boardRoot, lists, options = {}) {
   );
 
   for (const { listName, listDisplayName, listPath, cardNames, isCompletedList } of listEntries) {
-    for (const cardName of cardNames) {
+    for (const cardItem of cardNames) {
+      const cardPath = typeof getBoardSnapshotCardPath === 'function'
+        ? getBoardSnapshotCardPath(listPath, cardItem)
+        : `${listPath}/${cardItem}`;
       cardPaths.push({
         listName,
         listDisplayName,
-        cardPath: `${listPath}/${cardName}`,
+        cardPath,
+        cardRecord: cardItem,
         isCompletedList,
       });
     }
   }
 
   const cardEntries = await Promise.all(
-    cardPaths.map(async ({ listName, listDisplayName, cardPath, isCompletedList }) => {
-      const card = await window.board.readCard(cardPath);
+    cardPaths.map(async ({ listName, listDisplayName, cardPath, cardRecord, isCompletedList }) => {
+      const snapshotCard = typeof getBoardSnapshotCardData === 'function'
+        ? getBoardSnapshotCardData(cardRecord)
+        : null;
+      const card = snapshotCard || await window.board.readCard(cardPath);
       const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
         ? card.frontmatter
         : {};
       const body = String(card && card.body ? card.body : '');
-      const taskItems = parseTaskListItems(body);
+      const taskItems = Array.isArray(card.taskItems) ? card.taskItems : parseTaskListItems(body);
 
       return {
         boardRoot: normalizedBoardRoot,
@@ -630,12 +645,20 @@ async function collectCardsForCalendar(boardRoot, lists, options = {}) {
           ? frontmatter.labels.map((labelId) => String(labelId))
           : [],
         body,
-        taskSummary: getTaskListSummary(body),
+        taskSummary: card.taskSummary && typeof card.taskSummary === 'object'
+          ? card.taskSummary
+          : getTaskListSummary(body),
         taskItems,
-        taskStartDates: typeof getTaskListStartDates === 'function' ? getTaskListStartDates(body) : [],
-        incompleteTaskStartDates: typeof getIncompleteTaskListStartDates === 'function' ? getIncompleteTaskListStartDates(body) : [],
-        taskDueDates: getTaskListDueDates(body),
-        incompleteTaskDueDates: getIncompleteTaskListDueDates(body),
+        taskStartDates: Array.isArray(card.taskStartDates)
+          ? card.taskStartDates
+          : (typeof getTaskListStartDates === 'function' ? getTaskListStartDates(body) : []),
+        incompleteTaskStartDates: Array.isArray(card.incompleteTaskStartDates)
+          ? card.incompleteTaskStartDates
+          : (typeof getIncompleteTaskListStartDates === 'function' ? getIncompleteTaskListStartDates(body) : []),
+        taskDueDates: Array.isArray(card.taskDueDates) ? card.taskDueDates : getTaskListDueDates(body),
+        incompleteTaskDueDates: Array.isArray(card.incompleteTaskDueDates)
+          ? card.incompleteTaskDueDates
+          : getIncompleteTaskListDueDates(body),
       };
     }),
   );

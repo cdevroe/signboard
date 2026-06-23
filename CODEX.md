@@ -23,9 +23,12 @@ Start here before opening source files.
 - `main.js` supports `--mcp-config` to print a ready-to-paste MCP config JSON snippet and exit.
 - `Help` menu includes `Copy MCP Config`, which copies a ready-to-paste MCP server config snippet to clipboard.
 - `preload.js` is now a thin IPC bridge only; board filesystem access, trusted-board validation, and filesystem watch helpers live in `main.js`, while `app/init.js` still uses the same watch methods to auto-refresh after external board changes and refresh an unchanged open card editor after external/MCP card edits.
+- Core file-backed writes use `lib/atomicFile.js` so cards, board settings, app settings, archive sidecars, CLI state, and Obsidian-managed files are written through same-directory temp files before atomic replacement.
 - Archive browsing and restore now run through `lib/archive.js` via `main.js` / `preload.js`; the renderer opens a dedicated Archive modal (`app/board/archiveBrowser.js`) instead of treating Archive as a board view.
 - Active-card adjacent-list moves use the main-process `moveCardToTop` IPC path backed by `lib/cardOrdering.js`, so renderer shortcuts do not perform multi-step filesystem renames directly.
+- Card and list drag/drop reorder use main-process `reorderCardsInList` / `reorderLists` IPC paths backed by transactional helpers in `lib/cardOrdering.js`; do not reintroduce renderer-side multi-rename loops.
 - Board rendering supports Kanban by default plus a board-scoped Table view for scanning and bulk-managing cards; Calendar, This Week, Day, and Agenda dated workflows live in Planner.
+- Board render, Table, and Planner use the batched `readBoardSnapshot` IPC path plus the renderer adapter in `app/board/boardSnapshot.js` to avoid per-card IPC reads during normal view rendering.
 - Planner is managed in `app/board/plannerView.js`; it appears as a left-edge overlay only when at least one board tab is open, defaults to all open boards, has a quick current-board scope toggle, and owns Calendar, This Week, Day, and Agenda views.
 - Planner search/filtering is separate from board search: it searches card title/body plus board/list source text, filters by `Today` / `Overdue` / `Next 7 days` / `Next 14 days` / `Next 30 days`, completed-card visibility, and selected open boards, and exposes label filtering only when scoped to the active board.
 - App-level settings live in `app-settings.json` under Electron `userData` via `lib/appSettings.js`; shared defaults/normalizers, including built-in Smart Card Action prompts, live in `shared/appSettingsSchema.js`. Tooltip and notification preferences migrate once from the left-most open board's legacy `board-settings.md` values and are no longer serialized into board settings, while the optional Quick Add global shortcut, AI assistance/Ollama settings, and External Published Calendar settings are stored only in app settings.
@@ -61,6 +64,7 @@ Start here before opening source files.
 - External Published Calendar coverage is in `scripts/test-external-published-calendar.js` (`npm run test:external-calendar`).
 - Due notification coverage tests are in `scripts/test-due-notifications.js` (`npm run test:due-notifications`).
 - Board duplication coverage is in `scripts/test-board-duplication.js` (`npm run test:board-duplication`).
+- Board snapshot coverage is in `scripts/test-board-snapshot.js` (`npm run test:board-snapshot`).
 - Dedicated user-facing MCP setup docs are in `MCP_README.md`.
 - Release-facing user and agent docs live in `docs/README.md`, `docs/using-signboard.md`, and `docs/signboard-cli.md`.
 - Reusable agent skill for MCP usage lives at `skills/signboard-mcp/SKILL.md`.

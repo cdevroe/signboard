@@ -279,6 +279,7 @@ function createContext() {
   loadSource(context, 'app/utilities/linkedObjects.js');
   loadSource(context, 'app/board/boardLabels.js');
   loadSource(context, 'app/board/boardSearch.js');
+  loadSource(context, 'app/board/boardSnapshot.js');
   loadSource(context, 'app/board/boardViews.js');
   loadSource(context, 'app/board/tableView.js');
   loadSource(context, 'app/board/plannerView.js');

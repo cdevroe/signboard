@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('board', {
   getCardFileName: (filePath) => getNormalizedBaseName(filePath),
   getListDirectoryName: (filePath) => getNormalizedBaseName(filePath),
   listDirectories: async (root) => invokeBoard('listDirectories', root),
+  readBoardSnapshot: async (root, options) => invokeBoard('readBoardSnapshot', root, options),
   startBoardWatch: async (boardRoot) => invokeBoard('startBoardWatch', boardRoot),
   stopBoardWatch: async () => invokeBoard('stopBoardWatch'),
   getBoardWatchToken: async () => invokeBoard('getBoardWatchToken'),
@@ -102,6 +103,9 @@ contextBridge.exposeInMainWorld('board', {
     invokeBoard('restoreArchivedList', archivedListPath, restoredDirectoryName),
   recordCardListMove: async (cardPath, fromListPath, toListPath) =>
     invokeBoard('recordCardListMove', cardPath, fromListPath, toListPath),
+  reorderCardsInList: async (listPath, orderedCardPaths) =>
+    invokeBoard('reorderCardsInList', listPath, orderedCardPaths),
+  reorderLists: async (orderedListPaths) => invokeBoard('reorderLists', orderedListPaths),
   moveCardToTop: async (cardPath, targetListPath) => invokeBoard('moveCardToTop', cardPath, targetListPath),
   moveCard: async (src, dst) => invokeBoard('moveCard', src, dst),
   moveList: async (src, dst) => invokeBoard('moveList', src, dst),

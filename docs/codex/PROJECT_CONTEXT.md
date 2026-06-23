@@ -41,10 +41,12 @@ File: `main.js`
 - Uses `preload.js` as a thin renderer bridge into main-process IPC.
 - Owns renderer right-click text editing context menus through the `webContents` `context-menu` event, covering editable fields such as the card title and OverType notes editor; context-menu popup creation is deferred one tick so AppKit can finish native menu tracking before window layout changes.
 - Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
+- Owns batched board snapshot reads through `lib/boardSnapshot.js`, returning list/card records plus optional timestamps, task metadata, board settings, and per-entry read errors for renderer Kanban/Table/Planner views.
 - Owns explicit board import operations for Trello, Obsidian, and Tasks.md; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
 - Owns outbound Obsidian operations through `lib/obsidianIntegration.js`: containing-vault detection, Obsidian URI construction, default-app opening, managed generated Bases files, linked note creation, inbox note appends, and Signboard deep-link copying/resolution.
 - Owns archive browse/read/restore operations through `lib/archive.js`; renderer code never scans or restores archive contents directly.
 - Owns adjacent-card top-of-list moves through `moveCardToTop`, backed by `lib/cardOrdering.js`.
+- Owns transactional card/list drag reorder through `reorderCardsInList` and `reorderLists`, backed by `lib/cardOrdering.js` staging/rollback helpers instead of renderer-side multi-rename loops.
 - Owns board duplication through `lib/boardDuplication.js`; renderer code supplies a tokenized destination folder selection and the main process copies the board, refreshes copied card IDs/metadata, resets copied managed Base state, and trusts the new board root.
 - In MCP mode, starts `lib/mcpServer.js`, passes desktop trusted board roots plus the last synced desktop open-board state into it, and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
@@ -162,7 +164,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - Renders Kanban columns by default.
   - Renders the board-scoped Table view for dense card scanning and bulk management.
   - Enables list drag-and-drop reorder in Kanban.
-  - Fetches each list's card names concurrently for faster initial render.
+  - Uses the batched `readBoardSnapshot` IPC path through `app/board/boardSnapshot.js` so normal rendering gets lists and parsed cards with one main-process operation; heavier fields such as timestamps, task item detail, and board settings are requested only by the views that need them.
   - Loads board label definitions and temporary filter state before rendering cards.
 - `app/board/tableView.js`:
   - Renders active-board cards in board/list order as a dense table.
@@ -200,7 +202,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - Uses shared Sortable card drag options from `app/utilities/cardDragTilt.js`; the visible ghost placeholder is an empty drop slot rather than a readable duplicate card.
   - Sanitizes list names before filesystem rename.
   - Builds card DOM for a list concurrently to reduce list render time.
-  - Records `moved-list` lifecycle events only for real cross-list card moves, not same-list reindexing.
+  - Delegates card drag/drop filesystem ordering to main-process transactional reorder helpers, which record `moved-list` lifecycle events only for real cross-list card moves, not same-list reindexing.
 - `app/lists/listActionsPopover.js`:
   - Renders native button actions for adding cards/lists, moving lists left/right, and archiving cards/lists.
   - Keeps the popover labelled, focuses the first enabled action on open, supports arrow-key / `Home` / `End` / `Esc` option navigation, and announces completed list actions through the shared live status helper.
@@ -347,6 +349,15 @@ File: `lib/cardTimestamps.js`
 File: `lib/cardBodyEdits.js`
 
 - Shared card-body helper for Markdown section replacement, insertion below headings, and timestamped note list items used by CLI and MCP card writes.
+
+File: `lib/atomicFile.js`
+
+- Shared durable write helper for Signboard-managed card/settings/sidecar/state files and Obsidian-managed files. Writes go to a same-directory temp file, fsync, atomic rename into place, and best-effort directory fsync.
+
+File: `lib/boardSnapshot.js`
+
+- Batches board list/card reads for renderer view rendering and returns per-entry errors so one unreadable card does not need to fail the whole board.
+- Includes normalized card frontmatter/body plus opt-in timestamps, task metadata, board settings, and Archive-list inclusion.
 
 File: `lib/archive.js`
 
@@ -504,6 +515,11 @@ CLI overdue behavior:
 - `npm run test:board-duplication`
 - Script: `scripts/test-board-duplication.js`
 - Covers board folder copying, copied-card ID refresh, internal `signboard://open-card` rewrites, local linked-object path rewrites, and managed Base reset behavior.
+
+### Board snapshot tests
+- `npm run test:board-snapshot`
+- Script: `scripts/test-board-snapshot.js`
+- Covers batched board snapshot reads, task metadata, timestamps, board settings, and archive inclusion behavior.
 
 ### AI task suggestion tests
 - `npm run test:ai-task-suggestions`
