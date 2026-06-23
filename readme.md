@@ -2,7 +2,7 @@
 
 Signboard is a local-first desktop kanban app that stores your lists as directories and cards as Markdown files on disk.
 
-Signboard is free for personal use. If you are using Signboard for your work it would be appreciated if you purchase a commercial license to sponsor future development. See the app's "Sponsor" button.
+Signboard is free for personal use. If you are using Signboard for your work, it would be appreciated if you make the commercial-use sponsorship payment to support future development. See the app's "Sponsor" button.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](../../issues)
@@ -226,6 +226,8 @@ npm start
 ```bash
 npm run test:frontmatter
 npm run test:board-labels
+npm run test:board-snapshot
+npm run test:board-duplication
 npm run test:app-settings
 npm run test:ai-task-suggestions
 npm run test:board-card-metadata
