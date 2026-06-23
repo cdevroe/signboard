@@ -210,6 +210,18 @@ async function findFixtureCardPath(boardRoot, listName, fileNamePart) {
   return path.join(listPath, match);
 }
 
+async function expectBulkDateRowControlsDoNotOverlap(rowLocator) {
+  const inputBox = await rowLocator.locator('input').boundingBox();
+  const setBox = await rowLocator.getByRole('button', { name: 'Set' }).boundingBox();
+  const clearBox = await rowLocator.getByRole('button', { name: 'Clear' }).boundingBox();
+
+  expect(inputBox).toBeTruthy();
+  expect(setBox).toBeTruthy();
+  expect(clearBox).toBeTruthy();
+  expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(setBox.x - 1);
+  expect(setBox.x + setBox.width).toBeLessThanOrEqual(clearBox.x - 1);
+}
+
 async function seedBoardState(page, boardRoot) {
   await seedOpenBoardState(page, [boardRoot], boardRoot);
 }
@@ -1839,6 +1851,8 @@ test('bulk manages selected table cards', async ({ page, boardRoot }) => {
   await expect(page.locator('.board-table-bulk-count')).toHaveText('2 selected');
   await page.getByRole('button', { name: 'Dates' }).click();
   const datesMenu = page.locator('.board-table-bulk-dates-menu');
+  await expectBulkDateRowControlsDoNotOverlap(datesMenu.locator('.board-table-bulk-date-row').nth(0));
+  await expectBulkDateRowControlsDoNotOverlap(datesMenu.locator('.board-table-bulk-date-row').nth(1));
   const dueRow = datesMenu.locator('.board-table-bulk-date-row').filter({ hasText: 'Due' });
   await dueRow.locator('input').fill('2026-04-20');
   await dueRow.getByRole('button', { name: 'Set' }).click();

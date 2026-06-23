@@ -1430,7 +1430,7 @@ body:not(.board-empty) main#board.board-view-week {
 
 .board-table-bulk-date-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(150px, 1fr) auto auto;
   align-items: end;
   gap: 6px;
   padding: 6px 0;
@@ -1443,14 +1443,17 @@ body:not(.board-empty) main#board.board-view-week {
 .board-table-bulk-date-label {
   display: grid;
   gap: 4px;
+  min-width: 0;
   color: var(--muted);
   font-size: var(--font-xs);
   font-weight: 700;
 }
 
 .board-table-bulk-date-input {
+  box-sizing: border-box;
+  width: 100%;
   min-height: 30px;
-  min-width: 142px;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   background: var(--bg-card);
@@ -1462,6 +1465,11 @@ body:not(.board-empty) main#board.board-view-week {
 .board-table-bulk-date-input:focus-visible {
   outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
   outline-offset: 1px;
+}
+
+.board-table-bulk-date-row .board-table-bulk-button {
+  min-width: 54px;
+  text-align: center;
 }
 
 .board-table-summary {
