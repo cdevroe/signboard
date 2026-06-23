@@ -11,12 +11,70 @@ const DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS = Object.freeze({
   port: 48273,
   token: '',
 });
+const APP_SMART_CARD_ACTION_LABEL_MAX_LENGTH = 80;
+const APP_SMART_CARD_ACTION_PROMPT_MAX_LENGTH = 6000;
+const APP_CUSTOM_SMART_CARD_ACTION_LIMIT = 12;
+const DEFAULT_APP_SMART_CARD_ACTIONS = Object.freeze([
+  Object.freeze({
+    id: 'generate-title',
+    type: 'title',
+    label: 'Generate new title',
+    prompt: [
+      'Improve the card title using the current title and card body.',
+      'Keep it concise, specific, and action-oriented.',
+      'Preserve the original intent and do not add facts that are not supported by the card.',
+    ].join('\n'),
+    builtIn: true,
+  }),
+  Object.freeze({
+    id: 'generate-task-list',
+    type: 'tasks',
+    label: 'Generate task list',
+    prompt: [
+      'Generate practical checklist items for this card.',
+      'Infer common next actions from the title, body, board, list, and labels.',
+      'Do not duplicate existing checklist items.',
+      'Use short imperative task text.',
+    ].join('\n'),
+    builtIn: true,
+  }),
+  Object.freeze({
+    id: 'smart-paste',
+    type: 'paste',
+    label: 'Smart paste',
+    prompt: [
+      'Format the pasted information for this Signboard Markdown card.',
+      'Preserve the complete useful information from the pasted text, including names, dates, decisions, links, and requirements.',
+      'Use clear Markdown sections, a concise summary when helpful, task list items for follow-up work, and reference URLs when present.',
+      'Do not invent facts.',
+    ].join('\n'),
+    builtIn: true,
+  }),
+]);
+const DEFAULT_APP_AI_SETTINGS = Object.freeze({
+  enabled: false,
+  provider: 'ollama',
+  ollama: Object.freeze({
+    url: 'http://127.0.0.1:11434',
+    model: 'llama3.2',
+    taskCount: 6,
+  }),
+  smartCardActions: DEFAULT_APP_SMART_CARD_ACTIONS,
+});
 const DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_STATUS = Object.freeze({
   enabled: false,
   running: false,
   port: 48273,
   url: '',
   message: 'Disabled',
+});
+const DEFAULT_APP_OLLAMA_MODEL_STATUS = Object.freeze({
+  checked: false,
+  checking: false,
+  ok: false,
+  url: '',
+  models: Object.freeze([]),
+  message: 'Not checked',
 });
 
 function getAppSettingsState() {
@@ -27,7 +85,14 @@ function getAppSettingsState() {
       tooltipsEnabled: DEFAULT_APP_TOOLTIPS_ENABLED,
       quickAddSettings: { ...DEFAULT_APP_QUICK_ADD_SETTINGS },
       externalPublishedCalendarSettings: { ...DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS },
+      aiSettings: {
+        ...DEFAULT_APP_AI_SETTINGS,
+        ollama: { ...DEFAULT_APP_AI_SETTINGS.ollama },
+        smartCardActions: cloneDefaultAppSmartCardActions(),
+      },
       externalPublishedCalendarStatus: { ...DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_STATUS },
+      ollamaModelStatus: { ...DEFAULT_APP_OLLAMA_MODEL_STATUS, models: [] },
+      ollamaModelStatusRequestId: 0,
       globalShortcutStatus: {
         accelerator: '',
         registered: false,
@@ -117,6 +182,183 @@ function normalizeAppExternalPublishedCalendarSettings(calendarSettings) {
   };
 }
 
+function normalizeAppAiProvider(value) {
+  return value === 'ollama' ? 'ollama' : DEFAULT_APP_AI_SETTINGS.provider;
+}
+
+function normalizeAppOllamaUrl(value) {
+  let candidate = String(value || '').trim();
+  if (!candidate) {
+    candidate = DEFAULT_APP_AI_SETTINGS.ollama.url;
+  }
+
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)) {
+    candidate = `http://${candidate}`;
+  }
+
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return DEFAULT_APP_AI_SETTINGS.ollama.url;
+    }
+
+    parsed.username = '';
+    parsed.password = '';
+    parsed.search = '';
+    parsed.hash = '';
+
+    const basePath = parsed.pathname && parsed.pathname !== '/'
+      ? parsed.pathname.replace(/\/+$/, '')
+      : '';
+    return `${parsed.origin}${basePath}`;
+  } catch {
+    return DEFAULT_APP_AI_SETTINGS.ollama.url;
+  }
+}
+
+function normalizeAppOllamaModel(value) {
+  const candidate = String(value || '').trim();
+  if (!candidate || candidate.length > 120 || /[\s\x00-\x1F]/.test(candidate)) {
+    return DEFAULT_APP_AI_SETTINGS.ollama.model;
+  }
+
+  return candidate;
+}
+
+function normalizeAppAiTaskCount(value) {
+  const parsedCount = Number.parseInt(String(value || ''), 10);
+  if (Number.isInteger(parsedCount) && parsedCount >= 3 && parsedCount <= 12) {
+    return parsedCount;
+  }
+
+  return DEFAULT_APP_AI_SETTINGS.ollama.taskCount;
+}
+
+function cloneDefaultAppSmartCardActions() {
+  return DEFAULT_APP_SMART_CARD_ACTIONS.map((action) => ({ ...action }));
+}
+
+function normalizeAppSmartCardActionLabel(value, fallback = '') {
+  const candidate = String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const normalizedFallback = String(fallback || '').trim();
+  if (!candidate) {
+    return normalizedFallback;
+  }
+
+  return candidate.slice(0, APP_SMART_CARD_ACTION_LABEL_MAX_LENGTH).trim() || normalizedFallback;
+}
+
+function normalizeAppSmartCardActionPrompt(value, fallback = '') {
+  const candidate = String(value || '')
+    .replace(/\r\n?/g, '\n')
+    .trim();
+  const normalizedFallback = String(fallback || '').trim();
+  if (!candidate) {
+    return normalizedFallback;
+  }
+
+  return candidate.slice(0, APP_SMART_CARD_ACTION_PROMPT_MAX_LENGTH).trim() || normalizedFallback;
+}
+
+function normalizeAppSmartCardActionId(value, fallback = '') {
+  const candidate = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  const normalizedFallback = String(fallback || '').trim();
+  return candidate || normalizedFallback;
+}
+
+function normalizeAppSmartCardActions(actions) {
+  const sourceActions = Array.isArray(actions) ? actions : [];
+  const normalizedActions = [];
+  const seenIds = new Set();
+
+  for (const defaultAction of DEFAULT_APP_SMART_CARD_ACTIONS) {
+    const sourceAction = sourceActions.find((action) => (
+      action && typeof action === 'object' && !Array.isArray(action) && String(action.id || '') === defaultAction.id
+    ));
+    normalizedActions.push({
+      ...defaultAction,
+      label: defaultAction.label,
+      prompt: normalizeAppSmartCardActionPrompt(
+        sourceAction && Object.prototype.hasOwnProperty.call(sourceAction, 'prompt')
+          ? sourceAction.prompt
+          : defaultAction.prompt,
+        defaultAction.prompt,
+      ),
+      builtIn: true,
+    });
+    seenIds.add(defaultAction.id);
+  }
+
+  let customCount = 0;
+  for (const action of sourceActions) {
+    if (!action || typeof action !== 'object' || Array.isArray(action) || action.builtIn === true) {
+      continue;
+    }
+
+    const label = normalizeAppSmartCardActionLabel(action.label);
+    const prompt = normalizeAppSmartCardActionPrompt(action.prompt);
+    if (!label || !prompt) {
+      continue;
+    }
+
+    const fallbackId = `custom-${customCount + 1}`;
+    let id = normalizeAppSmartCardActionId(action.id, fallbackId);
+    if (DEFAULT_APP_SMART_CARD_ACTIONS.some((defaultAction) => defaultAction.id === id)) {
+      id = fallbackId;
+    }
+    while (seenIds.has(id)) {
+      id = `custom-${customCount + 1}-${seenIds.size + 1}`;
+    }
+
+    normalizedActions.push({
+      id,
+      type: 'custom',
+      label,
+      prompt,
+      builtIn: false,
+    });
+    seenIds.add(id);
+    customCount += 1;
+    if (customCount >= APP_CUSTOM_SMART_CARD_ACTION_LIMIT) {
+      break;
+    }
+  }
+
+  return normalizedActions;
+}
+
+function normalizeAppOllamaSettings(ollamaSettings) {
+  const source = ollamaSettings && typeof ollamaSettings === 'object' && !Array.isArray(ollamaSettings)
+    ? ollamaSettings
+    : {};
+
+  return {
+    url: normalizeAppOllamaUrl(source.url),
+    model: normalizeAppOllamaModel(source.model),
+    taskCount: normalizeAppAiTaskCount(source.taskCount),
+  };
+}
+
+function normalizeAppAiSettings(aiSettings) {
+  const source = aiSettings && typeof aiSettings === 'object' && !Array.isArray(aiSettings)
+    ? aiSettings
+    : {};
+
+  return {
+    enabled: source.enabled === true,
+    provider: normalizeAppAiProvider(source.provider),
+    ollama: normalizeAppOllamaSettings(source.ollama),
+    smartCardActions: normalizeAppSmartCardActions(source.smartCardActions || source.cardActions),
+  };
+}
+
 function normalizeAppGlobalShortcutStatus(status) {
   const source = status && typeof status === 'object' && !Array.isArray(status)
     ? status
@@ -140,6 +382,63 @@ function normalizeAppExternalPublishedCalendarStatus(status) {
     port: normalizeAppExternalPublishedCalendarPort(source.port),
     url: typeof source.url === 'string' ? source.url.trim() : '',
     message: typeof source.message === 'string' ? source.message.trim() : '',
+  };
+}
+
+function normalizeAppOllamaModelEntry(model) {
+  const source = model && typeof model === 'object' && !Array.isArray(model)
+    ? model
+    : {};
+  const name = String(source.name || source.model || '').trim();
+  if (!name) {
+    return null;
+  }
+
+  return {
+    name,
+    model: String(source.model || name).trim() || name,
+    modifiedAt: typeof source.modifiedAt === 'string'
+      ? source.modifiedAt
+      : (typeof source.modified_at === 'string' ? source.modified_at : ''),
+    size: Number.isFinite(source.size) ? source.size : 0,
+    digest: typeof source.digest === 'string' ? source.digest : '',
+    details: source.details && typeof source.details === 'object' && !Array.isArray(source.details)
+      ? { ...source.details }
+      : {},
+  };
+}
+
+function normalizeAppOllamaModels(models) {
+  const sourceModels = Array.isArray(models) ? models : [];
+  const seen = new Set();
+  const normalizedModels = [];
+
+  for (const model of sourceModels) {
+    const normalized = normalizeAppOllamaModelEntry(model);
+    if (!normalized || seen.has(normalized.name)) {
+      continue;
+    }
+    seen.add(normalized.name);
+    normalizedModels.push(normalized);
+  }
+
+  return normalizedModels.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function normalizeAppOllamaModelStatus(status) {
+  const source = status && typeof status === 'object' && !Array.isArray(status)
+    ? status
+    : {};
+
+  return {
+    checked: source.checked === true,
+    checking: source.checking === true,
+    ok: source.ok === true,
+    url: typeof source.url === 'string' ? source.url.trim() : '',
+    models: normalizeAppOllamaModels(source.models),
+    message: typeof source.message === 'string' && source.message.trim()
+      ? source.message.trim()
+      : DEFAULT_APP_OLLAMA_MODEL_STATUS.message,
   };
 }
 
@@ -183,6 +482,15 @@ function setAppExternalPublishedCalendarSettings(calendarSettings) {
   state.externalPublishedCalendarSettings = normalizeAppExternalPublishedCalendarSettings(calendarSettings);
 }
 
+function getAppAiSettings() {
+  return normalizeAppAiSettings(getAppSettingsState().aiSettings);
+}
+
+function setAppAiSettings(aiSettings) {
+  const state = getAppSettingsState();
+  state.aiSettings = normalizeAppAiSettings(aiSettings);
+}
+
 function getAppGlobalShortcutStatus() {
   return normalizeAppGlobalShortcutStatus(getAppSettingsState().globalShortcutStatus);
 }
@@ -201,12 +509,30 @@ function setAppExternalPublishedCalendarStatus(status) {
   state.externalPublishedCalendarStatus = normalizeAppExternalPublishedCalendarStatus(status);
 }
 
+function getAppOllamaModelStatus() {
+  return normalizeAppOllamaModelStatus(getAppSettingsState().ollamaModelStatus);
+}
+
+function setAppOllamaModelStatus(status) {
+  const state = getAppSettingsState();
+  state.ollamaModelStatus = normalizeAppOllamaModelStatus(status);
+}
+
+function resetAppOllamaModelStatus(message = DEFAULT_APP_OLLAMA_MODEL_STATUS.message) {
+  setAppOllamaModelStatus({
+    ...DEFAULT_APP_OLLAMA_MODEL_STATUS,
+    models: [],
+    message,
+  });
+}
+
 function applyAppSettings(settings) {
   const source = settings && typeof settings === 'object' ? settings : {};
   setAppNotificationSettings(source.notifications || DEFAULT_APP_NOTIFICATION_SETTINGS);
   setAppTooltipsEnabled(source.tooltipsEnabled);
   setAppQuickAddSettings(source.quickAdd || DEFAULT_APP_QUICK_ADD_SETTINGS);
   setAppExternalPublishedCalendarSettings(source.externalPublishedCalendar || DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS);
+  setAppAiSettings(source.ai || DEFAULT_APP_AI_SETTINGS);
   setAppGlobalShortcutStatus(source.globalShortcutStatus);
   setAppExternalPublishedCalendarStatus(source.externalPublishedCalendarStatus);
   getAppSettingsState().settingsLoaded = true;
@@ -220,6 +546,7 @@ async function loadAppSettings() {
       tooltipsEnabled: getAppTooltipsEnabled(),
       quickAdd: getAppQuickAddSettings(),
       externalPublishedCalendar: getAppExternalPublishedCalendarSettings(),
+      ai: getAppAiSettings(),
       globalShortcutStatus: getAppGlobalShortcutStatus(),
       externalPublishedCalendarStatus: getAppExternalPublishedCalendarStatus(),
     };
@@ -228,6 +555,9 @@ async function loadAppSettings() {
   const settings = await window.electronAPI.readAppSettings();
   applyAppSettings(settings);
   renderAppSettingsControls();
+  if (getAppAiSettings().enabled) {
+    refreshAppAiOllamaModels();
+  }
   return settings;
 }
 
@@ -259,6 +589,9 @@ async function migrateAppSettingsFromOpenBoards() {
       if (migratedSettings) {
         applyAppSettings(migratedSettings);
         renderAppSettingsControls();
+        if (getAppAiSettings().enabled) {
+          refreshAppAiOllamaModels();
+        }
         return;
       }
     } catch (error) {
@@ -283,11 +616,22 @@ function renderAppSettingsControls() {
   const externalCalendarUrlInput = document.getElementById('boardSettingsExternalCalendarUrl');
   const externalCalendarCopyButton = document.getElementById('btnCopyExternalCalendarUrl');
   const externalCalendarStatus = document.getElementById('boardSettingsExternalCalendarStatus');
+  const aiToggle = document.getElementById('boardSettingsAiToggle');
+  const aiDetails = document.getElementById('boardSettingsAiDetails');
+  const aiOllamaUrlInput = document.getElementById('boardSettingsAiOllamaUrl');
+  const aiOllamaModelSelect = document.getElementById('boardSettingsAiOllamaModel');
+  const aiOllamaRefreshButton = document.getElementById('btnRefreshAiOllamaModels');
+  const aiOllamaStatus = document.getElementById('boardSettingsAiOllamaStatus');
+  const aiTaskCountInput = document.getElementById('boardSettingsAiTaskCount');
+  const aiActionsList = document.getElementById('boardSettingsAiActionsList');
+  const aiAddActionButton = document.getElementById('btnAddAiSmartCardAction');
   const notifications = getAppNotificationSettings();
   const quickAdd = getAppQuickAddSettings();
   const externalCalendar = getAppExternalPublishedCalendarSettings();
   const externalCalendarRuntime = getAppExternalPublishedCalendarStatus();
   const globalShortcutStatus = getAppGlobalShortcutStatus();
+  const aiSettings = getAppAiSettings();
+  const ollamaModelStatus = getAppOllamaModelStatus();
 
   if (tooltipsToggle) {
     tooltipsToggle.checked = getAppTooltipsEnabled();
@@ -351,6 +695,58 @@ function renderAppSettingsControls() {
     }
   }
 
+  if (aiToggle) {
+    aiToggle.checked = aiSettings.enabled;
+  }
+
+  if (aiDetails) {
+    aiDetails.classList.toggle('hidden', !aiSettings.enabled);
+    aiDetails.setAttribute('aria-hidden', aiSettings.enabled ? 'false' : 'true');
+  }
+
+  if (aiOllamaUrlInput) {
+    aiOllamaUrlInput.value = aiSettings.ollama.url;
+  }
+
+  if (aiOllamaModelSelect) {
+    renderAppOllamaModelSelect(aiOllamaModelSelect, aiSettings, ollamaModelStatus);
+  }
+
+  if (aiOllamaRefreshButton) {
+    aiOllamaRefreshButton.disabled = !aiSettings.enabled || ollamaModelStatus.checking;
+  }
+
+  if (aiOllamaStatus) {
+    aiOllamaStatus.classList.remove('is-success', 'is-warning');
+    if (!aiSettings.enabled) {
+      aiOllamaStatus.textContent = 'Disabled';
+    } else if (ollamaModelStatus.checking) {
+      aiOllamaStatus.textContent = 'Checking...';
+    } else if (ollamaModelStatus.checked && ollamaModelStatus.ok) {
+      aiOllamaStatus.textContent = ollamaModelStatus.models.length > 0
+        ? ollamaModelStatus.message
+        : 'Connected. No models found.';
+      aiOllamaStatus.classList.add(ollamaModelStatus.models.length > 0 ? 'is-success' : 'is-warning');
+    } else if (ollamaModelStatus.checked) {
+      aiOllamaStatus.textContent = ollamaModelStatus.message || 'Not running';
+      aiOllamaStatus.classList.add('is-warning');
+    } else {
+      aiOllamaStatus.textContent = 'Not checked';
+    }
+  }
+
+  if (aiTaskCountInput) {
+    aiTaskCountInput.value = String(aiSettings.ollama.taskCount);
+  }
+
+  if (aiActionsList) {
+    renderAppSmartCardActionSettings(aiActionsList, aiSettings.smartCardActions);
+  }
+
+  if (aiAddActionButton) {
+    aiAddActionButton.disabled = !aiSettings.enabled;
+  }
+
   if (quickAddShortcutStatus) {
     const shortcut = quickAdd.globalShortcut;
     quickAddShortcutStatus.classList.remove('is-success', 'is-warning');
@@ -367,6 +763,303 @@ function renderAppSettingsControls() {
       quickAddShortcutStatus.textContent = 'Saved';
     }
   }
+
+  if (typeof renderCardEditorSmartActionControls === 'function') {
+    renderCardEditorSmartActionControls();
+  }
+}
+
+function renderAppSmartCardActionSettings(container, actions) {
+  if (!container) {
+    return;
+  }
+
+  const normalizedActions = normalizeAppSmartCardActions(actions);
+  container.innerHTML = '';
+
+  for (const action of normalizedActions) {
+    const actionEl = document.createElement('div');
+    actionEl.className = 'board-settings-ai-action';
+    actionEl.dataset.actionId = action.id;
+
+    const header = document.createElement('div');
+    header.className = 'board-settings-ai-action-header';
+
+    if (action.builtIn) {
+      const title = document.createElement('p');
+      title.className = 'board-settings-ai-action-title';
+      title.textContent = action.label;
+      header.appendChild(title);
+
+      const resetButton = document.createElement('button');
+      resetButton.type = 'button';
+      resetButton.className = 'board-settings-ai-action-reset';
+      resetButton.dataset.smartActionCommand = 'reset';
+      resetButton.dataset.actionId = action.id;
+      resetButton.textContent = 'Reset';
+      header.appendChild(resetButton);
+    } else {
+      const label = document.createElement('label');
+      label.className = 'board-settings-ai-action-label';
+      label.setAttribute('for', `boardSettingsAiActionLabel-${action.id}`);
+      label.textContent = 'Custom action label';
+      header.appendChild(label);
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'board-settings-ai-action-remove';
+      removeButton.dataset.smartActionCommand = 'remove';
+      removeButton.dataset.actionId = action.id;
+      removeButton.textContent = 'Remove';
+      header.appendChild(removeButton);
+    }
+    actionEl.appendChild(header);
+
+    if (!action.builtIn) {
+      const labelInput = document.createElement('input');
+      labelInput.id = `boardSettingsAiActionLabel-${action.id}`;
+      labelInput.type = 'text';
+      labelInput.value = action.label;
+      labelInput.maxLength = APP_SMART_CARD_ACTION_LABEL_MAX_LENGTH;
+      labelInput.dataset.smartActionField = 'label';
+      labelInput.dataset.actionId = action.id;
+      labelInput.placeholder = 'Action label';
+      actionEl.appendChild(labelInput);
+    }
+
+    const promptLabel = document.createElement('label');
+    promptLabel.className = 'board-settings-ai-action-label';
+    promptLabel.setAttribute('for', `boardSettingsAiActionPrompt-${action.id}`);
+    promptLabel.textContent = action.builtIn ? 'Prompt' : 'Custom action prompt';
+    actionEl.appendChild(promptLabel);
+
+    const promptTextarea = document.createElement('textarea');
+    promptTextarea.id = `boardSettingsAiActionPrompt-${action.id}`;
+    promptTextarea.value = action.prompt;
+    promptTextarea.rows = action.builtIn ? 4 : 5;
+    promptTextarea.maxLength = APP_SMART_CARD_ACTION_PROMPT_MAX_LENGTH;
+    promptTextarea.dataset.smartActionField = 'prompt';
+    promptTextarea.dataset.actionId = action.id;
+    promptTextarea.spellcheck = true;
+    actionEl.appendChild(promptTextarea);
+
+    container.appendChild(actionEl);
+  }
+}
+
+function getDefaultAppSmartCardAction(actionId) {
+  return DEFAULT_APP_SMART_CARD_ACTIONS.find((action) => action.id === actionId) || null;
+}
+
+function updateAppSmartCardAction(actionId, partialAction = {}) {
+  const settings = getAppAiSettings();
+  const nextActions = settings.smartCardActions.map((action) => {
+    if (action.id !== actionId) {
+      return action;
+    }
+
+    return {
+      ...action,
+      ...partialAction,
+    };
+  });
+
+  setAppAiSettings({
+    ...settings,
+    smartCardActions: nextActions,
+  });
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+}
+
+function resetAppSmartCardActionPrompt(actionId) {
+  const defaultAction = getDefaultAppSmartCardAction(actionId);
+  if (!defaultAction) {
+    return;
+  }
+
+  updateAppSmartCardAction(actionId, {
+    prompt: defaultAction.prompt,
+  });
+}
+
+function removeAppSmartCardAction(actionId) {
+  const settings = getAppAiSettings();
+  setAppAiSettings({
+    ...settings,
+    smartCardActions: settings.smartCardActions.filter((action) => action.id !== actionId || action.builtIn),
+  });
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+}
+
+function createAppSmartCardActionId() {
+  return `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function addAppSmartCardAction() {
+  const settings = getAppAiSettings();
+  const customActionCount = settings.smartCardActions.filter((action) => !action.builtIn).length;
+  if (customActionCount >= APP_CUSTOM_SMART_CARD_ACTION_LIMIT) {
+    return;
+  }
+
+  setAppAiSettings({
+    ...settings,
+    smartCardActions: [
+      ...settings.smartCardActions,
+      {
+        id: createAppSmartCardActionId(),
+        type: 'custom',
+        label: `Custom action ${customActionCount + 1}`,
+        prompt: 'Use the card context to create useful Markdown to append to this card.',
+        builtIn: false,
+      },
+    ],
+  });
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+}
+
+function getAppOllamaModelOptionLabel(model) {
+  const source = model && typeof model === 'object' && !Array.isArray(model)
+    ? model
+    : {};
+  const name = String(source.name || source.model || '').trim();
+  if (!name) {
+    return '';
+  }
+
+  const details = source.details && typeof source.details === 'object' && !Array.isArray(source.details)
+    ? source.details
+    : {};
+  const parameterSize = typeof details.parameter_size === 'string' ? details.parameter_size.trim() : '';
+  return parameterSize ? `${name} (${parameterSize})` : name;
+}
+
+function renderAppOllamaModelSelect(select, aiSettings, ollamaModelStatus) {
+  if (!select) {
+    return;
+  }
+
+  const settings = normalizeAppAiSettings(aiSettings);
+  const status = normalizeAppOllamaModelStatus(ollamaModelStatus);
+  const selectedModel = settings.ollama.model;
+  const models = status.ok ? status.models : [];
+  const seen = new Set();
+
+  select.innerHTML = '';
+
+  const appendOption = (value, label, options = {}) => {
+    const normalizedValue = String(value || '').trim();
+    const optionKey = normalizedValue || '__empty';
+    if ((!normalizedValue && !options.allowEmpty) || seen.has(optionKey)) {
+      return;
+    }
+
+    const option = document.createElement('option');
+    option.value = normalizedValue;
+    option.textContent = label || normalizedValue;
+    if (options.disabled) {
+      option.disabled = true;
+    }
+    select.appendChild(option);
+    seen.add(optionKey);
+  };
+
+  if (selectedModel && !models.some((model) => model.name === selectedModel || model.model === selectedModel)) {
+    appendOption(selectedModel, status.checked && status.ok
+      ? `${selectedModel} (saved, not listed)`
+      : selectedModel);
+  }
+
+  for (const model of models) {
+    appendOption(model.name, getAppOllamaModelOptionLabel(model));
+  }
+
+  if (seen.size === 0) {
+    appendOption('', status.checking ? 'Checking models...' : 'No models found', {
+      allowEmpty: true,
+      disabled: true,
+    });
+  }
+
+  select.value = seen.has(selectedModel)
+    ? selectedModel
+    : (select.options.length > 0 ? select.options[0].value : '');
+  select.disabled = !settings.enabled || status.checking || select.options.length === 0;
+}
+
+async function refreshAppAiOllamaModels() {
+  const state = getAppSettingsState();
+  const settings = getAppAiSettings();
+
+  if (!settings.enabled) {
+    resetAppOllamaModelStatus('Disabled');
+    renderAppSettingsControls();
+    return;
+  }
+
+  if (!window.electronAPI || typeof window.electronAPI.inspectOllama !== 'function') {
+    setAppOllamaModelStatus({
+      checked: true,
+      checking: false,
+      ok: false,
+      url: settings.ollama.url,
+      models: [],
+      message: 'Ollama inspection is unavailable.',
+    });
+    renderAppSettingsControls();
+    return;
+  }
+
+  const requestId = state.ollamaModelStatusRequestId + 1;
+  state.ollamaModelStatusRequestId = requestId;
+  setAppOllamaModelStatus({
+    checked: false,
+    checking: true,
+    ok: false,
+    url: settings.ollama.url,
+    models: getAppOllamaModelStatus().models,
+    message: 'Checking...',
+  });
+  renderAppSettingsControls();
+
+  let result = null;
+  try {
+    result = await window.electronAPI.inspectOllama({
+      url: settings.ollama.url,
+    });
+  } catch (error) {
+    console.error('Unable to inspect Ollama.', error);
+  }
+
+  if (state.ollamaModelStatusRequestId !== requestId) {
+    return;
+  }
+
+  if (!result || result.ok !== true) {
+    setAppOllamaModelStatus({
+      checked: true,
+      checking: false,
+      ok: false,
+      url: settings.ollama.url,
+      models: [],
+      message: result && result.message ? result.message : 'Unable to reach Ollama.',
+    });
+    renderAppSettingsControls();
+    return;
+  }
+
+  setAppOllamaModelStatus({
+    checked: true,
+    checking: false,
+    ok: true,
+    url: result.url || settings.ollama.url,
+    models: result.models,
+    message: result.message || 'Connected.',
+  });
+  renderAppSettingsControls();
 }
 
 function scheduleAppSettingsSave() {
@@ -395,6 +1088,7 @@ function persistAppSettings() {
         tooltipsEnabled: getAppTooltipsEnabled(),
         quickAdd: getAppQuickAddSettings(),
         externalPublishedCalendar: getAppExternalPublishedCalendarSettings(),
+        ai: getAppAiSettings(),
       });
       applyAppSettings(result);
       renderAppSettingsControls();

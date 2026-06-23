@@ -4,10 +4,26 @@ const os = require('os');
 const path = require('path');
 
 const {
+  DEFAULT_SMART_CARD_ACTIONS,
   readAppSettings,
   updateAppSettings,
   migrateAppSettingsFromBoardSettings,
 } = require('../lib/appSettings');
+
+function assertDefaultSmartCardActions(actions) {
+  assert.deepStrictEqual(actions.map((action) => ({
+    id: action.id,
+    type: action.type,
+    label: action.label,
+    builtIn: action.builtIn,
+  })), DEFAULT_SMART_CARD_ACTIONS().map((action) => ({
+    id: action.id,
+    type: action.type,
+    label: action.label,
+    builtIn: action.builtIn,
+  })));
+  assert(actions.every((action) => typeof action.prompt === 'string' && action.prompt.length > 0));
+}
 
 async function run() {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-app-settings-'));
@@ -22,6 +38,17 @@ async function run() {
       port: 48273,
       token: '',
     });
+    assert.deepStrictEqual(defaults.ai, {
+      enabled: false,
+      provider: 'ollama',
+      ollama: {
+        url: 'http://127.0.0.1:11434',
+        model: 'llama3.2',
+        taskCount: 6,
+      },
+      smartCardActions: defaults.ai.smartCardActions,
+    });
+    assertDefaultSmartCardActions(defaults.ai.smartCardActions);
     assert.strictEqual(defaults.migration.boardSettingsMigrated, false);
 
     const updated = await updateAppSettings(tmpDir, {
@@ -33,6 +60,33 @@ async function run() {
         port: '49152',
         token: 'calendar-token_123',
       },
+      ai: {
+        enabled: true,
+        provider: 'unknown',
+        ollama: {
+          url: 'localhost:11434/',
+          model: ' qwen2.5:7b ',
+          taskCount: '8',
+        },
+        smartCardActions: [
+          {
+            id: 'generate-title',
+            prompt: 'Custom title prompt',
+          },
+          {
+            id: 'custom-follow-up',
+            type: 'custom',
+            label: ' Draft follow up ',
+            prompt: ' Draft a follow-up section. ',
+          },
+          {
+            id: 'bad-custom',
+            type: 'custom',
+            label: '',
+            prompt: '',
+          },
+        ],
+      },
     });
     assert.deepStrictEqual(updated.notifications, { enabled: true, time: '08:30' });
     assert.strictEqual(updated.tooltipsEnabled, false);
@@ -41,6 +95,28 @@ async function run() {
       enabled: true,
       port: 49152,
       token: 'calendar-token_123',
+    });
+    assert.deepStrictEqual(updated.ai, {
+      enabled: true,
+      provider: 'ollama',
+      ollama: {
+        url: 'http://localhost:11434',
+        model: 'qwen2.5:7b',
+        taskCount: 8,
+      },
+      smartCardActions: updated.ai.smartCardActions,
+    });
+    assert.strictEqual(updated.ai.smartCardActions.length, 4);
+    assert.strictEqual(updated.ai.smartCardActions[0].id, 'generate-title');
+    assert.strictEqual(updated.ai.smartCardActions[0].prompt, 'Custom title prompt');
+    assert.strictEqual(updated.ai.smartCardActions[1].id, 'generate-task-list');
+    assert.strictEqual(updated.ai.smartCardActions[2].id, 'smart-paste');
+    assert.deepStrictEqual(updated.ai.smartCardActions[3], {
+      id: 'custom-follow-up',
+      type: 'custom',
+      label: 'Draft follow up',
+      prompt: 'Draft a follow-up section.',
+      builtIn: false,
     });
 
     const secondTmpDir = path.join(tmpDir, 'migration');
@@ -58,6 +134,17 @@ async function run() {
       port: 48273,
       token: '',
     });
+    assert.deepStrictEqual(migrated.settings.ai, {
+      enabled: false,
+      provider: 'ollama',
+      ollama: {
+        url: 'http://127.0.0.1:11434',
+        model: 'llama3.2',
+        taskCount: 6,
+      },
+      smartCardActions: migrated.settings.ai.smartCardActions,
+    });
+    assertDefaultSmartCardActions(migrated.settings.ai.smartCardActions);
     assert.strictEqual(migrated.settings.migration.boardSettingsMigrated, true);
     assert.strictEqual(migrated.settings.migration.sourceBoardRoot, '/tmp/first-board');
 

@@ -1,4 +1,5 @@
 const fs = require('fs').promises;
+const http = require('http');
 const net = require('net');
 const os = require('os');
 const path = require('path');
@@ -69,6 +70,34 @@ async function getAvailableLoopbackPort() {
       });
     });
   });
+}
+
+async function startFakeOllamaServer(models) {
+  const server = http.createServer((request, response) => {
+    if (request.method === 'GET' && request.url === '/api/tags') {
+      response.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+      });
+      response.end(JSON.stringify({ models }));
+      return;
+    }
+
+    response.writeHead(404, {
+      'Content-Type': 'application/json; charset=utf-8',
+    });
+    response.end(JSON.stringify({ error: 'not found' }));
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+
+  const address = server.address();
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    close: () => new Promise((resolve) => server.close(() => resolve())),
+  };
 }
 
 async function openCurrentBoardPlannerView(page, shortcut, viewSelector) {
@@ -1216,6 +1245,12 @@ test('navigates board popovers and settings sections from the keyboard', async (
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
   await expect(page.locator('#boardSettingsNavApp')).toBeFocused();
   await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#boardSettingsNavNotifications')).toBeFocused();
+  await expect(page.locator('#boardSettingsPanelNotifications')).toHaveAttribute('aria-hidden', 'false');
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#boardSettingsNavSmartActions')).toBeFocused();
+  await expect(page.locator('#boardSettingsPanelSmartActions')).toHaveAttribute('aria-hidden', 'false');
+  await page.keyboard.press('ArrowDown');
   await expect(page.locator('#boardSettingsNavGeneral')).toBeFocused();
   await expect(page.locator('#boardSettingsPanelGeneral')).toHaveAttribute('aria-hidden', 'false');
   await page.keyboard.press('End');
@@ -2359,6 +2394,8 @@ test('opens settings from the renderer keyboard shortcut', async ({ page }) => {
   expect(switchLabelStyles.marginBottom).toBe('0px');
   expect(switchLabelStyles.textTransform).toBe('none');
 
+  await page.locator('#boardSettingsNavNotifications').click();
+  await expect(page.locator('#boardSettingsPanelNotifications')).toBeVisible();
   const notificationsDetails = page.locator('#boardSettingsNotificationsDetails');
   await expect(notificationsDetails).toBeHidden();
   await expect(notificationsDetails).toHaveAttribute('aria-hidden', 'true');
@@ -2709,6 +2746,131 @@ test('persists the global quick add shortcut setting', async ({ page }) => {
   await expect(shortcutInput).toHaveValue('CommandOrControl+Shift+Space');
 });
 
+test('persists AI assistance settings and shows the card editor Smart Card Actions menu', async ({ page }) => {
+  const fakeOllama = await startFakeOllamaServer([
+    {
+      name: 'llama3.2:latest',
+      model: 'llama3.2:latest',
+      details: { parameter_size: '3.2B' },
+    },
+    {
+      name: 'qwen2.5:7b',
+      model: 'qwen2.5:7b',
+      details: { parameter_size: '7.6B' },
+    },
+  ]);
+
+  try {
+    await page.evaluate(async (ollamaUrl) => {
+      const current = await window.electronAPI.readAppSettings();
+      await window.electronAPI.updateAppSettings({
+        ai: {
+          ...current.ai,
+          enabled: false,
+          ollama: {
+            ...current.ai.ollama,
+            url: ollamaUrl,
+            model: 'llama3.2',
+            taskCount: 6,
+          },
+        },
+      });
+      if (typeof loadAppSettings === 'function') {
+        await loadAppSettings();
+      }
+    }, fakeOllama.url);
+
+    await openBoardMenu(page);
+    await page.locator('#openBoardSettings').click();
+    await expect(page.locator('#modalBoardSettings')).toBeVisible();
+    await page.locator('#boardSettingsNavSmartActions').click();
+    await expect(page.locator('#boardSettingsPanelSmartActions')).toBeVisible();
+
+    const aiToggle = page.locator('#boardSettingsAiToggle');
+    const aiDetails = page.locator('#boardSettingsAiDetails');
+    const aiUrlInput = page.locator('#boardSettingsAiOllamaUrl');
+    const aiModelSelect = page.locator('#boardSettingsAiOllamaModel');
+    const aiRefreshButton = page.locator('#btnRefreshAiOllamaModels');
+    const aiStatus = page.locator('#boardSettingsAiOllamaStatus');
+    const aiTaskCountInput = page.locator('#boardSettingsAiTaskCount');
+
+    await expect(aiToggle).not.toBeChecked();
+    await expect(aiDetails).toBeHidden();
+    await expect(aiDetails).toHaveAttribute('aria-hidden', 'true');
+
+    await page.locator('label[for="boardSettingsAiToggle"]').click();
+    await expect(aiToggle).toBeChecked();
+    await expect(aiDetails).toBeVisible();
+    await expect(aiDetails).toHaveAttribute('aria-hidden', 'false');
+    await expect(aiUrlInput).toHaveValue(fakeOllama.url);
+    await expect(aiStatus).toContainText(/Connected/);
+    await expect(aiModelSelect).toContainText('qwen2.5:7b');
+    await expect(aiModelSelect).toContainText('llama3.2:latest');
+
+    await aiModelSelect.selectOption('qwen2.5:7b');
+    await aiTaskCountInput.fill('8');
+    await aiTaskCountInput.blur();
+    await aiRefreshButton.click();
+    await expect(aiStatus).toContainText(/Connected/);
+
+    await expect.poll(async () => {
+      return await page.evaluate(async () => {
+        const settings = await window.electronAPI.readAppSettings();
+        return {
+          enabled: settings.ai.enabled,
+          provider: settings.ai.provider,
+          ollama: settings.ai.ollama,
+          actionLabels: settings.ai.smartCardActions.map((action) => action.label),
+        };
+      });
+    }).toEqual({
+      enabled: true,
+      provider: 'ollama',
+      ollama: {
+        url: fakeOllama.url,
+        model: 'qwen2.5:7b',
+        taskCount: 8,
+      },
+      actionLabels: [
+        'Generate new title',
+        'Generate task list',
+        'Smart paste',
+      ],
+    });
+
+    await page.locator('#boardSettingsClose').click();
+    await expect(page.locator('#modalBoardSettings')).toBeHidden();
+
+    await openFirstCardInEditor(page);
+    const aiButton = page.locator('#cardEditorSmartActionsButton');
+    await expect(aiButton).toBeVisible();
+    await expect(aiButton).toHaveAttribute('aria-label', 'Smart Card Actions with qwen2.5:7b');
+    await aiButton.click();
+    const smartActionsPopover = page.locator('#cardEditorSmartActionsPopover');
+    await expect(smartActionsPopover).toBeVisible();
+    await expect.poll(async () => {
+      return await page.evaluate(() => {
+        const modal = document.getElementById('modalEditCard');
+        const popover = document.getElementById('cardEditorSmartActionsPopover');
+        return {
+          modalZIndex: Number.parseInt(window.getComputedStyle(modal).zIndex || '0', 10),
+          popoverZIndex: Number.parseInt(window.getComputedStyle(popover).zIndex || '0', 10),
+          popoverHidden: popover.classList.contains('hidden'),
+        };
+      });
+    }).toEqual({
+      modalZIndex: 50,
+      popoverZIndex: 12020,
+      popoverHidden: false,
+    });
+    await expect(smartActionsPopover).toContainText('Generate new title');
+    await expect(smartActionsPopover).toContainText('Generate task list');
+    await expect(smartActionsPopover).toContainText('Smart paste');
+  } finally {
+    await fakeOllama.close();
+  }
+});
+
 test('publishes the External Published Calendar and respects board opt-out', async ({ page, boardRoot, request }) => {
   const calendarPort = await getAvailableLoopbackPort();
   await cardFrontmatter.updateFrontmatter(
@@ -2719,6 +2881,8 @@ test('publishes the External Published Calendar and respects board opt-out', asy
   await openBoardMenu(page);
   await page.locator('#openBoardSettings').click();
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await page.locator('#boardSettingsNavNotifications').click();
+  await expect(page.locator('#boardSettingsPanelNotifications')).toBeVisible();
 
   const calendarToggle = page.locator('#boardSettingsExternalCalendarToggle');
   const calendarStatus = page.locator('#boardSettingsExternalCalendarStatus');

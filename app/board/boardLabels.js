@@ -2653,7 +2653,7 @@ function renderBoardSettingsPanelState() {
 }
 
 function setActiveBoardSettingsPanel(panelId) {
-  const normalizedPanelId = ['app', 'general', 'obsidian', 'workflow', 'labels', 'colors', 'import'].includes(panelId)
+  const normalizedPanelId = ['app', 'notifications', 'smart-actions', 'general', 'labels', 'colors', 'workflow', 'obsidian', 'import'].includes(panelId)
     ? panelId
     : 'app';
   const state = getBoardLabelState();
@@ -2737,6 +2737,23 @@ function handleBoardSettingsNavKeydown(event) {
     event.stopPropagation();
     focusBoardSettingsNavButtonByIndex(getBoardSettingsNavButtons().length - 1);
   }
+}
+
+function getBoardSettingsNavButtonId(panelId) {
+  const normalizedPanelId = String(panelId || '');
+  const navButtonIds = {
+    app: 'boardSettingsNavApp',
+    notifications: 'boardSettingsNavNotifications',
+    'smart-actions': 'boardSettingsNavSmartActions',
+    general: 'boardSettingsNavGeneral',
+    labels: 'boardSettingsNavLabels',
+    colors: 'boardSettingsNavColors',
+    workflow: 'boardSettingsNavWorkflow',
+    obsidian: 'boardSettingsNavObsidian',
+    import: 'boardSettingsNavImport',
+  };
+
+  return navButtonIds[normalizedPanelId] || navButtonIds.app;
 }
 
 function renderBoardGeneralSettingsControls() {
@@ -3236,7 +3253,7 @@ function openBoardSettingsModal(options = {}) {
     : String(options.panel || 'app');
   const initialFocus = options && typeof options === 'object' && options.initialFocus
     ? options.initialFocus
-    : (panel === 'labels' ? '#boardSettingsNavLabels' : '#boardSettingsNavApp');
+    : (panel === 'labels' ? '#boardSettingsNavLabels' : `#${getBoardSettingsNavButtonId(panel)}`);
 
   closeBoardLabelFilterPopover();
   closeCardLabelPopover();
@@ -3378,6 +3395,13 @@ function initializeBoardLabelControls() {
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
   const quickAddShortcutInput = document.getElementById('boardSettingsQuickAddShortcut');
+  const aiToggle = document.getElementById('boardSettingsAiToggle');
+  const aiOllamaUrlInput = document.getElementById('boardSettingsAiOllamaUrl');
+  const aiOllamaModelSelect = document.getElementById('boardSettingsAiOllamaModel');
+  const aiOllamaRefreshButton = document.getElementById('btnRefreshAiOllamaModels');
+  const aiTaskCountInput = document.getElementById('boardSettingsAiTaskCount');
+  const aiActionsList = document.getElementById('boardSettingsAiActionsList');
+  const aiAddActionButton = document.getElementById('btnAddAiSmartCardAction');
   const externalCalendarToggle = document.getElementById('boardSettingsExternalCalendarToggle');
   const externalCalendarPortInput = document.getElementById('boardSettingsExternalCalendarPort');
   const externalCalendarCopyButton = document.getElementById('btnCopyExternalCalendarUrl');
@@ -3633,6 +3657,171 @@ function initializeBoardLabelControls() {
 
       event.preventDefault();
       quickAddShortcutInput.blur();
+    });
+  }
+
+  if (aiToggle) {
+    aiToggle.addEventListener('change', (event) => {
+      if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppAiSettings();
+      setAppAiSettings({
+        ...currentSettings,
+        enabled: Boolean(event.target.checked),
+      });
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+      if (event.target.checked && typeof refreshAppAiOllamaModels === 'function') {
+        refreshAppAiOllamaModels();
+      } else if (!event.target.checked && typeof resetAppOllamaModelStatus === 'function') {
+        resetAppOllamaModelStatus('Disabled');
+        renderAppSettingsControls();
+      }
+    });
+  }
+
+  if (aiOllamaUrlInput) {
+    aiOllamaUrlInput.addEventListener('change', (event) => {
+      if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppAiSettings();
+      setAppAiSettings({
+        ...currentSettings,
+        ollama: {
+          ...currentSettings.ollama,
+          url: event.target.value,
+        },
+      });
+      if (typeof resetAppOllamaModelStatus === 'function') {
+        resetAppOllamaModelStatus('Not checked');
+      }
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+      if (getAppAiSettings().enabled && typeof refreshAppAiOllamaModels === 'function') {
+        refreshAppAiOllamaModels();
+      }
+    });
+
+    aiOllamaUrlInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      aiOllamaUrlInput.blur();
+    });
+  }
+
+  if (aiOllamaModelSelect) {
+    aiOllamaModelSelect.addEventListener('change', (event) => {
+      if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppAiSettings();
+      setAppAiSettings({
+        ...currentSettings,
+        ollama: {
+          ...currentSettings.ollama,
+          model: event.target.value,
+        },
+      });
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+    });
+
+    aiOllamaModelSelect.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      aiOllamaModelSelect.blur();
+    });
+  }
+
+  if (aiOllamaRefreshButton) {
+    aiOllamaRefreshButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof refreshAppAiOllamaModels === 'function') {
+        refreshAppAiOllamaModels();
+      }
+    });
+  }
+
+  if (aiTaskCountInput) {
+    aiTaskCountInput.addEventListener('change', (event) => {
+      if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppAiSettings();
+      setAppAiSettings({
+        ...currentSettings,
+        ollama: {
+          ...currentSettings.ollama,
+          taskCount: event.target.value,
+        },
+      });
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+    });
+
+    aiTaskCountInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      aiTaskCountInput.blur();
+    });
+  }
+
+  if (aiActionsList) {
+    aiActionsList.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target || !target.dataset || !target.dataset.smartActionField || !target.dataset.actionId) {
+        return;
+      }
+
+      if (typeof updateAppSmartCardAction !== 'function') {
+        return;
+      }
+
+      updateAppSmartCardAction(target.dataset.actionId, {
+        [target.dataset.smartActionField]: target.value,
+      });
+    });
+
+    aiActionsList.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!target || !target.dataset || !target.dataset.smartActionCommand || !target.dataset.actionId) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (target.dataset.smartActionCommand === 'reset' && typeof resetAppSmartCardActionPrompt === 'function') {
+        resetAppSmartCardActionPrompt(target.dataset.actionId);
+      } else if (target.dataset.smartActionCommand === 'remove' && typeof removeAppSmartCardAction === 'function') {
+        removeAppSmartCardAction(target.dataset.actionId);
+      }
+    });
+  }
+
+  if (aiAddActionButton) {
+    aiAddActionButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof addAppSmartCardAction === 'function') {
+        addAppSmartCardAction();
+      }
     });
   }
 

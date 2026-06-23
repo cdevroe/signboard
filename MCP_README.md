@@ -23,6 +23,7 @@ By default, the server starts in read-only mode.
   - optional allowlist for board-scoped tools when the desktop app already has trusted board roots
   - uses your OS path delimiter (`:` on macOS/Linux, `;` on Windows)
   - MCP combines these paths with Signboard's desktop trusted board roots from `trusted-board-roots.json`
+  - `signboard_list_boards` reports known usable boards from desktop-open, desktop-trusted, and configured MCP roots
   - `boardRoot` arguments must resolve inside one configured or trusted root
   - import tool `sourcePath` / `sourcePaths` arguments must also resolve inside one configured or trusted root
 
@@ -92,6 +93,7 @@ Use it to standardize how agents call `signboard_*` tools (safety checks, read/w
 The server currently exposes these tools:
 
 - `signboard_get_config`
+- `signboard_list_boards`
 - `signboard_list_board_views`
 - `signboard_resolve_board_by_name`
 - `signboard_create_board` (write mode only)
@@ -120,7 +122,7 @@ The server currently exposes these tools:
 `tools/list` advertises underscore tool names. Dotted `signboard.*` names are still accepted as legacy aliases for backward compatibility.
 
 Board-scoped tools take absolute `boardRoot` paths, `signboard_create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
-Board settings tools include labels, theme overrides, completed-list workflow settings, and board-level External Published Calendar inclusion. App tooltip, notification, Quick Add, and External Published Calendar server preferences are desktop app settings.
+Board settings tools include labels, theme overrides, completed-list workflow settings, and board-level External Published Calendar inclusion. App tooltip, notification, Quick Add, AI assistance/Smart Card Action prompt, and External Published Calendar server preferences are desktop app settings.
 Import tools also take absolute external source paths, and those paths must resolve inside configured or trusted roots.
 
 ## Card Metadata in Card Tool Responses
@@ -165,9 +167,15 @@ Returned metadata shape:
 }
 ```
 
-## Board name lookup
+## Board discovery and lookup
 
-If you do not want to manually type absolute board paths, use:
+Agents should call this first:
+
+- `signboard_list_boards`
+
+It returns known board roots plus context flags such as `isOpen`, `isActive`, `isTrusted`, `isAllowed`, and `sources`. Desktop-open state comes from the last synced Signboard window tab state; trusted roots come from the desktop app's persisted trusted board roots; configured MCP roots are scanned with a bounded shallow search for board-looking folders.
+
+If you know a board name but do not know its absolute path, use:
 
 - `signboard_resolve_board_by_name`
 

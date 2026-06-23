@@ -1103,6 +1103,9 @@ async function init() {
         if (typeof closeCardEditorLinkedObjectsPopoverIfClickOutside === 'function') {
             closeCardEditorLinkedObjectsPopoverIfClickOutside(e.target);
         }
+        if (typeof closeCardEditorSmartActionsPopoverIfClickOutside === 'function') {
+            closeCardEditorSmartActionsPopoverIfClickOutside(e.target);
+        }
 
         await closeAllModals(e);
     });

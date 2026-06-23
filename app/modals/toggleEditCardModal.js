@@ -175,6 +175,7 @@ let editorSaveOperationInFlight = false;
 let isApplyingExternalEditorRefresh = false;
 let cardEditorDropDepth = 0;
 let cardEditorBodyUrlControlsTeardown = null;
+let cardEditorSmartActionsRequestId = 0;
 const CARD_EDITOR_BODY_URL_PATTERN = /(?:https?:\/\/|www\.)[^\s<>"'`]+/gi;
 
 function getActiveEditorCardPath() {
@@ -208,6 +209,9 @@ function clearQueuedEditorSave() {
 function clearActiveCardEditorState() {
     if (typeof destroyCardEditorBodyUrlControls === 'function') {
         destroyCardEditorBodyUrlControls();
+    }
+    if (typeof closeCardEditorSmartActionsPopover === 'function') {
+        closeCardEditorSmartActionsPopover();
     }
     activeCardEditorInstance = null;
     activeEditorDiskState = null;
@@ -2646,6 +2650,13 @@ async function toggleEditCardModal(cardPath, options = {}) {
         cardEditorOpenWithLink.addEventListener('click', toggleCardEditorOpenWithPopover);
     }
 
+    const cardEditorSmartActionsButton = document.getElementById('cardEditorSmartActionsButton');
+    if (cardEditorSmartActionsButton) {
+        cardEditorSmartActionsButton.removeEventListener('click', toggleCardEditorSmartActionsPopover);
+        cardEditorSmartActionsButton.addEventListener('click', toggleCardEditorSmartActionsPopover);
+        renderCardEditorSmartActionControls();
+    }
+
     const cardEditorLinkedObjectsLink = document.getElementById('cardEditorLinkedObjectsLink');
     if (cardEditorLinkedObjectsLink) {
         cardEditorLinkedObjectsLink.removeEventListener('click', toggleCardEditorLinkedObjectsPopover);
@@ -3200,6 +3211,40 @@ function closeCardEditorLinkedObjectsPopoverIfClickOutside(target) {
     closeCardEditorLinkedObjectsPopover();
 }
 
+function closeCardEditorSmartActionsPopover() {
+    const popover = document.getElementById('cardEditorSmartActionsPopover');
+    const trigger = document.getElementById('cardEditorSmartActionsButton');
+    if (!popover) {
+        return;
+    }
+
+    cardEditorSmartActionsRequestId += 1;
+    popover.classList.add('hidden');
+    popover.setAttribute('aria-hidden', 'true');
+    popover.innerHTML = '';
+    popover.onkeydown = null;
+    if (trigger) {
+        trigger.setAttribute('aria-expanded', 'false');
+    }
+}
+
+function closeCardEditorSmartActionsPopoverIfClickOutside(target) {
+    const popover = document.getElementById('cardEditorSmartActionsPopover');
+    const trigger = document.getElementById('cardEditorSmartActionsButton');
+    if (!popover || popover.classList.contains('hidden')) {
+        return;
+    }
+
+    if (
+        (popover.contains(target)) ||
+        (trigger && trigger.contains(target))
+    ) {
+        return;
+    }
+
+    closeCardEditorSmartActionsPopover();
+}
+
 function setCardEditorOpenWithPopoverPosition(trigger, popover) {
     if (!trigger || !popover || typeof trigger.getBoundingClientRect !== 'function') {
         return;
@@ -3265,6 +3310,530 @@ function createCardEditorOpenWithAction({ label, icon, onClick, disabled = false
     });
 
     return button;
+}
+
+function getCardEditorAiSettings() {
+    if (typeof getAppAiSettings === 'function') {
+        return getAppAiSettings();
+    }
+
+    return {
+        enabled: false,
+        provider: 'ollama',
+        ollama: {
+            url: 'http://127.0.0.1:11434',
+            model: 'llama3.2',
+            taskCount: 6,
+        },
+        smartCardActions: [],
+    };
+}
+
+function getCardEditorSmartActions() {
+    const aiSettings = getCardEditorAiSettings();
+    return Array.isArray(aiSettings.smartCardActions)
+        ? aiSettings.smartCardActions.filter((action) => action && action.prompt && action.label)
+        : [];
+}
+
+function renderCardEditorSmartActionControls() {
+    const button = document.getElementById('cardEditorSmartActionsButton');
+    if (!button) {
+        return;
+    }
+
+    const aiSettings = getCardEditorAiSettings();
+    const isAvailable = Boolean(
+        aiSettings.enabled &&
+        window.electronAPI &&
+        typeof window.electronAPI.runSmartCardAction === 'function' &&
+        getCardEditorSmartActions().length > 0,
+    );
+
+    button.hidden = !isAvailable;
+    button.disabled = !isAvailable;
+    if (!isAvailable) {
+        closeCardEditorSmartActionsPopover();
+        return;
+    }
+
+    const model = aiSettings.ollama && aiSettings.ollama.model
+        ? aiSettings.ollama.model
+        : 'Ollama';
+    button.title = `Smart Card Actions with ${model}`;
+    button.setAttribute('aria-label', `Smart Card Actions with ${model}`);
+}
+
+function getActiveEditorAiLabelNames() {
+    const frontmatter = getEditorFrontmatter();
+    const labelIds = Array.isArray(frontmatter.labels) ? frontmatter.labels : [];
+    return labelIds
+        .map((labelId) => (typeof getBoardLabelById === 'function' ? getBoardLabelById(labelId) : null))
+        .map((label) => (label && label.name ? String(label.name).trim() : ''))
+        .filter(Boolean);
+}
+
+function getActiveEditorAiContext() {
+    const cardPath = getActiveEditorCardPath();
+    const listPath = getCardListPath(cardPath);
+    const listDirectoryName = getPathDirectoryName(listPath);
+    const boardName = window.board && typeof window.board.getBoardName === 'function'
+        ? window.board.getBoardName(window.boardRoot || '')
+        : '';
+
+    return {
+        title: getEditorTitleValue(),
+        body: getEditorBodyValue(),
+        boardName,
+        listName: getCardEditorListDisplayName(listDirectoryName),
+        labels: getActiveEditorAiLabelNames(),
+    };
+}
+
+function normalizeCardEditorSmartTasks(tasks) {
+    const sourceTasks = Array.isArray(tasks) ? tasks : [];
+    const seen = new Set();
+    const normalizedTasks = [];
+
+    for (const task of sourceTasks) {
+        const normalized = String(task || '')
+            .replace(/\r\n?/g, '\n')
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .join(' ')
+            .replace(/^[-*+]\s+/, '')
+            .replace(/^\d+[.)]\s+/, '')
+            .replace(/^\[[ xX]\]\s+/, '')
+            .replace(/^- \[[ xX]\]\s+/, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const key = normalized.toLowerCase();
+        if (!normalized || seen.has(key)) {
+            continue;
+        }
+
+        seen.add(key);
+        normalizedTasks.push(normalized);
+    }
+
+    return normalizedTasks;
+}
+
+function buildCardEditorChecklistMarkdown(tasks) {
+    return normalizeCardEditorSmartTasks(tasks)
+        .map((task) => `- [ ] ${task}`)
+        .join('\n');
+}
+
+function appendMarkdownToCardEditorBody(body, markdown) {
+    const currentBody = String(body || '').replace(/\s+$/g, '');
+    const normalizedMarkdown = String(markdown || '').trim();
+    if (!normalizedMarkdown) {
+        return currentBody;
+    }
+
+    return currentBody
+        ? `${currentBody}\n\n${normalizedMarkdown}\n`
+        : `${normalizedMarkdown}\n`;
+}
+
+function setCardEditorBodyValue(nextBody) {
+    if (activeCardEditorInstance && typeof activeCardEditorInstance.setValue === 'function') {
+        activeCardEditorInstance.setValue(nextBody);
+        return;
+    }
+
+    const editorTextarea = document.querySelector('#cardEditorOverType .overtype-input');
+    if (editorTextarea) {
+        editorTextarea.value = nextBody;
+        editorTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+}
+
+async function appendCardEditorSmartMarkdown(markdown, successMessage) {
+    const normalizedMarkdown = String(markdown || '').trim();
+    if (!normalizedMarkdown) {
+        return;
+    }
+
+    await flushEditorSaveIfNeeded();
+    const nextBody = appendMarkdownToCardEditorBody(getEditorBodyValue(), normalizedMarkdown);
+    setCardEditorBodyValue(nextBody);
+    pendingEditorBody = nextBody;
+    queueEditorSave(nextBody);
+    await flushEditorSaveIfNeeded();
+
+    if (successMessage && typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus(successMessage);
+    }
+}
+
+async function insertCardEditorSmartTasks(tasks) {
+    const normalizedTasks = normalizeCardEditorSmartTasks(tasks);
+    const checklistMarkdown = buildCardEditorChecklistMarkdown(normalizedTasks);
+    if (!checklistMarkdown) {
+        return;
+    }
+
+    await appendCardEditorSmartMarkdown(
+        checklistMarkdown,
+        `Inserted ${normalizedTasks.length} suggested task${normalizedTasks.length === 1 ? '' : 's'}.`,
+    );
+}
+
+async function replaceCardEditorSmartTitle(title) {
+    const normalizedTitle = String(title || '').replace(/\s+/g, ' ').trim();
+    const titleEl = document.getElementById('cardEditorTitle');
+    if (!normalizedTitle || !titleEl) {
+        return;
+    }
+
+    await flushEditorSaveIfNeeded();
+    titleEl.textContent = normalizedTitle;
+    pendingEditorBody = getEditorBodyValue();
+    queueEditorSave(pendingEditorBody);
+    await flushEditorSaveIfNeeded();
+    if (typeof renderBoard === 'function') {
+        await renderBoard();
+    }
+    if (typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus('Updated card title.');
+    }
+}
+
+function createCardEditorSmartActionButton(label, className, onClick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.textContent = label;
+    button.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+        try {
+            await onClick();
+        } finally {
+            if (button.isConnected) {
+                button.disabled = false;
+            }
+        }
+    });
+    return button;
+}
+
+function renderCardEditorSmartActionsMenu(popover) {
+    popover.innerHTML = '';
+
+    const title = document.createElement('p');
+    title.className = 'card-editor-ai-tasks-title';
+    title.textContent = 'Smart Card Actions';
+    popover.appendChild(title);
+
+    const menu = document.createElement('div');
+    menu.className = 'card-editor-smart-actions-menu';
+    for (const action of getCardEditorSmartActions()) {
+        const button = createCardEditorSmartMenuButton(action);
+        menu.appendChild(button);
+    }
+    popover.appendChild(menu);
+}
+
+function getCardEditorSmartActionIcon(action) {
+    if (action.type === 'title') {
+        return 'type';
+    }
+    if (action.type === 'tasks') {
+        return 'check-square';
+    }
+    if (action.type === 'paste') {
+        return 'clipboard';
+    }
+    return 'zap';
+}
+
+function createCardEditorSmartMenuButton(action) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'board-menu-action card-editor-smart-action-button';
+
+    const iconWrap = document.createElement('span');
+    iconWrap.className = 'board-menu-action-icon';
+    iconWrap.setAttribute('aria-hidden', 'true');
+    const icon = getCardEditorSmartActionIcon(action);
+    if (window.feather && window.feather.icons && window.feather.icons[icon]) {
+        iconWrap.innerHTML = window.feather.icons[icon].toSvg();
+    }
+    button.appendChild(iconWrap);
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'board-menu-action-label';
+    labelEl.textContent = action.label;
+    button.appendChild(labelEl);
+
+    button.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await startCardEditorSmartAction(action);
+    });
+
+    return button;
+}
+
+function renderCardEditorSmartActionLoading(popover, action) {
+    popover.innerHTML = '';
+
+    const title = document.createElement('p');
+    title.className = 'card-editor-ai-tasks-title';
+    title.textContent = action && action.label ? action.label : 'Smart Card Action';
+    popover.appendChild(title);
+
+    const status = document.createElement('p');
+    status.className = 'card-editor-ai-tasks-status';
+    status.textContent = 'Working...';
+    popover.appendChild(status);
+}
+
+function renderCardEditorSmartActionError(popover, message, action = null, options = {}) {
+    popover.innerHTML = '';
+
+    const title = document.createElement('p');
+    title.className = 'card-editor-ai-tasks-title';
+    title.textContent = 'No result';
+    popover.appendChild(title);
+
+    const status = document.createElement('p');
+    status.className = 'card-editor-ai-tasks-status is-error';
+    status.textContent = String(message || 'Unable to run Smart Card Action.');
+    popover.appendChild(status);
+
+    const actions = document.createElement('div');
+    actions.className = 'card-editor-ai-tasks-actions';
+    if (action) {
+        actions.appendChild(createCardEditorSmartActionButton('Try Again', 'card-editor-ai-tasks-secondary', async () => {
+            await requestCardEditorSmartAction(popover, action, options);
+        }));
+    }
+    actions.appendChild(createCardEditorSmartActionButton('Back', 'card-editor-ai-tasks-secondary', async () => {
+        renderCardEditorSmartActionsMenu(popover);
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Close', 'card-editor-ai-tasks-secondary', async () => {
+        closeCardEditorSmartActionsPopover();
+    }));
+    popover.appendChild(actions);
+}
+
+function renderCardEditorSmartTitleResult(popover, action, result, options = {}) {
+    const suggestedTitle = String(result && result.title ? result.title : '').trim();
+    if (!suggestedTitle) {
+        renderCardEditorSmartActionError(popover, 'The model did not return a usable title.', action, options);
+        return;
+    }
+
+    popover.innerHTML = '';
+
+    const title = document.createElement('p');
+    title.className = 'card-editor-ai-tasks-title';
+    title.textContent = 'Suggested title';
+    popover.appendChild(title);
+
+    const preview = document.createElement('div');
+    preview.className = 'card-editor-smart-action-preview';
+    preview.textContent = suggestedTitle;
+    popover.appendChild(preview);
+
+    const actions = document.createElement('div');
+    actions.className = 'card-editor-ai-tasks-actions';
+    actions.appendChild(createCardEditorSmartActionButton('Replace', 'card-editor-ai-tasks-primary', async () => {
+        await replaceCardEditorSmartTitle(suggestedTitle);
+        closeCardEditorSmartActionsPopover();
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Try Again', 'card-editor-ai-tasks-secondary', async () => {
+        await requestCardEditorSmartAction(popover, action, options);
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Back', 'card-editor-ai-tasks-secondary', async () => {
+        renderCardEditorSmartActionsMenu(popover);
+    }));
+    popover.appendChild(actions);
+}
+
+function renderCardEditorSmartTasksResult(popover, action, result, options = {}) {
+    const normalizedTasks = normalizeCardEditorSmartTasks(result && result.tasks);
+    if (normalizedTasks.length === 0) {
+        renderCardEditorSmartActionError(popover, 'The model did not return any usable tasks.', action, options);
+        return;
+    }
+
+    popover.innerHTML = '';
+
+    const title = document.createElement('p');
+    title.className = 'card-editor-ai-tasks-title';
+    title.textContent = 'Suggested tasks';
+    popover.appendChild(title);
+
+    const list = document.createElement('ul');
+    list.className = 'card-editor-ai-tasks-list';
+    for (const task of normalizedTasks) {
+        const item = document.createElement('li');
+        item.textContent = task;
+        list.appendChild(item);
+    }
+    popover.appendChild(list);
+
+    const actions = document.createElement('div');
+    actions.className = 'card-editor-ai-tasks-actions';
+    actions.appendChild(createCardEditorSmartActionButton('Insert', 'card-editor-ai-tasks-primary', async () => {
+        await insertCardEditorSmartTasks(normalizedTasks);
+        closeCardEditorSmartActionsPopover();
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Try Again', 'card-editor-ai-tasks-secondary', async () => {
+        await requestCardEditorSmartAction(popover, action, options);
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Back', 'card-editor-ai-tasks-secondary', async () => {
+        renderCardEditorSmartActionsMenu(popover);
+    }));
+    popover.appendChild(actions);
+
+    const insertButton = actions.querySelector('button');
+    if (insertButton && typeof insertButton.focus === 'function') {
+        insertButton.focus();
+    }
+}
+
+function renderCardEditorSmartMarkdownResult(popover, action, result, options = {}) {
+    const markdown = String(result && result.body ? result.body : '').trim();
+    if (!markdown) {
+        renderCardEditorSmartActionError(popover, 'The model did not return usable Markdown.', action, options);
+        return;
+    }
+
+    popover.innerHTML = '';
+
+    const title = document.createElement('p');
+    title.className = 'card-editor-ai-tasks-title';
+    title.textContent = action && action.label ? action.label : 'Suggested content';
+    popover.appendChild(title);
+
+    const preview = document.createElement('div');
+    preview.className = 'card-editor-smart-action-preview';
+    preview.textContent = markdown;
+    popover.appendChild(preview);
+
+    const actions = document.createElement('div');
+    actions.className = 'card-editor-ai-tasks-actions';
+    actions.appendChild(createCardEditorSmartActionButton('Insert', 'card-editor-ai-tasks-primary', async () => {
+        await appendCardEditorSmartMarkdown(markdown, 'Inserted suggested content.');
+        closeCardEditorSmartActionsPopover();
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Try Again', 'card-editor-ai-tasks-secondary', async () => {
+        await requestCardEditorSmartAction(popover, action, options);
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Back', 'card-editor-ai-tasks-secondary', async () => {
+        renderCardEditorSmartActionsMenu(popover);
+    }));
+    popover.appendChild(actions);
+}
+
+function renderCardEditorSmartActionResult(popover, action, result, options = {}) {
+    const actionType = String(result && result.actionType ? result.actionType : action.type || '');
+    if (actionType === 'title') {
+        renderCardEditorSmartTitleResult(popover, action, result, options);
+    } else if (actionType === 'tasks') {
+        renderCardEditorSmartTasksResult(popover, action, result, options);
+    } else {
+        renderCardEditorSmartMarkdownResult(popover, action, result, options);
+    }
+}
+
+async function requestCardEditorSmartAction(popover, action, options = {}) {
+    if (!popover || !window.electronAPI || typeof window.electronAPI.runSmartCardAction !== 'function') {
+        return;
+    }
+
+    const requestId = cardEditorSmartActionsRequestId + 1;
+    cardEditorSmartActionsRequestId = requestId;
+    renderCardEditorSmartActionLoading(popover, action);
+
+    try {
+        const result = await window.electronAPI.runSmartCardAction({
+            actionId: action.id,
+            context: getActiveEditorAiContext(),
+            pasteText: typeof options.pasteText === 'string' ? options.pasteText : '',
+        });
+        if (requestId !== cardEditorSmartActionsRequestId || !popover.isConnected || popover.classList.contains('hidden')) {
+            return;
+        }
+
+        if (!result || result.ok !== true) {
+            if (result && result.debug) {
+                console.error('Smart Card Action debug details:', result.debug);
+            }
+            renderCardEditorSmartActionError(popover, result && result.message ? result.message : 'Unable to run Smart Card Action.', action, options);
+            return;
+        }
+
+        renderCardEditorSmartActionResult(popover, action, result, options);
+    } catch (error) {
+        if (requestId !== cardEditorSmartActionsRequestId || !popover.isConnected || popover.classList.contains('hidden')) {
+            return;
+        }
+        console.error('Unable to run Smart Card Action.', error);
+        renderCardEditorSmartActionError(popover, 'Unable to run Smart Card Action.', action, options);
+    }
+}
+
+function renderCardEditorSmartPasteInput(popover, action) {
+    popover.innerHTML = '';
+
+    const title = document.createElement('p');
+    title.className = 'card-editor-ai-tasks-title';
+    title.textContent = action.label;
+    popover.appendChild(title);
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'card-editor-smart-paste-input';
+    textarea.placeholder = 'Paste text here';
+    popover.appendChild(textarea);
+
+    const actions = document.createElement('div');
+    actions.className = 'card-editor-ai-tasks-actions';
+    actions.appendChild(createCardEditorSmartActionButton('Run', 'card-editor-ai-tasks-primary', async () => {
+        const pasteText = String(textarea.value || '').trim();
+        if (!pasteText) {
+            textarea.focus();
+            return;
+        }
+        await requestCardEditorSmartAction(popover, action, { pasteText });
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Back', 'card-editor-ai-tasks-secondary', async () => {
+        renderCardEditorSmartActionsMenu(popover);
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Close', 'card-editor-ai-tasks-secondary', async () => {
+        closeCardEditorSmartActionsPopover();
+    }));
+    popover.appendChild(actions);
+
+    textarea.focus();
+}
+
+async function startCardEditorSmartAction(action) {
+    const popover = document.getElementById('cardEditorSmartActionsPopover');
+    if (!popover || !action) {
+        return;
+    }
+
+    if (action.type === 'paste') {
+        renderCardEditorSmartPasteInput(popover, action);
+        setCardEditorOpenWithPopoverPosition(document.getElementById('cardEditorSmartActionsButton'), popover);
+        return;
+    }
+
+    await requestCardEditorSmartAction(popover, action);
+    setCardEditorOpenWithPopoverPosition(document.getElementById('cardEditorSmartActionsButton'), popover);
 }
 
 function appendCardEditorOpenWithSeparator(popover) {
@@ -3760,6 +4329,7 @@ async function toggleCardEditorOpenWithPopover(event) {
     }
 
     closeCardEditorLinkedObjectsPopover();
+    closeCardEditorSmartActionsPopover();
 
     if (popover.parentElement !== document.body) {
         document.body.appendChild(popover);
@@ -3861,6 +4431,7 @@ async function toggleCardEditorLinkedObjectsPopover(event) {
     }
 
     closeCardEditorOpenWithPopover();
+    closeCardEditorSmartActionsPopover();
 
     if (popover.parentElement !== document.body) {
         document.body.appendChild(popover);
@@ -3926,6 +4497,49 @@ async function toggleCardEditorLinkedObjectsPopover(event) {
     if (firstAction && typeof firstAction.focus === 'function') {
         firstAction.focus();
     }
+}
+
+async function toggleCardEditorSmartActionsPopover(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const trigger = document.getElementById('cardEditorSmartActionsButton');
+    const popover = document.getElementById('cardEditorSmartActionsPopover');
+    if (!trigger || !popover || trigger.hidden || trigger.disabled) {
+        return;
+    }
+
+    if (!popover.classList.contains('hidden')) {
+        closeCardEditorSmartActionsPopover();
+        return;
+    }
+
+    closeCardEditorOpenWithPopover();
+    closeCardEditorLinkedObjectsPopover();
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+    popover.setAttribute('data-sb-modal-layer', '');
+    popover.inert = false;
+    popover.removeAttribute('data-sb-modal-inert');
+    popover.tabIndex = -1;
+    popover.onkeydown = (keydownEvent) => {
+        if (typeof handleLabelPopoverKeyboard === 'function') {
+            handleLabelPopoverKeyboard(keydownEvent, {
+                popover,
+                close: closeCardEditorSmartActionsPopover,
+                restoreFocusElement: trigger,
+            });
+        }
+    };
+
+    popover.classList.remove('hidden');
+    popover.setAttribute('aria-hidden', 'false');
+    trigger.setAttribute('aria-expanded', 'true');
+    renderCardEditorSmartActionsMenu(popover);
+    setCardEditorOpenWithPopoverPosition(trigger, popover);
+    popover.focus();
 }
 
 async function handleClickDuplicateCard( e ) {

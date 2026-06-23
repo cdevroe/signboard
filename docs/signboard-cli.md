@@ -64,6 +64,12 @@ You can print the current chosen board by running:
 signboard use
 ```
 
+You can list known boards before choosing one:
+
+```bash
+signboard boards list --json
+```
+
 ## Command Groups
 
 The CLI is organized into six command groups:
@@ -77,9 +83,11 @@ The CLI is organized into six command groups:
 
 ### `boards`
 
-Create a new board folder with Signboard's default starter lists.
+List known boards or create a new board folder with Signboard's default starter lists.
 
 ```bash
+signboard boards list
+signboard boards list --json
 signboard boards create /Path/To/NewBoard
 signboard boards create /Path/To/NewBoard --use
 signboard boards create --parent /Path/To --name "New Board" --json
@@ -88,6 +96,7 @@ signboard boards create /Path/To/EmptyBoard --no-welcome
 
 Notes:
 
+- `boards list --json` reports the current CLI board plus desktop-open and desktop-trusted boards when Signboard has synced that state.
 - New boards get `000-To-do-stock`, `001-Doing-stock`, `002-Done-stock`, and `XXX-Archive`.
 - By default, Signboard seeds `000-hello-stock.md` in the To do list with the same starter guidance used by MCP-created boards.
 - Add `--use` to make the new board the active CLI board for later commands.
@@ -321,6 +330,7 @@ Examples:
 
 ```bash
 signboard lists --json
+signboard boards list --json
 signboard cards --due next:7 --json
 signboard archive cards --search launch --json
 signboard settings --json
@@ -329,11 +339,12 @@ signboard import obsidian --source ~/Vault/Boards --json
 
 Recommended agent workflow:
 
-1. Pass `--board <path>` instead of changing global state with `signboard use`.
-2. Read before write when references may be ambiguous.
-3. Use `--json` for reads and verification.
-4. Use `--dry-run --json` before card writes when you need to preview a mutation.
-5. Use exact list or card references when possible.
+1. Run `signboard boards list --json` to find known usable board roots.
+2. Pass `--board <path>` instead of changing global state with `signboard use`.
+3. Read before write when references may be ambiguous.
+4. Use `--json` for reads and verification.
+5. Use `--dry-run --json` before card writes when you need to preview a mutation.
+6. Use exact list or card references when possible.
 
 ## Common Workflows
 
@@ -439,7 +450,7 @@ signboard settings
 signboard settings --json
 ```
 
-This returns the board settings Markdown document, including labels, color scheme data, workflow settings for completed lists, and whether the board is included in External Published Calendar. App-wide tooltip, notification, Quick Add global shortcut, and External Published Calendar server preferences are desktop app settings, not board settings.
+This returns the board settings Markdown document, including labels, color scheme data, workflow settings for completed lists, and whether the board is included in External Published Calendar. App-wide tooltip, notification, Quick Add global shortcut, AI assistance, and External Published Calendar server preferences are desktop app settings, not board settings.
 
 Current CLI editing support is intentionally narrow.
 

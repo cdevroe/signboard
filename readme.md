@@ -27,6 +27,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - ✅ Progress counters on cards
 - 🔎 Live search
 - 🗄️ Linked files and URLs on cards
+- ✨ Optional local Ollama Smart Card Actions for titles, task lists, smart paste, and custom prompts
 - 🧲 Drag-and-drop card movement
 - ⚡ Unlimited open boards with overflow tabs and a quick switcher
 - ⌨️ Keyboard shortcuts
@@ -107,7 +108,7 @@ Signboard includes a built-in MCP server so agents can interact with local board
 
 - Dedicated instructions: [MCP_README.md](./MCP_README.md)
 - To copy config: `Help` -> `Copy MCP Config`
-- MCP uses both explicit allowed roots and Signboard's desktop trusted board roots for board lookup.
+- MCP uses `signboard_list_boards` plus both explicit allowed roots and Signboard's desktop trusted/open board state for board lookup.
 - Optional agent skill: `skills/signboard-mcp/SKILL.md`
 
 ## 💻 CLI
@@ -117,6 +118,7 @@ Signboard includes a terminal CLI for direct board management without going thro
 - Full guide: [docs/signboard-cli.md](./docs/signboard-cli.md)
 
 - In the desktop app on macOS/Linux: `Help` -> `Install Signboard CLI`
+- Use `signboard boards list --json` to list known boards before choosing one
 - Use `signboard use /Path/to/Board` once to remember the active board for later commands
 - Use `signboard boards create /Path/to/NewBoard --use` to create and select a new board from the terminal
 - The installed `signboard` wrapper runs the bundled CLI in Electron's Node mode, avoiding desktop app startup for terminal commands.
@@ -125,6 +127,7 @@ Examples:
 
 ```bash
 # Select a board once
+signboard boards list --json
 signboard use /Path/to/Board
 
 # Create a board
@@ -223,6 +226,7 @@ npm start
 npm run test:frontmatter
 npm run test:board-labels
 npm run test:app-settings
+npm run test:ai-task-suggestions
 npm run test:board-card-metadata
 npm run test:due-notifications
 npm run test:task-list

@@ -110,6 +110,7 @@ Click a card to open it. In the card editor you can:
 - Open it in Obsidian or the default Markdown app
 - Open raw web URLs from the card body
 - Create, open, or remove linked objects
+- Use Smart Card Actions when AI assistance is enabled
 - Archive it
 
 The card body is Markdown, so plain text notes, headings, lists, and checklists all work naturally.
@@ -340,20 +341,21 @@ Open `Settings` from the board menu or press `Cmd/Ctrl + ,`.
 
 ### App Settings
 
-The `App Settings` section controls settings that apply across Signboard:
+The `App Settings` group controls settings that apply across Signboard:
 
-- tooltips
-- daily due-date reminders
-- an optional global Quick Add shortcut while Signboard is open
-- External Published Calendar
+- `Settings`: tooltips and the optional global Quick Add shortcut while Signboard is open
+- `Notifications`: daily due-date reminders and External Published Calendar publishing
+- `Smart Actions`: AI assistance through Ollama and Smart Card Action prompts
 
 If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due. The notification time field is shown only while reminders are enabled.
+
+When AI assistance is enabled, Signboard checks the configured Ollama URL, shows whether it can connect, and loads the locally installed models from Ollama into a model dropdown. Use the refresh button next to the model picker after pulling a new model. The card editor then shows a floating Smart Card Actions button with default actions for generating a new title, generating a task list, and smart paste formatting. App Settings lets you customize each built-in prompt and add custom actions with a label and prompt. Suggestions are previewed before they replace the title or insert Markdown. Card title, body, board/list context, label names, and pasted smart-paste text are sent to the configured Ollama URL only when you use an action.
 
 ### External Published Calendar
 
 External Published Calendar is an optional read-only iCalendar feed for local calendar apps.
 
-When enabled in App Settings, Signboard serves a local subscription URL on `127.0.0.1` while Signboard is open. The port and subscription URL settings are shown only while publishing is enabled. Copy the URL from Settings and subscribe to it from your calendar app. The feed is built from boards Signboard has opened and trusted, unless a board is toggled off.
+When enabled in `App Settings` > `Notifications`, Signboard serves a local subscription URL on `127.0.0.1` while Signboard is open. The port and subscription URL settings are shown only while publishing is enabled. Copy the URL from Settings and subscribe to it from your calendar app. The feed is built from boards Signboard has opened and trusted, unless a board is toggled off.
 
 The feed includes:
 
@@ -366,7 +368,7 @@ The feed hides:
 - cards in completed lists
 - boards that are toggled off in that board's Workflow settings
 
-Due items are published as all-day events because Signboard due dates are date-only. The port can be changed in App Settings if the default local port is unavailable.
+Due items are published as all-day events because Signboard due dates are date-only. The port can be changed in `App Settings` > `Notifications` if the default local port is unavailable.
 
 ### Board General
 
@@ -374,16 +376,6 @@ The board `General` section lets you:
 
 - rename the board
 - move the board folder to a new location
-
-### Workflow
-
-The `Workflow` section controls which lists count as completed work for the current board.
-
-Completed-list cards and checked-off task date markers keep their dates, but Planner date views, Planner date filters, board date filters, and daily due reminders hide them by default so finished work does not look actionable.
-
-Auto-detection is enabled by default. You can turn it off, manually choose completed lists, or uncheck an auto-detected list.
-
-Workflow also includes the board-level External Published Calendar inclusion toggle. Leave it on to include this board in the app-wide local calendar feed, or turn it off to keep the board out of subscribed calendar apps.
 
 ### Labels
 
@@ -396,11 +388,25 @@ The `Labels` section lets you:
 
 Labels are stored with the board so each board can have its own vocabulary.
 
-### Colors
+### Appearance
 
-The `Colors` section lets you choose a board color scheme. Each scheme includes both light and dark variants.
+The `Appearance` section lets you choose a board color scheme. Each scheme includes both light and dark variants.
 
 You can also apply the color scheme to all currently open boards.
+
+### Workflow
+
+The `Workflow` section controls which lists count as completed work for the current board.
+
+Completed-list cards and checked-off task date markers keep their dates, but Planner date views, Planner date filters, board date filters, and daily due reminders hide them by default so finished work does not look actionable.
+
+Auto-detection is enabled by default. You can turn it off, manually choose completed lists, or uncheck an auto-detected list.
+
+Workflow also includes the board-level External Published Calendar inclusion toggle. Leave it on to include this board in the app-wide local calendar feed, or turn it off to keep the board out of subscribed calendar apps.
+
+### Obsidian
+
+The `Obsidian` section lets you generate or open the managed `Signboard Board.base` file for boards stored inside an Obsidian vault.
 
 ### Import
 

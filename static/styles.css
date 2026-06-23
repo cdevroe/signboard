@@ -3727,6 +3727,12 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   margin-top: 12px;
 }
 
+.boardSettingsSection > .board-settings-group + .board-settings-group {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
 .board-settings-subheading {
   margin: 0 0 6px;
   font-size: var(--font-md);
@@ -3788,6 +3794,12 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   min-width: 0;
 }
 
+.board-settings-inline-actions select {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
 .board-settings-inline-actions-right {
   justify-content: flex-end;
 }
@@ -3820,6 +3832,109 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #boardSettingsExternalCalendarPort {
   width: 10ch;
   min-width: 10ch;
+}
+
+#boardSettingsAiDetails {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+}
+
+#boardSettingsAiDetails.hidden {
+  display: none;
+}
+
+#boardSettingsAiDetails .boardSettingsHint {
+  grid-column: 1 / -1;
+}
+
+#boardSettingsAiDetails .board-settings-ai-model-actions {
+  min-width: 0;
+}
+
+#boardSettingsAiDetails .board-settings-ai-actions-header,
+#boardSettingsAiDetails .board-settings-ai-actions-list {
+  grid-column: 1 / -1;
+}
+
+.board-settings-ai-actions-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.board-settings-ai-actions-header button {
+  flex: 0 0 auto;
+}
+
+.board-settings-ai-actions-list {
+  display: grid;
+  gap: 10px;
+}
+
+.board-settings-ai-action {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 96%, var(--border));
+  padding: 10px;
+}
+
+.board-settings-ai-action-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.board-settings-ai-action-title,
+.board-settings-ai-action-label {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.board-settings-ai-action input,
+.board-settings-ai-action textarea {
+  width: 100%;
+}
+
+.board-settings-ai-action textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.board-settings-ai-action-reset,
+.board-settings-ai-action-remove {
+  min-height: 30px;
+  padding: 5px 10px;
+}
+
+#btnRefreshAiOllamaModels {
+  flex: 0 0 auto;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#btnRefreshAiOllamaModels svg {
+  width: 16px;
+  height: 16px;
+}
+
+#boardSettingsAiTaskCount {
+  width: 8ch;
+  min-width: 8ch;
 }
 
 .board-settings-toggle-row {
@@ -4607,7 +4722,9 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #modalEditCard .cardEditorHeaderActions a + a,
 #modalEditCard .cardEditorHeaderActions button + button { margin-left: 20px; }
 .card-editor-open-with-popover,
-.card-editor-linked-objects-popover {
+.card-editor-linked-objects-popover,
+.card-editor-ai-tasks-popover,
+.card-editor-smart-actions-popover {
   position: fixed;
   min-width: 220px;
   width: max-content;
@@ -4615,6 +4732,143 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 .card-editor-open-with-action {
   min-height: 36px;
+}
+#modalEditCard .card-editor-smart-actions-button {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 8;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--accent) 70%, var(--border));
+  background: var(--accent);
+  color: var(--accent-contrast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 0 10px 24px var(--shadow-card);
+}
+#modalEditCard .card-editor-smart-actions-button:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--accent) 88%, var(--text));
+}
+#modalEditCard .card-editor-smart-actions-button:active {
+  transform: translateY(1px);
+}
+#modalEditCard .card-editor-smart-actions-button[hidden] {
+  display: none;
+}
+#modalEditCard .card-editor-smart-actions-button svg {
+  width: 19px;
+  height: 19px;
+}
+.card-editor-ai-tasks-popover,
+.card-editor-smart-actions-popover {
+  min-width: 300px;
+  max-width: min(420px, calc(100vw - 16px));
+  padding: 10px;
+}
+.card-editor-smart-actions-popover {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 90ms ease, transform 90ms ease;
+}
+.card-editor-smart-actions-popover.hidden {
+  opacity: 0;
+  transform: translateY(4px);
+}
+.card-editor-ai-tasks-title {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.card-editor-ai-tasks-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  line-height: 1.35;
+}
+.card-editor-ai-tasks-status.is-error {
+  color: var(--due-date-today-color);
+}
+.card-editor-ai-tasks-list {
+  margin: 0;
+  padding: 0 0 0 18px;
+  color: var(--text);
+  font-size: var(--font-sm);
+  line-height: 1.35;
+}
+.card-editor-ai-tasks-list li + li {
+  margin-top: 6px;
+}
+.card-editor-ai-tasks-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.card-editor-ai-tasks-actions button {
+  min-height: 32px;
+  padding: 6px 11px;
+}
+.card-editor-ai-tasks-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.card-editor-ai-tasks-primary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--accent) 88%, var(--text));
+}
+.card-editor-ai-tasks-secondary {
+  border-color: var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+}
+.card-editor-ai-tasks-secondary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
+}
+.card-editor-smart-actions-menu {
+  display: grid;
+  gap: 4px;
+}
+.card-editor-smart-action-button {
+  width: 100%;
+  min-height: 38px;
+}
+.card-editor-smart-paste-input {
+  width: 100%;
+  min-height: 180px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-sm);
+  line-height: 1.4;
+  padding: 8px 9px;
+  resize: vertical;
+}
+.card-editor-smart-action-preview {
+  max-height: min(360px, calc(100vh - 220px));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--bg));
+  color: var(--text);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  padding: 9px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-editor-smart-actions-popover {
+    transition: none;
+  }
 }
 .card-editor-linked-object-url-form {
   display: flex;

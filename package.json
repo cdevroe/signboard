@@ -31,6 +31,7 @@
     "test:card-ordering": "node scripts/test-card-ordering.js",
     "test:board-labels": "node scripts/test-board-labels.js",
     "test:app-settings": "node scripts/test-app-settings.js",
+    "test:ai-task-suggestions": "node scripts/test-ai-task-suggestions.js",
     "test:mcp": "node scripts/test-mcp-server.js",
     "test:board-card-metadata": "node scripts/test-board-card-metadata.js",
     "test:board-views": "node scripts/test-board-views.js",

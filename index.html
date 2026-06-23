@@ -433,19 +433,22 @@
     </div>
     <div class="board-settings-layout">
       <nav class="board-settings-nav" role="tablist" aria-orientation="vertical" aria-label="Settings sections">
-        <button id="boardSettingsNavApp" type="button" role="tab" aria-selected="true" aria-controls="boardSettingsPanelApp" class="board-settings-nav-button is-active" data-settings-panel="app">App Settings</button>
+        <p class="board-settings-nav-label">App Settings</p>
+        <button id="boardSettingsNavApp" type="button" role="tab" aria-selected="true" aria-controls="boardSettingsPanelApp" class="board-settings-nav-button is-active" data-settings-panel="app">Settings</button>
+        <button id="boardSettingsNavNotifications" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelNotifications" class="board-settings-nav-button" data-settings-panel="notifications">Notifications</button>
+        <button id="boardSettingsNavSmartActions" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelSmartActions" class="board-settings-nav-button" data-settings-panel="smart-actions">Smart Actions</button>
         <div class="board-settings-nav-separator" role="separator"></div>
         <p class="board-settings-nav-label">Current Board</p>
         <button id="boardSettingsNavGeneral" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelGeneral" class="board-settings-nav-button" data-settings-panel="general">General</button>
-        <button id="boardSettingsNavObsidian" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelObsidian" class="board-settings-nav-button" data-settings-panel="obsidian">Obsidian</button>
-        <button id="boardSettingsNavWorkflow" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelWorkflow" class="board-settings-nav-button" data-settings-panel="workflow">Workflow</button>
         <button id="boardSettingsNavLabels" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelLabels" class="board-settings-nav-button" data-settings-panel="labels">Labels</button>
-        <button id="boardSettingsNavColors" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelColors" class="board-settings-nav-button" data-settings-panel="colors">Colors</button>
+        <button id="boardSettingsNavColors" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelColors" class="board-settings-nav-button" data-settings-panel="colors">Appearance</button>
+        <button id="boardSettingsNavWorkflow" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelWorkflow" class="board-settings-nav-button" data-settings-panel="workflow">Workflow</button>
+        <button id="boardSettingsNavObsidian" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelObsidian" class="board-settings-nav-button" data-settings-panel="obsidian">Obsidian</button>
         <button id="boardSettingsNavImport" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelImport" class="board-settings-nav-button" data-settings-panel="import">Import</button>
       </nav>
       <div class="board-settings-panels">
         <section id="boardSettingsPanelApp" class="boardSettingsSection board-settings-panel is-active" role="tabpanel" aria-hidden="false" aria-labelledby="boardSettingsNavApp" data-settings-panel="app">
-          <h3>App Settings</h3>
+          <h3>Settings</h3>
           <div class="board-settings-group">
             <div class="board-settings-toggle-row">
               <div>
@@ -458,6 +461,18 @@
               </label>
             </div>
           </div>
+          <div class="board-settings-group">
+            <label for="boardSettingsQuickAddShortcut">Global Quick Add shortcut</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsQuickAddShortcut" type="text" placeholder="CommandOrControl+Shift+Space" spellcheck="false" autocomplete="off">
+              <span id="boardSettingsQuickAddShortcutStatus" class="board-settings-status">Disabled</span>
+            </div>
+            <p class="boardSettingsHint">Leave blank to disable. Signboard must be open.</p>
+          </div>
+        </section>
+
+        <section id="boardSettingsPanelNotifications" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavNotifications" data-settings-panel="notifications">
+          <h3>Notifications</h3>
           <div class="board-settings-group">
             <div class="board-settings-toggle-row">
               <div>
@@ -474,14 +489,6 @@
             <label for="boardSettingsNotificationsTime">Notification time (local)</label>
             <input id="boardSettingsNotificationsTime" type="text" value="09:00" placeholder="HH:MM" inputmode="numeric" maxlength="5" width="10" pattern="(?:0[1-9]|1[0-9]|2[0-4]):[0-5][0-9]">
             <p class="boardSettingsHint">Use HH:MM in 24-hour format. Hours can be 01 through 24 (example: 21:30).</p>
-          </div>
-          <div class="board-settings-group">
-            <label for="boardSettingsQuickAddShortcut">Global Quick Add shortcut</label>
-            <div class="board-settings-inline-actions">
-              <input id="boardSettingsQuickAddShortcut" type="text" placeholder="CommandOrControl+Shift+Space" spellcheck="false" autocomplete="off">
-              <span id="boardSettingsQuickAddShortcutStatus" class="board-settings-status">Disabled</span>
-            </div>
-            <p class="boardSettingsHint">Leave blank to disable. Signboard must be open.</p>
           </div>
           <div class="board-settings-group">
             <div class="board-settings-toggle-row">
@@ -511,6 +518,43 @@
           </div>
         </section>
 
+        <section id="boardSettingsPanelSmartActions" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavSmartActions" data-settings-panel="smart-actions">
+          <h3>Smart Actions</h3>
+          <div class="board-settings-group">
+            <div class="board-settings-toggle-row">
+              <div>
+                <p class="boardSettingsHint boardSettingsHintTight">AI assistance</p>
+                <p class="boardSettingsHint">Use Ollama for local Smart Card Actions in the card editor.</p>
+              </div>
+              <label class="board-settings-switch" for="boardSettingsAiToggle" title="Enable AI assistance">
+                <input id="boardSettingsAiToggle" type="checkbox" role="switch" aria-label="Enable AI assistance">
+                <span class="board-settings-switch-track" aria-hidden="true"></span>
+              </label>
+            </div>
+          </div>
+          <div id="boardSettingsAiDetails" class="board-settings-group hidden" aria-hidden="true">
+            <label for="boardSettingsAiOllamaUrl">Ollama URL</label>
+            <input id="boardSettingsAiOllamaUrl" type="url" value="http://127.0.0.1:11434" placeholder="http://127.0.0.1:11434" spellcheck="false" autocomplete="off">
+            <label for="boardSettingsAiOllamaModel">Ollama model</label>
+            <div class="board-settings-inline-actions board-settings-ai-model-actions">
+              <select id="boardSettingsAiOllamaModel" aria-label="Ollama model"></select>
+              <button id="btnRefreshAiOllamaModels" type="button" title="Refresh Ollama models" aria-label="Refresh Ollama models"><i data-feather="refresh-cw"></i></button>
+              <span id="boardSettingsAiOllamaStatus" class="board-settings-status">Not checked</span>
+            </div>
+            <label for="boardSettingsAiTaskCount">Suggested task count</label>
+            <input id="boardSettingsAiTaskCount" type="number" min="3" max="12" step="1" value="6" inputmode="numeric">
+            <div class="board-settings-ai-actions-header">
+              <div>
+                <p class="boardSettingsHint boardSettingsHintTight">Smart Card Actions</p>
+                <p class="boardSettingsHint">Customize the prompts used by card editor AI actions.</p>
+              </div>
+              <button id="btnAddAiSmartCardAction" type="button" title="Add Smart Card Action">Add Action</button>
+            </div>
+            <div id="boardSettingsAiActionsList" class="board-settings-ai-actions-list"></div>
+            <p class="boardSettingsHint">Card content is sent to this Ollama URL only when you use an AI action.</p>
+          </div>
+        </section>
+
         <section id="boardSettingsPanelGeneral" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavGeneral" data-settings-panel="general">
           <h3>Board General</h3>
           <div class="board-settings-group">
@@ -531,17 +575,31 @@
           </div>
         </section>
 
-        <section id="boardSettingsPanelObsidian" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavObsidian" data-settings-panel="obsidian">
-          <h3>Obsidian</h3>
-          <p class="boardSettingsHint">Keep this board inside an Obsidian vault to open cards in Obsidian, create linked notes, manage linked objects, and generate a Bases view.</p>
-          <div class="board-settings-group">
-            <h4 class="board-settings-subheading">Bases</h4>
-            <p class="boardSettingsHint">Generate a <code>Signboard Board.base</code> file in this board folder for Obsidian Bases.</p>
-            <div class="board-settings-inline-actions board-settings-inline-actions-right">
-              <button id="btnGenerateObsidianBase" type="button" title="Generate Obsidian Base">Generate Base</button>
-              <button id="btnOpenObsidianBase" type="button" title="Open Obsidian Base">Open Base</button>
+        <section id="boardSettingsPanelLabels" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavLabels" data-settings-panel="labels">
+          <h3>Labels</h3>
+          <p class="boardSettingsHint">Rename labels, choose a color, add new labels, and remove labels.</p>
+          <div id="boardSettingsLabels"></div>
+          <button id="btnAddBoardLabel" type="button" title="Add label">Add label</button>
+        </section>
+
+        <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavColors" data-settings-panel="colors">
+          <h3>Appearance</h3>
+          <p class="boardSettingsHint">Choose a color scheme for this board. Each scheme has a light and dark variant.</p>
+          <div class="board-color-scheme-selector">
+            <select id="boardColorSchemeSelect" aria-label="Color scheme"></select>
+          </div>
+          <div class="board-theme-settings-grid">
+            <div class="board-theme-settings-mode">
+              <h4>Light</h4>
+              <div id="boardThemeLightPreview" class="board-theme-preview"></div>
             </div>
-            <p id="boardSettingsObsidianStatus" class="boardSettingsHint" aria-live="polite"></p>
+            <div class="board-theme-settings-mode">
+              <h4>Dark</h4>
+              <div id="boardThemeDarkPreview" class="board-theme-preview"></div>
+            </div>
+          </div>
+          <div class="board-theme-settings-actions">
+            <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply color scheme to all open boards">Apply to all Open Boards</button>
           </div>
         </section>
 
@@ -579,31 +637,17 @@
           </div>
         </section>
 
-        <section id="boardSettingsPanelLabels" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavLabels" data-settings-panel="labels">
-          <h3>Labels</h3>
-          <p class="boardSettingsHint">Rename labels, choose a color, add new labels, and remove labels.</p>
-          <div id="boardSettingsLabels"></div>
-          <button id="btnAddBoardLabel" type="button" title="Add label">Add label</button>
-        </section>
-
-        <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavColors" data-settings-panel="colors">
-          <h3>Color Scheme</h3>
-          <p class="boardSettingsHint">Choose a color scheme for this board. Each scheme has a light and dark variant.</p>
-          <div class="board-color-scheme-selector">
-            <select id="boardColorSchemeSelect" aria-label="Color scheme"></select>
-          </div>
-          <div class="board-theme-settings-grid">
-            <div class="board-theme-settings-mode">
-              <h4>Light</h4>
-              <div id="boardThemeLightPreview" class="board-theme-preview"></div>
+        <section id="boardSettingsPanelObsidian" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavObsidian" data-settings-panel="obsidian">
+          <h3>Obsidian</h3>
+          <p class="boardSettingsHint">Keep this board inside an Obsidian vault to open cards in Obsidian, create linked notes, manage linked objects, and generate a Bases view.</p>
+          <div class="board-settings-group">
+            <h4 class="board-settings-subheading">Bases</h4>
+            <p class="boardSettingsHint">Generate a <code>Signboard Board.base</code> file in this board folder for Obsidian Bases.</p>
+            <div class="board-settings-inline-actions board-settings-inline-actions-right">
+              <button id="btnGenerateObsidianBase" type="button" title="Generate Obsidian Base">Generate Base</button>
+              <button id="btnOpenObsidianBase" type="button" title="Open Obsidian Base">Open Base</button>
             </div>
-            <div class="board-theme-settings-mode">
-              <h4>Dark</h4>
-              <div id="boardThemeDarkPreview" class="board-theme-preview"></div>
-            </div>
-          </div>
-          <div class="board-theme-settings-actions">
-            <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply color scheme to all open boards">Apply to all Open Boards</button>
+            <p id="boardSettingsObsidianStatus" class="boardSettingsHint" aria-live="polite"></p>
           </div>
         </section>
 
@@ -659,6 +703,8 @@
     </div>
     <div id="cardEditorOpenWithPopover" class="label-popover card-editor-open-with-popover hidden" aria-hidden="true" data-sb-modal-layer></div>
     <div id="cardEditorLinkedObjectsPopover" class="label-popover card-editor-linked-objects-popover hidden" aria-hidden="true" data-sb-modal-layer></div>
+    <button type="button" id="cardEditorSmartActionsButton" class="card-editor-smart-actions-button" title="Smart Card Actions" aria-label="Smart Card Actions" aria-expanded="false" hidden><i data-feather="zap"></i></button>
+    <div id="cardEditorSmartActionsPopover" class="label-popover card-editor-smart-actions-popover hidden" aria-hidden="true" data-sb-modal-layer></div>
     <button type="button" id="cardEditorCardID" title="Open this card's file" aria-label="Open this card's file"></button>
     
     <div>

@@ -232,16 +232,15 @@ Talk track:
 Action:
 
 - Show App Settings:
-  - tooltips
-  - daily due-date reminders
-  - optional global Quick Add shortcut
-  - External Published Calendar
+  - Settings: tooltips and optional global Quick Add shortcut
+  - Notifications: daily due-date reminders and External Published Calendar
+  - Smart Actions: AI assistance and Smart Card Action prompts
 - Show Board General:
   - rename board
   - move board folder
 - Show Labels:
   - add, rename, color, remove labels
-- Show Colors:
+- Show Appearance:
   - board color scheme
   - light/dark mode
   - apply to open boards
@@ -261,7 +260,7 @@ Talk track:
 
 Action:
 
-- In App Settings, show External Published Calendar controls.
+- In App Settings > Notifications, show External Published Calendar controls.
 - Explain the `127.0.0.1` subscription URL.
 - Show the board Workflow inclusion toggle again if useful.
 
@@ -436,4 +435,3 @@ If the full recording runs too long, keep these core sections:
 7. Settings/imports.
 8. CLI.
 9. MCP.
-

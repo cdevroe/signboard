@@ -269,8 +269,10 @@ async function main() {
   const fixture = await createFixtureBoard();
   const importFixtures = await createImportFixtures(fixture.root);
   const configDir = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-cli-config-'));
+  const desktopUserDataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-desktop-user-data-'));
   const env = {
     SIGNBOARD_CLI_CONFIG_DIR: configDir,
+    SIGNBOARD_DESKTOP_USER_DATA_DIR: desktopUserDataDir,
   };
 
   const createdBoardRoot = path.join(fixture.root, 'Created CLI Board');
@@ -313,6 +315,38 @@ async function main() {
 
   const currentBoard = runCli(['use'], env);
   assert.strictEqual(currentBoard.stdout.trim(), fixture.boardRoot);
+
+  await fs.writeFile(
+    path.join(desktopUserDataDir, 'trusted-board-roots.json'),
+    JSON.stringify([createdBoardRoot, fixture.boardRoot], null, 2),
+    'utf8',
+  );
+  await fs.writeFile(
+    path.join(desktopUserDataDir, 'open-boards.json'),
+    JSON.stringify({
+      openBoardRoots: [createdBoardRoot, fixture.boardRoot],
+      activeBoardRoot: createdBoardRoot,
+    }, null, 2),
+    'utf8',
+  );
+
+  const boardsList = JSON.parse(runCli(['boards', 'list', '--json'], env).stdout);
+  assert.strictEqual(boardsList.activeBoard, createdBoardRoot);
+  assert.strictEqual(boardsList.currentBoard, fixture.boardRoot);
+  const activeBoard = boardsList.boards.find((board) => board.boardRoot === createdBoardRoot);
+  assert.ok(activeBoard);
+  assert.strictEqual(activeBoard.isActive, true);
+  assert.strictEqual(activeBoard.isOpen, true);
+  assert.strictEqual(activeBoard.isTrusted, true);
+  assert.strictEqual(activeBoard.isAllowed, true);
+  assert.ok(activeBoard.sources.includes('desktop-open'));
+  const cliCurrentBoard = boardsList.boards.find((board) => board.boardRoot === fixture.boardRoot);
+  assert.ok(cliCurrentBoard);
+  assert.strictEqual(cliCurrentBoard.isCurrent, true);
+  assert.ok(cliCurrentBoard.sources.includes('cli-current'));
+
+  const boardsDefaultList = JSON.parse(runCli(['boards', '--json'], env).stdout);
+  assert.strictEqual(boardsDefaultList.boardCount, boardsList.boardCount);
 
   const invalidSingular = runCliExpectFail(['card', '--read', 'kqmf2'], env);
   assert.ok(invalidSingular.stderr.includes('Unknown command group: card'));

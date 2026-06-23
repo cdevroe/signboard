@@ -27,12 +27,17 @@ const {
 } = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
 const appSettings = require('./lib/appSettings');
+const { listOllamaModels, runSmartCardActionWithOllama, suggestCardTasksWithOllama } = require('./lib/aiTaskSuggestions');
 const { buildExternalPublishedCalendarFeed } = require('./lib/externalPublishedCalendar');
 const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
 const obsidianIntegration = require('./lib/obsidianIntegration');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
 const { installCliForCurrentUser } = require('./lib/cliInstall');
+const {
+  OPEN_BOARDS_STATE_FILE,
+  normalizeOpenBoardsState,
+} = require('./lib/boardDiscovery');
 
 const GITHUB_OWNER = 'cdevroe';
 const GITHUB_REPO = 'signboard';
@@ -202,6 +207,10 @@ function getTrustedBoardRootsPath() {
   return path.join(app.getPath('userData'), TRUSTED_BOARD_ROOTS_FILE);
 }
 
+function getOpenBoardsStatePath() {
+  return path.join(app.getPath('userData'), OPEN_BOARDS_STATE_FILE);
+}
+
 function readTrustedBoardRoots() {
   if (trustedBoardRootsCache) {
     return new Set(trustedBoardRootsCache);
@@ -243,6 +252,40 @@ function writeTrustedBoardRoots(roots) {
   } catch (error) {
     console.error('Failed to write trusted board roots.', error);
   }
+}
+
+function readOpenBoardsState() {
+  try {
+    const raw = fs.readFileSync(getOpenBoardsStatePath(), 'utf8');
+    const parsed = JSON.parse(raw);
+    return normalizeOpenBoardsState(parsed && typeof parsed === 'object' ? parsed : {});
+  } catch (error) {
+    if (error && error.code !== 'ENOENT') {
+      console.error('Failed to read open board state.', error);
+    }
+    return normalizeOpenBoardsState();
+  }
+}
+
+function writeOpenBoardsState(state) {
+  const normalizedState = normalizeOpenBoardsState(state);
+
+  try {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    fs.writeFileSync(
+      getOpenBoardsStatePath(),
+      JSON.stringify({
+        openBoardRoots: normalizedState.openBoardRoots,
+        activeBoardRoot: normalizedState.activeBoardRoot,
+        updatedAt: new Date().toISOString(),
+      }, null, 2),
+      'utf8'
+    );
+  } catch (error) {
+    console.error('Failed to write open board state.', error);
+  }
+
+  return normalizedState;
 }
 
 function addTrustedBoardRoot(boardRoot) {
@@ -2872,6 +2915,207 @@ async function initializeAppRuntimeSettings() {
   await applyExternalPublishedCalendarSettings(settings);
 }
 
+function getAiTaskSuggestionErrorMessage(error) {
+  const code = error && error.code ? String(error.code) : '';
+
+  if (code === 'AI_CONNECTION_FAILED') {
+    return 'Unable to reach Ollama. Check the Ollama URL and make sure Ollama is running.';
+  }
+
+  if (code === 'AI_REQUEST_TIMEOUT') {
+    return 'Ollama took too long to respond.';
+  }
+
+  if (code === 'AI_MODEL_MISSING') {
+    return 'Choose an Ollama model in App Settings.';
+  }
+
+  if (code === 'AI_EMPTY_SUGGESTIONS') {
+    return 'The model did not return any usable tasks.';
+  }
+
+  if (code === 'AI_EMPTY_ACTION_RESULT') {
+    return 'The model did not return a usable Smart Card Action result.';
+  }
+
+  if (code === 'AI_ACTION_PROMPT_MISSING') {
+    return 'This Smart Card Action needs a prompt in App Settings.';
+  }
+
+  if (code === 'AI_THINKING_RESPONSE_TRUNCATED') {
+    return 'The model spent its response budget thinking and did not return a usable result. Try again or choose a non-thinking model.';
+  }
+
+  return error && error.message
+    ? String(error.message)
+    : 'Unable to suggest tasks.';
+}
+
+function getAiTaskSuggestionDebugDetails(error) {
+  const details = error && error.details && typeof error.details === 'object'
+    ? error.details
+    : null;
+  return details;
+}
+
+function logAiTaskSuggestionDebugDetails(error) {
+  const details = getAiTaskSuggestionDebugDetails(error);
+  if (!details) {
+    return;
+  }
+
+  try {
+    console.error('AI task suggestion debug details:', JSON.stringify(details, null, 2));
+  } catch {
+    console.error('AI task suggestion debug details:', details);
+  }
+}
+
+function getOllamaInspectionErrorMessage(error) {
+  const code = error && error.code ? String(error.code) : '';
+
+  if (code === 'AI_CONNECTION_FAILED') {
+    return 'Unable to reach Ollama. Check the URL and make sure Ollama is running.';
+  }
+
+  if (code === 'AI_REQUEST_TIMEOUT') {
+    return 'Ollama did not respond.';
+  }
+
+  return error && error.message
+    ? String(error.message)
+    : 'Unable to inspect Ollama.';
+}
+
+async function inspectOllama(payload = {}) {
+  const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
+  const settings = appSettings.normalizeAppSettings(rawSettings);
+  const payloadSource = payload && typeof payload === 'object' ? payload : {};
+  const url = Object.prototype.hasOwnProperty.call(payloadSource, 'url')
+    ? payloadSource.url
+    : settings.ai.ollama.url;
+
+  try {
+    const result = await listOllamaModels({ url });
+    const modelCount = result.models.length;
+    return {
+      ok: true,
+      url: result.url,
+      models: result.models,
+      message: modelCount === 1
+        ? 'Connected. Found 1 model.'
+        : `Connected. Found ${modelCount} models.`,
+    };
+  } catch (error) {
+    console.error('Unable to inspect Ollama.', error);
+    return {
+      ok: false,
+      error: error && error.code ? String(error.code) : 'AI_OLLAMA_INSPECTION_FAILED',
+      url: typeof url === 'string' ? url : '',
+      models: [],
+      message: getOllamaInspectionErrorMessage(error),
+    };
+  }
+}
+
+async function suggestCardTasks(payload = {}) {
+  const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
+  const settings = appSettings.normalizeAppSettings(rawSettings);
+
+  if (!settings.ai.enabled) {
+    return {
+      ok: false,
+      error: 'AI_DISABLED',
+      message: 'AI assistance is disabled in App Settings.',
+    };
+  }
+
+  if (settings.ai.provider !== 'ollama') {
+    return {
+      ok: false,
+      error: 'AI_PROVIDER_UNSUPPORTED',
+      message: 'Only Ollama AI assistance is currently supported.',
+    };
+  }
+
+  try {
+    const result = await suggestCardTasksWithOllama(settings.ai.ollama, payload, {
+      currentDate: new Date().toISOString().slice(0, 10),
+    });
+    return {
+      ok: true,
+      ...result,
+    };
+  } catch (error) {
+    console.error('Unable to suggest card tasks.', error);
+    logAiTaskSuggestionDebugDetails(error);
+    const debugDetails = getAiTaskSuggestionDebugDetails(error);
+    return {
+      ok: false,
+      error: error && error.code ? String(error.code) : 'AI_TASK_SUGGESTION_FAILED',
+      message: getAiTaskSuggestionErrorMessage(error),
+      ...(debugDetails ? { debug: debugDetails } : {}),
+    };
+  }
+}
+
+async function runSmartCardAction(payload = {}) {
+  const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
+  const settings = appSettings.normalizeAppSettings(rawSettings);
+
+  if (!settings.ai.enabled) {
+    return {
+      ok: false,
+      error: 'AI_DISABLED',
+      message: 'AI assistance is disabled in App Settings.',
+    };
+  }
+
+  if (settings.ai.provider !== 'ollama') {
+    return {
+      ok: false,
+      error: 'AI_PROVIDER_UNSUPPORTED',
+      message: 'Only Ollama AI assistance is currently supported.',
+    };
+  }
+
+  const payloadSource = payload && typeof payload === 'object' ? payload : {};
+  const actionId = String(payloadSource.actionId || '').trim();
+  const action = settings.ai.smartCardActions.find((candidate) => candidate.id === actionId);
+  if (!action) {
+    return {
+      ok: false,
+      error: 'AI_ACTION_MISSING',
+      message: 'Smart Card Action is unavailable.',
+    };
+  }
+
+  const cardContext = payloadSource.context && typeof payloadSource.context === 'object'
+    ? payloadSource.context
+    : payloadSource;
+
+  try {
+    const result = await runSmartCardActionWithOllama(settings.ai.ollama, action, cardContext, {
+      currentDate: new Date().toISOString().slice(0, 10),
+      pasteText: typeof payloadSource.pasteText === 'string' ? payloadSource.pasteText : '',
+    });
+    return {
+      ok: true,
+      ...result,
+    };
+  } catch (error) {
+    console.error('Unable to run Smart Card Action.', error);
+    logAiTaskSuggestionDebugDetails(error);
+    const debugDetails = getAiTaskSuggestionDebugDetails(error);
+    return {
+      ok: false,
+      error: error && error.code ? String(error.code) : 'AI_SMART_CARD_ACTION_FAILED',
+      message: getAiTaskSuggestionErrorMessage(error),
+      ...(debugDetails ? { debug: debugDetails } : {}),
+    };
+  }
+}
+
 function buildMcpConfigTemplate() {
   const command = process.execPath;
   const args = app.isPackaged ? [MCP_SERVER_ARG] : [app.getAppPath(), MCP_SERVER_ARG];
@@ -3756,6 +4000,12 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       return result;
     }
 
+    case 'syncOpenBoardsState':
+      return {
+        ok: true,
+        ...writeOpenBoardsState(args[0]),
+      };
+
     case 'clearActiveBoardRoot': {
       await stopBoardWatchForSender(event.sender);
       const state = getSenderBoardAccessState(event.sender);
@@ -4465,6 +4715,18 @@ ipcMain.handle('update-app-settings', async (_event, partialSettings = {}) => (
 
 ipcMain.handle('get-global-shortcut-status', async () => getQuickAddGlobalShortcutStatus());
 
+ipcMain.handle('suggest-card-tasks', async (_event, payload = {}) => (
+  suggestCardTasks(payload)
+));
+
+ipcMain.handle('run-smart-card-action', async (_event, payload = {}) => (
+  runSmartCardAction(payload)
+));
+
+ipcMain.handle('inspect-ollama', async (_event, payload = {}) => (
+  inspectOllama(payload)
+));
+
 ipcMain.handle('copy-text-to-clipboard', async (_event, text = '') => {
   clipboard.writeText(String(text || ''));
   return { ok: true };
@@ -4542,6 +4804,7 @@ if (isCliMode) {
       await startSignboardMcpServer({
         appVersion: app.getVersion(),
         trustedBoardRoots: Array.from(readTrustedBoardRoots()),
+        desktopOpenBoardsState: readOpenBoardsState(),
         onStop: () => {
           if (isMcpPowerSaveBlockerActive()) {
             powerSaveBlocker.stop(mcpPowerSaveBlockerId);

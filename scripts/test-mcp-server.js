@@ -347,6 +347,7 @@ async function runForTransport(transportMode, fixture) {
 
   const requiredToolNames = [
     'signboard_get_config',
+    'signboard_list_boards',
     'signboard_list_board_views',
     'signboard_resolve_board_by_name',
     'signboard_create_board',
@@ -396,6 +397,32 @@ async function runForTransport(transportMode, fixture) {
 
   if (legacyAliasResponse.result?.structuredContent?.ok !== true) {
     throw new Error(`Legacy tool alias returned unexpected payload (${transportMode}): ${JSON.stringify(legacyAliasResponse.result)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 251,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_list_boards',
+      arguments: {},
+    },
+  });
+
+  const listBoardsResponse = await waitForResponse(251);
+  if (listBoardsResponse.error) {
+    throw new Error(`list_boards failed (${transportMode}): ${JSON.stringify(listBoardsResponse.error)}`);
+  }
+
+  const listBoardsOutput = listBoardsResponse.result?.structuredContent || {};
+  const discoveredBoard = Array.isArray(listBoardsOutput.boards)
+    ? listBoardsOutput.boards.find((board) => board.boardRoot === path.resolve(fixture.boardRoot))
+    : null;
+  if (!discoveredBoard || !discoveredBoard.isAllowed || !discoveredBoard.isBoardRoot) {
+    throw new Error(`list_boards did not discover fixture board (${transportMode}): ${JSON.stringify(listBoardsOutput)}`);
+  }
+  if (!Array.isArray(discoveredBoard.sources) || !discoveredBoard.sources.includes('mcp-allowed-root-scan')) {
+    throw new Error(`list_boards fixture board sources mismatch (${transportMode}): ${JSON.stringify(discoveredBoard)}`);
   }
 
   send({
@@ -1274,7 +1301,8 @@ async function runTrustedRootsSmoke() {
       [
         "const { startSignboardMcpServer } = require('./lib/mcpServer');",
         "const trustedBoardRoots = JSON.parse(process.env.SIGNBOARD_TEST_TRUSTED_ROOTS || '[]');",
-        "startSignboardMcpServer({ appVersion: 'test', trustedBoardRoots });",
+        "const desktopOpenBoardsState = JSON.parse(process.env.SIGNBOARD_TEST_OPEN_BOARDS || '{}');",
+        "startSignboardMcpServer({ appVersion: 'test', trustedBoardRoots, desktopOpenBoardsState });",
       ].join(' '),
     ],
     {
@@ -1284,6 +1312,10 @@ async function runTrustedRootsSmoke() {
         SIGNBOARD_MCP_ALLOWED_ROOTS: path.join(fixture.cleanupRoot, 'unrelated-root'),
         SIGNBOARD_MCP_READ_ONLY: 'true',
         SIGNBOARD_TEST_TRUSTED_ROOTS: JSON.stringify([fixture.boardRoot]),
+        SIGNBOARD_TEST_OPEN_BOARDS: JSON.stringify({
+          openBoardRoots: [fixture.boardRoot],
+          activeBoardRoot: fixture.boardRoot,
+        }),
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     },
@@ -1386,6 +1418,28 @@ async function runTrustedRootsSmoke() {
     const config = configResponse.result?.structuredContent || {};
     if (!Array.isArray(config.allowedRoots) || !config.allowedRoots.includes(path.resolve(fixture.boardRoot))) {
       throw new Error(`Trusted board root missing from get_config: ${JSON.stringify(config)}`);
+    }
+    if (!Array.isArray(config.openBoardRoots) || !config.openBoardRoots.includes(path.resolve(fixture.boardRoot))) {
+      throw new Error(`Open board root missing from get_config: ${JSON.stringify(config)}`);
+    }
+
+    send({
+      jsonrpc: '2.0',
+      id: 25,
+      method: 'tools/call',
+      params: {
+        name: 'signboard_list_boards',
+        arguments: {},
+      },
+    });
+
+    const listBoardsResponse = await waitForResponse(25);
+    const listBoardsOutput = listBoardsResponse.result?.structuredContent || {};
+    const openBoard = Array.isArray(listBoardsOutput.boards)
+      ? listBoardsOutput.boards.find((board) => board.boardRoot === path.resolve(fixture.boardRoot))
+      : null;
+    if (!openBoard || !openBoard.isOpen || !openBoard.isActive || !openBoard.isTrusted) {
+      throw new Error(`Trusted/open board metadata missing from list_boards: ${JSON.stringify(listBoardsOutput)}`);
     }
 
     send({
