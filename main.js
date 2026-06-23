@@ -30,6 +30,7 @@ const appSettings = require('./lib/appSettings');
 const { listOllamaModels, runSmartCardActionWithOllama, suggestCardTasksWithOllama } = require('./lib/aiTaskSuggestions');
 const { buildExternalPublishedCalendarFeed } = require('./lib/externalPublishedCalendar');
 const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
+const { duplicateBoard } = require('./lib/boardDuplication');
 const obsidianIntegration = require('./lib/obsidianIntegration');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
@@ -4236,6 +4237,24 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     case 'updateBoardSettings': {
       const boardRoot = requireWritableBoardRoot(event.sender, args[0], { allowTrusted: true });
       return boardLabels.updateBoardSettings(boardRoot, args[1]);
+    }
+
+    case 'duplicateBoard': {
+      const boardRoot = requireWritableBoardRoot(event.sender, args[0], { allowTrusted: true });
+      const options = args[1] && typeof args[1] === 'object' && !Array.isArray(args[1]) ? args[1] : {};
+      const destinationParentPath = consumePendingDirectorySelection(event.sender, options.destinationParentToken);
+      if (!destinationParentPath) {
+        throw new Error('INVALID_SELECTION_TOKEN');
+      }
+
+      const result = await duplicateBoard({
+        sourceBoardRoot: boardRoot,
+        destinationParentPath,
+        boardName: options.boardName,
+      });
+      addTrustedBoardRoot(result.boardRoot);
+      await autoSyncManagedObsidianBaseForBoard(result.boardRoot, { refreshMetadata: true });
+      return result;
     }
 
     case 'createCard': {

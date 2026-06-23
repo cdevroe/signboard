@@ -2759,6 +2759,8 @@ function getBoardSettingsNavButtonId(panelId) {
 function renderBoardGeneralSettingsControls() {
   const boardNameInput = document.getElementById('boardSettingsBoardNameInput');
   const boardPathInput = document.getElementById('boardSettingsBoardPathInput');
+  const duplicateNameInput = document.getElementById('boardSettingsDuplicateNameInput');
+  const duplicateStatus = document.getElementById('boardSettingsDuplicateStatus');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
   const boardInfo = getBoardRootInfo();
 
@@ -2768,6 +2770,22 @@ function renderBoardGeneralSettingsControls() {
 
   if (boardPathInput) {
     boardPathInput.value = boardInfo ? boardInfo.normalizedRoot.replace(/\/+$/, '') : '';
+  }
+
+  if (duplicateNameInput) {
+    const currentSourceRoot = duplicateNameInput.dataset.sourceBoardRoot || '';
+    if (!boardInfo) {
+      duplicateNameInput.value = '';
+      duplicateNameInput.dataset.sourceBoardRoot = '';
+    } else if (currentSourceRoot !== boardInfo.normalizedRoot || !duplicateNameInput.value.trim()) {
+      duplicateNameInput.value = `${boardInfo.boardName} Copy`;
+      duplicateNameInput.dataset.sourceBoardRoot = boardInfo.normalizedRoot;
+    }
+  }
+
+  if (duplicateStatus) {
+    duplicateStatus.textContent = '';
+    duplicateStatus.classList.remove('is-success', 'is-warning');
   }
 
   if (tooltipsToggle) {
@@ -3242,6 +3260,43 @@ async function moveCurrentBoardDirectory(nextParentDirectory) {
   return moveBoardDirectory(nextBoardRoot);
 }
 
+async function duplicateCurrentBoardDirectory(boardNameRaw, destinationParentSelection) {
+  const boardInfo = getBoardRootInfo();
+  if (!boardInfo || !window.board || typeof window.board.duplicateBoard !== 'function') {
+    return false;
+  }
+
+  const nextBoardName = sanitizeBoardDirectoryName(boardNameRaw);
+  if (!nextBoardName) {
+    return false;
+  }
+
+  const destinationParentDirectory = getDirectorySelectionPath(destinationParentSelection);
+  if (!destinationParentDirectory || !destinationParentSelection || !destinationParentSelection.token) {
+    return false;
+  }
+
+  await flushBoardSettingsSave();
+  const result = await window.board.duplicateBoard(boardInfo.normalizedRoot, {
+    boardName: nextBoardName,
+    destinationParentToken: destinationParentSelection.token,
+  });
+  const duplicatedBoardRoot = normalizeBoardPath(result && result.boardRoot);
+  if (!duplicatedBoardRoot) {
+    return false;
+  }
+
+  if (typeof ensureBoardInTabs === 'function') {
+    ensureBoardInTabs(duplicatedBoardRoot);
+  }
+
+  await openBoard(duplicatedBoardRoot);
+  if (typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus(`Duplicated board: ${nextBoardName}.`);
+  }
+  return true;
+}
+
 function openBoardSettingsModal(options = {}) {
   const modal = document.getElementById('modalBoardSettings');
   if (!modal) {
@@ -3389,6 +3444,9 @@ function initializeBoardLabelControls() {
   const renameBoardInput = document.getElementById('boardSettingsBoardNameInput');
   const renameBoardButton = document.getElementById('btnRenameBoard');
   const moveBoardButton = document.getElementById('btnMoveBoard');
+  const duplicateBoardInput = document.getElementById('boardSettingsDuplicateNameInput');
+  const duplicateBoardButton = document.getElementById('btnDuplicateBoard');
+  const duplicateBoardStatus = document.getElementById('boardSettingsDuplicateStatus');
   const colorSchemeSelect = document.getElementById('boardColorSchemeSelect');
   const applyThemeToOpenBoardsButton = document.getElementById('btnApplyThemeColorsToOpenBoards');
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
@@ -3399,7 +3457,6 @@ function initializeBoardLabelControls() {
   const aiOllamaUrlInput = document.getElementById('boardSettingsAiOllamaUrl');
   const aiOllamaModelSelect = document.getElementById('boardSettingsAiOllamaModel');
   const aiOllamaRefreshButton = document.getElementById('btnRefreshAiOllamaModels');
-  const aiTaskCountInput = document.getElementById('boardSettingsAiTaskCount');
   const aiActionsList = document.getElementById('boardSettingsAiActionsList');
   const aiAddActionButton = document.getElementById('btnAddAiSmartCardAction');
   const externalCalendarToggle = document.getElementById('boardSettingsExternalCalendarToggle');
@@ -3582,6 +3639,83 @@ function initializeBoardLabelControls() {
     });
   }
 
+  if (duplicateBoardButton) {
+    duplicateBoardButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (
+        duplicateBoardButton.disabled ||
+        !window.chooser ||
+        typeof window.chooser.pickDirectory !== 'function'
+      ) {
+        return;
+      }
+
+      const boardInfo = getBoardRootInfo();
+      const defaultPath = boardInfo ? boardInfo.parentRoot.replace(/\/+$/, '') : undefined;
+      const duplicateName = duplicateBoardInput ? duplicateBoardInput.value : '';
+      const sanitizedDuplicateName = sanitizeBoardDirectoryName(duplicateName);
+      if (!sanitizedDuplicateName) {
+        if (duplicateBoardStatus) {
+          duplicateBoardStatus.textContent = 'Name required';
+          duplicateBoardStatus.classList.add('is-warning');
+        }
+        return;
+      }
+
+      duplicateBoardButton.disabled = true;
+      if (duplicateBoardStatus) {
+        duplicateBoardStatus.textContent = 'Choose folder';
+        duplicateBoardStatus.classList.remove('is-success', 'is-warning');
+      }
+
+      try {
+        const destinationParentSelection = await window.chooser.pickDirectory({ defaultPath });
+        const destinationParentDirectory = getDirectorySelectionPath(destinationParentSelection);
+        if (!destinationParentDirectory) {
+          if (duplicateBoardStatus) {
+            duplicateBoardStatus.textContent = '';
+          }
+          return;
+        }
+
+        if (duplicateBoardStatus) {
+          duplicateBoardStatus.textContent = 'Duplicating';
+        }
+        const duplicated = await duplicateCurrentBoardDirectory(sanitizedDuplicateName, destinationParentSelection);
+        if (!duplicated && duplicateBoardStatus) {
+          duplicateBoardStatus.textContent = 'Unable to duplicate';
+          duplicateBoardStatus.classList.add('is-warning');
+        }
+      } catch (error) {
+        console.error('Unable to duplicate board.', error);
+        if (duplicateBoardStatus) {
+          duplicateBoardStatus.textContent = 'Unable to duplicate';
+          duplicateBoardStatus.classList.add('is-warning');
+        }
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert(`Unable to duplicate board.\n\n${String(error?.message || error || 'Unknown error')}`);
+        }
+      } finally {
+        duplicateBoardButton.disabled = false;
+      }
+    });
+  }
+
+  if (duplicateBoardInput) {
+    duplicateBoardInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      if (duplicateBoardButton && !duplicateBoardButton.disabled) {
+        duplicateBoardButton.click();
+      }
+    });
+  }
+
   if (colorSchemeSelect) {
     colorSchemeSelect.addEventListener('change', async (event) => {
       const schemeId = event.target.value;
@@ -3751,34 +3885,6 @@ function initializeBoardLabelControls() {
       if (typeof refreshAppAiOllamaModels === 'function') {
         refreshAppAiOllamaModels();
       }
-    });
-  }
-
-  if (aiTaskCountInput) {
-    aiTaskCountInput.addEventListener('change', (event) => {
-      if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
-        return;
-      }
-
-      const currentSettings = getAppAiSettings();
-      setAppAiSettings({
-        ...currentSettings,
-        ollama: {
-          ...currentSettings.ollama,
-          taskCount: event.target.value,
-        },
-      });
-      renderAppSettingsControls();
-      scheduleAppSettingsSave();
-    });
-
-    aiTaskCountInput.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter') {
-        return;
-      }
-
-      event.preventDefault();
-      aiTaskCountInput.blur();
     });
   }
 

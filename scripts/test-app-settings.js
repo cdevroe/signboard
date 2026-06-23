@@ -23,6 +23,8 @@ function assertDefaultSmartCardActions(actions) {
     builtIn: action.builtIn,
   })));
   assert(actions.every((action) => typeof action.prompt === 'string' && action.prompt.length > 0));
+  const taskAction = actions.find((action) => action.id === 'generate-task-list');
+  assert(taskAction.prompt.includes('Generate 6 practical checklist items'));
 }
 
 async function run() {
@@ -44,7 +46,6 @@ async function run() {
       ollama: {
         url: 'http://127.0.0.1:11434',
         model: 'llama3.2',
-        taskCount: 6,
       },
       smartCardActions: defaults.ai.smartCardActions,
     });
@@ -102,16 +103,18 @@ async function run() {
       ollama: {
         url: 'http://localhost:11434',
         model: 'qwen2.5:7b',
-        taskCount: 8,
       },
       smartCardActions: updated.ai.smartCardActions,
     });
-    assert.strictEqual(updated.ai.smartCardActions.length, 4);
+    const defaultActionIds = DEFAULT_SMART_CARD_ACTIONS().map((action) => action.id);
+    assert.strictEqual(updated.ai.smartCardActions.length, defaultActionIds.length + 1);
+    assert.deepStrictEqual(
+      updated.ai.smartCardActions.slice(0, defaultActionIds.length).map((action) => action.id),
+      defaultActionIds,
+    );
     assert.strictEqual(updated.ai.smartCardActions[0].id, 'generate-title');
     assert.strictEqual(updated.ai.smartCardActions[0].prompt, 'Custom title prompt');
-    assert.strictEqual(updated.ai.smartCardActions[1].id, 'generate-task-list');
-    assert.strictEqual(updated.ai.smartCardActions[2].id, 'smart-paste');
-    assert.deepStrictEqual(updated.ai.smartCardActions[3], {
+    assert.deepStrictEqual(updated.ai.smartCardActions[defaultActionIds.length], {
       id: 'custom-follow-up',
       type: 'custom',
       label: 'Draft follow up',
@@ -140,7 +143,6 @@ async function run() {
       ollama: {
         url: 'http://127.0.0.1:11434',
         model: 'llama3.2',
-        taskCount: 6,
       },
       smartCardActions: migrated.settings.ai.smartCardActions,
     });

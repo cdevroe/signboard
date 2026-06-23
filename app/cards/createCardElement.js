@@ -251,18 +251,52 @@ function closeCardDatePopoverIfClickOutside(target) {
   closeCardDatePopover();
 }
 
+function getUsableCardDateAnchorRect(anchorElement) {
+  if (
+    !anchorElement ||
+    anchorElement.isConnected === false ||
+    typeof anchorElement.getBoundingClientRect !== 'function'
+  ) {
+    return null;
+  }
+
+  const rect = anchorElement.getBoundingClientRect();
+  if (
+    !rect ||
+    !Number.isFinite(rect.top) ||
+    !Number.isFinite(rect.left) ||
+    !Number.isFinite(rect.bottom) ||
+    !Number.isFinite(rect.right) ||
+    (rect.width <= 0 && rect.height <= 0)
+  ) {
+    return null;
+  }
+
+  return {
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    left: rect.left,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
 function positionCardDatePopover(popover, anchorElement) {
   if (
     !popover ||
-    !anchorElement ||
-    typeof anchorElement.getBoundingClientRect !== 'function' ||
     typeof popover.getBoundingClientRect !== 'function'
   ) {
     return;
   }
 
   const viewportPadding = 8;
-  const anchorRect = anchorElement.getBoundingClientRect();
+  const anchorRect = getUsableCardDateAnchorRect(anchorElement) || popover.__lastAnchorRect;
+  if (!anchorRect) {
+    return;
+  }
+
+  popover.__lastAnchorRect = anchorRect;
   const popoverRect = popover.getBoundingClientRect();
   const nextWidth = popoverRect.width || 260;
   let nextLeft = anchorRect.left;
@@ -606,7 +640,7 @@ async function createCardElement(cardPath) {
   dateButton.className = 'metadata-action card-date-action';
 
   const dateIcon = document.createElement('i');
-  dateIcon.setAttribute('data-feather', 'clock');
+  dateIcon.setAttribute('data-feather', 'calendar');
   dateButton.appendChild(dateIcon);
 
   const formattedDates = document.createElement('span');

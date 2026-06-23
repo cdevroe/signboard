@@ -176,6 +176,7 @@ let isApplyingExternalEditorRefresh = false;
 let cardEditorDropDepth = 0;
 let cardEditorBodyUrlControlsTeardown = null;
 let cardEditorSmartActionsRequestId = 0;
+const CARD_EDITOR_GENERATED_SUMMARY_MARKER = '---\nEnd generated summary';
 const CARD_EDITOR_BODY_URL_PATTERN = /(?:https?:\/\/|www\.)[^\s<>"'`]+/gi;
 
 function getActiveEditorCardPath() {
@@ -1000,10 +1001,8 @@ function renderCardEditorRelatedNotes(frontmatter = {}) {
 }
 
 async function renderActiveEditorMetadata(frontmatter = {}, timestamps) {
-    const cardEditorCardStartDateDisplay = document.getElementById('cardEditorCardStartDateDisplay');
-    const cardEditorSetStartDateLink = document.getElementById('cardEditorSetStartDateLink');
-    const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
-    const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
+    const cardEditorCardDatesDisplay = document.getElementById('cardEditorCardDatesDisplay');
+    const cardEditorSetDatesLink = document.getElementById('cardEditorSetDatesLink');
 
     setEditorLabelDisplay(frontmatter.labels);
     renderCardEditorRelatedNotes(frontmatter);
@@ -1011,26 +1010,35 @@ async function renderActiveEditorMetadata(frontmatter = {}, timestamps) {
         renderCardEditorTimestamps(timestamps);
     }
 
-    if (cardEditorCardStartDateDisplay) {
+    if (cardEditorCardDatesDisplay && cardEditorSetDatesLink) {
         const startValue = String(frontmatter.start || '').trim();
-        if (startValue) {
-            cardEditorCardStartDateDisplay.textContent = await window.board.formatDueDate(startValue);
-            setDueDateVisualClass(cardEditorSetStartDateLink, startValue);
-        } else {
-            cardEditorCardStartDateDisplay.textContent = '';
-            setDueDateVisualClass(cardEditorSetStartDateLink, '');
-        }
-    }
-
-    if (cardEditorCardDueDateDisplay) {
         const dueValue = String(frontmatter.due || '').trim();
-        if (dueValue) {
-            cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(dueValue);
-            setDueDateVisualClass(cardEditorSetDueDateLink, dueValue);
+        const [startLabel, dueLabel] = await Promise.all([
+            startValue ? window.board.formatDueDate(startValue) : '',
+            dueValue ? window.board.formatDueDate(dueValue) : '',
+        ]);
+
+        if (startValue && dueValue) {
+            cardEditorCardDatesDisplay.textContent = typeof getCardDateRangeDisplayLabel === 'function'
+                ? getCardDateRangeDisplayLabel(startValue, dueValue, startLabel, dueLabel)
+                : `${startLabel}-${dueLabel}`;
+            cardEditorSetDatesLink.title = `Dates: ${cardEditorCardDatesDisplay.textContent}`;
+            cardEditorSetDatesLink.setAttribute('aria-label', `Dates ${startLabel} through ${dueLabel}. Change dates.`);
+        } else if (startValue) {
+            cardEditorCardDatesDisplay.textContent = `Starts ${startLabel}`;
+            cardEditorSetDatesLink.title = `Starts ${startLabel}`;
+            cardEditorSetDatesLink.setAttribute('aria-label', `Starts ${startLabel}. Change dates.`);
+        } else if (dueValue) {
+            cardEditorCardDatesDisplay.textContent = `Due ${dueLabel}`;
+            cardEditorSetDatesLink.title = `Due ${dueLabel}`;
+            cardEditorSetDatesLink.setAttribute('aria-label', `Due ${dueLabel}. Change dates.`);
         } else {
-            cardEditorCardDueDateDisplay.textContent = '';
-            setDueDateVisualClass(cardEditorSetDueDateLink, '');
+            cardEditorCardDatesDisplay.textContent = '';
+            cardEditorSetDatesLink.title = 'Set dates';
+            cardEditorSetDatesLink.setAttribute('aria-label', 'Set dates');
         }
+
+        setDueDateVisualClass(cardEditorSetDatesLink, dueValue || startValue || '');
     }
 }
 
@@ -1951,7 +1959,7 @@ function setupCardEditorBodyUrlControls(editor) {
     };
 }
 
-function getTaskLineDueControlIconMarkup(hasDueDate) {
+function getTaskLineDateControlIconMarkup() {
     if (
         window.feather &&
         window.feather.icons &&
@@ -1965,22 +1973,6 @@ function getTaskLineDueControlIconMarkup(hasDueDate) {
     }
 
     return '<i data-feather="calendar" aria-hidden="true"></i>';
-}
-
-function getTaskLineStartControlIconMarkup(hasStartDate) {
-    if (
-        window.feather &&
-        window.feather.icons &&
-        typeof window.feather.icons['play-circle']?.toSvg === 'function'
-    ) {
-        return window.feather.icons['play-circle'].toSvg({
-            width: 16,
-            height: 16,
-            stroke: 'currentColor',
-        });
-    }
-
-    return '<i data-feather="play-circle" aria-hidden="true"></i>';
 }
 
 function getTaskLineCheckboxIconMarkup(isCompleted) {
@@ -2314,39 +2306,58 @@ function setupTaskLineDueDateControls(editor) {
 
             layer.appendChild(checkbox);
 
-            const startButton = document.createElement('button');
-            startButton.type = 'button';
-            startButton.className = 'task-line-start-control';
-            startButton.dataset.lineIndex = String(taskItem.lineIndex);
-            startButton.style.top = `${buttonTop}px`;
-            startButton.style.left = `${Math.round(controlLeft + 20)}px`;
+            const dateButton = document.createElement('button');
+            dateButton.type = 'button';
+            dateButton.className = 'task-line-date-control';
+            dateButton.dataset.lineIndex = String(taskItem.lineIndex);
+            dateButton.style.top = `${buttonTop}px`;
+            dateButton.style.left = `${Math.round(controlLeft + 20)}px`;
 
             if (taskItem.start) {
-                const startLabel = formatLongDueDateLabel(taskItem.start);
-                startButton.classList.add('has-start');
-                startButton.title = `Starts ${startLabel}`;
-                startButton.setAttribute('aria-label', `Starts ${startLabel}. Change start date.`);
-            } else {
-                startButton.title = 'Set task start date';
-                startButton.setAttribute('aria-label', 'Set task start date');
+                dateButton.classList.add('has-start');
+            }
+            if (taskItem.due) {
+                dateButton.classList.add('has-due');
             }
 
-            startButton.innerHTML = getTaskLineStartControlIconMarkup(Boolean(taskItem.start));
-            startButton.addEventListener('click', (event) => {
+            if (taskItem.start && taskItem.due) {
+                dateButton.title = `Dates: starts ${formatLongDueDateLabel(taskItem.start)}, due ${formatLongDueDateLabel(taskItem.due)}`;
+                dateButton.setAttribute('aria-label', `${dateButton.title}. Change task dates.`);
+            } else if (taskItem.start) {
+                dateButton.title = `Starts ${formatLongDueDateLabel(taskItem.start)}`;
+                dateButton.setAttribute('aria-label', `${dateButton.title}. Change task dates.`);
+            } else if (taskItem.due) {
+                dateButton.title = `Due ${formatLongDueDateLabel(taskItem.due)}`;
+                dateButton.setAttribute('aria-label', `${dateButton.title}. Change task dates.`);
+            } else {
+                dateButton.title = 'Set task dates';
+                dateButton.setAttribute('aria-label', 'Set task dates');
+            }
+
+            dateButton.innerHTML = getTaskLineDateControlIconMarkup();
+            dateButton.addEventListener('click', async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
 
-                const targetLineIndex = Number(startButton.dataset.lineIndex);
-                const liveTaskItems = parseTaskListItems(textarea.value);
-                const liveTaskItem = liveTaskItems.find((item) => item.lineIndex === targetLineIndex);
-                if (!liveTaskItem) {
+                const targetLineIndex = Number(dateButton.dataset.lineIndex);
+                const getLiveTaskItem = () => parseTaskListItems(textarea.value)
+                    .find((item) => item.lineIndex === targetLineIndex);
+                if (!getLiveTaskItem()) {
                     return;
                 }
 
-                openDueDatePickerAtTrigger({
-                    triggerElement: startButton,
-                    dueDateValue: liveTaskItem.start,
-                    onSelect: async (value) => {
+                await toggleCardDateSelector({
+                    anchorElement: dateButton,
+                    getStartDateValue: () => {
+                        const liveTaskItem = getLiveTaskItem();
+                        return liveTaskItem ? liveTaskItem.start : '';
+                    },
+                    getDueDateValue: () => {
+                        const liveTaskItem = getLiveTaskItem();
+                        return liveTaskItem ? liveTaskItem.due : '';
+                    },
+                    formatDateValue: (value) => window.board.formatDueDate(value),
+                    onSelectStart: async (value) => {
                         const nextValue = setTaskListItemStartDateByLineIndex(textarea.value, targetLineIndex, value);
                         if (nextValue === textarea.value) {
                             return;
@@ -2355,44 +2366,7 @@ function setupTaskLineDueDateControls(editor) {
                         const caretPosition = getLineEndOffsetByLineIndex(nextValue, targetLineIndex);
                         applyEditorTextareaValuePreservingScroll(textarea, nextValue, caretPosition);
                     },
-                });
-            });
-
-            layer.appendChild(startButton);
-
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'task-line-due-control';
-            button.dataset.lineIndex = String(taskItem.lineIndex);
-            button.style.top = `${buttonTop}px`;
-            button.style.left = `${Math.round(controlLeft + 40)}px`;
-
-            if (taskItem.due) {
-                const dueLabel = formatLongDueDateLabel(taskItem.due);
-                button.classList.add('has-due');
-                button.title = `Due ${dueLabel}`;
-                button.setAttribute('aria-label', `Due ${dueLabel}. Change due date.`);
-            } else {
-                button.title = 'Set task due date';
-                button.setAttribute('aria-label', 'Set task due date');
-            }
-
-            button.innerHTML = getTaskLineDueControlIconMarkup(Boolean(taskItem.due));
-            button.addEventListener('click', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-
-                const targetLineIndex = Number(button.dataset.lineIndex);
-                const liveTaskItems = parseTaskListItems(textarea.value);
-                const liveTaskItem = liveTaskItems.find((item) => item.lineIndex === targetLineIndex);
-                if (!liveTaskItem) {
-                    return;
-                }
-
-                openDueDatePickerAtTrigger({
-                    triggerElement: button,
-                    dueDateValue: liveTaskItem.due,
-                    onSelect: async (value) => {
+                    onSelectDue: async (value) => {
                         const nextValue = setTaskListItemDueDateByLineIndex(textarea.value, targetLineIndex, value);
                         if (nextValue === textarea.value) {
                             return;
@@ -2404,7 +2378,7 @@ function setupTaskLineDueDateControls(editor) {
                 });
             });
 
-            layer.appendChild(button);
+            layer.appendChild(dateButton);
         }
     }
 
@@ -2497,33 +2471,20 @@ async function toggleEditCardModal(cardPath, options = {}) {
     };
 
     const cardEditorTitle = document.getElementById('cardEditorTitle');
-    const cardEditorCardStartDateDisplay = document.getElementById('cardEditorCardStartDateDisplay');
-    const cardEditorSetStartDateLink = document.getElementById('cardEditorSetStartDateLink');
-    const cardEditorCardDueDateDisplay = document.getElementById('cardEditorCardDueDateDisplay');
-    const cardEditorSetDueDateLink = document.getElementById('cardEditorSetDueDateLink');
+    const cardEditorCardDatesDisplay = document.getElementById('cardEditorCardDatesDisplay');
+    const cardEditorSetDatesLink = document.getElementById('cardEditorSetDatesLink');
     const cardEditorSetLabelsLink = document.getElementById('cardEditorSetLabelsLink');
 
     setEditorFrontmatter(card.frontmatter);
     setActiveEditorDiskState(cardPath, card);
     cardEditorCardPath.value = cardPath;
     cardEditorTitle.textContent = card.frontmatter.title || '';
-    cardEditorCardStartDateDisplay.textContent = '';
-    setDueDateVisualClass(cardEditorSetStartDateLink, '');
-    cardEditorCardDueDateDisplay.textContent = '';
-    setDueDateVisualClass(cardEditorSetDueDateLink, '');
+    cardEditorCardDatesDisplay.textContent = '';
+    setDueDateVisualClass(cardEditorSetDatesLink, '');
     setEditorLabelDisplay(card.frontmatter.labels);
     renderCardEditorRelatedNotes(card.frontmatter);
     renderCardEditorTimestamps(card.timestamps);
-
-    if (card.frontmatter.start) {
-        cardEditorCardStartDateDisplay.textContent = await window.board.formatDueDate(card.frontmatter.start);
-        setDueDateVisualClass(cardEditorSetStartDateLink, card.frontmatter.start);
-    }
-
-    if (card.frontmatter.due) {
-        cardEditorCardDueDateDisplay.textContent = await window.board.formatDueDate(card.frontmatter.due);
-        setDueDateVisualClass(cardEditorSetDueDateLink, card.frontmatter.due);
-    }
+    await renderActiveEditorMetadata(card.frontmatter);
 
     const [editor] = new OverType('#cardEditorOverType', {
         value: card.body,
@@ -2564,35 +2525,23 @@ async function toggleEditCardModal(cardPath, options = {}) {
         await handleNotesSave(cardEditorContents[0].value,false);
     };
 
-    const openStartDatePickerControl = (e) => {
+    const openDatesPickerControl = async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const editorFrontmatter = getEditorFrontmatter();
-        openDueDatePickerAtTrigger({
-            triggerElement: cardEditorSetStartDateLink,
-            dueDateValue: editorFrontmatter.start,
-            onSelect: async (value) => {
+        await toggleCardDateSelector({
+            anchorElement: cardEditorSetDatesLink,
+            getStartDateValue: () => String(getEditorFrontmatter().start || '').trim(),
+            getDueDateValue: () => String(getEditorFrontmatter().due || '').trim(),
+            formatDateValue: (value) => window.board.formatDueDate(value),
+            onSelectStart: async (value) => {
                 await handleMetadataSave(value, 'start');
             },
-        });
-    };
-    if (cardEditorSetStartDateLink) {
-        cardEditorSetStartDateLink.onclick = openStartDatePickerControl;
-    }
-
-    const openDueDatePickerControl = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const editorFrontmatter = getEditorFrontmatter();
-        openDueDatePickerAtTrigger({
-            triggerElement: cardEditorSetDueDateLink,
-            dueDateValue: editorFrontmatter.due,
-            onSelect: async (value) => {
+            onSelectDue: async (value) => {
                 await handleMetadataSave(value, 'due');
             },
         });
     };
-    cardEditorSetDueDateLink.onclick = openDueDatePickerControl;
+    cardEditorSetDatesLink.onclick = openDatesPickerControl;
 
     if (cardEditorSetLabelsLink) {
       cardEditorSetLabelsLink.onclick = async (e) => {
@@ -2686,7 +2635,7 @@ async function toggleEditCardModal(cardPath, options = {}) {
         setAccessibleModalVisible(modalEditCard, true, {
             display: 'flex',
             initialFocus: shouldOpenDueDatePicker
-                ? '#cardEditorSetDueDateLink'
+                ? '#cardEditorSetDatesLink'
                 : (shouldFocusNotes ? '#cardEditorOverType .overtype-input' : '#cardEditorTitle'),
             labelledBy: 'cardEditorTitle',
         });
@@ -2711,12 +2660,16 @@ async function toggleEditCardModal(cardPath, options = {}) {
     }
 
     if (shouldOpenDueDatePicker) {
-        cardEditorSetDueDateLink.focus();
-        const editorFrontmatter = getEditorFrontmatter();
-        openDueDatePickerAtTrigger({
-            triggerElement: cardEditorSetDueDateLink,
-            dueDateValue: editorFrontmatter.due,
-            onSelect: async (value) => {
+        cardEditorSetDatesLink.focus();
+        await toggleCardDateSelector({
+            anchorElement: cardEditorSetDatesLink,
+            getStartDateValue: () => String(getEditorFrontmatter().start || '').trim(),
+            getDueDateValue: () => String(getEditorFrontmatter().due || '').trim(),
+            formatDateValue: (value) => window.board.formatDueDate(value),
+            onSelectStart: async (value) => {
+                await handleMetadataSave(value, 'start');
+            },
+            onSelectDue: async (value) => {
                 await handleMetadataSave(value, 'due');
             },
         });
@@ -3323,7 +3276,6 @@ function getCardEditorAiSettings() {
         ollama: {
             url: 'http://127.0.0.1:11434',
             model: 'llama3.2',
-            taskCount: 6,
         },
         smartCardActions: [],
     };
@@ -3373,6 +3325,18 @@ function getActiveEditorAiLabelNames() {
         .filter(Boolean);
 }
 
+function getActiveEditorAiAvailableLabels() {
+    const labels = typeof getBoardLabels === 'function' ? getBoardLabels() : [];
+    return Array.isArray(labels)
+        ? labels
+            .map((label) => ({
+                id: String(label && label.id ? label.id : '').trim(),
+                name: String(label && label.name ? label.name : '').trim(),
+            }))
+            .filter((label) => label.id && label.name)
+        : [];
+}
+
 function getActiveEditorAiContext() {
     const cardPath = getActiveEditorCardPath();
     const listPath = getCardListPath(cardPath);
@@ -3380,6 +3344,7 @@ function getActiveEditorAiContext() {
     const boardName = window.board && typeof window.board.getBoardName === 'function'
         ? window.board.getBoardName(window.boardRoot || '')
         : '';
+    const frontmatter = getEditorFrontmatter();
 
     return {
         title: getEditorTitleValue(),
@@ -3387,6 +3352,9 @@ function getActiveEditorAiContext() {
         boardName,
         listName: getCardEditorListDisplayName(listDirectoryName),
         labels: getActiveEditorAiLabelNames(),
+        availableLabels: getActiveEditorAiAvailableLabels(),
+        start: String(frontmatter.start || '').trim(),
+        due: String(frontmatter.due || '').trim(),
     };
 }
 
@@ -3438,6 +3406,30 @@ function appendMarkdownToCardEditorBody(body, markdown) {
         : `${normalizedMarkdown}\n`;
 }
 
+function prependMarkdownToCardEditorBody(body, markdown) {
+    const currentBody = String(body || '').replace(/^\s+/g, '');
+    const normalizedMarkdown = String(markdown || '').trim();
+    if (!normalizedMarkdown) {
+        return currentBody;
+    }
+
+    return currentBody
+        ? `${normalizedMarkdown}\n\n${currentBody}`
+        : `${normalizedMarkdown}\n`;
+}
+
+function buildCardEditorGeneratedSummaryMarkdown(markdown) {
+    const normalizedSummary = String(markdown || '')
+        .replace(/\r\n?/g, '\n')
+        .trim()
+        .replace(new RegExp(`\\n{2,}${CARD_EDITOR_GENERATED_SUMMARY_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i'), '')
+        .trim();
+
+    return normalizedSummary
+        ? `${normalizedSummary}\n\n${CARD_EDITOR_GENERATED_SUMMARY_MARKER}`
+        : '';
+}
+
 function setCardEditorBodyValue(nextBody) {
     if (activeCardEditorInstance && typeof activeCardEditorInstance.setValue === 'function') {
         activeCardEditorInstance.setValue(nextBody);
@@ -3448,6 +3440,24 @@ function setCardEditorBodyValue(nextBody) {
     if (editorTextarea) {
         editorTextarea.value = nextBody;
         editorTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+}
+
+async function prependCardEditorSmartMarkdown(markdown, successMessage) {
+    const normalizedMarkdown = String(markdown || '').trim();
+    if (!normalizedMarkdown) {
+        return;
+    }
+
+    await flushEditorSaveIfNeeded();
+    const nextBody = prependMarkdownToCardEditorBody(getEditorBodyValue(), normalizedMarkdown);
+    setCardEditorBodyValue(nextBody);
+    pendingEditorBody = nextBody;
+    queueEditorSave(nextBody);
+    await flushEditorSaveIfNeeded();
+
+    if (successMessage && typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus(successMessage);
     }
 }
 
@@ -3467,6 +3477,15 @@ async function appendCardEditorSmartMarkdown(markdown, successMessage) {
     if (successMessage && typeof announceSignboardStatus === 'function') {
         announceSignboardStatus(successMessage);
     }
+}
+
+async function insertCardEditorSmartSummary(markdown) {
+    const summaryMarkdown = buildCardEditorGeneratedSummaryMarkdown(markdown);
+    if (!summaryMarkdown) {
+        return;
+    }
+
+    await prependCardEditorSmartMarkdown(summaryMarkdown, 'Inserted generated summary.');
 }
 
 async function insertCardEditorSmartTasks(tasks) {
@@ -3502,6 +3521,98 @@ async function replaceCardEditorSmartTitle(title) {
     }
 }
 
+function normalizeCardEditorSmartLabelLookupValue(value) {
+    return String(value || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
+
+function getCardEditorCurrentLabelIds() {
+    const frontmatter = getEditorFrontmatter();
+    return Array.isArray(frontmatter.labels)
+        ? frontmatter.labels.map((labelId) => String(labelId || '').trim()).filter(Boolean)
+        : [];
+}
+
+function getCardEditorSmartLabelSuggestions(labelReferences) {
+    const references = Array.isArray(labelReferences) ? labelReferences : [];
+    const currentLabelIds = new Set(getCardEditorCurrentLabelIds());
+    const labels = typeof getBoardLabels === 'function' ? getBoardLabels() : [];
+    const labelsById = new Map();
+    const labelsByName = new Map();
+
+    for (const label of Array.isArray(labels) ? labels : []) {
+        const id = String(label && label.id ? label.id : '').trim();
+        const name = String(label && label.name ? label.name : '').trim();
+        if (!id || !name) {
+            continue;
+        }
+
+        labelsById.set(id, label);
+        labelsByName.set(normalizeCardEditorSmartLabelLookupValue(name), label);
+    }
+
+    const suggestions = [];
+    const seenIds = new Set();
+    for (const reference of references) {
+        const idCandidate = String(reference && typeof reference === 'object' ? reference.id : reference || '').trim();
+        const nameCandidate = String(reference && typeof reference === 'object' ? reference.name || reference.label || reference.title : reference || '').trim();
+        const label = labelsById.get(idCandidate) || labelsByName.get(normalizeCardEditorSmartLabelLookupValue(nameCandidate));
+        const labelId = label && label.id ? String(label.id) : '';
+
+        if (!labelId || currentLabelIds.has(labelId) || seenIds.has(labelId)) {
+            continue;
+        }
+
+        seenIds.add(labelId);
+        suggestions.push(label);
+    }
+
+    return suggestions;
+}
+
+async function applyCardEditorSmartLabels(labels) {
+    const suggestedLabels = Array.isArray(labels) ? labels : [];
+    const currentLabelIds = getCardEditorCurrentLabelIds();
+    const nextLabelIds = [...currentLabelIds];
+
+    for (const label of suggestedLabels) {
+        const labelId = String(label && label.id ? label.id : '').trim();
+        if (labelId && !nextLabelIds.includes(labelId)) {
+            nextLabelIds.push(labelId);
+        }
+    }
+
+    if (nextLabelIds.length === currentLabelIds.length) {
+        if (typeof announceSignboardStatus === 'function') {
+            announceSignboardStatus('No new labels to add.');
+        }
+        return false;
+    }
+
+    await flushEditorSaveIfNeeded();
+    const normalizedFrontmatter = await window.board.normalizeFrontmatter({
+        ...getEditorFrontmatter(),
+        labels: nextLabelIds,
+    });
+
+    setEditorFrontmatter(normalizedFrontmatter);
+    setEditorLabelDisplay(normalizedFrontmatter.labels);
+    pendingEditorBody = getEditorBodyValue();
+    await enqueueEditorSave(pendingEditorBody);
+    await renderActiveEditorMetadata(normalizedFrontmatter);
+    if (typeof renderBoard === 'function') {
+        await renderBoard();
+    }
+    if (typeof announceSignboardStatus === 'function') {
+        const addedCount = nextLabelIds.length - currentLabelIds.length;
+        announceSignboardStatus(`Added ${addedCount} label${addedCount === 1 ? '' : 's'}.`);
+    }
+
+    return true;
+}
+
 function createCardEditorSmartActionButton(label, className, onClick) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -3526,13 +3637,72 @@ function createCardEditorSmartActionButton(label, className, onClick) {
     return button;
 }
 
-function renderCardEditorSmartActionsMenu(popover) {
-    popover.innerHTML = '';
+async function openCardEditorSmartActionsSettingsFromPopover() {
+    if (!window.boardRoot) {
+        return;
+    }
+
+    closeCardEditorSmartActionsPopover();
+    closeCardEditorOpenWithPopover();
+    closeCardEditorLinkedObjectsPopover();
+    if (typeof closeCardDatePopover === 'function') {
+        closeCardDatePopover();
+    }
+    if (typeof closeBoardMenuPopover === 'function') {
+        closeBoardMenuPopover();
+    }
+    if (typeof closeBoardViewPopover === 'function') {
+        closeBoardViewPopover();
+    }
+    if (typeof closeListActionsPopover === 'function') {
+        closeListActionsPopover();
+    }
+    if (typeof closeAllModals === 'function') {
+        await closeAllModals({ key: 'Escape' });
+    }
+    if (typeof ensureBoardLabelsLoaded === 'function') {
+        await ensureBoardLabelsLoaded();
+    }
+    if (typeof openBoardSettingsModal === 'function') {
+        openBoardSettingsModal({
+            panel: 'smart-actions',
+            initialFocus: '#boardSettingsAiToggle, #boardSettingsAiActionsList input, #boardSettingsNavSmartActions',
+        });
+    }
+}
+
+function createCardEditorSmartActionsMenuHeader() {
+    const header = document.createElement('div');
+    header.className = 'card-editor-smart-actions-header';
 
     const title = document.createElement('p');
     title.className = 'card-editor-ai-tasks-title';
     title.textContent = 'Smart Card Actions';
-    popover.appendChild(title);
+
+    const settingsButton = document.createElement('button');
+    settingsButton.type = 'button';
+    settingsButton.className = 'card-editor-smart-actions-settings';
+    settingsButton.title = 'Open Smart Actions settings';
+    settingsButton.setAttribute('aria-label', 'Open Smart Actions settings');
+    if (window.feather && window.feather.icons && window.feather.icons.settings) {
+        settingsButton.innerHTML = window.feather.icons.settings.toSvg();
+    } else {
+        settingsButton.textContent = 'Settings';
+    }
+    settingsButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await openCardEditorSmartActionsSettingsFromPopover();
+    });
+
+    header.append(title, settingsButton);
+    return header;
+}
+
+function renderCardEditorSmartActionsMenu(popover) {
+    popover.innerHTML = '';
+
+    popover.appendChild(createCardEditorSmartActionsMenuHeader());
 
     const menu = document.createElement('div');
     menu.className = 'card-editor-smart-actions-menu';
@@ -3547,8 +3717,14 @@ function getCardEditorSmartActionIcon(action) {
     if (action.type === 'title') {
         return 'type';
     }
+    if (action.type === 'summary') {
+        return 'pen-tool';
+    }
     if (action.type === 'tasks') {
         return 'check-square';
+    }
+    if (action.type === 'labels') {
+        return 'tag';
     }
     if (action.type === 'paste') {
         return 'clipboard';
@@ -3704,6 +3880,96 @@ function renderCardEditorSmartTasksResult(popover, action, result, options = {})
     }
 }
 
+function renderCardEditorSmartSummaryResult(popover, action, result, options = {}) {
+    const markdown = String(result && result.body ? result.body : '').trim();
+    const summaryMarkdown = buildCardEditorGeneratedSummaryMarkdown(markdown);
+    if (!summaryMarkdown) {
+        renderCardEditorSmartActionError(popover, 'The model did not return a usable summary.', action, options);
+        return;
+    }
+
+    popover.innerHTML = '';
+
+    const title = document.createElement('p');
+    title.className = 'card-editor-ai-tasks-title';
+    title.textContent = action && action.label ? action.label : 'Suggested summary';
+    popover.appendChild(title);
+
+    const preview = document.createElement('div');
+    preview.className = 'card-editor-smart-action-preview';
+    preview.textContent = summaryMarkdown;
+    popover.appendChild(preview);
+
+    const actions = document.createElement('div');
+    actions.className = 'card-editor-ai-tasks-actions';
+    actions.appendChild(createCardEditorSmartActionButton('Insert at Top', 'card-editor-ai-tasks-primary', async () => {
+        await insertCardEditorSmartSummary(markdown);
+        closeCardEditorSmartActionsPopover();
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Try Again', 'card-editor-ai-tasks-secondary', async () => {
+        await requestCardEditorSmartAction(popover, action, options);
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Back', 'card-editor-ai-tasks-secondary', async () => {
+        renderCardEditorSmartActionsMenu(popover);
+    }));
+    popover.appendChild(actions);
+}
+
+function renderCardEditorSmartLabelsResult(popover, action, result, options = {}) {
+    const suggestedLabels = getCardEditorSmartLabelSuggestions(result && result.labels);
+    const availableLabels = getActiveEditorAiAvailableLabels();
+
+    popover.innerHTML = '';
+
+    const title = document.createElement('p');
+    title.className = 'card-editor-ai-tasks-title';
+    title.textContent = action && action.label ? action.label : 'Suggested labels';
+    popover.appendChild(title);
+
+    if (availableLabels.length === 0) {
+        const status = document.createElement('p');
+        status.className = 'card-editor-ai-tasks-status is-error';
+        status.textContent = 'This board does not have any labels to apply.';
+        popover.appendChild(status);
+    } else if (suggestedLabels.length === 0) {
+        const status = document.createElement('p');
+        status.className = 'card-editor-ai-tasks-status';
+        status.textContent = 'No new existing labels were suggested for this card.';
+        popover.appendChild(status);
+    } else {
+        const preview = document.createElement('div');
+        preview.className = 'card-editor-smart-action-preview';
+        for (const label of suggestedLabels) {
+            const chip = document.createElement('span');
+            chip.className = 'card-label-chip';
+            chip.textContent = label.name;
+            if (typeof getBoardLabelColor === 'function') {
+                const chipColor = getBoardLabelColor(label);
+                chip.style.backgroundColor = `${chipColor}22`;
+                chip.style.borderColor = chipColor;
+            }
+            preview.appendChild(chip);
+        }
+        popover.appendChild(preview);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'card-editor-ai-tasks-actions';
+    if (suggestedLabels.length > 0) {
+        actions.appendChild(createCardEditorSmartActionButton('Apply Labels', 'card-editor-ai-tasks-primary', async () => {
+            await applyCardEditorSmartLabels(suggestedLabels);
+            closeCardEditorSmartActionsPopover();
+        }));
+    }
+    actions.appendChild(createCardEditorSmartActionButton('Try Again', 'card-editor-ai-tasks-secondary', async () => {
+        await requestCardEditorSmartAction(popover, action, options);
+    }));
+    actions.appendChild(createCardEditorSmartActionButton('Back', 'card-editor-ai-tasks-secondary', async () => {
+        renderCardEditorSmartActionsMenu(popover);
+    }));
+    popover.appendChild(actions);
+}
+
 function renderCardEditorSmartMarkdownResult(popover, action, result, options = {}) {
     const markdown = String(result && result.body ? result.body : '').trim();
     if (!markdown) {
@@ -3742,8 +4008,12 @@ function renderCardEditorSmartActionResult(popover, action, result, options = {}
     const actionType = String(result && result.actionType ? result.actionType : action.type || '');
     if (actionType === 'title') {
         renderCardEditorSmartTitleResult(popover, action, result, options);
+    } else if (actionType === 'summary') {
+        renderCardEditorSmartSummaryResult(popover, action, result, options);
     } else if (actionType === 'tasks') {
         renderCardEditorSmartTasksResult(popover, action, result, options);
+    } else if (actionType === 'labels') {
+        renderCardEditorSmartLabelsResult(popover, action, result, options);
     } else {
         renderCardEditorSmartMarkdownResult(popover, action, result, options);
     }

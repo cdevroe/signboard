@@ -7,10 +7,14 @@ const electronBinary = require('electron');
 const { test: base, expect, _electron: electron } = require('@playwright/test');
 const { createFixtureBoard, createFixtureBoardAt } = require('./helpers/fixtureBoard');
 const cardFrontmatter = require('../../lib/cardFrontmatter');
+const appSettingsSchema = require('../../shared/appSettingsSchema');
 
 const repoRoot = path.resolve(__dirname, '../..');
 const usesMetaModifier = process.platform === 'darwin';
 const shouldBringPlaywrightAppToFront = process.env.SIGNBOARD_PLAYWRIGHT_FOREGROUND === '1';
+const defaultSmartCardActionLabels = appSettingsSchema
+  .cloneDefaultSmartCardActions()
+  .map((action) => action.label);
 
 function normalizeBoardRoot(boardRoot) {
   const normalized = String(boardRoot || '').replace(/\\/g, '/').trim();
@@ -2725,20 +2729,53 @@ test('closes the task due date picker when clearing a task due date', async ({ p
   await openFirstCardInEditor(page);
 
   await setEditorBody(page, '- [ ] (due: 2026-04-20) Follow up with beta testers');
-  await expect(page.locator('#cardEditorOverType .task-line-due-control.has-due')).toHaveCount(1);
+  await expect(page.locator('#cardEditorOverType .task-line-date-control.has-due')).toHaveCount(1);
 
-  await page.locator('#cardEditorOverType .task-line-due-control.has-due').click();
+  await page.locator('#cardEditorOverType .task-line-date-control.has-due').click();
+  await expect(page.locator('.card-date-popover')).toBeVisible();
+  await page.locator('.card-date-popover-row[data-field="due"] .card-date-popover-field').click();
   const datepickerPopup = page.locator('.sb-themed-fdatepicker');
   await expect(datepickerPopup).toBeVisible();
 
   await datepickerPopup.getByRole('button', { name: 'Clear' }).click();
 
   await expect(datepickerPopup).toBeHidden();
-  await expect(page.locator('#cardEditorOverType .task-line-due-control.has-due')).toHaveCount(0);
+  await expect(page.locator('#cardEditorOverType .task-line-date-control.has-due')).toHaveCount(0);
   await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue(/^- \[ \] Follow up with beta testers$/);
 
-  await page.locator('#cardEditorOverType .task-line-due-control').click();
+  await page.locator('#cardEditorOverType .task-line-date-control').click();
+  await expect(page.locator('.card-date-popover')).toBeVisible();
+  await page.locator('.card-date-popover-row[data-field="due"] .card-date-popover-field').click();
   await expect(datepickerPopup).toBeVisible();
+});
+
+test('keeps the task date popover anchored after choosing a task start date', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  await setEditorBody(page, '- [ ] This task needs a start date');
+  const dateButton = page.locator('#cardEditorOverType .task-line-date-control').first();
+  await expect(dateButton).toBeVisible();
+
+  await dateButton.click();
+  const datePopover = page.locator('.card-date-popover');
+  await expect(datePopover).toBeVisible();
+  const initialPopoverBox = await datePopover.boundingBox();
+  expect(initialPopoverBox).toBeTruthy();
+
+  await page.locator('.card-date-popover-row[data-field="start"] .card-date-popover-field').click();
+  const datepickerPopup = page.locator('.sb-themed-fdatepicker');
+  await expect(datepickerPopup).toBeVisible();
+  await datepickerPopup.getByRole('button', { name: 'Today' }).click();
+
+  await expect(datepickerPopup).toBeHidden();
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue(/\(start: \d{4}-\d{2}-\d{2}\)/);
+  await expect(datePopover).toBeVisible();
+  await page.waitForTimeout(100);
+
+  const finalPopoverBox = await datePopover.boundingBox();
+  expect(finalPopoverBox).toBeTruthy();
+  expect(Math.abs(finalPopoverBox.x - initialPopoverBox.x)).toBeLessThan(12);
+  expect(Math.abs(finalPopoverBox.y - initialPopoverBox.y)).toBeLessThan(12);
 });
 
 test('opens raw card body URLs without rewriting the body', async ({ page }) => {
@@ -2893,7 +2930,6 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
             ...current.ai.ollama,
             url: ollamaUrl,
             model: 'llama3.2',
-            taskCount: 6,
           },
         },
       });
@@ -2914,7 +2950,6 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
     const aiModelSelect = page.locator('#boardSettingsAiOllamaModel');
     const aiRefreshButton = page.locator('#btnRefreshAiOllamaModels');
     const aiStatus = page.locator('#boardSettingsAiOllamaStatus');
-    const aiTaskCountInput = page.locator('#boardSettingsAiTaskCount');
 
     await expect(aiToggle).not.toBeChecked();
     await expect(aiDetails).toBeHidden();
@@ -2928,10 +2963,9 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
     await expect(aiStatus).toContainText(/Connected/);
     await expect(aiModelSelect).toContainText('qwen2.5:7b');
     await expect(aiModelSelect).toContainText('llama3.2:latest');
+    await expect(page.locator('#boardSettingsAiTaskCount')).toHaveCount(0);
 
     await aiModelSelect.selectOption('qwen2.5:7b');
-    await aiTaskCountInput.fill('8');
-    await aiTaskCountInput.blur();
     await aiRefreshButton.click();
     await expect(aiStatus).toContainText(/Connected/);
 
@@ -2951,13 +2985,8 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
       ollama: {
         url: fakeOllama.url,
         model: 'qwen2.5:7b',
-        taskCount: 8,
       },
-      actionLabels: [
-        'Generate new title',
-        'Generate task list',
-        'Smart paste',
-      ],
+      actionLabels: defaultSmartCardActionLabels,
     });
 
     await page.locator('#boardSettingsClose').click();
@@ -2985,12 +3014,78 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
       popoverZIndex: 12020,
       popoverHidden: false,
     });
-    await expect(smartActionsPopover).toContainText('Generate new title');
-    await expect(smartActionsPopover).toContainText('Generate task list');
-    await expect(smartActionsPopover).toContainText('Smart paste');
+    for (const label of defaultSmartCardActionLabels) {
+      await expect(smartActionsPopover).toContainText(label);
+    }
+
+    const summaryIconClass = await page.evaluate(() => {
+      const button = Array.from(document.querySelectorAll('.card-editor-smart-action-button'))
+        .find((element) => element.textContent.includes('Generate card summary'));
+      const icon = button ? button.querySelector('svg') : null;
+      return icon ? String(icon.getAttribute('class') || '') : '';
+    });
+    expect(summaryIconClass).toContain('feather-pen-tool');
+
+    const settingsShortcut = smartActionsPopover.getByRole('button', { name: 'Open Smart Actions settings' });
+    await expect(settingsShortcut).toBeVisible();
+    await settingsShortcut.click();
+    await expect(page.locator('#modalEditCard')).toBeHidden();
+    await expect(page.locator('#modalBoardSettings')).toBeVisible();
+    await expect(page.locator('#boardSettingsNavSmartActions')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#boardSettingsPanelSmartActions')).toHaveClass(/is-active/);
   } finally {
     await fakeOllama.close();
   }
+});
+
+test('inserts generated Smart Card Action summaries at the top of the card body', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  await setEditorBody(page, 'Existing card notes.\n\n- [ ] Keep this task');
+  await page.evaluate(async () => {
+    await window.insertCardEditorSmartSummary('Generated overview.\n\nSecond sentence.\n\n---\nEnd generated summary');
+  });
+
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue([
+    'Generated overview.',
+    '',
+    'Second sentence.',
+    '',
+    '---',
+    'End generated summary',
+    '',
+    'Existing card notes.',
+    '',
+    '- [ ] Keep this task',
+  ].join('\n'));
+});
+
+test('merges auto-label Smart Card Action suggestions with existing card labels', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  const result = await page.evaluate(async () => {
+    const suggestions = window.getCardEditorSmartLabelSuggestions([
+      'Launch',
+      'Content',
+      'Missing Label',
+      'content',
+    ]);
+    const applied = await window.applyCardEditorSmartLabels(suggestions);
+    const cardPath = document.getElementById('cardEditorCardPath').value;
+    const card = await window.board.readCard(cardPath);
+    return {
+      suggestedNames: suggestions.map((label) => label.name),
+      applied,
+      editorLabels: window.getEditorFrontmatter().labels,
+      diskLabels: card.frontmatter.labels,
+    };
+  });
+
+  expect(result.suggestedNames).toEqual(['Content']);
+  expect(result.applied).toBe(true);
+  expect(result.editorLabels.sort()).toEqual(['content', 'launch']);
+  expect(result.diskLabels.sort()).toEqual(['content', 'launch']);
+  await expect(page.locator('#cardEditorCardLabels .card-label-chip')).toContainText(['Launch', 'Content']);
 });
 
 test('publishes the External Published Calendar and respects board opt-out', async ({ page, boardRoot, request }) => {

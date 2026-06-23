@@ -1,66 +1,32 @@
-const DEFAULT_APP_NOTIFICATION_SETTINGS = Object.freeze({
-  enabled: false,
-  time: '09:00',
-});
-const DEFAULT_APP_TOOLTIPS_ENABLED = true;
-const DEFAULT_APP_QUICK_ADD_SETTINGS = Object.freeze({
-  globalShortcut: '',
-});
-const DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS = Object.freeze({
-  enabled: false,
-  port: 48273,
-  token: '',
-});
-const APP_SMART_CARD_ACTION_LABEL_MAX_LENGTH = 80;
-const APP_SMART_CARD_ACTION_PROMPT_MAX_LENGTH = 6000;
-const APP_CUSTOM_SMART_CARD_ACTION_LIMIT = 12;
-const DEFAULT_APP_SMART_CARD_ACTIONS = Object.freeze([
-  Object.freeze({
-    id: 'generate-title',
-    type: 'title',
-    label: 'Generate new title',
-    prompt: [
-      'Improve the card title using the current title and card body.',
-      'Keep it concise, specific, and action-oriented.',
-      'Preserve the original intent and do not add facts that are not supported by the card.',
-    ].join('\n'),
-    builtIn: true,
-  }),
-  Object.freeze({
-    id: 'generate-task-list',
-    type: 'tasks',
-    label: 'Generate task list',
-    prompt: [
-      'Generate practical checklist items for this card.',
-      'Infer common next actions from the title, body, board, list, and labels.',
-      'Do not duplicate existing checklist items.',
-      'Use short imperative task text.',
-    ].join('\n'),
-    builtIn: true,
-  }),
-  Object.freeze({
-    id: 'smart-paste',
-    type: 'paste',
-    label: 'Smart paste',
-    prompt: [
-      'Format the pasted information for this Signboard Markdown card.',
-      'Preserve the complete useful information from the pasted text, including names, dates, decisions, links, and requirements.',
-      'Use clear Markdown sections, a concise summary when helpful, task list items for follow-up work, and reference URLs when present.',
-      'Do not invent facts.',
-    ].join('\n'),
-    builtIn: true,
-  }),
-]);
-const DEFAULT_APP_AI_SETTINGS = Object.freeze({
-  enabled: false,
-  provider: 'ollama',
-  ollama: Object.freeze({
-    url: 'http://127.0.0.1:11434',
-    model: 'llama3.2',
-    taskCount: 6,
-  }),
-  smartCardActions: DEFAULT_APP_SMART_CARD_ACTIONS,
-});
+const APP_SETTINGS_SCHEMA = typeof SignboardAppSettingsSchema !== 'undefined'
+  ? SignboardAppSettingsSchema
+  : null;
+
+if (!APP_SETTINGS_SCHEMA) {
+  throw new Error('SignboardAppSettingsSchema must be loaded before app/appSettings.js.');
+}
+
+const DEFAULT_APP_NOTIFICATION_SETTINGS = APP_SETTINGS_SCHEMA.DEFAULT_NOTIFICATION_SETTINGS;
+const DEFAULT_APP_TOOLTIPS_ENABLED = APP_SETTINGS_SCHEMA.DEFAULT_TOOLTIPS_ENABLED;
+const DEFAULT_APP_QUICK_ADD_SETTINGS = APP_SETTINGS_SCHEMA.DEFAULT_QUICK_ADD_SETTINGS;
+const DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS = APP_SETTINGS_SCHEMA.DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS;
+const APP_SMART_CARD_ACTION_LABEL_MAX_LENGTH = APP_SETTINGS_SCHEMA.SMART_CARD_ACTION_LABEL_MAX_LENGTH;
+const APP_SMART_CARD_ACTION_PROMPT_MAX_LENGTH = APP_SETTINGS_SCHEMA.SMART_CARD_ACTION_PROMPT_MAX_LENGTH;
+const APP_CUSTOM_SMART_CARD_ACTION_LIMIT = APP_SETTINGS_SCHEMA.CUSTOM_SMART_CARD_ACTION_LIMIT;
+const DEFAULT_APP_SMART_CARD_ACTIONS = APP_SETTINGS_SCHEMA.DEFAULT_SMART_CARD_ACTIONS;
+const DEFAULT_APP_AI_SETTINGS = APP_SETTINGS_SCHEMA.cloneDefaultAiSettings();
+const cloneDefaultAppSmartCardActions = APP_SETTINGS_SCHEMA.cloneDefaultSmartCardActions;
+const normalizeAppNotificationSettings = APP_SETTINGS_SCHEMA.normalizeNotificationSettings;
+const normalizeAppTooltipsEnabled = APP_SETTINGS_SCHEMA.normalizeTooltipsEnabled;
+const normalizeAppGlobalShortcutAccelerator = APP_SETTINGS_SCHEMA.normalizeGlobalShortcutAccelerator;
+const normalizeAppQuickAddSettings = APP_SETTINGS_SCHEMA.normalizeQuickAddSettings;
+const normalizeAppExternalPublishedCalendarPort = APP_SETTINGS_SCHEMA.normalizeExternalPublishedCalendarPort;
+const normalizeAppExternalPublishedCalendarSettings = APP_SETTINGS_SCHEMA.normalizeExternalPublishedCalendarSettings;
+const normalizeAppSmartCardActionLabel = APP_SETTINGS_SCHEMA.normalizeSmartCardActionLabel;
+const normalizeAppSmartCardActionPrompt = APP_SETTINGS_SCHEMA.normalizeSmartCardActionPrompt;
+const normalizeAppSmartCardActionId = APP_SETTINGS_SCHEMA.normalizeSmartCardActionId;
+const normalizeAppSmartCardActions = APP_SETTINGS_SCHEMA.normalizeSmartCardActions;
+const normalizeAppAiSettings = APP_SETTINGS_SCHEMA.normalizeAiSettings;
 const DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_STATUS = Object.freeze({
   enabled: false,
   running: false,
@@ -104,259 +70,6 @@ function getAppSettingsState() {
   }
 
   return window.__signboardAppSettingsState;
-}
-
-function normalizeAppNotificationTime(value) {
-  const candidate = String(value || '').trim();
-  if (/^(?:0[1-9]|1\d|2[0-4]):[0-5]\d$/.test(candidate)) {
-    return candidate;
-  }
-
-  return DEFAULT_APP_NOTIFICATION_SETTINGS.time;
-}
-
-function normalizeAppNotificationSettings(notificationSettings) {
-  const source = notificationSettings && typeof notificationSettings === 'object' && !Array.isArray(notificationSettings)
-    ? notificationSettings
-    : {};
-  return {
-    enabled: source.enabled === true,
-    time: normalizeAppNotificationTime(source.time),
-  };
-}
-
-function normalizeAppTooltipsEnabled(value) {
-  return value === false ? false : DEFAULT_APP_TOOLTIPS_ENABLED;
-}
-
-function normalizeAppGlobalShortcutAccelerator(value) {
-  const candidate = String(value || '')
-    .trim()
-    .replace(/\s*\+\s*/g, '+')
-    .replace(/\s+/g, '');
-
-  if (!candidate || candidate.length > 80) {
-    return '';
-  }
-
-  return candidate;
-}
-
-function normalizeAppQuickAddSettings(quickAddSettings) {
-  const source = quickAddSettings && typeof quickAddSettings === 'object' && !Array.isArray(quickAddSettings)
-    ? quickAddSettings
-    : {};
-
-  return {
-    globalShortcut: normalizeAppGlobalShortcutAccelerator(source.globalShortcut),
-  };
-}
-
-function normalizeAppExternalPublishedCalendarPort(value) {
-  const parsedPort = Number.parseInt(String(value || ''), 10);
-  if (Number.isInteger(parsedPort) && parsedPort >= 1024 && parsedPort <= 65535) {
-    return parsedPort;
-  }
-
-  return DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS.port;
-}
-
-function normalizeAppExternalPublishedCalendarToken(value) {
-  const candidate = String(value || '').trim();
-  if (!candidate || candidate.length > 160) {
-    return '';
-  }
-
-  return /^[A-Za-z0-9._~-]+$/.test(candidate) ? candidate : '';
-}
-
-function normalizeAppExternalPublishedCalendarSettings(calendarSettings) {
-  const source = calendarSettings && typeof calendarSettings === 'object' && !Array.isArray(calendarSettings)
-    ? calendarSettings
-    : {};
-
-  return {
-    enabled: source.enabled === true,
-    port: normalizeAppExternalPublishedCalendarPort(source.port),
-    token: normalizeAppExternalPublishedCalendarToken(source.token),
-  };
-}
-
-function normalizeAppAiProvider(value) {
-  return value === 'ollama' ? 'ollama' : DEFAULT_APP_AI_SETTINGS.provider;
-}
-
-function normalizeAppOllamaUrl(value) {
-  let candidate = String(value || '').trim();
-  if (!candidate) {
-    candidate = DEFAULT_APP_AI_SETTINGS.ollama.url;
-  }
-
-  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)) {
-    candidate = `http://${candidate}`;
-  }
-
-  try {
-    const parsed = new URL(candidate);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return DEFAULT_APP_AI_SETTINGS.ollama.url;
-    }
-
-    parsed.username = '';
-    parsed.password = '';
-    parsed.search = '';
-    parsed.hash = '';
-
-    const basePath = parsed.pathname && parsed.pathname !== '/'
-      ? parsed.pathname.replace(/\/+$/, '')
-      : '';
-    return `${parsed.origin}${basePath}`;
-  } catch {
-    return DEFAULT_APP_AI_SETTINGS.ollama.url;
-  }
-}
-
-function normalizeAppOllamaModel(value) {
-  const candidate = String(value || '').trim();
-  if (!candidate || candidate.length > 120 || /[\s\x00-\x1F]/.test(candidate)) {
-    return DEFAULT_APP_AI_SETTINGS.ollama.model;
-  }
-
-  return candidate;
-}
-
-function normalizeAppAiTaskCount(value) {
-  const parsedCount = Number.parseInt(String(value || ''), 10);
-  if (Number.isInteger(parsedCount) && parsedCount >= 3 && parsedCount <= 12) {
-    return parsedCount;
-  }
-
-  return DEFAULT_APP_AI_SETTINGS.ollama.taskCount;
-}
-
-function cloneDefaultAppSmartCardActions() {
-  return DEFAULT_APP_SMART_CARD_ACTIONS.map((action) => ({ ...action }));
-}
-
-function normalizeAppSmartCardActionLabel(value, fallback = '') {
-  const candidate = String(value || '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const normalizedFallback = String(fallback || '').trim();
-  if (!candidate) {
-    return normalizedFallback;
-  }
-
-  return candidate.slice(0, APP_SMART_CARD_ACTION_LABEL_MAX_LENGTH).trim() || normalizedFallback;
-}
-
-function normalizeAppSmartCardActionPrompt(value, fallback = '') {
-  const candidate = String(value || '')
-    .replace(/\r\n?/g, '\n')
-    .trim();
-  const normalizedFallback = String(fallback || '').trim();
-  if (!candidate) {
-    return normalizedFallback;
-  }
-
-  return candidate.slice(0, APP_SMART_CARD_ACTION_PROMPT_MAX_LENGTH).trim() || normalizedFallback;
-}
-
-function normalizeAppSmartCardActionId(value, fallback = '') {
-  const candidate = String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-  const normalizedFallback = String(fallback || '').trim();
-  return candidate || normalizedFallback;
-}
-
-function normalizeAppSmartCardActions(actions) {
-  const sourceActions = Array.isArray(actions) ? actions : [];
-  const normalizedActions = [];
-  const seenIds = new Set();
-
-  for (const defaultAction of DEFAULT_APP_SMART_CARD_ACTIONS) {
-    const sourceAction = sourceActions.find((action) => (
-      action && typeof action === 'object' && !Array.isArray(action) && String(action.id || '') === defaultAction.id
-    ));
-    normalizedActions.push({
-      ...defaultAction,
-      label: defaultAction.label,
-      prompt: normalizeAppSmartCardActionPrompt(
-        sourceAction && Object.prototype.hasOwnProperty.call(sourceAction, 'prompt')
-          ? sourceAction.prompt
-          : defaultAction.prompt,
-        defaultAction.prompt,
-      ),
-      builtIn: true,
-    });
-    seenIds.add(defaultAction.id);
-  }
-
-  let customCount = 0;
-  for (const action of sourceActions) {
-    if (!action || typeof action !== 'object' || Array.isArray(action) || action.builtIn === true) {
-      continue;
-    }
-
-    const label = normalizeAppSmartCardActionLabel(action.label);
-    const prompt = normalizeAppSmartCardActionPrompt(action.prompt);
-    if (!label || !prompt) {
-      continue;
-    }
-
-    const fallbackId = `custom-${customCount + 1}`;
-    let id = normalizeAppSmartCardActionId(action.id, fallbackId);
-    if (DEFAULT_APP_SMART_CARD_ACTIONS.some((defaultAction) => defaultAction.id === id)) {
-      id = fallbackId;
-    }
-    while (seenIds.has(id)) {
-      id = `custom-${customCount + 1}-${seenIds.size + 1}`;
-    }
-
-    normalizedActions.push({
-      id,
-      type: 'custom',
-      label,
-      prompt,
-      builtIn: false,
-    });
-    seenIds.add(id);
-    customCount += 1;
-    if (customCount >= APP_CUSTOM_SMART_CARD_ACTION_LIMIT) {
-      break;
-    }
-  }
-
-  return normalizedActions;
-}
-
-function normalizeAppOllamaSettings(ollamaSettings) {
-  const source = ollamaSettings && typeof ollamaSettings === 'object' && !Array.isArray(ollamaSettings)
-    ? ollamaSettings
-    : {};
-
-  return {
-    url: normalizeAppOllamaUrl(source.url),
-    model: normalizeAppOllamaModel(source.model),
-    taskCount: normalizeAppAiTaskCount(source.taskCount),
-  };
-}
-
-function normalizeAppAiSettings(aiSettings) {
-  const source = aiSettings && typeof aiSettings === 'object' && !Array.isArray(aiSettings)
-    ? aiSettings
-    : {};
-
-  return {
-    enabled: source.enabled === true,
-    provider: normalizeAppAiProvider(source.provider),
-    ollama: normalizeAppOllamaSettings(source.ollama),
-    smartCardActions: normalizeAppSmartCardActions(source.smartCardActions || source.cardActions),
-  };
 }
 
 function normalizeAppGlobalShortcutStatus(status) {
@@ -622,7 +335,6 @@ function renderAppSettingsControls() {
   const aiOllamaModelSelect = document.getElementById('boardSettingsAiOllamaModel');
   const aiOllamaRefreshButton = document.getElementById('btnRefreshAiOllamaModels');
   const aiOllamaStatus = document.getElementById('boardSettingsAiOllamaStatus');
-  const aiTaskCountInput = document.getElementById('boardSettingsAiTaskCount');
   const aiActionsList = document.getElementById('boardSettingsAiActionsList');
   const aiAddActionButton = document.getElementById('btnAddAiSmartCardAction');
   const notifications = getAppNotificationSettings();
@@ -733,10 +445,6 @@ function renderAppSettingsControls() {
     } else {
       aiOllamaStatus.textContent = 'Not checked';
     }
-  }
-
-  if (aiTaskCountInput) {
-    aiTaskCountInput.value = String(aiSettings.ollama.taskCount);
   }
 
   if (aiActionsList) {

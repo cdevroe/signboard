@@ -3776,6 +3776,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 #modalEditCard {
+  --card-editor-body-inset: 49px;
   position: fixed;
   z-index: 50;
   top: max(64px, calc(env(safe-area-inset-top) + 14px));
@@ -3820,7 +3821,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 #modalEditCard #cardEditorTitle {
-  padding-left: 16px;
+  padding-left: var(--card-editor-body-inset);
 }
 
 #modalBoardSettings {
@@ -4042,6 +4043,12 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   text-align: right;
 }
 
+.board-settings-status-inline {
+  min-height: 20px;
+  margin-top: 8px;
+  text-align: left;
+}
+
 .board-settings-status.is-success {
   color: var(--task-progress-complete-color);
 }
@@ -4093,7 +4100,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 4px;
+  margin-top: 40px;
 }
 
 .board-settings-ai-actions-header button {
@@ -4160,11 +4167,6 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #btnRefreshAiOllamaModels svg {
   width: 16px;
   height: 16px;
-}
-
-#boardSettingsAiTaskCount {
-  width: 8ch;
-  min-width: 8ch;
 }
 
 .board-settings-toggle-row {
@@ -4915,15 +4917,11 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #modalEditCard .cardEditorMetadataButtons button:active {
   transform: none;
 }
-#modalEditCard #cardEditorCardStartDateDisplay,
-#modalEditCard #cardEditorCardDueDateDisplay { font-size: var(--font-sm); color: var(--muted); }
-#modalEditCard #cardEditorSetStartDateLink,
-#modalEditCard #cardEditorSetDueDateLink,
+#modalEditCard #cardEditorCardDatesDisplay { font-size: var(--font-sm); color: var(--muted); }
+#modalEditCard #cardEditorSetDatesLink,
 #modalEditCard #cardEditorSetLabelsLink { text-decoration: none; }
-#modalEditCard .cardEditorMetadataButtons #cardEditorSetStartDateLink.due-date-today,
-#modalEditCard .cardEditorMetadataButtons #cardEditorSetDueDateLink.due-date-today { color: var(--due-date-today-color); }
-#modalEditCard .cardEditorMetadataButtons #cardEditorSetStartDateLink.due-date-tomorrow,
-#modalEditCard .cardEditorMetadataButtons #cardEditorSetDueDateLink.due-date-tomorrow { color: var(--due-date-tomorrow-color); }
+#modalEditCard .cardEditorMetadataButtons #cardEditorSetDatesLink.due-date-today { color: var(--due-date-today-color); }
+#modalEditCard .cardEditorMetadataButtons #cardEditorSetDatesLink.due-date-tomorrow { color: var(--due-date-tomorrow-color); }
 
 #modalEditCard .cardEditorHeader {
   border-bottom: 1px solid var(--border);
@@ -5015,6 +5013,40 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   font-size: var(--font-sm);
   font-weight: 700;
   line-height: 1.2;
+}
+.card-editor-smart-actions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  margin: 0 0 8px;
+  padding: 0 2px;
+}
+.card-editor-smart-actions-header .card-editor-ai-tasks-title {
+  margin: 0;
+}
+.card-editor-smart-actions-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+.card-editor-smart-actions-settings:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+.card-editor-smart-actions-settings svg {
+  width: 15px;
+  height: 15px;
 }
 .card-editor-ai-tasks-status {
   margin: 0;
@@ -5197,7 +5229,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  padding-left: 16px;
+  padding-left: var(--card-editor-body-inset);
 }
 #modalEditCard .cardEditorMetadataButtons a,
 #modalEditCard .cardEditorMetadataButtons button {
@@ -5223,8 +5255,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #modalEditCard .card-editor-linked-objects-count[hidden] {
   display: none;
 }
-#modalEditCard #cardEditorCardStartDateDisplay,
-#modalEditCard #cardEditorCardDueDateDisplay,
+#modalEditCard #cardEditorCardDatesDisplay,
 #modalEditCard #cardEditorCardLabels { margin-right: 0; }
 #modalEditCard #cardEditorCardLabels.card-editor-labels {
   display: inline-flex;
@@ -5241,7 +5272,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 6px 16px 0;
+  padding: 6px 16px 0 var(--card-editor-body-inset);
 }
 #modalEditCard .card-editor-related-notes[hidden] {
   display: none;
@@ -5341,7 +5372,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   flex-wrap: wrap;
   gap: 4px 12px;
   min-height: 28px;
-  padding: 7px 16px 0;
+  padding: 7px 16px 0 var(--card-editor-body-inset);
   color: color-mix(in oklab, var(--muted) 92%, var(--text));
   font-size: 11px;
   line-height: 1.3;
@@ -5608,12 +5639,12 @@ select:disabled {
 }
 
 #cardEditorOverType .overtype-toolbar {
-  padding-left: 16px !important;
+  padding-left: var(--card-editor-body-inset) !important;
 }
 
 #cardEditorOverType .overtype-input,
 #cardEditorOverType .overtype-preview {
-  padding-left: 49px !important;
+  padding-left: var(--card-editor-body-inset) !important;
 }
 
 #cardEditorOverType .task-line-due-layer {
@@ -5623,8 +5654,7 @@ select:disabled {
   z-index: 6;
 }
 
-#cardEditorOverType .task-line-start-control,
-#cardEditorOverType .task-line-due-control {
+#cardEditorOverType .task-line-date-control {
   position: absolute;
   display: inline-flex;
   align-items: center;
@@ -5641,21 +5671,19 @@ select:disabled {
   cursor: pointer;
 }
 
-#cardEditorOverType .task-line-start-control:hover,
-#cardEditorOverType .task-line-due-control:hover {
+#cardEditorOverType .task-line-date-control:hover {
   border-color: color-mix(in oklab, var(--accent) 48%, var(--border));
   color: color-mix(in oklab, var(--accent) 78%, var(--text));
 }
 
-#cardEditorOverType .task-line-start-control.has-start,
-#cardEditorOverType .task-line-due-control.has-due {
+#cardEditorOverType .task-line-date-control.has-start,
+#cardEditorOverType .task-line-date-control.has-due {
   border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
   background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
   color: color-mix(in oklab, var(--accent) 80%, var(--text));
 }
 
-#cardEditorOverType .task-line-start-control svg,
-#cardEditorOverType .task-line-due-control svg {
+#cardEditorOverType .task-line-date-control svg {
   width: 14px;
   height: 14px;
   display: block;

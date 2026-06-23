@@ -161,7 +161,7 @@ These features are what make cards show up in Planner and filters.
 
 Every card can have a start date in addition to a due date. Use a start date when work is scheduled to begin or become actionable before it is due.
 
-Start dates appear on cards, in Table's `Start` column, in Planner date views, and in date-aware filters. On Kanban cards, start and due dates share one compact `Dates` control. Click the clock icon or date range on a card to open both fields.
+Start dates appear on cards, in Table's `Start` column, in Planner date views, and in date-aware filters. On Kanban cards and in the card editor, start and due dates share one compact `Dates` control. Click the calendar icon or date range to open both fields.
 
 ### Card due dates
 
@@ -353,7 +353,7 @@ The `App Settings` group controls settings that apply across Signboard:
 
 If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due. The notification time field is shown only while reminders are enabled.
 
-When AI assistance is enabled, Signboard checks the configured Ollama URL, shows whether it can connect, and loads the locally installed models from Ollama into a model dropdown. Use the refresh button next to the model picker after pulling a new model. The card editor then shows a floating Smart Card Actions button with default actions for generating a new title, generating a task list, and smart paste formatting. App Settings lets you customize each built-in prompt and add custom actions with a label and prompt. Suggestions are previewed before they replace the title or insert Markdown. Card title, body, board/list context, label names, and pasted smart-paste text are sent to the configured Ollama URL only when you use an action.
+When AI assistance is enabled, Signboard checks the configured Ollama URL, shows whether it can connect, and loads the locally installed models from Ollama into a model dropdown. Use the refresh button next to the model picker after pulling a new model. The card editor then shows a floating Smart Card Actions button with default actions for generating a new title, generating a summary, generating a task list, auto-labeling from the current board's existing labels, and smart paste formatting. Use the gear in the Smart Card Actions menu to open the Smart Actions settings panel directly. App Settings lets you customize each built-in prompt and add custom actions with a label and prompt; for the generated task list action, change the number in the prompt when you want a different number of tasks. Suggestions are previewed before they replace the title, insert Markdown, or apply labels. Auto-label only applies labels that already exist on the current board, preserves labels already assigned to the card, and skips duplicates. Card title, body, board/list context, start/due dates, current labels, available board labels, and pasted smart-paste text are sent to the configured Ollama URL only when you use an action.
 
 ### External Published Calendar
 
@@ -380,6 +380,9 @@ The board `General` section lets you:
 
 - rename the board
 - move the board folder to a new location
+- duplicate the board into a chosen folder with a chosen board name
+
+Duplicating a board copies the board folder, lists, cards, labels, settings, archive contents, and linked objects. Signboard gives copied cards fresh card IDs and updates their `signboard://open-card` links so the new board does not collide with the original.
 
 ### Labels
 

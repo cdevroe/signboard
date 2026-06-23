@@ -541,8 +541,6 @@
               <button id="btnRefreshAiOllamaModels" type="button" title="Refresh Ollama models" aria-label="Refresh Ollama models"><i data-feather="refresh-cw"></i></button>
               <span id="boardSettingsAiOllamaStatus" class="board-settings-status">Not checked</span>
             </div>
-            <label for="boardSettingsAiTaskCount">Suggested task count</label>
-            <input id="boardSettingsAiTaskCount" type="number" min="3" max="12" step="1" value="6" inputmode="numeric">
             <div class="board-settings-ai-actions-header">
               <div>
                 <p class="boardSettingsHint boardSettingsHintTight">Smart Card Actions</p>
@@ -572,6 +570,15 @@
               <button id="btnMoveBoard" type="button" title="Move board">Move Board</button>
             </div>
             <p class="boardSettingsHint">Move this board folder to another location on your computer.</p>
+          </div>
+          <div class="board-settings-group">
+            <label for="boardSettingsDuplicateNameInput">Duplicate Board name</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsDuplicateNameInput" type="text" placeholder="Duplicate board name">
+              <button id="btnDuplicateBoard" type="button" title="Duplicate board">Duplicate Board</button>
+            </div>
+            <p class="boardSettingsHint">Duplicating a board will create a copy of all board files in a new directory of your choice.</p>
+            <div id="boardSettingsDuplicateStatus" class="board-settings-status board-settings-status-inline" aria-live="polite"></div>
           </div>
         </section>
 
@@ -710,8 +717,7 @@
     <div>
       <h2 id="cardEditorTitle" contenteditable="true" role="textbox" aria-label="Card title" aria-multiline="false" spellcheck="true"></h2>
       <div class="cardEditorMetadataButtons">
-        <button type="button" id="cardEditorSetStartDateLink" title="Edit Start Date" aria-label="Edit start date"><i data-feather="play-circle"></i> <span id="cardEditorCardStartDateDisplay" title="This card's start date"></span></button>
-        <button type="button" id="cardEditorSetDueDateLink" title="Edit Due Date" aria-label="Edit due date"><i data-feather="clock"></i> <span id="cardEditorCardDueDateDisplay" title="This card's due date"></span></button>
+        <button type="button" id="cardEditorSetDatesLink" title="Edit Dates" aria-label="Edit dates"><i data-feather="calendar"></i> <span id="cardEditorCardDatesDisplay" title="This card's dates"></span></button>
         <button type="button" id="cardEditorSetLabelsLink" title="Edit Labels" aria-label="Edit labels"><i data-feather="tag"></i> <span id="cardEditorCardLabels" title="This card's labels"></span></button>
         <button type="button" id="cardEditorLinkedObjectsLink" title="Linked objects" aria-label="Linked objects" aria-expanded="false"><i data-feather="paperclip"></i> <span id="cardEditorLinkedObjectsCount" class="card-editor-linked-objects-count" hidden></span></button>
       </div>

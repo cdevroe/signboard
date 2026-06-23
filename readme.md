@@ -17,7 +17,7 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 🖌️ Color scheme per board (several to choose from!)
 - 🌙 Light and dark mode variants for all color schemes
 - 🏷 Custom labels per board
-- 🗓 Compact card start/due date ranges and task list item start/due dates
+- 🗓 Compact calendar controls for card and task list item start/due dates
 - 📋 Kanban and Table board views, including card age columns, sorting, list filtering, and bulk actions in Table
 - 🗂 Planner overlay for actionable dated work across open boards
 - 📆 Optional local External Published Calendar feed for calendar app subscriptions
@@ -27,9 +27,10 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - ✅ Progress counters on cards
 - 🔎 Live search
 - 🗄️ Linked files and URLs on cards
-- ✨ Optional local Ollama Smart Card Actions for titles, task lists, smart paste, and custom prompts
+- ✨ Optional local Ollama Smart Card Actions for titles, summaries, task lists, auto-labeling, smart paste, and custom prompts
 - 🧲 Drag-and-drop card movement
 - ⚡ Unlimited open boards with overflow tabs and a quick switcher
+- 🧬 Board duplication from Settings with fresh copied-card IDs
 - ⌨️ Keyboard shortcuts
 - ♿ Keyboard, screen reader, reduced-motion, and forced-colors improvements
 - 🤖 MCP server

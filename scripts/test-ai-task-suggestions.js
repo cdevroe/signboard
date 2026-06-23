@@ -1,12 +1,14 @@
 const assert = require('assert');
 
 const {
+  DEFAULT_LABEL_NUM_PREDICT,
   DEFAULT_TASK_NUM_PREDICT,
   DEFAULT_SMART_BODY_NUM_PREDICT,
   DEFAULT_TITLE_NUM_PREDICT,
   buildOllamaChatUrl,
   buildOllamaTagsUrl,
   extractExistingChecklistItems,
+  extractSuggestedLabelReferencesFromContent,
   extractSuggestedMarkdownBodyFromContent,
   extractSuggestedTasksFromContent,
   extractSuggestedTitleFromContent,
@@ -81,6 +83,10 @@ Here are useful tasks:
   ]);
   assert.strictEqual(extractSuggestedTitleFromContent('{"title":"Plan camping meals"}'), 'Plan camping meals');
   assert.strictEqual(extractSuggestedMarkdownBodyFromContent('{"body":"## Summary\\n\\nKeep the full details."}'), '## Summary\n\nKeep the full details.');
+  assert.deepStrictEqual(extractSuggestedLabelReferencesFromContent('{"labels":["Launch",{"name":"Content"},"Launch"]}'), [
+    'Launch',
+    'Content',
+  ]);
 
   let capturedRequest = null;
   const result = await suggestCardTasksWithOllama({
@@ -203,7 +209,6 @@ Here are useful tasks:
   const titleActionResult = await runSmartCardActionWithOllama({
     url: 'http://127.0.0.1:11434',
     model: 'llama3.2',
-    taskCount: 4,
   }, {
     id: 'generate-title',
     type: 'title',
@@ -237,7 +242,6 @@ Here are useful tasks:
   const taskActionResult = await runSmartCardActionWithOllama({
     url: 'http://127.0.0.1:11434',
     model: 'llama3.2',
-    taskCount: 4,
   }, {
     id: 'generate-task-list',
     type: 'tasks',
@@ -262,7 +266,83 @@ Here are useful tasks:
   });
   const taskActionBody = JSON.parse(capturedTaskActionRequest.request.body);
   assert.strictEqual(taskActionBody.options.num_predict, DEFAULT_TASK_NUM_PREDICT);
+  assert(taskActionBody.messages[0].content.includes('Follow the action prompt for how many tasks to create.'));
+  assert(!taskActionBody.messages[1].content.includes('requestedTaskCount'));
   assert.deepStrictEqual(taskActionResult.tasks, ['Book room', 'Invite team']);
+
+  let capturedSummaryActionRequest = null;
+  const summaryActionResult = await runSmartCardActionWithOllama({
+    url: 'http://127.0.0.1:11434',
+    model: 'llama3.2',
+  }, {
+    id: 'generate-summary',
+    type: 'summary',
+    label: 'Generate card summary',
+    prompt: 'Summarize the card.',
+    builtIn: true,
+  }, {
+    title: 'Client request',
+    body: 'Client asked for a Friday delivery. The current plan needs design and QA review.',
+  }, {
+    fetchImpl: async (url, request) => {
+      capturedSummaryActionRequest = { url, request };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          message: {
+            content: JSON.stringify({ body: 'Client asked for Friday delivery and needs design plus QA review.' }),
+          },
+        }),
+      };
+    },
+  });
+  const summaryActionBody = JSON.parse(capturedSummaryActionRequest.request.body);
+  assert.strictEqual(summaryActionBody.options.num_predict, DEFAULT_SMART_BODY_NUM_PREDICT);
+  assert(summaryActionBody.messages[0].content.includes('do not include the generated-summary end marker'));
+  assert.strictEqual(summaryActionResult.actionType, 'summary');
+  assert(summaryActionResult.body.includes('Client asked for Friday delivery'));
+
+  let capturedLabelActionRequest = null;
+  const labelActionResult = await runSmartCardActionWithOllama({
+    url: 'http://127.0.0.1:11434',
+    model: 'llama3.2',
+  }, {
+    id: 'auto-label-card',
+    type: 'labels',
+    label: 'Auto-label card',
+    prompt: 'Choose labels.',
+    builtIn: true,
+  }, {
+    title: 'Plan release notes',
+    body: 'Draft launch copy for the next release.',
+    labels: ['Launch'],
+    availableLabels: [
+      { id: 'launch', name: 'Launch' },
+      { id: 'content', name: 'Content' },
+    ],
+    due: '2026-04-05',
+  }, {
+    fetchImpl: async (url, request) => {
+      capturedLabelActionRequest = { url, request };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          message: {
+            content: JSON.stringify({ labels: ['Content'] }),
+          },
+        }),
+      };
+    },
+  });
+  const labelActionBody = JSON.parse(capturedLabelActionRequest.request.body);
+  assert.strictEqual(labelActionBody.options.num_predict, DEFAULT_LABEL_NUM_PREDICT);
+  assert(labelActionBody.messages[0].content.includes('Choose only from availableLabels'));
+  assert(labelActionBody.messages[1].content.includes('"availableLabels"'));
+  assert(labelActionBody.messages[1].content.includes('"due":"2026-04-05"'));
+  assert.strictEqual(labelActionResult.actionType, 'labels');
+  assert.deepStrictEqual(labelActionResult.labels, ['Content']);
 
   let capturedPasteActionRequest = null;
   const pasteActionResult = await runSmartCardActionWithOllama({
