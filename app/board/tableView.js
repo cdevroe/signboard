@@ -1,4 +1,5 @@
 const BOARD_TABLE_COLUMNS = Object.freeze([
+  { id: 'select', label: '' },
   { id: 'start', label: 'Start' },
   { id: 'due', label: 'Due' },
   { id: 'updated', label: 'Updated' },
@@ -20,6 +21,10 @@ const BOARD_TABLE_SORT_OPTIONS = Object.freeze([
   { value: 'title-asc', label: 'Title, A-Z' },
 ]);
 
+const BOARD_TABLE_LIST_FILTER_ALL = 'all';
+const BOARD_TABLE_LIST_FILTER_COMPLETED = 'completed';
+const BOARD_TABLE_LIST_FILTER_PREFIX = 'list:';
+
 function normalizeBoardTableTitle(titleText) {
   const normalized = String(titleText || '').trim().replace(/^#\s+/, '');
   return normalized || 'Untitled';
@@ -29,7 +34,25 @@ function getBoardTableState() {
   if (!window.__boardTableState) {
     window.__boardTableState = {
       sortKey: 'board',
+      listFilter: BOARD_TABLE_LIST_FILTER_ALL,
+      selectedCardPaths: new Set(),
+      lastSelectedCardPath: '',
+      activeBulkMenu: '',
     };
+  }
+
+  const state = window.__boardTableState;
+  if (!(state.selectedCardPaths instanceof Set)) {
+    state.selectedCardPaths = new Set(Array.isArray(state.selectedCardPaths) ? state.selectedCardPaths : []);
+  }
+  if (typeof state.listFilter !== 'string') {
+    state.listFilter = BOARD_TABLE_LIST_FILTER_ALL;
+  }
+  if (typeof state.lastSelectedCardPath !== 'string') {
+    state.lastSelectedCardPath = '';
+  }
+  if (typeof state.activeBulkMenu !== 'string') {
+    state.activeBulkMenu = '';
   }
 
   return window.__boardTableState;
@@ -39,6 +62,48 @@ function getBoardTableSortKey() {
   const state = getBoardTableState();
   const sortKey = String(state.sortKey || 'board');
   return BOARD_TABLE_SORT_OPTIONS.some((option) => option.value === sortKey) ? sortKey : 'board';
+}
+
+function normalizeBoardTableCardPath(cardPath) {
+  return String(cardPath || '').trim();
+}
+
+function getBoardTableSelectionSet() {
+  return getBoardTableState().selectedCardPaths;
+}
+
+function clearBoardTableSelection() {
+  const state = getBoardTableState();
+  state.selectedCardPaths.clear();
+  state.lastSelectedCardPath = '';
+  state.activeBulkMenu = '';
+}
+
+function getBoardTableListFilter(listEntries = []) {
+  const state = getBoardTableState();
+  const listFilter = String(state.listFilter || BOARD_TABLE_LIST_FILTER_ALL);
+  const entries = Array.isArray(listEntries) ? listEntries : [];
+
+  if (listFilter === BOARD_TABLE_LIST_FILTER_COMPLETED) {
+    return entries.some((entry) => entry && entry.isCompletedList)
+      ? listFilter
+      : BOARD_TABLE_LIST_FILTER_ALL;
+  }
+
+  if (listFilter.startsWith(BOARD_TABLE_LIST_FILTER_PREFIX)) {
+    const listPath = listFilter.slice(BOARD_TABLE_LIST_FILTER_PREFIX.length);
+    return entries.some((entry) => entry && entry.listPath === listPath)
+      ? listFilter
+      : BOARD_TABLE_LIST_FILTER_ALL;
+  }
+
+  return BOARD_TABLE_LIST_FILTER_ALL;
+}
+
+function setBoardTableListFilter(listFilter) {
+  const state = getBoardTableState();
+  state.listFilter = String(listFilter || BOARD_TABLE_LIST_FILTER_ALL);
+  clearBoardTableSelection();
 }
 
 function getBoardTableListEntries(boardRoot, listsWithCards) {
@@ -100,6 +165,24 @@ function boardTableEntryMatchesFilters(entry) {
   }) && cardMatchesBoardSearch(entry.title, entry.body);
 }
 
+function boardTableEntryMatchesListFilter(entry, listEntries) {
+  const listFilter = getBoardTableListFilter(listEntries);
+  if (listFilter === BOARD_TABLE_LIST_FILTER_ALL) {
+    return true;
+  }
+
+  if (listFilter === BOARD_TABLE_LIST_FILTER_COMPLETED) {
+    return Boolean(entry && entry.isCompletedList);
+  }
+
+  if (listFilter.startsWith(BOARD_TABLE_LIST_FILTER_PREFIX)) {
+    const listPath = listFilter.slice(BOARD_TABLE_LIST_FILTER_PREFIX.length);
+    return Boolean(entry && entry.listPath === listPath);
+  }
+
+  return true;
+}
+
 async function collectBoardTableCards(boardRoot, listsWithCards) {
   const listEntries = getBoardTableListEntries(boardRoot, listsWithCards);
   const rowsByList = await Promise.all(
@@ -151,11 +234,106 @@ async function collectBoardTableCards(boardRoot, listsWithCards) {
     ...entry,
     boardOrderIndex: index,
   }));
+  const cardsMatchingBoardFilters = allCards.filter(boardTableEntryMatchesFilters);
   return {
     listEntries,
     allCards,
-    visibleCards: allCards.filter(boardTableEntryMatchesFilters),
+    visibleCards: cardsMatchingBoardFilters.filter((entry) => boardTableEntryMatchesListFilter(entry, listEntries)),
   };
+}
+
+function pruneBoardTableSelection(visibleCards) {
+  const selection = getBoardTableSelectionSet();
+  const visiblePaths = new Set((Array.isArray(visibleCards) ? visibleCards : [])
+    .map((entry) => normalizeBoardTableCardPath(entry && entry.cardPath))
+    .filter(Boolean));
+
+  for (const cardPath of Array.from(selection)) {
+    if (!visiblePaths.has(cardPath)) {
+      selection.delete(cardPath);
+    }
+  }
+
+  const state = getBoardTableState();
+  if (state.lastSelectedCardPath && !visiblePaths.has(state.lastSelectedCardPath)) {
+    state.lastSelectedCardPath = '';
+  }
+
+  if (selection.size === 0) {
+    state.activeBulkMenu = '';
+  }
+}
+
+function isBoardTableEntrySelected(entry) {
+  return getBoardTableSelectionSet().has(normalizeBoardTableCardPath(entry && entry.cardPath));
+}
+
+function getBoardTableSelectedEntries(visibleEntries) {
+  const selection = getBoardTableSelectionSet();
+  return (Array.isArray(visibleEntries) ? visibleEntries : [])
+    .filter((entry) => selection.has(normalizeBoardTableCardPath(entry && entry.cardPath)));
+}
+
+function selectBoardTableVisibleEntries(visibleEntries, shouldSelect) {
+  const selection = getBoardTableSelectionSet();
+  const entries = Array.isArray(visibleEntries) ? visibleEntries : [];
+
+  for (const entry of entries) {
+    const cardPath = normalizeBoardTableCardPath(entry && entry.cardPath);
+    if (!cardPath) {
+      continue;
+    }
+
+    if (shouldSelect) {
+      selection.add(cardPath);
+    } else {
+      selection.delete(cardPath);
+    }
+  }
+
+  const state = getBoardTableState();
+  state.lastSelectedCardPath = shouldSelect && entries.length > 0
+    ? normalizeBoardTableCardPath(entries[0].cardPath)
+    : '';
+  state.activeBulkMenu = '';
+}
+
+function selectBoardTableEntryRange(entry, visibleEntries, shouldSelect, useRange) {
+  const selection = getBoardTableSelectionSet();
+  const state = getBoardTableState();
+  const entries = Array.isArray(visibleEntries) ? visibleEntries : [];
+  const cardPath = normalizeBoardTableCardPath(entry && entry.cardPath);
+  if (!cardPath) {
+    return;
+  }
+
+  const currentIndex = entries.findIndex((candidate) => normalizeBoardTableCardPath(candidate && candidate.cardPath) === cardPath);
+  const anchorIndex = entries.findIndex((candidate) => (
+    normalizeBoardTableCardPath(candidate && candidate.cardPath) === state.lastSelectedCardPath
+  ));
+
+  if (useRange && currentIndex >= 0 && anchorIndex >= 0) {
+    const startIndex = Math.min(currentIndex, anchorIndex);
+    const endIndex = Math.max(currentIndex, anchorIndex);
+    for (let index = startIndex; index <= endIndex; index += 1) {
+      const rangeCardPath = normalizeBoardTableCardPath(entries[index] && entries[index].cardPath);
+      if (!rangeCardPath) {
+        continue;
+      }
+      if (shouldSelect) {
+        selection.add(rangeCardPath);
+      } else {
+        selection.delete(rangeCardPath);
+      }
+    }
+  } else if (shouldSelect) {
+    selection.add(cardPath);
+  } else {
+    selection.delete(cardPath);
+  }
+
+  state.lastSelectedCardPath = shouldSelect || selection.size > 0 ? cardPath : '';
+  state.activeBulkMenu = '';
 }
 
 function compareBoardTableBaseOrder(left, right) {
@@ -299,7 +477,515 @@ function createBoardTableSortControl() {
   return control;
 }
 
-function createBoardTableHeader() {
+function createBoardTableListFilterControl(listEntries) {
+  const entries = Array.isArray(listEntries) ? listEntries : [];
+  const control = document.createElement('label');
+  control.className = 'board-table-filter-control';
+
+  const labelText = document.createElement('span');
+  labelText.className = 'board-table-filter-label';
+  labelText.textContent = 'List';
+  control.appendChild(labelText);
+
+  const select = document.createElement('select');
+  select.className = 'board-table-filter-select';
+  select.setAttribute('aria-label', 'Filter table by list');
+
+  const allOption = document.createElement('option');
+  allOption.value = BOARD_TABLE_LIST_FILTER_ALL;
+  allOption.textContent = 'All lists';
+  select.appendChild(allOption);
+
+  const hasCompletedLists = entries.some((entry) => entry && entry.isCompletedList);
+  const completedOption = document.createElement('option');
+  completedOption.value = BOARD_TABLE_LIST_FILTER_COMPLETED;
+  completedOption.textContent = 'Completed lists';
+  completedOption.disabled = !hasCompletedLists;
+  select.appendChild(completedOption);
+
+  const listGroup = document.createElement('optgroup');
+  listGroup.label = 'Lists';
+  for (const entry of entries) {
+    if (!entry || !entry.listPath) {
+      continue;
+    }
+    const option = document.createElement('option');
+    option.value = `${BOARD_TABLE_LIST_FILTER_PREFIX}${entry.listPath}`;
+    option.textContent = entry.listDisplayName || getBoardListDisplayName(entry.listName);
+    listGroup.appendChild(option);
+  }
+  select.appendChild(listGroup);
+
+  select.value = getBoardTableListFilter(entries);
+  select.addEventListener('change', async () => {
+    const nextListFilter = String(select.value || BOARD_TABLE_LIST_FILTER_ALL);
+
+    if (typeof waitForNativeMenuTrackingToSettle === 'function') {
+      await waitForNativeMenuTrackingToSettle();
+    }
+
+    if (!select.isConnected || select.value !== nextListFilter) {
+      return;
+    }
+
+    setBoardTableListFilter(nextListFilter);
+    await renderBoard();
+  });
+
+  control.appendChild(select);
+  return control;
+}
+
+function createBoardTableBulkButton(label, options = {}) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'board-table-bulk-button';
+  button.textContent = label;
+
+  if (options.destructive) {
+    button.classList.add('board-table-bulk-button-danger');
+  }
+
+  if (options.active) {
+    button.classList.add('is-active');
+  }
+
+  if (options.title) {
+    button.title = options.title;
+  }
+
+  if (options.ariaLabel) {
+    button.setAttribute('aria-label', options.ariaLabel);
+  }
+
+  if (options.menuId) {
+    button.setAttribute('aria-haspopup', 'true');
+    button.setAttribute('aria-expanded', options.active ? 'true' : 'false');
+  }
+
+  if (typeof options.onClick === 'function') {
+    button.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await options.onClick(button);
+    });
+  }
+
+  return button;
+}
+
+function toggleBoardTableBulkMenu(menuId) {
+  const state = getBoardTableState();
+  state.activeBulkMenu = state.activeBulkMenu === menuId ? '' : menuId;
+}
+
+function normalizeBoardTableDateInput(dateValue) {
+  const normalized = String(dateValue || '').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  if (typeof normalizeTaskDateValue === 'function') {
+    return normalizeTaskDateValue(normalized);
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : '';
+}
+
+function getBoardTableBulkOperationMessage(successCount, failureCount, verb) {
+  const success = Number(successCount) || 0;
+  const failure = Number(failureCount) || 0;
+  const cardLabel = success === 1 ? 'card' : 'cards';
+  if (failure > 0 && success > 0) {
+    return `${verb} ${success} ${cardLabel}; ${failure} failed.`;
+  }
+  if (failure > 0) {
+    return `Could not update ${failure} ${failure === 1 ? 'card' : 'cards'}.`;
+  }
+  return `${verb} ${success} ${cardLabel}.`;
+}
+
+function announceBoardTableBulkStatus(message) {
+  if (typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus(message);
+  }
+}
+
+async function archiveBoardTableSelectedCards(selectedEntries) {
+  const entries = Array.isArray(selectedEntries) ? selectedEntries : [];
+  if (entries.length === 0) {
+    return;
+  }
+
+  const warningMessage = `Archive ${entries.length} selected card${entries.length === 1 ? '' : 's'}?\n\nThis will move ${entries.length === 1 ? 'it' : 'them'} into XXX-Archive.`;
+  if (!window.confirm(warningMessage)) {
+    return;
+  }
+
+  let archivedCount = 0;
+  let failureCount = 0;
+  for (const entry of entries) {
+    try {
+      await window.board.archiveCard(entry.cardPath);
+      archivedCount += 1;
+    } catch (error) {
+      failureCount += 1;
+      console.error('Failed to archive selected table card.', error);
+    }
+  }
+
+  clearBoardTableSelection();
+  await renderBoard();
+  announceBoardTableBulkStatus(getBoardTableBulkOperationMessage(archivedCount, failureCount, 'Archived'));
+}
+
+async function moveBoardTableSelectedCards(selectedEntries, targetListPath) {
+  const normalizedTargetListPath = String(targetListPath || '').trim();
+  const entries = (Array.isArray(selectedEntries) ? selectedEntries : [])
+    .filter((entry) => entry && entry.cardPath && entry.listPath !== normalizedTargetListPath);
+  if (!normalizedTargetListPath || entries.length === 0) {
+    announceBoardTableBulkStatus('No selected cards needed to move.');
+    return;
+  }
+
+  let movedCount = 0;
+  let failureCount = 0;
+  for (const entry of entries.slice().reverse()) {
+    try {
+      const newCardPath = await moveBoardTableCardToList(entry, normalizedTargetListPath);
+      if (newCardPath) {
+        movedCount += 1;
+      }
+    } catch (error) {
+      failureCount += 1;
+      console.error('Failed to move selected table card.', error);
+    }
+  }
+
+  clearBoardTableSelection();
+  await renderBoard();
+  announceBoardTableBulkStatus(getBoardTableBulkOperationMessage(movedCount, failureCount, 'Moved'));
+}
+
+function getBoardTableLabelIdsFromMenu(menu) {
+  if (!menu || typeof menu.querySelectorAll !== 'function') {
+    return [];
+  }
+
+  return Array.from(menu.querySelectorAll('input[data-label-id]:checked'))
+    .map((input) => String(input.dataset.labelId || '').trim())
+    .filter(Boolean);
+}
+
+function getBoardTableLabelsWithAddedIds(currentLabelIds, addedLabelIds) {
+  const current = Array.isArray(currentLabelIds) ? currentLabelIds.map((labelId) => String(labelId)) : [];
+  const existing = new Set(current);
+  const next = current.slice();
+  const selected = new Set((Array.isArray(addedLabelIds) ? addedLabelIds : []).map((labelId) => String(labelId)));
+
+  for (const label of getBoardLabels()) {
+    if (selected.has(label.id) && !existing.has(label.id)) {
+      existing.add(label.id);
+      next.push(label.id);
+    }
+  }
+
+  return next;
+}
+
+function getBoardTableLabelsWithoutIds(currentLabelIds, removedLabelIds) {
+  const removed = new Set((Array.isArray(removedLabelIds) ? removedLabelIds : []).map((labelId) => String(labelId)));
+  return (Array.isArray(currentLabelIds) ? currentLabelIds : [])
+    .map((labelId) => String(labelId))
+    .filter((labelId) => !removed.has(labelId));
+}
+
+async function updateBoardTableSelectedLabels(selectedEntries, labelIds, mode) {
+  const entries = Array.isArray(selectedEntries) ? selectedEntries : [];
+  const selectedLabelIds = Array.isArray(labelIds) ? labelIds.filter(Boolean) : [];
+  const normalizedMode = mode === 'remove' ? 'remove' : 'add';
+  if (entries.length === 0 || selectedLabelIds.length === 0) {
+    announceBoardTableBulkStatus('Choose at least one label.');
+    return;
+  }
+
+  let updatedCount = 0;
+  let failureCount = 0;
+  for (const entry of entries) {
+    const nextLabels = normalizedMode === 'remove'
+      ? getBoardTableLabelsWithoutIds(entry.labels, selectedLabelIds)
+      : getBoardTableLabelsWithAddedIds(entry.labels, selectedLabelIds);
+    const currentLabels = Array.isArray(entry.labels) ? entry.labels.map((labelId) => String(labelId)) : [];
+    if (nextLabels.join('\u0000') === currentLabels.join('\u0000')) {
+      continue;
+    }
+
+    try {
+      await window.board.updateFrontmatter(entry.cardPath, { labels: nextLabels });
+      updatedCount += 1;
+    } catch (error) {
+      failureCount += 1;
+      console.error('Failed to update labels for selected table card.', error);
+    }
+  }
+
+  clearBoardTableSelection();
+  await renderBoard();
+  announceBoardTableBulkStatus(getBoardTableBulkOperationMessage(
+    updatedCount,
+    failureCount,
+    normalizedMode === 'remove' ? 'Updated labels on' : 'Updated labels on',
+  ));
+}
+
+async function updateBoardTableSelectedDate(selectedEntries, fieldName, dateValue) {
+  const entries = Array.isArray(selectedEntries) ? selectedEntries : [];
+  const normalizedFieldName = fieldName === 'start' ? 'start' : 'due';
+  const normalizedDate = normalizeBoardTableDateInput(dateValue);
+  const isClearing = !String(dateValue || '').trim();
+
+  if (entries.length === 0) {
+    return;
+  }
+
+  if (!isClearing && !normalizedDate) {
+    announceBoardTableBulkStatus('Use a valid YYYY-MM-DD date.');
+    return;
+  }
+
+  if (isClearing) {
+    const label = normalizedFieldName === 'start' ? 'start date' : 'due date';
+    const warningMessage = `Clear the ${label} from ${entries.length} selected card${entries.length === 1 ? '' : 's'}?`;
+    if (!window.confirm(warningMessage)) {
+      return;
+    }
+  }
+
+  let updatedCount = 0;
+  let failureCount = 0;
+  for (const entry of entries) {
+    const currentDate = String(entry[normalizedFieldName] || '').trim();
+    if (currentDate === normalizedDate) {
+      continue;
+    }
+
+    try {
+      await window.board.updateFrontmatter(entry.cardPath, {
+        [normalizedFieldName]: normalizedDate,
+      });
+      updatedCount += 1;
+    } catch (error) {
+      failureCount += 1;
+      console.error(`Failed to update ${normalizedFieldName} date for selected table card.`, error);
+    }
+  }
+
+  clearBoardTableSelection();
+  await renderBoard();
+  const verb = isClearing
+    ? `Cleared ${normalizedFieldName} date on`
+    : `Set ${normalizedFieldName} date on`;
+  announceBoardTableBulkStatus(getBoardTableBulkOperationMessage(updatedCount, failureCount, verb));
+}
+
+function createBoardTableBulkMoveMenu(selectedEntries, listOptions) {
+  const menu = document.createElement('div');
+  menu.className = 'board-table-bulk-menu board-table-bulk-move-menu';
+  menu.setAttribute('role', 'group');
+  menu.setAttribute('aria-label', 'Move selected cards');
+
+  for (const optionEntry of listOptions) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'board-table-bulk-menu-option';
+    button.textContent = optionEntry.listDisplayName;
+    button.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await moveBoardTableSelectedCards(selectedEntries, optionEntry.listPath);
+    });
+    menu.appendChild(button);
+  }
+
+  return menu;
+}
+
+function createBoardTableBulkLabelsMenu(selectedEntries) {
+  const menu = document.createElement('div');
+  menu.className = 'board-table-bulk-menu board-table-bulk-labels-menu';
+  menu.setAttribute('role', 'group');
+  menu.setAttribute('aria-label', 'Update selected card labels');
+
+  const labels = getBoardLabels();
+  if (labels.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'board-table-bulk-menu-empty';
+    empty.textContent = 'No labels yet.';
+    menu.appendChild(empty);
+    return menu;
+  }
+
+  const labelList = document.createElement('div');
+  labelList.className = 'board-table-bulk-label-list';
+  for (const label of labels) {
+    const row = document.createElement('label');
+    row.className = 'board-table-bulk-label-row';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.dataset.labelId = label.id;
+
+    const swatch = document.createElement('span');
+    swatch.className = 'label-color-swatch';
+    swatch.style.backgroundColor = getBoardLabelColor(label);
+
+    const text = document.createElement('span');
+    text.textContent = label.name;
+
+    row.appendChild(checkbox);
+    row.appendChild(swatch);
+    row.appendChild(text);
+    labelList.appendChild(row);
+  }
+  menu.appendChild(labelList);
+
+  const actions = document.createElement('div');
+  actions.className = 'board-table-bulk-menu-actions';
+
+  const addButton = createBoardTableBulkButton('Add labels', {
+    onClick: async () => {
+      await updateBoardTableSelectedLabels(selectedEntries, getBoardTableLabelIdsFromMenu(menu), 'add');
+    },
+  });
+  const removeButton = createBoardTableBulkButton('Remove labels', {
+    onClick: async () => {
+      await updateBoardTableSelectedLabels(selectedEntries, getBoardTableLabelIdsFromMenu(menu), 'remove');
+    },
+  });
+
+  actions.appendChild(addButton);
+  actions.appendChild(removeButton);
+  menu.appendChild(actions);
+
+  return menu;
+}
+
+function createBoardTableBulkDateRow(labelText, fieldName, selectedEntries) {
+  const row = document.createElement('div');
+  row.className = 'board-table-bulk-date-row';
+
+  const label = document.createElement('label');
+  label.className = 'board-table-bulk-date-label';
+  label.textContent = labelText;
+
+  const input = document.createElement('input');
+  input.type = 'date';
+  input.className = 'board-table-bulk-date-input';
+  input.setAttribute('aria-label', `${labelText} date`);
+  label.appendChild(input);
+
+  const setButton = createBoardTableBulkButton('Set', {
+    onClick: async () => {
+      await updateBoardTableSelectedDate(selectedEntries, fieldName, input.value);
+    },
+  });
+  const clearButton = createBoardTableBulkButton('Clear', {
+    onClick: async () => {
+      await updateBoardTableSelectedDate(selectedEntries, fieldName, '');
+    },
+  });
+
+  row.appendChild(label);
+  row.appendChild(setButton);
+  row.appendChild(clearButton);
+  return row;
+}
+
+function createBoardTableBulkDatesMenu(selectedEntries) {
+  const menu = document.createElement('div');
+  menu.className = 'board-table-bulk-menu board-table-bulk-dates-menu';
+  menu.setAttribute('role', 'group');
+  menu.setAttribute('aria-label', 'Update selected card dates');
+  menu.appendChild(createBoardTableBulkDateRow('Start', 'start', selectedEntries));
+  menu.appendChild(createBoardTableBulkDateRow('Due', 'due', selectedEntries));
+  return menu;
+}
+
+function createBoardTableBulkMenuWrap(label, menuId, menuFactory, options = {}) {
+  const state = getBoardTableState();
+  const isActive = state.activeBulkMenu === menuId;
+  const wrap = document.createElement('div');
+  wrap.className = 'board-table-bulk-menu-wrap';
+
+  const button = createBoardTableBulkButton(label, {
+    ...options,
+    menuId,
+    active: isActive,
+    onClick: async () => {
+      toggleBoardTableBulkMenu(menuId);
+      await renderBoard();
+    },
+  });
+  wrap.appendChild(button);
+
+  if (isActive) {
+    wrap.appendChild(menuFactory());
+  }
+
+  return wrap;
+}
+
+function createBoardTableBulkToolbar(selectedEntries, visibleEntries, listOptions) {
+  const toolbar = document.createElement('div');
+  toolbar.className = 'board-table-bulk-toolbar';
+  toolbar.setAttribute('aria-label', 'Bulk card actions');
+
+  const count = selectedEntries.length;
+  const countText = document.createElement('span');
+  countText.className = 'board-table-bulk-count';
+  countText.textContent = `${count} selected`;
+  toolbar.appendChild(countText);
+
+  toolbar.appendChild(createBoardTableBulkButton('Archive', {
+    destructive: true,
+    onClick: async () => {
+      await archiveBoardTableSelectedCards(selectedEntries);
+    },
+  }));
+
+  toolbar.appendChild(createBoardTableBulkMenuWrap(
+    'Move',
+    'move',
+    () => createBoardTableBulkMoveMenu(selectedEntries, listOptions),
+  ));
+
+  toolbar.appendChild(createBoardTableBulkMenuWrap(
+    'Labels',
+    'labels',
+    () => createBoardTableBulkLabelsMenu(selectedEntries),
+  ));
+
+  toolbar.appendChild(createBoardTableBulkMenuWrap(
+    'Dates',
+    'dates',
+    () => createBoardTableBulkDatesMenu(selectedEntries),
+  ));
+
+  toolbar.appendChild(createBoardTableBulkButton('Clear', {
+    onClick: async () => {
+      clearBoardTableSelection();
+      await renderBoard();
+    },
+  }));
+
+  if (visibleEntries.length === 0) {
+    toolbar.hidden = true;
+  }
+
+  return toolbar;
+}
+
+function createBoardTableHeader(visibleEntries) {
   const thead = document.createElement('thead');
   const row = document.createElement('tr');
 
@@ -307,12 +993,57 @@ function createBoardTableHeader() {
     const header = document.createElement('th');
     header.scope = 'col';
     header.className = `board-table-heading board-table-heading-${column.id}`;
-    header.textContent = column.label;
+
+    if (column.id === 'select') {
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'board-table-select-checkbox board-table-select-all-checkbox';
+      checkbox.title = 'Select visible cards';
+      checkbox.setAttribute('aria-label', 'Select visible cards');
+
+      const entries = Array.isArray(visibleEntries) ? visibleEntries : [];
+      const selectedEntries = getBoardTableSelectedEntries(entries);
+      checkbox.checked = entries.length > 0 && selectedEntries.length === entries.length;
+      checkbox.indeterminate = selectedEntries.length > 0 && selectedEntries.length < entries.length;
+      checkbox.disabled = entries.length === 0;
+      checkbox.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        selectBoardTableVisibleEntries(entries, checkbox.checked);
+        await renderBoard();
+      });
+
+      header.appendChild(checkbox);
+    } else {
+      header.textContent = column.label;
+    }
     row.appendChild(header);
   }
 
   thead.appendChild(row);
   return thead;
+}
+
+function createBoardTableSelectionCell(entry, visibleEntries) {
+  const cell = document.createElement('td');
+  cell.className = 'board-table-cell board-table-cell-select';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.className = 'board-table-select-checkbox';
+  checkbox.checked = isBoardTableEntrySelected(entry);
+  checkbox.title = `Select ${entry.title}`;
+  checkbox.setAttribute('aria-label', `Select ${entry.title}`);
+  checkbox.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    selectBoardTableEntryRange(entry, visibleEntries, checkbox.checked, Boolean(event.shiftKey));
+    await renderBoard();
+  });
+
+  cell.addEventListener('click', (event) => {
+    event.stopPropagation();
+  });
+  cell.appendChild(checkbox);
+  return cell;
 }
 
 function createBoardTableTimestampCell(entry, timestampKey) {
@@ -596,11 +1327,13 @@ function createBoardTableLabelsCell(entry) {
   return cell;
 }
 
-async function createBoardTableRow(entry, listOptions) {
+async function createBoardTableRow(entry, listOptions, visibleEntries) {
   const row = document.createElement('tr');
   row.className = 'board-table-row';
+  row.classList.toggle('is-selected', isBoardTableEntrySelected(entry));
   row.dataset.path = entry.cardPath;
   row.dataset.listPath = entry.listPath;
+  row.setAttribute('aria-selected', isBoardTableEntrySelected(entry) ? 'true' : 'false');
   row.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (target && target.closest && target.closest('button, select, input, textarea, a')) {
@@ -610,6 +1343,7 @@ async function createBoardTableRow(entry, listOptions) {
     toggleEditCardModal(entry.cardPath);
   });
 
+  row.appendChild(createBoardTableSelectionCell(entry, visibleEntries));
   row.appendChild(await createBoardTableStartCell(entry));
   row.appendChild(await createBoardTableDueCell(entry));
   row.appendChild(createBoardTableTimestampCell(entry, 'updatedAt'));
@@ -647,17 +1381,30 @@ function createBoardTableEmptyState(totalCount) {
 async function renderTableBoard(boardRoot, listsWithCards) {
   const tableState = await collectBoardTableCards(boardRoot, listsWithCards);
   const listOptions = getBoardTableListOptions(tableState.listEntries);
+  const visibleCards = sortBoardTableCards(tableState.visibleCards);
+  pruneBoardTableSelection(visibleCards);
+  const selectedEntries = getBoardTableSelectedEntries(visibleCards);
 
   const tableView = document.createElement('section');
   tableView.className = 'board-table-view';
 
   const tableHeader = document.createElement('div');
   tableHeader.className = 'board-table-header';
-  tableHeader.appendChild(createBoardTableSortControl());
-  tableHeader.appendChild(createBoardTableSummary(
+  const tableHeaderLeft = document.createElement('div');
+  tableHeaderLeft.className = 'board-table-header-left';
+  if (selectedEntries.length > 0) {
+    tableHeaderLeft.appendChild(createBoardTableBulkToolbar(selectedEntries, visibleCards, listOptions));
+  }
+  const tableHeaderRight = document.createElement('div');
+  tableHeaderRight.className = 'board-table-header-right';
+  tableHeaderRight.appendChild(createBoardTableListFilterControl(tableState.listEntries));
+  tableHeaderRight.appendChild(createBoardTableSortControl());
+  tableHeaderRight.appendChild(createBoardTableSummary(
     tableState.visibleCards.length,
     tableState.allCards.length,
   ));
+  tableHeader.appendChild(tableHeaderLeft);
+  tableHeader.appendChild(tableHeaderRight);
   tableView.appendChild(tableHeader);
 
   if (tableState.visibleCards.length === 0) {
@@ -675,12 +1422,11 @@ async function renderTableBoard(boardRoot, listsWithCards) {
 
   const table = document.createElement('table');
   table.className = 'board-table';
-  table.appendChild(createBoardTableHeader());
+  table.appendChild(createBoardTableHeader(visibleCards));
 
   const tbody = document.createElement('tbody');
-  const visibleCards = sortBoardTableCards(tableState.visibleCards);
   const rows = await Promise.all(
-    visibleCards.map((entry) => createBoardTableRow(entry, listOptions)),
+    visibleCards.map((entry) => createBoardTableRow(entry, listOptions, visibleCards)),
   );
 
   for (const row of rows) {

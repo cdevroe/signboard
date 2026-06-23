@@ -1241,19 +1241,38 @@ body:not(.board-empty) main#board.board-view-week {
 
 .board-table-view {
   width: 100%;
-  min-width: 1210px;
+  min-width: 1280px;
 }
 
 .board-table-header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
   min-height: 24px;
 }
 
-.board-table-sort-control {
+.board-table-header-left,
+.board-table-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.board-table-header-left {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+}
+
+.board-table-header-right {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.board-table-sort-control,
+.board-table-filter-control {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1261,12 +1280,14 @@ body:not(.board-empty) main#board.board-view-week {
   font-size: var(--font-xs);
 }
 
-.board-table-sort-label {
+.board-table-sort-label,
+.board-table-filter-label {
   font-weight: 700;
   line-height: 1;
 }
 
-.board-table-sort-select {
+.board-table-sort-select,
+.board-table-filter-select {
   min-height: 30px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1276,7 +1297,169 @@ body:not(.board-empty) main#board.board-view-week {
   padding: 4px 28px 4px 8px;
 }
 
-.board-table-sort-select:focus-visible {
+.board-table-sort-select:focus-visible,
+.board-table-filter-select:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 1px;
+}
+
+.board-table-bulk-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px;
+  border: 1px solid color-mix(in oklab, var(--accent) 28%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--accent) 8%, var(--bg-card));
+}
+
+.board-table-bulk-count {
+  padding: 0 6px;
+  color: var(--muted);
+  font-family: "JetBrains Mono Local", "JetBrains Mono", "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+
+.board-table-bulk-button {
+  min-height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 5px 8px;
+}
+
+.board-table-bulk-button:hover,
+.board-table-bulk-button.is-active {
+  border-color: var(--border);
+  background: var(--bg-card);
+}
+
+.board-table-bulk-button-danger {
+  color: var(--danger);
+}
+
+.board-table-bulk-button:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 1px;
+}
+
+.board-table-bulk-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.board-table-bulk-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  min-width: 230px;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  box-shadow: 0 14px 36px var(--shadow);
+}
+
+.board-table-bulk-menu-option {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--font-sm);
+  line-height: 1.25;
+  padding: 7px 8px;
+  text-align: left;
+}
+
+.board-table-bulk-menu-option:hover,
+.board-table-bulk-menu-option:focus-visible {
+  background: color-mix(in oklab, var(--accent) 10%, var(--bg-card));
+}
+
+.board-table-bulk-label-list {
+  display: grid;
+  gap: 2px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.board-table-bulk-label-row {
+  display: grid;
+  grid-template-columns: 18px 14px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  border-radius: var(--radius-xs);
+  color: var(--text);
+  font-size: var(--font-sm);
+  padding: 6px 8px;
+}
+
+.board-table-bulk-label-row:hover {
+  background: color-mix(in oklab, var(--accent) 8%, var(--bg-card));
+}
+
+.board-table-bulk-menu-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.board-table-bulk-menu-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 78%, var(--bg-card));
+}
+
+.board-table-bulk-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.board-table-bulk-date-row + .board-table-bulk-date-row {
+  border-top: 1px solid color-mix(in oklab, var(--border) 78%, var(--bg-card));
+}
+
+.board-table-bulk-date-label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  font-weight: 700;
+}
+
+.board-table-bulk-date-input {
+  min-height: 30px;
+  min-width: 142px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: var(--font-sm);
+  padding: 4px 7px;
+}
+
+.board-table-bulk-date-input:focus-visible {
   outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
   outline-offset: 1px;
 }
@@ -1328,6 +1511,10 @@ body:not(.board-empty) main#board.board-view-week {
   cursor: pointer;
 }
 
+.board-table-row.is-selected .board-table-cell {
+  background: color-mix(in oklab, var(--accent) 9%, var(--bg-card));
+}
+
 .board-table-cell {
   padding: 10px 12px;
   border-bottom: 1px solid color-mix(in oklab, var(--border) 78%, var(--bg-card));
@@ -1341,6 +1528,34 @@ body:not(.board-empty) main#board.board-view-week {
 
 .board-table-row:hover .board-table-cell {
   background: color-mix(in oklab, var(--bg-card) 88%, var(--bg));
+}
+
+.board-table-row.is-selected:hover .board-table-cell {
+  background: color-mix(in oklab, var(--accent) 13%, var(--bg-card));
+}
+
+.board-table-heading-select,
+.board-table-cell-select {
+  width: 44px;
+  min-width: 44px;
+  text-align: center;
+}
+
+.board-table-cell-select {
+  cursor: default;
+}
+
+.board-table-select-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  vertical-align: middle;
+}
+
+.board-table-select-checkbox:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 45%, var(--bg-card));
+  outline-offset: 2px;
 }
 
 .board-table-cell-title {
@@ -2429,9 +2644,16 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   .list,
   .modal,
   .card-date-popover,
-  .label-popover {
+  .label-popover,
+  .board-table-bulk-toolbar,
+  .board-table-bulk-menu {
     border: 1px solid CanvasText;
     box-shadow: none;
+  }
+
+  .board-table-row.is-selected .board-table-cell {
+    background: Highlight;
+    color: HighlightText;
   }
 
   #modalEditCard .cardEditorTimestampMetadata {

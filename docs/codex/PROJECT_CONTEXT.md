@@ -159,13 +159,14 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`
 - `app/board/renderBoard.js`:
   - Reads list metadata and renders the active board view.
   - Renders Kanban columns by default.
-  - Renders the board-scoped Table view for dense card scanning.
+  - Renders the board-scoped Table view for dense card scanning and bulk management.
   - Enables list drag-and-drop reorder in Kanban.
   - Fetches each list's card names concurrently for faster initial render.
   - Loads board label definitions and temporary filter state before rendering cards.
 - `app/board/tableView.js`:
   - Renders active-board cards in board/list order as a dense table.
-  - Shows `Start`, `Due`, `Updated`, `Created`, and linked-object count columns plus a compact sort control for board order, oldest/newest updated, oldest/newest created, due date, and title.
+  - Shows `Start`, `Due`, `Updated`, `Created`, and linked-object count columns plus compact list-filter and sort controls.
+  - Supports visible-row checkbox selection, shift-range selection after a row checkbox is selected, and bulk actions for archive, move-to-list, add/remove labels, set/clear start dates, and set/clear due dates.
   - Reuses board search, label filters, Today/Overdue/next-range date filters, task progress badges, linked-object counts, and completed-list workflow handling.
   - Moves a card to another list through the row list dropdown by calling the same top-of-list move IPC path as the card editor.
   - Defers row list dropdown DOM updates until macOS native menu tracking has settled.

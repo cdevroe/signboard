@@ -199,6 +199,17 @@ async function pathExists(targetPath) {
   }
 }
 
+async function findFixtureCardPath(boardRoot, listName, fileNamePart) {
+  const listPath = path.join(boardRoot, listName);
+  const entries = await fs.readdir(listPath);
+  const match = entries.find((entry) => entry.includes(fileNamePart));
+  if (!match) {
+    throw new Error(`Unable to find fixture card containing "${fileNamePart}" in ${listName}.`);
+  }
+
+  return path.join(listPath, match);
+}
+
 async function seedBoardState(page, boardRoot) {
   await seedOpenBoardState(page, [boardRoot], boardRoot);
 }
@@ -1782,6 +1793,103 @@ test('switches to table view and moves a card through the list column', async ({
 
   await page.locator('#cardEditorClose').click();
   await expect(page.locator('#modalEditCard')).toBeHidden();
+});
+
+test('bulk manages selected table cards', async ({ page, boardRoot }) => {
+  await page.locator('#boardSearchInput').focus();
+  await page.keyboard.press(getCurrentBoardPlannerShortcut('1'));
+  await expect(page.locator('main#board')).toHaveClass(/board-view-table/);
+  await expect(page.locator('.board-table-row')).toHaveCount(3);
+
+  await page.locator('.board-table-filter-select').selectOption({ label: 'Completed lists' });
+  await expect(page.locator('.board-table-row')).toHaveCount(1);
+  await expect(page.locator('.board-table-row')).toContainText('Ship beta');
+  await page.locator('.board-table-filter-select').selectOption({ label: 'All lists' });
+  await expect(page.locator('.board-table-row')).toHaveCount(3);
+
+  const rows = page.locator('.board-table-row');
+  await rows.nth(0).locator('.board-table-select-checkbox').click();
+  await rows.nth(2).locator('.board-table-select-checkbox').click({ modifiers: ['Shift'] });
+  await expect(page.locator('.board-table-bulk-count')).toHaveText('3 selected');
+  await expect(rows.nth(1)).toHaveAttribute('aria-selected', 'true');
+
+  await page.getByRole('button', { name: 'Labels' }).click();
+  const labelsMenu = page.locator('.board-table-bulk-labels-menu');
+  await expect(labelsMenu).toBeVisible();
+  await labelsMenu.locator('.board-table-bulk-label-row').filter({ hasText: 'Content' }).locator('input').check();
+  await labelsMenu.getByRole('button', { name: 'Add labels' }).click();
+  await expect(page.locator('.board-table-bulk-toolbar')).toHaveCount(0);
+
+  const planPath = await findFixtureCardPath(boardRoot, '000-To-do-stock', 'plan-release');
+  const shipPath = await findFixtureCardPath(boardRoot, '002-Done-stock', 'ship-beta');
+  await expect.poll(async () => {
+    const planCard = await cardFrontmatter.readCard(planPath);
+    const shipCard = await cardFrontmatter.readCard(shipPath);
+    return {
+      planLabels: planCard.frontmatter.labels || [],
+      shipLabels: shipCard.frontmatter.labels || [],
+    };
+  }).toEqual({
+    planLabels: ['launch', 'content'],
+    shipLabels: ['content'],
+  });
+
+  await rows.nth(0).locator('.board-table-select-checkbox').click();
+  await rows.nth(1).locator('.board-table-select-checkbox').click({ modifiers: ['Shift'] });
+  await expect(page.locator('.board-table-bulk-count')).toHaveText('2 selected');
+  await page.getByRole('button', { name: 'Dates' }).click();
+  const datesMenu = page.locator('.board-table-bulk-dates-menu');
+  const dueRow = datesMenu.locator('.board-table-bulk-date-row').filter({ hasText: 'Due' });
+  await dueRow.locator('input').fill('2026-04-20');
+  await dueRow.getByRole('button', { name: 'Set' }).click();
+  await expect.poll(async () => {
+    const planCard = await cardFrontmatter.readCard(planPath);
+    const polishPath = await findFixtureCardPath(boardRoot, '001-Doing-stock', 'polish-copy');
+    const polishCard = await cardFrontmatter.readCard(polishPath);
+    return [planCard.frontmatter.due || '', polishCard.frontmatter.due || ''];
+  }).toEqual(['2026-04-20', '2026-04-20']);
+
+  await rows.nth(0).locator('.board-table-select-checkbox').click();
+  await rows.nth(1).locator('.board-table-select-checkbox').click({ modifiers: ['Shift'] });
+  await page.getByRole('button', { name: 'Dates' }).click();
+  const clearDueRow = page.locator('.board-table-bulk-dates-menu .board-table-bulk-date-row').filter({ hasText: 'Due' });
+  page.once('dialog', (dialog) => dialog.accept());
+  await clearDueRow.getByRole('button', { name: 'Clear' }).click();
+  await expect.poll(async () => {
+    const planCard = await cardFrontmatter.readCard(planPath);
+    const polishPath = await findFixtureCardPath(boardRoot, '001-Doing-stock', 'polish-copy');
+    const polishCard = await cardFrontmatter.readCard(polishPath);
+    return [planCard.frontmatter.due || '', polishCard.frontmatter.due || ''];
+  }).toEqual(['', '']);
+
+  await rows.nth(0).locator('.board-table-select-checkbox').click();
+  await rows.nth(2).locator('.board-table-select-checkbox').click({ modifiers: ['Shift'] });
+  await page.getByRole('button', { name: 'Move' }).click();
+  await page.locator('.board-table-bulk-move-menu').getByRole('button', { name: 'Doing' }).click();
+  await expect.poll(async () => {
+    const toDoEntries = await fs.readdir(path.join(boardRoot, '000-To-do-stock'));
+    const doingEntries = await fs.readdir(path.join(boardRoot, '001-Doing-stock'));
+    const doneEntries = await fs.readdir(path.join(boardRoot, '002-Done-stock'));
+    return {
+      toDo: toDoEntries.filter((entry) => entry.endsWith('.md')).length,
+      doing: doingEntries.filter((entry) => entry.endsWith('.md')).length,
+      done: doneEntries.filter((entry) => entry.endsWith('.md')).length,
+    };
+  }).toEqual({
+    toDo: 0,
+    doing: 3,
+    done: 0,
+  });
+
+  await page.locator('.board-table-select-all-checkbox').click();
+  await expect(page.locator('.board-table-bulk-count')).toHaveText('3 selected');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Archive' }).click();
+  await expect(page.locator('.board-table-row')).toHaveCount(0);
+  await expect.poll(async () => {
+    const archiveEntries = await fs.readdir(path.join(boardRoot, 'XXX-Archive'));
+    return archiveEntries.filter((entry) => entry.endsWith('.md')).length;
+  }).toBe(3);
 });
 
 test('updates task item due dates from Planner calendar drops', async ({ page, boardRoot }) => {

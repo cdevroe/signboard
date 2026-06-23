@@ -529,7 +529,7 @@ async function run() {
   const tableHeader = context.createBoardTableHeader();
   assert.deepStrictEqual(
     toPlain(tableHeader.children[0].children.map((headerCell) => headerCell.textContent)),
-    ['Start', 'Due', 'Updated', 'Created', 'Tasks', 'Links', 'Card', 'List', 'Labels'],
+    ['', 'Start', 'Due', 'Updated', 'Created', 'Tasks', 'Links', 'Card', 'List', 'Labels'],
     'expected table columns to keep the configured order',
   );
 
@@ -784,6 +784,55 @@ async function run() {
   assert.strictEqual(unfilteredTableState.allCards.length, 3, 'expected table collection to read every card');
   assert.strictEqual(unfilteredTableState.visibleCards.length, 3, 'expected table view to include every unfiltered card');
   assert.strictEqual(unfilteredTableState.allCards[0].linkedObjectCount, 2, 'expected table collection to count linked objects');
+
+  context.getBoardTableState().listFilter = 'completed';
+  const completedListTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);
+  assert.deepStrictEqual(
+    toPlain(completedListTableState.visibleCards.map((card) => card.title)),
+    ['Finished overdue'],
+    'expected table list filter to show completed-list cards',
+  );
+  context.getBoardTableState().listFilter = 'list:/tmp/board/000-To-do-stock';
+  const singleListTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);
+  assert.deepStrictEqual(
+    toPlain(singleListTableState.visibleCards.map((card) => card.title)),
+    ['Alpha task', 'Beta overdue'],
+    'expected table list filter to show cards from one list',
+  );
+  context.getBoardTableState().listFilter = 'all';
+
+  context.clearBoardTableSelection();
+  const tableSelectionEntries = context.sortBoardTableCards(unfilteredTableState.visibleCards);
+  context.selectBoardTableEntryRange(tableSelectionEntries[0], tableSelectionEntries, true, false);
+  assert.deepStrictEqual(
+    toPlain(context.getBoardTableSelectedEntries(tableSelectionEntries).map((card) => card.title)),
+    ['Alpha task'],
+    'expected first selected table row to seed selection',
+  );
+  context.selectBoardTableEntryRange(tableSelectionEntries[2], tableSelectionEntries, true, true);
+  assert.deepStrictEqual(
+    toPlain(context.getBoardTableSelectedEntries(tableSelectionEntries).map((card) => card.title)),
+    ['Alpha task', 'Beta overdue', 'Finished overdue'],
+    'expected shift-select to select the row range',
+  );
+  context.selectBoardTableEntryRange(tableSelectionEntries[1], tableSelectionEntries, false, true);
+  assert.deepStrictEqual(
+    toPlain(context.getBoardTableSelectedEntries(tableSelectionEntries).map((card) => card.title)),
+    ['Alpha task'],
+    'expected shift-unselect to clear the row range',
+  );
+  context.clearBoardTableSelection();
+
+  assert.deepStrictEqual(
+    toPlain(context.getBoardTableLabelsWithAddedIds(['label-2'], ['label-1', 'label-2'])),
+    ['label-2', 'label-1'],
+    'expected bulk add labels to preserve existing labels and append new labels',
+  );
+  assert.deepStrictEqual(
+    toPlain(context.getBoardTableLabelsWithoutIds(['label-1', 'label-2'], ['label-1'])),
+    ['label-2'],
+    'expected bulk remove labels to remove only selected labels',
+  );
 
   filterState.filterIds = ['label-1'];
   const labelFilteredTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);

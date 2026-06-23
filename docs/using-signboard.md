@@ -232,11 +232,13 @@ Kanban is the board view. Use it for day-to-day drag-and-drop organization. Card
 
 ### Table
 
-Table is an active-board view for scanning cards in board/list order. It uses the same board search, label filters, date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.
+Table is an active-board view for scanning and bulk-managing cards in board/list order. It uses the same board search, label filters, date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.
 
 Open `Board menu > View > Table`. Click a card title or row to open the normal card editor. Use the row's list dropdown to move a card to another list; moved cards land at the top of the destination list.
 
-Table includes `Start`, `Due`, `Updated`, and `Created` columns plus a sort control. Sort by `Updated, oldest first` to find cards you have not touched in a while, or by `Created, oldest first` to find your oldest cards. Search and filters apply first, then the Table sort orders the visible cards.
+Table includes `Start`, `Due`, `Updated`, and `Created` columns plus list filtering and sorting. Filter to one list, all completed lists, or all lists. Sort by `Updated, oldest first` to find cards you have not touched in a while, or by `Created, oldest first` to find your oldest cards. Search and filters apply first, then the Table sort orders the visible cards.
+
+Use the row checkboxes to select visible cards for bulk actions. After selecting one card, hold `Shift` while checking another row to select the range between them. The header checkbox selects the currently visible rows only. Bulk actions can archive selected cards, move them to another list, add or remove labels, set or clear start dates, and set or clear due dates.
 
 ### Dated Views
 
@@ -313,6 +315,8 @@ Open the card editor and choose the archive action.
 ### Archive all cards in a list
 
 Open the list actions menu and choose `Archive cards in this list`.
+
+For selective cleanup, switch to Table, filter to `Completed lists` or a specific list, select the cards you want, and choose `Archive` from the bulk toolbar.
 
 ### Archive a list
 
