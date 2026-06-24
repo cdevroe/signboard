@@ -1,5 +1,6 @@
 const SB_STATUS_REGION_ID = 'signboardStatusRegion';
-const SB_NATIVE_MENU_SETTLE_DELAY_MS = 0;
+// Give AppKit time to exit native menu/select tracking before layout changes.
+const SB_NATIVE_MENU_SETTLE_DELAY_MS = 100;
 const SB_MODAL_FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
