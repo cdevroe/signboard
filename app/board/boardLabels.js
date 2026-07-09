@@ -3967,7 +3967,9 @@ function initializeBoardLabelControls() {
     });
 
     aiActionsList.addEventListener('click', (event) => {
-      const target = event.target;
+      const target = event.target && typeof event.target.closest === 'function'
+        ? event.target.closest('[data-smart-action-command][data-action-id]')
+        : event.target;
       if (!target || !target.dataset || !target.dataset.smartActionCommand || !target.dataset.actionId) {
         return;
       }
@@ -3975,7 +3977,13 @@ function initializeBoardLabelControls() {
       event.preventDefault();
       event.stopPropagation();
 
-      if (target.dataset.smartActionCommand === 'reset' && typeof resetAppSmartCardActionPrompt === 'function') {
+      if (target.dataset.smartActionCommand === 'toggle-edit' && typeof toggleAppSmartCardActionExpanded === 'function') {
+        toggleAppSmartCardActionExpanded(target.dataset.actionId);
+      } else if (target.dataset.smartActionCommand === 'move-up' && typeof moveAppSmartCardAction === 'function') {
+        moveAppSmartCardAction(target.dataset.actionId, 'up');
+      } else if (target.dataset.smartActionCommand === 'move-down' && typeof moveAppSmartCardAction === 'function') {
+        moveAppSmartCardAction(target.dataset.actionId, 'down');
+      } else if (target.dataset.smartActionCommand === 'reset' && typeof resetAppSmartCardActionPrompt === 'function') {
         resetAppSmartCardActionPrompt(target.dataset.actionId);
       } else if (target.dataset.smartActionCommand === 'remove' && typeof removeAppSmartCardAction === 'function') {
         removeAppSmartCardAction(target.dataset.actionId);

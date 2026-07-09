@@ -4327,11 +4327,15 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 .board-settings-ai-action {
   display: grid;
-  gap: 7px;
+  gap: 9px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: color-mix(in oklab, var(--bg-card) 96%, var(--border));
-  padding: 10px;
+  padding: 8px 10px;
+}
+
+.board-settings-ai-action.is-expanded {
+  padding-bottom: 10px;
 }
 
 .board-settings-ai-action-header {
@@ -4341,6 +4345,11 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   gap: 10px;
 }
 
+.board-settings-ai-action-title-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .board-settings-ai-action-title,
 .board-settings-ai-action-label {
   margin: 0;
@@ -4348,6 +4357,35 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   font-size: var(--font-sm);
   font-weight: 700;
   line-height: 1.25;
+}
+
+.board-settings-ai-action-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-settings-ai-action-kind {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.2;
+}
+
+.board-settings-ai-action-header-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.board-settings-ai-action-details {
+  display: grid;
+  gap: 7px;
+}
+
+.board-settings-ai-action-details[hidden] {
+  display: none;
 }
 
 .board-settings-ai-action input,
@@ -4360,10 +4398,39 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   resize: vertical;
 }
 
+.board-settings-ai-action-drag-handle,
+.board-settings-ai-action-edit,
 .board-settings-ai-action-reset,
 .board-settings-ai-action-remove {
   min-height: 30px;
-  padding: 5px 10px;
+  padding: 5px 8px;
+}
+
+.board-settings-ai-action-drag-handle {
+  width: 30px;
+  min-width: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  cursor: grab;
+}
+
+.board-settings-ai-action-drag-handle:active {
+  cursor: grabbing;
+}
+
+.board-settings-ai-action-drag-handle svg {
+  width: 15px;
+  height: 15px;
+}
+
+.board-settings-ai-action--chosen {
+  border-color: color-mix(in oklab, var(--accent) 44%, var(--border));
+}
+
+.board-settings-ai-action--ghost {
+  opacity: .55;
 }
 
 #btnRefreshAiOllamaModels {

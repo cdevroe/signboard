@@ -3023,6 +3023,24 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
       actionLabels: defaultSmartCardActionLabels,
     });
 
+    const actionRows = page.locator('#boardSettingsAiActionsList .board-settings-ai-action');
+    await expect(actionRows).toHaveCount(defaultSmartCardActionLabels.length);
+    await expect(actionRows.first()).toContainText('Generate new card title');
+    await expect(actionRows.first().locator('.board-settings-ai-action-details')).toBeHidden();
+    await actionRows.first().getByRole('button', { name: 'Edit' }).click();
+    await expect(actionRows.first().locator('.board-settings-ai-action-details')).toBeVisible();
+
+    await page.locator('#btnAddAiSmartCardAction').click();
+    await expect(actionRows.first()).toContainText('Custom action 1');
+    await expect(actionRows.first().locator('.board-settings-ai-action-details')).toBeVisible();
+    await expect(actionRows.first().getByRole('button', { name: 'Move Custom action 1 down' })).toHaveCount(0);
+    const customActionDragHandle = actionRows.first().getByRole('button', { name: 'Reorder Custom action 1' });
+    await expect(customActionDragHandle).toBeVisible();
+    await customActionDragHandle.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(actionRows.first()).toContainText('Generate new card title');
+    await expect(actionRows.nth(1)).toContainText('Custom action 1');
+
     await page.locator('#boardSettingsClose').click();
     await expect(page.locator('#modalBoardSettings')).toBeHidden();
 
@@ -3092,6 +3110,87 @@ test('inserts generated Smart Card Action summaries at the top of the card body'
     '',
     '- [ ] Keep this task',
   ].join('\n'));
+});
+
+test('anchors Smart Card Action results and refreshes generated task controls', async ({ page }) => {
+  await page.evaluate(async () => {
+    const current = await window.electronAPI.readAppSettings();
+    await window.electronAPI.updateAppSettings({
+      ai: {
+        ...current.ai,
+        enabled: true,
+        ollama: {
+          ...current.ai.ollama,
+          model: 'llama3.2',
+        },
+        smartCardActions: current.ai.smartCardActions,
+      },
+    });
+    if (typeof loadAppSettings === 'function') {
+      await loadAppSettings();
+    }
+  });
+
+  await openFirstCardInEditor(page);
+
+  const aiButton = page.locator('#cardEditorSmartActionsButton');
+  await expect(aiButton).toBeVisible();
+  await aiButton.click();
+
+  const smartActionsPopover = page.locator('#cardEditorSmartActionsPopover');
+  await expect(smartActionsPopover).toBeVisible();
+
+  const assertPopoverAboveButton = async () => {
+    const geometry = await page.evaluate(() => {
+      const button = document.getElementById('cardEditorSmartActionsButton');
+      const popover = document.getElementById('cardEditorSmartActionsPopover');
+      const buttonRect = button.getBoundingClientRect();
+      const popoverRect = popover.getBoundingClientRect();
+      return {
+        buttonTop: buttonRect.top,
+        popoverBottom: popoverRect.bottom,
+        popoverLeft: popoverRect.left,
+        popoverRight: popoverRect.right,
+        viewportWidth: window.innerWidth,
+      };
+    });
+    expect(geometry.popoverBottom).toBeLessThanOrEqual(geometry.buttonTop - 4);
+    expect(geometry.popoverLeft).toBeGreaterThanOrEqual(7);
+    expect(geometry.popoverRight).toBeLessThanOrEqual(geometry.viewportWidth - 7);
+  };
+
+  await assertPopoverAboveButton();
+
+  await page.evaluate(() => {
+    const popover = document.getElementById('cardEditorSmartActionsPopover');
+    window.renderCardEditorSmartTasksResult(
+      popover,
+      { id: 'generate-task-list', type: 'tasks', label: 'Generate task list' },
+      {
+        actionType: 'tasks',
+        tasks: [
+          '(due: 2026-03-10) Prepare launch checklist',
+          'Draft handoff notes',
+        ],
+      },
+    );
+  });
+  await expect(smartActionsPopover).toContainText('Suggested tasks');
+  await assertPopoverAboveButton();
+
+  await smartActionsPopover.getByRole('button', { name: 'Back' }).click();
+  await expect(smartActionsPopover).toContainText('Smart Card Actions');
+  await assertPopoverAboveButton();
+
+  await page.evaluate(async () => {
+    await window.insertCardEditorSmartTasks([
+      '(due: 2026-03-10) Prepare launch checklist',
+      'Draft handoff notes',
+    ]);
+  });
+
+  await expect(page.locator('#cardEditorOverType .task-line-checkbox-control')).toHaveCount(2);
+  await expect(page.locator('#cardEditorOverType .task-line-date-control.has-due')).toHaveCount(1);
 });
 
 test('merges auto-label Smart Card Action suggestions with existing card labels', async ({ page }) => {

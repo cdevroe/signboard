@@ -268,30 +268,34 @@
   function normalizeSmartCardActions(rawActions) {
     const sourceActions = Array.isArray(rawActions) ? rawActions : [];
     const normalizedActions = [];
+    const defaultActionsById = new Map(DEFAULT_SMART_CARD_ACTIONS.map((action) => [action.id, action]));
     const seenIds = new Set();
-
-    for (const defaultAction of DEFAULT_SMART_CARD_ACTIONS) {
-      const sourceAction = sourceActions.find((action) => (
-        isObject(action) && String(action.id || '') === defaultAction.id
-      ));
-
-      normalizedActions.push({
-        ...defaultAction,
-        label: defaultAction.label,
-        prompt: normalizeSmartCardActionPrompt(
-          sourceAction && Object.prototype.hasOwnProperty.call(sourceAction, 'prompt')
-            ? sourceAction.prompt
-            : defaultAction.prompt,
-          defaultAction.prompt,
-        ),
-        builtIn: true,
-      });
-      seenIds.add(defaultAction.id);
-    }
 
     let customCount = 0;
     for (const action of sourceActions) {
-      if (!isObject(action) || action.builtIn === true) {
+      if (!isObject(action)) {
+        continue;
+      }
+
+      const sourceId = normalizeSmartCardActionId(action.id);
+      const defaultAction = defaultActionsById.get(sourceId);
+      if (defaultAction && !seenIds.has(defaultAction.id)) {
+        normalizedActions.push({
+          ...defaultAction,
+          label: defaultAction.label,
+          prompt: normalizeSmartCardActionPrompt(
+            Object.prototype.hasOwnProperty.call(action, 'prompt')
+              ? action.prompt
+              : defaultAction.prompt,
+            defaultAction.prompt,
+          ),
+          builtIn: true,
+        });
+        seenIds.add(defaultAction.id);
+        continue;
+      }
+
+      if (action.builtIn === true) {
         continue;
       }
 
@@ -322,6 +326,20 @@
       if (customCount >= CUSTOM_SMART_CARD_ACTION_LIMIT) {
         break;
       }
+    }
+
+    for (const defaultAction of DEFAULT_SMART_CARD_ACTIONS) {
+      if (seenIds.has(defaultAction.id)) {
+        continue;
+      }
+
+      normalizedActions.push({
+        ...defaultAction,
+        label: defaultAction.label,
+        prompt: defaultAction.prompt,
+        builtIn: true,
+      });
+      seenIds.add(defaultAction.id);
     }
 
     return normalizedActions;

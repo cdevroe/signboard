@@ -64,6 +64,9 @@ function getAppSettingsState() {
         registered: false,
         message: '',
       },
+      expandedSmartCardActionIds: new Set(),
+      pendingSmartCardActionFocusId: '',
+      smartCardActionsSortable: null,
       settingsSaveTimer: null,
       settingsSaveInFlight: Promise.resolve(),
     };
@@ -489,47 +492,100 @@ function renderAppSmartCardActionSettings(container, actions) {
   }
 
   const normalizedActions = normalizeAppSmartCardActions(actions);
+  const expandedActionIds = getAppSettingsState().expandedSmartCardActionIds;
+  destroyAppSmartCardActionsSortable();
   container.innerHTML = '';
 
-  for (const action of normalizedActions) {
+  normalizedActions.forEach((action) => {
+    const isExpanded = expandedActionIds.has(action.id);
     const actionEl = document.createElement('div');
     actionEl.className = 'board-settings-ai-action';
+    actionEl.classList.toggle('is-expanded', isExpanded);
     actionEl.dataset.actionId = action.id;
 
     const header = document.createElement('div');
     header.className = 'board-settings-ai-action-header';
 
-    if (action.builtIn) {
-      const title = document.createElement('p');
-      title.className = 'board-settings-ai-action-title';
-      title.textContent = action.label;
-      header.appendChild(title);
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'board-settings-ai-action-title-wrap';
 
+    const title = document.createElement('p');
+    title.className = 'board-settings-ai-action-title';
+    title.textContent = action.label;
+    titleWrap.appendChild(title);
+
+    const kind = document.createElement('p');
+    kind.className = 'board-settings-ai-action-kind';
+    kind.textContent = action.builtIn ? 'Built in' : 'Custom';
+    titleWrap.appendChild(kind);
+    header.appendChild(titleWrap);
+
+    const headerActions = document.createElement('div');
+    headerActions.className = 'board-settings-ai-action-header-actions';
+
+    const dragHandle = document.createElement('button');
+    dragHandle.type = 'button';
+    dragHandle.className = 'board-settings-ai-action-drag-handle';
+    dragHandle.dataset.smartActionDragHandle = 'true';
+    dragHandle.dataset.actionId = action.id;
+    dragHandle.title = 'Drag to reorder action';
+    dragHandle.setAttribute('aria-label', `Reorder ${action.label}`);
+    dragHandle.setAttribute('aria-keyshortcuts', 'ArrowUp ArrowDown');
+    dragHandle.innerHTML = getAppSmartCardActionDragHandleMarkup();
+    dragHandle.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      moveAppSmartCardAction(action.id, event.key === 'ArrowUp' ? 'up' : 'down');
+    });
+    headerActions.appendChild(dragHandle);
+
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'board-settings-ai-action-edit';
+    editButton.dataset.smartActionCommand = 'toggle-edit';
+    editButton.dataset.actionId = action.id;
+    editButton.setAttribute('aria-expanded', String(isExpanded));
+    editButton.setAttribute('aria-controls', `boardSettingsAiActionDetails-${action.id}`);
+    editButton.textContent = isExpanded ? 'Done' : 'Edit';
+    headerActions.appendChild(editButton);
+
+    if (action.builtIn) {
       const resetButton = document.createElement('button');
       resetButton.type = 'button';
       resetButton.className = 'board-settings-ai-action-reset';
       resetButton.dataset.smartActionCommand = 'reset';
       resetButton.dataset.actionId = action.id;
       resetButton.textContent = 'Reset';
-      header.appendChild(resetButton);
+      headerActions.appendChild(resetButton);
     } else {
-      const label = document.createElement('label');
-      label.className = 'board-settings-ai-action-label';
-      label.setAttribute('for', `boardSettingsAiActionLabel-${action.id}`);
-      label.textContent = 'Custom action label';
-      header.appendChild(label);
-
       const removeButton = document.createElement('button');
       removeButton.type = 'button';
       removeButton.className = 'board-settings-ai-action-remove';
       removeButton.dataset.smartActionCommand = 'remove';
       removeButton.dataset.actionId = action.id;
       removeButton.textContent = 'Remove';
-      header.appendChild(removeButton);
+      headerActions.appendChild(removeButton);
     }
+    header.appendChild(headerActions);
     actionEl.appendChild(header);
 
+    const details = document.createElement('div');
+    details.id = `boardSettingsAiActionDetails-${action.id}`;
+    details.className = 'board-settings-ai-action-details';
+    details.hidden = !isExpanded;
+    details.setAttribute('aria-hidden', isExpanded ? 'false' : 'true');
+
     if (!action.builtIn) {
+      const label = document.createElement('label');
+      label.className = 'board-settings-ai-action-label';
+      label.setAttribute('for', `boardSettingsAiActionLabel-${action.id}`);
+      label.textContent = 'Custom action label';
+      details.appendChild(label);
+
       const labelInput = document.createElement('input');
       labelInput.id = `boardSettingsAiActionLabel-${action.id}`;
       labelInput.type = 'text';
@@ -538,14 +594,14 @@ function renderAppSmartCardActionSettings(container, actions) {
       labelInput.dataset.smartActionField = 'label';
       labelInput.dataset.actionId = action.id;
       labelInput.placeholder = 'Action label';
-      actionEl.appendChild(labelInput);
+      details.appendChild(labelInput);
     }
 
     const promptLabel = document.createElement('label');
     promptLabel.className = 'board-settings-ai-action-label';
     promptLabel.setAttribute('for', `boardSettingsAiActionPrompt-${action.id}`);
     promptLabel.textContent = action.builtIn ? 'Prompt' : 'Custom action prompt';
-    actionEl.appendChild(promptLabel);
+    details.appendChild(promptLabel);
 
     const promptTextarea = document.createElement('textarea');
     promptTextarea.id = `boardSettingsAiActionPrompt-${action.id}`;
@@ -555,9 +611,140 @@ function renderAppSmartCardActionSettings(container, actions) {
     promptTextarea.dataset.smartActionField = 'prompt';
     promptTextarea.dataset.actionId = action.id;
     promptTextarea.spellcheck = true;
-    actionEl.appendChild(promptTextarea);
+    details.appendChild(promptTextarea);
+    actionEl.appendChild(details);
 
     container.appendChild(actionEl);
+  });
+
+  initializeAppSmartCardActionsSortable(container);
+  focusPendingAppSmartCardActionControl(container);
+}
+
+function getAppSmartCardActionDragHandleMarkup() {
+  if (
+    window.feather &&
+    window.feather.icons &&
+    window.feather.icons.menu &&
+    typeof window.feather.icons.menu.toSvg === 'function'
+  ) {
+    return window.feather.icons.menu.toSvg({
+      width: 15,
+      height: 15,
+      'aria-hidden': 'true',
+      focusable: 'false',
+    });
+  }
+
+  return '<span aria-hidden="true">Drag</span>';
+}
+
+function destroyAppSmartCardActionsSortable() {
+  const state = getAppSettingsState();
+  if (!state.smartCardActionsSortable) {
+    return;
+  }
+
+  state.smartCardActionsSortable.destroy();
+  state.smartCardActionsSortable = null;
+}
+
+function initializeAppSmartCardActionsSortable(container) {
+  if (!container || typeof Sortable !== 'function') {
+    return;
+  }
+
+  const actionCount = container.querySelectorAll('.board-settings-ai-action[data-action-id]').length;
+  if (actionCount < 2) {
+    return;
+  }
+
+  const state = getAppSettingsState();
+  state.smartCardActionsSortable = new Sortable(container, {
+    animation: (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) ? 0 : 150,
+    draggable: '.board-settings-ai-action[data-action-id]',
+    handle: '.board-settings-ai-action-drag-handle',
+    ghostClass: 'board-settings-ai-action--ghost',
+    chosenClass: 'board-settings-ai-action--chosen',
+    dragClass: 'board-settings-ai-action--dragging',
+    onEnd: (event) => {
+      if (event.oldIndex === event.newIndex) {
+        return;
+      }
+
+      reorderAppSmartCardActionsFromContainer(container);
+    },
+  });
+}
+
+function reorderAppSmartCardActionsFromContainer(container) {
+  if (!container) {
+    return;
+  }
+
+  const actionIds = [...container.querySelectorAll('.board-settings-ai-action[data-action-id]')]
+    .map((actionEl) => String(actionEl.dataset.actionId || '').trim())
+    .filter(Boolean);
+
+  reorderAppSmartCardActions(actionIds);
+}
+
+function reorderAppSmartCardActions(actionIds = []) {
+  const normalizedActionIds = Array.isArray(actionIds)
+    ? actionIds.map((actionId) => String(actionId || '').trim()).filter(Boolean)
+    : [];
+  if (normalizedActionIds.length === 0) {
+    return;
+  }
+
+  const settings = getAppAiSettings();
+  const actionsById = new Map(settings.smartCardActions.map((action) => [action.id, action]));
+  const nextActions = [];
+
+  normalizedActionIds.forEach((actionId) => {
+    const action = actionsById.get(actionId);
+    if (!action) {
+      return;
+    }
+
+    nextActions.push(action);
+    actionsById.delete(actionId);
+  });
+
+  if (nextActions.length === 0) {
+    return;
+  }
+
+  actionsById.forEach((action) => {
+    nextActions.push(action);
+  });
+
+  const previousOrder = settings.smartCardActions.map((action) => action.id).join('\n');
+  const nextOrder = nextActions.map((action) => action.id).join('\n');
+  if (previousOrder === nextOrder) {
+    return;
+  }
+
+  setAppAiSettings({
+    ...settings,
+    smartCardActions: nextActions,
+  });
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+}
+
+function focusPendingAppSmartCardActionControl(container) {
+  const state = getAppSettingsState();
+  const pendingActionId = String(state.pendingSmartCardActionFocusId || '').trim();
+  if (!pendingActionId) {
+    return;
+  }
+
+  state.pendingSmartCardActionFocusId = '';
+  const handle = [...container.querySelectorAll('.board-settings-ai-action-drag-handle[data-action-id]')]
+    .find((element) => element.dataset.actionId === pendingActionId);
+  if (handle && typeof handle.focus === 'function') {
+    handle.focus({ preventScroll: true });
   }
 }
 
@@ -586,6 +773,49 @@ function updateAppSmartCardAction(actionId, partialAction = {}) {
   scheduleAppSettingsSave();
 }
 
+function toggleAppSmartCardActionExpanded(actionId) {
+  const normalizedActionId = String(actionId || '').trim();
+  if (!normalizedActionId) {
+    return;
+  }
+
+  const state = getAppSettingsState();
+  if (state.expandedSmartCardActionIds.has(normalizedActionId)) {
+    state.expandedSmartCardActionIds.delete(normalizedActionId);
+  } else {
+    state.expandedSmartCardActionIds.add(normalizedActionId);
+  }
+  renderAppSettingsControls();
+}
+
+function moveAppSmartCardAction(actionId, direction) {
+  const normalizedActionId = String(actionId || '').trim();
+  const offset = direction === 'up' ? -1 : (direction === 'down' ? 1 : 0);
+  if (!normalizedActionId || offset === 0) {
+    return;
+  }
+
+  const settings = getAppAiSettings();
+  const actions = [...settings.smartCardActions];
+  const currentIndex = actions.findIndex((action) => action.id === normalizedActionId);
+  const nextIndex = currentIndex + offset;
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= actions.length) {
+    return;
+  }
+
+  const [action] = actions.splice(currentIndex, 1);
+  actions.splice(nextIndex, 0, action);
+  setAppAiSettings({
+    ...settings,
+    smartCardActions: actions,
+  });
+  const state = getAppSettingsState();
+  state.expandedSmartCardActionIds.add(normalizedActionId);
+  state.pendingSmartCardActionFocusId = normalizedActionId;
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+}
+
 function resetAppSmartCardActionPrompt(actionId) {
   const defaultAction = getDefaultAppSmartCardAction(actionId);
   if (!defaultAction) {
@@ -599,6 +829,7 @@ function resetAppSmartCardActionPrompt(actionId) {
 
 function removeAppSmartCardAction(actionId) {
   const settings = getAppAiSettings();
+  getAppSettingsState().expandedSmartCardActionIds.delete(String(actionId || '').trim());
   setAppAiSettings({
     ...settings,
     smartCardActions: settings.smartCardActions.filter((action) => action.id !== actionId || action.builtIn),
@@ -618,19 +849,21 @@ function addAppSmartCardAction() {
     return;
   }
 
+  const newActionId = createAppSmartCardActionId();
   setAppAiSettings({
     ...settings,
     smartCardActions: [
-      ...settings.smartCardActions,
       {
-        id: createAppSmartCardActionId(),
+        id: newActionId,
         type: 'custom',
         label: `Custom action ${customActionCount + 1}`,
         prompt: 'Use the card context to create useful Markdown to append to this card.',
         builtIn: false,
       },
+      ...settings.smartCardActions,
     ],
   });
+  getAppSettingsState().expandedSmartCardActionIds.add(newActionId);
   renderAppSettingsControls();
   scheduleAppSettingsSave();
 }

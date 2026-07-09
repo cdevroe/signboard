@@ -109,12 +109,16 @@ async function run() {
     const defaultActionIds = DEFAULT_SMART_CARD_ACTIONS().map((action) => action.id);
     assert.strictEqual(updated.ai.smartCardActions.length, defaultActionIds.length + 1);
     assert.deepStrictEqual(
-      updated.ai.smartCardActions.slice(0, defaultActionIds.length).map((action) => action.id),
-      defaultActionIds,
+      updated.ai.smartCardActions.map((action) => action.id),
+      [
+        'generate-title',
+        'custom-follow-up',
+        ...defaultActionIds.filter((actionId) => actionId !== 'generate-title'),
+      ],
     );
     assert.strictEqual(updated.ai.smartCardActions[0].id, 'generate-title');
     assert.strictEqual(updated.ai.smartCardActions[0].prompt, 'Custom title prompt');
-    assert.deepStrictEqual(updated.ai.smartCardActions[defaultActionIds.length], {
+    assert.deepStrictEqual(updated.ai.smartCardActions[1], {
       id: 'custom-follow-up',
       type: 'custom',
       label: 'Draft follow up',
