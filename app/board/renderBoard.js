@@ -387,6 +387,9 @@ async function renderBoard() {
       syncBoardViewLayout(boardEl, activeBoardView);
       destroyBoardSortables();
       boardEl.replaceChildren(tableBuild.root);
+      if (typeof playPendingWorkspaceBoardTransition === 'function') {
+        playPendingWorkspaceBoardTransition();
+      }
       storeBoardSortables([]);
 
       if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
@@ -429,6 +432,9 @@ async function renderBoard() {
     syncBoardViewLayout(boardEl, activeBoardView);
     destroyBoardSortables();
     boardEl.replaceChildren(...Array.from(stagingEl.childNodes));
+    if (typeof playPendingWorkspaceBoardTransition === 'function') {
+      playPendingWorkspaceBoardTransition();
+    }
 
     const activeSortables = [];
     if (typeof Sortable === 'function') {

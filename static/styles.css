@@ -779,18 +779,26 @@ body.planner-open .planner-overlay[data-transition-direction="right"] {
   transform: translateX(0);
 }
 
-body[data-workspace-transition="right"] main#board {
+body[data-workspace-transition="enter-right"] main#board {
   animation: workspace-view-enter-from-right .22s ease;
 }
 
-body[data-workspace-transition="left"] main#board {
+body[data-workspace-transition="enter-left"] main#board {
   animation: workspace-view-enter-from-left .22s ease;
+}
+
+body[data-workspace-transition="exit-left"] main#board {
+  animation: workspace-view-exit-to-left .14s ease forwards;
+}
+
+body[data-workspace-transition="exit-right"] main#board {
+  animation: workspace-view-exit-to-right .14s ease forwards;
 }
 
 @keyframes workspace-view-enter-from-right {
   from {
-    opacity: .72;
-    transform: translateX(28px);
+    opacity: .64;
+    transform: translateX(34px);
   }
   to {
     opacity: 1;
@@ -800,12 +808,34 @@ body[data-workspace-transition="left"] main#board {
 
 @keyframes workspace-view-enter-from-left {
   from {
-    opacity: .72;
-    transform: translateX(-28px);
+    opacity: .64;
+    transform: translateX(-34px);
   }
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes workspace-view-exit-to-left {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: .58;
+    transform: translateX(-28px);
+  }
+}
+
+@keyframes workspace-view-exit-to-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: .58;
+    transform: translateX(28px);
   }
 }
 
@@ -2759,6 +2789,12 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   .workspace-view-dock,
   .workspace-view-dock-button {
     transition: none;
+  }
+
+  body[data-workspace-transition] main#board {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 
   .card:hover > .card-drag-frame,

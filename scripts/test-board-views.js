@@ -226,6 +226,8 @@ function createLabel(index, name = `Label ${index}`) {
 function createContext() {
   const elements = new Map();
   const workspaceButtonMap = new Map();
+  let timerId = 0;
+  const timers = new Map();
   const documentElement = {
     dataset: { theme: 'light' },
     style: {
@@ -262,6 +264,18 @@ function createContext() {
         readCard: async () => ({ frontmatter: {}, body: '' }),
         formatDueDate: async (dateValue) => String(dateValue || ''),
       },
+      setTimeout: (callback, delay = 0) => {
+        const id = ++timerId;
+        timers.set(id, { callback, delay });
+        return id;
+      },
+      clearTimeout: (id) => {
+        timers.delete(id);
+      },
+      requestAnimationFrame: (callback) => {
+        callback();
+        return 0;
+      },
     },
     document,
     Element: MockElement,
@@ -297,11 +311,13 @@ function createContext() {
   const filterLabel = new MockElement('span');
   const filterPopover = new MockElement('div');
   const workspaceDock = new MockElement('nav');
+  const boardEl = new MockElement('main');
   const listActionsPopover = new MockElement('div');
   elements.set('labelFilterButton', filterButton);
   elements.set('labelFilterButtonText', filterLabel);
   elements.set('labelFilterPopover', filterPopover);
   elements.set('workspaceViewDock', workspaceDock);
+  elements.set('board', boardEl);
   elements.set('listActionsPopover', listActionsPopover);
   for (const viewId of ['planner', 'kanban', 'table']) {
     const button = new MockElement('button');
@@ -599,6 +615,18 @@ async function run() {
   context.setActiveBoardView('table', { render: false });
   assert.strictEqual(workspaceButtonMap.get('table').getAttribute('aria-pressed'), 'true', 'expected Table dock button to become active');
   assert.strictEqual(workspaceButtonMap.get('kanban').getAttribute('aria-pressed'), 'false', 'expected Kanban dock button to become inactive');
+  assert.strictEqual(context.getWorkspaceViewTransitionDirection('planner', 'kanban'), 'right', 'expected Kanban to sit right of Planner');
+  assert.strictEqual(context.getWorkspaceViewTransitionDirection('kanban', 'planner'), 'left', 'expected Planner to sit left of Kanban');
+  assert.strictEqual(context.getWorkspaceViewTransitionDirection('kanban', 'table'), 'right', 'expected Table to sit right of Kanban');
+  assert.strictEqual(context.getWorkspaceViewTransitionDirection('table', 'kanban'), 'left', 'expected Kanban to sit left of Table');
+  context.setWorkspaceTransitionDirection('right');
+  context.playPendingWorkspaceBoardTransition();
+  assert.strictEqual(context.document.body.getAttribute('data-workspace-transition'), 'enter-right', 'expected Table-side views to enter from the right');
+  context.clearWorkspaceTransitionState();
+  context.setWorkspaceTransitionDirection('left');
+  context.playPendingWorkspaceBoardTransition();
+  assert.strictEqual(context.document.body.getAttribute('data-workspace-transition'), 'enter-left', 'expected Planner-side views to enter from the left');
+  context.clearWorkspaceTransitionState();
 
   const listActionsState = context.getListActionsPopoverState();
   listActionsState.anchorElement = new MockElement('button');

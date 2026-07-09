@@ -1932,8 +1932,8 @@ async function openPlannerView(options = {}) {
     applyPlannerScope(requestedScope === 'current' ? 'current' : 'all');
   }
   state.isOpen = true;
-  overlay.classList.remove('hidden', 'is-closing');
   overlay.dataset.transitionDirection = String(options.transitionDirection || 'left');
+  overlay.classList.remove('hidden', 'is-closing');
   overlay.setAttribute('aria-hidden', 'false');
   if (typeof overlay.offsetWidth === 'number') {
     // Force the pre-open transform to apply before sliding the overlay in.
@@ -1959,7 +1959,7 @@ function closePlannerView(options = {}) {
 
   if (overlay) {
     overlay.classList.add('is-closing');
-    overlay.dataset.transitionDirection = String(options.transitionDirection || 'right');
+    overlay.dataset.transitionDirection = String(options.transitionDirection || 'left');
     overlay.setAttribute('aria-hidden', 'true');
     window.setTimeout(() => {
       if (!getPlannerState().isOpen) {

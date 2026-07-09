@@ -55,6 +55,7 @@ function getBoardViewState() {
     window.__boardViewState = {
       controlsInitialized: false,
       workspaceTransitionTimerId: 0,
+      pendingWorkspaceTransitionDirection: '',
       viewByBoard: new Map(),
       calendarCursorByBoard: new Map(),
       weekCursorByBoard: new Map(),
@@ -116,6 +117,37 @@ function getWorkspaceViewTransitionDirection(fromViewId, toViewId) {
   return '';
 }
 
+function normalizeWorkspaceTransitionDirection(direction) {
+  const normalizedDirection = String(direction || '').trim().toLowerCase();
+  return normalizedDirection === 'left' || normalizedDirection === 'right'
+    ? normalizedDirection
+    : '';
+}
+
+function shouldAnimateWorkspaceTransition() {
+  return !(typeof prefersReducedMotion === 'function' && prefersReducedMotion());
+}
+
+function scheduleWorkspaceTransitionCallback(callback, delayMs = 0) {
+  const scheduler = typeof window !== 'undefined' && window && typeof window.setTimeout === 'function'
+    ? window.setTimeout.bind(window)
+    : (typeof setTimeout === 'function' ? setTimeout : null);
+  if (!scheduler) {
+    callback();
+    return 0;
+  }
+  return scheduler(callback, delayMs);
+}
+
+function clearWorkspaceTransitionCallback(timerId) {
+  const clearer = typeof window !== 'undefined' && window && typeof window.clearTimeout === 'function'
+    ? window.clearTimeout.bind(window)
+    : (typeof clearTimeout === 'function' ? clearTimeout : null);
+  if (clearer) {
+    clearer(timerId);
+  }
+}
+
 function getActiveWorkspaceView() {
   if (typeof isPlannerOpen === 'function' && isPlannerOpen()) {
     return WORKSPACE_VIEW_IDS.PLANNER;
@@ -124,8 +156,39 @@ function getActiveWorkspaceView() {
   return getActiveBoardView();
 }
 
-function setWorkspaceTransitionDirection(direction) {
-  const normalizedDirection = String(direction || '').trim();
+function clearWorkspaceTransitionState() {
+  const state = getBoardViewState();
+  const body = document.body;
+  if (state.workspaceTransitionTimerId) {
+    clearWorkspaceTransitionCallback(state.workspaceTransitionTimerId);
+    state.workspaceTransitionTimerId = 0;
+  }
+  state.pendingWorkspaceTransitionDirection = '';
+  if (body) {
+    body.removeAttribute('data-workspace-transition');
+  }
+}
+
+function waitForWorkspaceTransitionFrame() {
+  return new Promise((resolve) => {
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(resolve);
+      });
+      return;
+    }
+
+    scheduleWorkspaceTransitionCallback(resolve, 32);
+  });
+}
+
+function waitForWorkspaceTransitionDelay(delayMs) {
+  return new Promise((resolve) => {
+    scheduleWorkspaceTransitionCallback(resolve, delayMs);
+  });
+}
+
+function setWorkspaceTransitionAttribute(value) {
   const state = getBoardViewState();
   const body = document.body;
   if (!body) {
@@ -133,22 +196,65 @@ function setWorkspaceTransitionDirection(direction) {
   }
 
   if (state.workspaceTransitionTimerId) {
-    window.clearTimeout(state.workspaceTransitionTimerId);
+    clearWorkspaceTransitionCallback(state.workspaceTransitionTimerId);
     state.workspaceTransitionTimerId = 0;
   }
+  body.setAttribute('data-workspace-transition', value);
+}
 
-  if (!normalizedDirection || (typeof prefersReducedMotion === 'function' && prefersReducedMotion())) {
-    body.removeAttribute('data-workspace-transition');
+function setWorkspaceTransitionDirection(direction) {
+  const normalizedDirection = normalizeWorkspaceTransitionDirection(direction);
+  const state = getBoardViewState();
+  if (!normalizedDirection || !shouldAnimateWorkspaceTransition()) {
+    clearWorkspaceTransitionState();
     return;
   }
 
-  body.setAttribute('data-workspace-transition', normalizedDirection);
-  state.workspaceTransitionTimerId = window.setTimeout(() => {
+  state.pendingWorkspaceTransitionDirection = normalizedDirection;
+}
+
+function playPendingWorkspaceBoardTransition() {
+  const state = getBoardViewState();
+  const normalizedDirection = normalizeWorkspaceTransitionDirection(state.pendingWorkspaceTransitionDirection);
+  state.pendingWorkspaceTransitionDirection = '';
+
+  if (!normalizedDirection || !shouldAnimateWorkspaceTransition()) {
+    clearWorkspaceTransitionState();
+    return;
+  }
+
+  if (state.workspaceTransitionTimerId) {
+    clearWorkspaceTransitionCallback(state.workspaceTransitionTimerId);
+    state.workspaceTransitionTimerId = 0;
+  }
+
+  setWorkspaceTransitionAttribute(`enter-${normalizedDirection}`);
+  state.workspaceTransitionTimerId = scheduleWorkspaceTransitionCallback(() => {
     if (document.body) {
       document.body.removeAttribute('data-workspace-transition');
     }
     state.workspaceTransitionTimerId = 0;
   }, 260);
+}
+
+async function prepareWorkspaceBoardTransition(direction) {
+  const normalizedDirection = normalizeWorkspaceTransitionDirection(direction);
+  if (!normalizedDirection || !shouldAnimateWorkspaceTransition()) {
+    clearWorkspaceTransitionState();
+    return;
+  }
+
+  const boardEl = document.getElementById('board');
+  if (!boardEl || !window.boardRoot) {
+    setWorkspaceTransitionDirection(normalizedDirection);
+    return;
+  }
+
+  const exitDirection = normalizedDirection === 'right' ? 'left' : 'right';
+  setWorkspaceTransitionAttribute(`exit-${exitDirection}`);
+  await waitForWorkspaceTransitionFrame();
+  await waitForWorkspaceTransitionDelay(120);
+  setWorkspaceTransitionDirection(normalizedDirection);
 }
 
 function getActiveBoardKeyForViewState() {
@@ -202,6 +308,7 @@ function setActiveBoardView(viewId, options = {}) {
   }
 
   renderBoard().catch((error) => {
+    clearWorkspaceTransitionState();
     console.error('Failed to render board after changing view.', error);
   });
 }
@@ -225,12 +332,11 @@ async function switchWorkspaceView(viewId, options = {}) {
   }
 
   if (targetView === WORKSPACE_VIEW_IDS.PLANNER) {
-    setWorkspaceTransitionDirection(direction || 'left');
     if (typeof openPlannerView === 'function') {
       await openPlannerView({
         viewId: options.plannerViewId,
         scope: options.scope,
-        transitionDirection: direction || 'left',
+        transitionDirection: 'left',
       });
     }
     syncWorkspaceViewDockState();
@@ -241,17 +347,22 @@ async function switchWorkspaceView(viewId, options = {}) {
     setActiveBoardView(targetView, { render: false });
     closePlannerView({
       restoreFocus: false,
-      transitionDirection: direction || 'right',
+      transitionDirection: 'left',
     });
-    setWorkspaceTransitionDirection(direction || 'right');
+    if (targetView === WORKSPACE_VIEW_IDS.TABLE) {
+      setWorkspaceTransitionDirection('right');
+    } else {
+      clearWorkspaceTransitionState();
+    }
     renderBoard().catch((error) => {
+      clearWorkspaceTransitionState();
       console.error('Failed to render board after leaving Planner.', error);
     });
     syncWorkspaceViewDockState(targetView);
     return true;
   }
 
-  setWorkspaceTransitionDirection(direction);
+  await prepareWorkspaceBoardTransition(direction);
   setActiveBoardView(targetView);
   syncWorkspaceViewDockState(targetView);
   return true;
