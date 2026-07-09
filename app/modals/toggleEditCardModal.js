@@ -3021,11 +3021,14 @@ async function handleChangeCardListSelect(e) {
         return;
     }
 
-    if (typeof waitForNativeMenuTrackingToSettle === 'function') {
-        await waitForNativeMenuTrackingToSettle();
+    if (
+        typeof waitForNativeSelectChangeToSettle === 'function' &&
+        !await waitForNativeSelectChangeToSettle(listSelect, targetListPath)
+    ) {
+        return;
     }
 
-    if (!listSelect.isConnected || listSelect.value !== targetListPath || !isCardEditorActive()) {
+    if (!isCardEditorActive()) {
         return;
     }
 

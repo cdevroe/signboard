@@ -1504,6 +1504,7 @@ function cardMatchesBoardLabelFilter(cardLabelIds, cardDueDates = [], activeFilt
 
 function renderBoardLabelFilterButton() {
   const button = document.getElementById('labelFilterButton');
+  const summaryButton = document.getElementById('boardFilterSummaryButton');
   if (!button) {
     return;
   }
@@ -1519,6 +1520,11 @@ function renderBoardLabelFilterButton() {
   if (activeFilterCount === 0) {
     button.setAttribute('aria-label', summaryText);
     button.setAttribute('data-sb-tooltip', summaryText);
+    if (summaryButton) {
+      summaryButton.classList.add('hidden');
+      summaryButton.setAttribute('aria-hidden', 'true');
+      summaryButton.textContent = '';
+    }
     return;
   }
 
@@ -1527,6 +1533,13 @@ function renderBoardLabelFilterButton() {
       summaryText = `Filter cards: ${getBoardDateFilterLabel(activeDateFilter)}`;
       button.setAttribute('aria-label', summaryText);
       button.setAttribute('data-sb-tooltip', summaryText);
+      if (summaryButton) {
+        summaryButton.textContent = `${getBoardDateFilterLabel(activeDateFilter)} ×`;
+        summaryButton.classList.remove('hidden');
+        summaryButton.setAttribute('aria-hidden', 'false');
+        summaryButton.setAttribute('aria-label', `Clear ${getBoardDateFilterLabel(activeDateFilter)} filter`);
+        summaryButton.title = 'Clear filters';
+      }
       return;
     }
 
@@ -1534,12 +1547,34 @@ function renderBoardLabelFilterButton() {
     summaryText = selectedLabel ? `Filter cards: ${selectedLabel.name}` : 'Filter cards: 1 active';
     button.setAttribute('aria-label', summaryText);
     button.setAttribute('data-sb-tooltip', summaryText);
+    if (summaryButton) {
+      const labelText = selectedLabel ? selectedLabel.name : '1 filter';
+      summaryButton.textContent = `${labelText} ×`;
+      summaryButton.classList.remove('hidden');
+      summaryButton.setAttribute('aria-hidden', 'false');
+      summaryButton.setAttribute('aria-label', `Clear ${labelText} filter`);
+      summaryButton.title = 'Clear filters';
+    }
     return;
   }
 
   summaryText = `Filter cards: ${activeFilterCount} active`;
   button.setAttribute('aria-label', summaryText);
   button.setAttribute('data-sb-tooltip', summaryText);
+  if (summaryButton) {
+    summaryButton.textContent = `${activeFilterCount} filters ×`;
+    summaryButton.classList.remove('hidden');
+    summaryButton.setAttribute('aria-hidden', 'false');
+    summaryButton.setAttribute('aria-label', `Clear ${activeFilterCount} active filters`);
+    summaryButton.title = 'Clear filters';
+  }
+}
+
+async function clearActiveBoardFilters() {
+  resetBoardLabelFilter();
+  renderBoardLabelFilterButton();
+  renderBoardLabelFilterPopover();
+  await renderBoard();
 }
 
 async function handleBoardLabelFilterChange(labelId, enabled) {
@@ -1662,10 +1697,7 @@ function renderBoardLabelFilterPopover() {
   clearButton.title = 'Clear active date and label filters';
   clearButton.disabled = selectedFilterIds.size === 0 && !activeDateFilter;
   clearButton.addEventListener('click', async () => {
-    resetBoardLabelFilter();
-    renderBoardLabelFilterButton();
-    renderBoardLabelFilterPopover();
-    await renderBoard();
+    await clearActiveBoardFilters();
   });
   popover.appendChild(clearButton);
 
@@ -3436,6 +3468,7 @@ function closeAllLabelPopovers() {
 
 function initializeBoardLabelControls() {
   const filterButton = document.getElementById('labelFilterButton');
+  const filterSummaryButton = document.getElementById('boardFilterSummaryButton');
   const filterPopover = document.getElementById('labelFilterPopover');
   const openSettingsButton = document.getElementById('openBoardSettings');
   const closeSettingsButton = document.getElementById('boardSettingsClose');
@@ -3454,6 +3487,7 @@ function initializeBoardLabelControls() {
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
   const quickAddShortcutInput = document.getElementById('boardSettingsQuickAddShortcut');
   const aiToggle = document.getElementById('boardSettingsAiToggle');
+  const aiEnableButton = document.getElementById('btnEnableAiSmartActions');
   const aiOllamaUrlInput = document.getElementById('boardSettingsAiOllamaUrl');
   const aiOllamaModelSelect = document.getElementById('boardSettingsAiOllamaModel');
   const aiOllamaRefreshButton = document.getElementById('btnRefreshAiOllamaModels');
@@ -3502,6 +3536,17 @@ function initializeBoardLabelControls() {
       filterPopover.setAttribute('aria-hidden', 'false');
       positionBoardLabelFilterPopover(filterButton, filterPopover);
       focusFirstLabelPopoverControl(filterPopover);
+    });
+  }
+
+  if (filterSummaryButton) {
+    filterSummaryButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await clearActiveBoardFilters();
+      if (typeof closeBoardLabelFilterPopover === 'function') {
+        closeBoardLabelFilterPopover();
+      }
     });
   }
 
@@ -3719,10 +3764,10 @@ function initializeBoardLabelControls() {
   if (colorSchemeSelect) {
     colorSchemeSelect.addEventListener('change', async (event) => {
       const schemeId = event.target.value;
-      if (typeof waitForNativeMenuTrackingToSettle === 'function') {
-        await waitForNativeMenuTrackingToSettle();
-      }
-      if (!colorSchemeSelect.isConnected || colorSchemeSelect.value !== schemeId) {
+      if (
+        typeof waitForNativeSelectChangeToSettle === 'function' &&
+        !await waitForNativeSelectChangeToSettle(colorSchemeSelect, schemeId)
+      ) {
         return;
       }
 
@@ -3816,6 +3861,17 @@ function initializeBoardLabelControls() {
     });
   }
 
+  if (aiEnableButton) {
+    aiEnableButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (aiToggle) {
+        aiToggle.checked = true;
+        aiToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  }
+
   if (aiOllamaUrlInput) {
     aiOllamaUrlInput.addEventListener('change', (event) => {
       if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
@@ -3851,7 +3907,8 @@ function initializeBoardLabelControls() {
   }
 
   if (aiOllamaModelSelect) {
-    aiOllamaModelSelect.addEventListener('change', (event) => {
+    aiOllamaModelSelect.addEventListener('change', async (event) => {
+      const selectedModel = event.target.value;
       if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
         return;
       }
@@ -3861,11 +3918,16 @@ function initializeBoardLabelControls() {
         ...currentSettings,
         ollama: {
           ...currentSettings.ollama,
-          model: event.target.value,
+          model: selectedModel,
         },
       });
-      renderAppSettingsControls();
+
+      const shouldRender = typeof waitForNativeSelectChangeToSettle !== 'function' ||
+        await waitForNativeSelectChangeToSettle(aiOllamaModelSelect, selectedModel);
       scheduleAppSettingsSave();
+      if (shouldRender) {
+        renderAppSettingsControls();
+      }
     });
 
     aiOllamaModelSelect.addEventListener('keydown', (event) => {

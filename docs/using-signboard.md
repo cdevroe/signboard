@@ -88,6 +88,7 @@ Cards are Markdown files, so every card is portable and readable outside the app
 
 You can create a card by:
 
+- Clicking the header `Card` button
 - Pressing `Cmd/Ctrl + N` to open Quick Add for any currently open board
 - Using the `Add new card` button for a specific list
 
@@ -218,7 +219,7 @@ From the search field, press `Enter` or `Arrow Down` to focus the first visible 
 
 ### Date and Label filters
 
-Use the filter button in the header to narrow the visible cards by `Today`, `Overdue`, `Next 7 days`, `Next 14 days`, `Next 30 days`, and your board labels.
+Use the filter button in the header to narrow the visible cards by `Today`, `Overdue`, `Next 7 days`, `Next 14 days`, `Next 30 days`, and your board labels. When filters are active, Signboard shows a compact summary chip beside search; click it to clear the active filters.
 
 When a filter popover is open, use arrow keys, `Home`, and `End` to move through its controls. Press `Esc` to close the popover and return focus to the button that opened it.
 
@@ -234,7 +235,7 @@ Kanban is the board view. Use it for day-to-day drag-and-drop organization. Card
 
 Table is an active-board view for scanning and bulk-managing cards in board/list order. It uses the same board search, label filters, date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.
 
-Open `Board menu > View > Table`. Click a card title or row to open the normal card editor. Use the row's list dropdown to move a card to another list; moved cards land at the top of the destination list.
+Use the bottom view dock to switch to Table. Click a card title or row to open the normal card editor. Use the row's list dropdown to move a card to another list; moved cards land at the top of the destination list.
 
 Table includes `Start`, `Due`, `Updated`, and `Created` columns plus list filtering and sorting. Filter to one list, all completed lists, or all lists. Sort by `Updated, oldest first` to find cards you have not touched in a while, or by `Created, oldest first` to find your oldest cards. Search and filters apply first, then the Table sort orders the visible cards.
 
@@ -253,7 +254,7 @@ Use it when you want to answer questions like:
 
 ### Switch views
 
-- Use `Board menu > View` to switch the current board between Kanban and Table.
+- Use the bottom view dock to switch between Planner, Kanban, and Table. Kanban is centered in the dock as the default board view.
 - `Cmd/Ctrl + 1`: Kanban, closing Planner if it is open
 - `Cmd/Ctrl + Option/Alt + 1`: Table, closing Planner if it is open
 - `Cmd/Ctrl + 2`: Planner Calendar for all open boards
@@ -267,9 +268,9 @@ Use it when you want to answer questions like:
 
 ## Planner
 
-Planner is a workspace-level view for dated work across your currently open boards. It appears as a narrow rail on the far left when at least one board is open.
+Planner is a workspace-level view for dated work across your currently open boards. It is the left-most item in the bottom view dock when at least one board is open.
 
-Open Planner from the left rail or press `Cmd/Ctrl + Shift + P`. Planner slides over the board tabs and board content, so it is clear you are no longer looking at a single board.
+Open Planner from the bottom view dock or press `Cmd/Ctrl + Shift + P`. Planner slides over the board tabs and board content, so it is clear you are no longer looking at a single board.
 
 Planner includes:
 
@@ -302,7 +303,7 @@ Planner uses your light/dark mode but keeps the default Signboard color palette 
 - `Cmd/Ctrl + Option/Alt + 4`: Day for the current board
 - `Cmd/Ctrl + Option/Alt + 5`: Agenda for the current board
 
-Inside Planner, `Cmd/Ctrl + 1` closes Planner and returns to Kanban. `Cmd/Ctrl + Option/Alt + 1` closes Planner and returns to Table.
+Inside Planner, `Cmd/Ctrl + 1` switches directly to Kanban. `Cmd/Ctrl + Option/Alt + 1` switches directly to Table. The bottom dock always shows the active workspace view.
 
 ## Archive and Restore
 
@@ -347,13 +348,13 @@ Open `Settings` from the board menu or press `Cmd/Ctrl + ,`.
 
 The `App Settings` group controls settings that apply across Signboard:
 
-- `Settings`: tooltips and the optional global Quick Add shortcut while Signboard is open
+- `General`: tooltips and the optional global Quick Add shortcut while Signboard is open
 - `Notifications`: daily due-date reminders and External Published Calendar publishing
 - `Smart Actions`: AI assistance through Ollama and Smart Card Action prompts
 
 If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due. The notification time field is shown only while reminders are enabled.
 
-When AI assistance is enabled, Signboard checks the configured Ollama URL, shows whether it can connect, and loads the locally installed models from Ollama into a model dropdown. Use the refresh button next to the model picker after pulling a new model. The card editor then shows a floating Smart Card Actions button with default actions for generating a new title, generating a summary, generating a task list, auto-labeling from the current board's existing labels, and smart paste formatting. Use the gear in the Smart Card Actions menu to open the Smart Actions settings panel directly. App Settings lets you customize each built-in prompt and add custom actions with a label and prompt; for the generated task list action, change the number in the prompt when you want a different number of tasks. Suggestions are previewed before they replace the title, insert Markdown, or apply labels. Auto-label only applies labels that already exist on the current board, preserves labels already assigned to the card, and skips duplicates. Card title, body, board/list context, start/due dates, current labels, available board labels, and pasted smart-paste text are sent to the configured Ollama URL only when you use an action.
+When AI assistance is enabled, Signboard checks the configured Ollama URL, shows whether it can connect, and loads the locally installed models from Ollama into a model dropdown. Use the refresh button next to the model picker after pulling a new model. When AI assistance is off, Smart Actions shows a setup state with an enable button. The card editor then shows a floating Smart Card Actions button with default actions for generating a new title, generating a summary, generating a task list, auto-labeling from the current board's existing labels, and smart paste formatting. Use the gear in the Smart Card Actions menu to open the Smart Actions settings panel directly. App Settings lets you customize each built-in prompt and add custom actions with a label and prompt; for the generated task list action, change the number in the prompt when you want a different number of tasks. Suggestions are previewed before they replace the title, insert Markdown, or apply labels. Auto-label only applies labels that already exist on the current board, preserves labels already assigned to the card, and skips duplicates. Card title, body, board/list context, start/due dates, current labels, available board labels, and pasted smart-paste text are sent to the configured Ollama URL only when you use an action.
 
 ### External Published Calendar
 

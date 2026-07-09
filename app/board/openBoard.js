@@ -95,7 +95,7 @@ This board lives in a folder on your computer. Lists are folders. Cards are Mark
 ## Try these first
 
 - Edit this card title or body.
-- Create a real card from a list actions menu, or press Cmd/Ctrl + N to use Quick Add.
+- Create a real card from the header Card button, a list actions menu, or Cmd/Ctrl + N.
 - Drag a card between To do, Doing, and Done.
 - Add a label or due date to this card.
 - Search from the header, then press Enter to move into matching cards.
@@ -112,8 +112,9 @@ Here are a few example tasks so you can see how checklists and task due dates wo
 
 ## Things worth trying
 
+- Use the bottom view dock to switch between Planner, Kanban, and Table.
 - Open Planner Calendar or This Week to see dated work across open boards.
-- Switch Board menu > View to Table and scan cards across lists.
+- Switch the bottom view dock to Table and scan cards across lists.
 - Open the filter menu and try the Today, Overdue, and label filters.
 - Open Settings and customize labels, completed-list behavior, and board colors.
 - Open Archive from the Board menu after archiving a card or list.

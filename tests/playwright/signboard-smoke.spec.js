@@ -1047,15 +1047,15 @@ test('exposes Obsidian actions and generates a board Base', async ({ page, board
   expect(card.frontmatter.signboard_uri).toBe('signboard://open-card?id=stock');
 });
 
-test('keeps the first board tab clear of the Planner rail', async ({ page }) => {
-  const railBox = await page.locator('#plannerRailButton').boundingBox();
+test('shows the workspace view dock without covering board tabs', async ({ page }) => {
+  const dockBox = await page.locator('#workspaceViewDock').boundingBox();
   const firstTabBox = await page.locator('.board-tab').first().boundingBox();
 
-  if (!railBox || !firstTabBox) {
-    throw new Error('Unable to measure Planner rail or first board tab.');
+  if (!dockBox || !firstTabBox) {
+    throw new Error('Unable to measure workspace view dock or first board tab.');
   }
 
-  expect(firstTabBox.x).toBeGreaterThanOrEqual(railBox.x + railBox.width);
+  expect(dockBox.y).toBeGreaterThan(firstTabBox.y + firstTabBox.height);
 });
 
 test('refreshes board card previews after external markdown edits', async ({ page, boardRoot }) => {
@@ -1795,13 +1795,10 @@ test('switches to table view and moves a card through the list column', async ({
   await expect(page.locator('main#board')).not.toHaveClass(/board-view-table/);
   await expect(page.locator('.list')).toHaveCount(3);
 
-  await openBoardMenu(page);
-  await page.locator('#boardViewButton').click();
-  await expect(page.locator('#boardViewPopover')).toBeVisible();
-  await expect(page.locator('#boardViewPopover')).toContainText(usesMetaModifier ? '⌘⌥1' : 'Ctrl+Alt+1');
-  await page.locator('#boardViewPopover').getByRole('button', { name: /Table/ }).click();
+  await page.locator('#workspaceViewTable').click();
 
   await expect(page.locator('main#board')).toHaveClass(/board-view-table/);
+  await expect(page.locator('#workspaceViewTable')).toHaveClass(/is-active/);
   await expect(page.locator('.board-table-row')).toHaveCount(3);
   await expect(page.locator('.board-table-heading-updated')).toHaveText('Updated');
   await expect(page.locator('.board-table-heading-created')).toHaveText('Created');
@@ -2474,7 +2471,7 @@ test('opens Planner across currently open boards', async ({ electronApp, boardRo
     return card.frontmatter.due;
   }).toBe(targetPlannerIso);
 
-  await page.locator('#plannerCloseRail').click();
+  await page.locator('#workspaceViewKanban').click();
   await expect(page.locator('#plannerOverlay')).toBeHidden();
 });
 

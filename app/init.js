@@ -6,6 +6,7 @@ const DEFAULT_DUE_NOTIFICATION_TIME = '09:00';
 const SIGNBOARD_COMMERCIAL_LICENSE_PRICE = 49;
 const SIGNBOARD_COMMERCIAL_LICENSE_PAYMENT_URL = 'https://buy.stripe.com/7sY4gAaT14WO3dY2mg8N205';
 const SIGNBOARD_TIP_JAR_PAYMENT_URL = 'https://donate.stripe.com/14A3cw1ircpgeWGf928N206';
+const SPONSOR_PILL_DISMISSED_KEY = 'signboardSponsorPillDismissed';
 const ABOUT_SIGNBOARD_FALLBACK_INFO = Object.freeze({
     appName: 'Signboard',
     appVersion: '',
@@ -669,11 +670,16 @@ function initializeBoardMenuControls() {
 function initializeCommercialLicenseControls() {
     const openButton = document.getElementById('openCommercialLicenseModal');
     const sponsorPillButton = document.getElementById('openSponsorPillButton');
+    const sponsorDismissButton = document.getElementById('dismissSponsorPillButton');
     const closeButton = document.getElementById('commercialLicenseClose');
     const payButton = document.getElementById('commercialLicensePayButton');
     const tipButton = document.getElementById('commercialLicenseTipButton');
 
     renderCommercialLicenseModalState();
+    document.body.classList.toggle(
+        'sponsor-pill-dismissed',
+        localStorage.getItem(SPONSOR_PILL_DISMISSED_KEY) === 'true',
+    );
 
     const handleOpenCommercialLicenseModal = async (event) => {
         if (event) {
@@ -694,6 +700,22 @@ function initializeCommercialLicenseControls() {
 
     if (sponsorPillButton) {
         sponsorPillButton.addEventListener('click', handleOpenCommercialLicenseModal);
+    }
+
+    if (sponsorDismissButton) {
+        const dismissSponsorPill = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            localStorage.setItem(SPONSOR_PILL_DISMISSED_KEY, 'true');
+            document.body.classList.add('sponsor-pill-dismissed');
+        };
+        sponsorDismissButton.addEventListener('click', dismissSponsorPill);
+        sponsorDismissButton.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+            dismissSponsorPill(event);
+        });
     }
 
     if (closeButton) {
@@ -969,6 +991,9 @@ async function init() {
         initializeAboutSignboardControls();
         initializeObsidianVaultRequiredModalControls();
         initializeBoardMenuControls();
+        if (typeof initializeHeaderQuickAddButton === 'function') {
+            initializeHeaderQuickAddButton();
+        }
         initializeCommercialLicenseControls();
         initializeBoardLabelControls();
         initializeBoardSearchControls();

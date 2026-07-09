@@ -477,11 +477,10 @@ function createBoardTableSortControl() {
   select.addEventListener('change', async () => {
     const nextSortKey = String(select.value || 'board');
 
-    if (typeof waitForNativeMenuTrackingToSettle === 'function') {
-      await waitForNativeMenuTrackingToSettle();
-    }
-
-    if (!select.isConnected || select.value !== nextSortKey) {
+    if (
+      typeof waitForNativeSelectChangeToSettle === 'function' &&
+      !await waitForNativeSelectChangeToSettle(select, nextSortKey)
+    ) {
       return;
     }
 
@@ -536,11 +535,10 @@ function createBoardTableListFilterControl(listEntries) {
   select.addEventListener('change', async () => {
     const nextListFilter = String(select.value || BOARD_TABLE_LIST_FILTER_ALL);
 
-    if (typeof waitForNativeMenuTrackingToSettle === 'function') {
-      await waitForNativeMenuTrackingToSettle();
-    }
-
-    if (!select.isConnected || select.value !== nextListFilter) {
+    if (
+      typeof waitForNativeSelectChangeToSettle === 'function' &&
+      !await waitForNativeSelectChangeToSettle(select, nextListFilter)
+    ) {
       return;
     }
 
@@ -1150,11 +1148,10 @@ function createBoardTableListCell(entry, listOptions) {
       return;
     }
 
-    if (typeof waitForNativeMenuTrackingToSettle === 'function') {
-      await waitForNativeMenuTrackingToSettle();
-    }
-
-    if (!select.isConnected || select.value !== nextListPath) {
+    if (
+      typeof waitForNativeSelectChangeToSettle === 'function' &&
+      !await waitForNativeSelectChangeToSettle(select, nextListPath)
+    ) {
       return;
     }
 
@@ -1388,9 +1385,43 @@ function createBoardTableSummary(visibleCount, totalCount) {
 function createBoardTableEmptyState(totalCount) {
   const empty = document.createElement('div');
   empty.className = 'board-table-empty';
-  empty.textContent = totalCount > 0
-    ? 'No cards match the current filters.'
-    : 'No cards yet.';
+
+  const title = document.createElement('h3');
+  title.textContent = totalCount > 0
+    ? 'No visible cards'
+    : 'No cards yet';
+  empty.appendChild(title);
+
+  const message = document.createElement('p');
+  message.textContent = totalCount > 0
+    ? 'Search, filters, or the Table list scope are hiding every card on this board.'
+    : 'Create a card to start filling this board. Cards are saved as Markdown files in the selected list.';
+  empty.appendChild(message);
+
+  const action = document.createElement('button');
+  action.type = 'button';
+  if (totalCount > 0) {
+    action.textContent = 'Clear filters';
+    action.addEventListener('click', async () => {
+      setBoardTableListFilter(BOARD_TABLE_LIST_FILTER_ALL);
+      if (typeof clearActiveBoardFilters === 'function') {
+        await clearActiveBoardFilters();
+        return;
+      }
+      await renderBoard();
+    });
+  } else {
+    action.textContent = 'Add card';
+    action.addEventListener('click', () => {
+      if (typeof openQuickAddCardFromCommand === 'function') {
+        openQuickAddCardFromCommand().catch((error) => {
+          console.error('Unable to open quick add from Table empty state.', error);
+        });
+      }
+    });
+  }
+  empty.appendChild(action);
+
   return empty;
 }
 

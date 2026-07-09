@@ -10,12 +10,35 @@ const BOARD_VIEW_OPTIONS = Object.freeze([
   { id: BOARD_VIEW_IDS.TABLE, label: 'Table', shortcutActionId: 'tableView' },
 ]);
 
-const BOARD_VIEW_ICON_BY_ID = Object.freeze({
-  [BOARD_VIEW_IDS.KANBAN]: 'columns',
-  [BOARD_VIEW_IDS.TABLE]: 'list',
-  [BOARD_VIEW_IDS.CALENDAR]: 'calendar',
-  [BOARD_VIEW_IDS.THIS_WEEK]: 'clock',
+const WORKSPACE_VIEW_IDS = Object.freeze({
+  PLANNER: 'planner',
+  KANBAN: BOARD_VIEW_IDS.KANBAN,
+  TABLE: BOARD_VIEW_IDS.TABLE,
 });
+
+const WORKSPACE_VIEW_ORDER = Object.freeze([
+  WORKSPACE_VIEW_IDS.PLANNER,
+  WORKSPACE_VIEW_IDS.KANBAN,
+  WORKSPACE_VIEW_IDS.TABLE,
+]);
+
+const WORKSPACE_VIEW_OPTIONS = Object.freeze([
+  {
+    id: WORKSPACE_VIEW_IDS.PLANNER,
+    label: 'Planner',
+    shortcutActionId: 'plannerToggle',
+  },
+  {
+    id: WORKSPACE_VIEW_IDS.KANBAN,
+    label: 'Kanban',
+    shortcutActionId: 'kanbanView',
+  },
+  {
+    id: WORKSPACE_VIEW_IDS.TABLE,
+    label: 'Table',
+    shortcutActionId: 'tableView',
+  },
+]);
 
 const BOARD_CALENDAR_WEEKDAY_LABELS = Object.freeze([
   { short: 'Mon', full: 'Monday' },
@@ -31,6 +54,7 @@ function getBoardViewState() {
   if (!window.__boardViewState) {
     window.__boardViewState = {
       controlsInitialized: false,
+      workspaceTransitionTimerId: 0,
       viewByBoard: new Map(),
       calendarCursorByBoard: new Map(),
       weekCursorByBoard: new Map(),
@@ -59,6 +83,72 @@ function normalizeBoardViewId(viewId) {
   }
 
   return BOARD_VIEW_IDS.KANBAN;
+}
+
+function normalizeWorkspaceViewId(viewId) {
+  const normalized = String(viewId || '').trim().toLowerCase();
+  if (normalized === WORKSPACE_VIEW_IDS.PLANNER) {
+    return WORKSPACE_VIEW_IDS.PLANNER;
+  }
+  if (normalized === WORKSPACE_VIEW_IDS.TABLE) {
+    return WORKSPACE_VIEW_IDS.TABLE;
+  }
+
+  return WORKSPACE_VIEW_IDS.KANBAN;
+}
+
+function getWorkspaceViewIndex(viewId) {
+  const normalizedViewId = normalizeWorkspaceViewId(viewId);
+  const index = WORKSPACE_VIEW_ORDER.indexOf(normalizedViewId);
+  return index >= 0 ? index : WORKSPACE_VIEW_ORDER.indexOf(WORKSPACE_VIEW_IDS.KANBAN);
+}
+
+function getWorkspaceViewTransitionDirection(fromViewId, toViewId) {
+  const fromIndex = getWorkspaceViewIndex(fromViewId);
+  const toIndex = getWorkspaceViewIndex(toViewId);
+  if (toIndex > fromIndex) {
+    return 'right';
+  }
+  if (toIndex < fromIndex) {
+    return 'left';
+  }
+
+  return '';
+}
+
+function getActiveWorkspaceView() {
+  if (typeof isPlannerOpen === 'function' && isPlannerOpen()) {
+    return WORKSPACE_VIEW_IDS.PLANNER;
+  }
+
+  return getActiveBoardView();
+}
+
+function setWorkspaceTransitionDirection(direction) {
+  const normalizedDirection = String(direction || '').trim();
+  const state = getBoardViewState();
+  const body = document.body;
+  if (!body) {
+    return;
+  }
+
+  if (state.workspaceTransitionTimerId) {
+    window.clearTimeout(state.workspaceTransitionTimerId);
+    state.workspaceTransitionTimerId = 0;
+  }
+
+  if (!normalizedDirection || (typeof prefersReducedMotion === 'function' && prefersReducedMotion())) {
+    body.removeAttribute('data-workspace-transition');
+    return;
+  }
+
+  body.setAttribute('data-workspace-transition', normalizedDirection);
+  state.workspaceTransitionTimerId = window.setTimeout(() => {
+    if (document.body) {
+      document.body.removeAttribute('data-workspace-transition');
+    }
+    state.workspaceTransitionTimerId = 0;
+  }, 260);
 }
 
 function getActiveBoardKeyForViewState() {
@@ -114,6 +204,57 @@ function setActiveBoardView(viewId, options = {}) {
   renderBoard().catch((error) => {
     console.error('Failed to render board after changing view.', error);
   });
+}
+
+async function switchWorkspaceView(viewId, options = {}) {
+  const targetView = normalizeWorkspaceViewId(viewId);
+  const currentView = getActiveWorkspaceView();
+  const direction = getWorkspaceViewTransitionDirection(currentView, targetView);
+
+  if (typeof closeBoardSwitcher === 'function') {
+    closeBoardSwitcher();
+  }
+  if (typeof closeBoardLabelFilterPopover === 'function') {
+    closeBoardLabelFilterPopover();
+  }
+  if (typeof closeBoardMenuPopover === 'function') {
+    closeBoardMenuPopover();
+  }
+  if (typeof closeBoardViewPopover === 'function') {
+    closeBoardViewPopover();
+  }
+
+  if (targetView === WORKSPACE_VIEW_IDS.PLANNER) {
+    setWorkspaceTransitionDirection(direction || 'left');
+    if (typeof openPlannerView === 'function') {
+      await openPlannerView({
+        viewId: options.plannerViewId,
+        scope: options.scope,
+        transitionDirection: direction || 'left',
+      });
+    }
+    syncWorkspaceViewDockState();
+    return true;
+  }
+
+  if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
+    setActiveBoardView(targetView, { render: false });
+    closePlannerView({
+      restoreFocus: false,
+      transitionDirection: direction || 'right',
+    });
+    setWorkspaceTransitionDirection(direction || 'right');
+    renderBoard().catch((error) => {
+      console.error('Failed to render board after leaving Planner.', error);
+    });
+    syncWorkspaceViewDockState(targetView);
+    return true;
+  }
+
+  setWorkspaceTransitionDirection(direction);
+  setActiveBoardView(targetView);
+  syncWorkspaceViewDockState(targetView);
+  return true;
 }
 
 function createMonthCursorDate(dateValue) {
@@ -761,187 +902,96 @@ function buildWeekCardBuckets(cardEntries, weekStartDate) {
   return buckets;
 }
 
-function syncBoardViewSelectWithState() {
-  const viewButton = document.getElementById('boardViewButton');
-  if (!viewButton) {
+function syncBoardViewControlState() {
+  syncWorkspaceViewDockState();
+}
+
+function getWorkspaceViewOption(viewId) {
+  const normalizedViewId = normalizeWorkspaceViewId(viewId);
+  return WORKSPACE_VIEW_OPTIONS.find((option) => option.id === normalizedViewId) || WORKSPACE_VIEW_OPTIONS[1];
+}
+
+function getWorkspaceViewButton(viewId) {
+  const normalizedViewId = normalizeWorkspaceViewId(viewId);
+  return document.querySelector(`.workspace-view-dock-button[data-workspace-view="${normalizedViewId}"]`);
+}
+
+function syncWorkspaceViewDockState(forcedActiveView = '') {
+  const dock = document.getElementById('workspaceViewDock');
+  if (!dock) {
     return;
   }
 
-  const activeView = getActiveBoardView();
-  const activeOption = BOARD_VIEW_OPTIONS.find((option) => option.id === activeView) || BOARD_VIEW_OPTIONS[0];
-  const iconName = BOARD_VIEW_ICON_BY_ID[activeOption.id] || BOARD_VIEW_ICON_BY_ID[BOARD_VIEW_IDS.KANBAN];
-  viewButton.setAttribute('data-active-view', activeOption.id);
-  viewButton.setAttribute('aria-label', `Current view: ${activeOption.label}. Change view.`);
-  viewButton.setAttribute('title', `Current view: ${activeOption.label}. Change view.`);
+  const hasOpenBoard = Boolean(window.boardRoot);
+  dock.setAttribute('aria-hidden', hasOpenBoard ? 'false' : 'true');
 
-  const iconMarkup = (
-    window.feather &&
-    window.feather.icons &&
-    typeof window.feather.icons[iconName]?.toSvg === 'function'
-  )
-    ? window.feather.icons[iconName].toSvg({
-      width: 16,
-      height: 16,
-      stroke: 'currentColor',
-    })
-    : `<i data-feather="${iconName}"></i>`;
+  const activeView = forcedActiveView
+    ? normalizeWorkspaceViewId(forcedActiveView)
+    : getActiveWorkspaceView();
 
-  viewButton.innerHTML = `
-    <span class="board-menu-action-icon" aria-hidden="true">${iconMarkup}</span>
-    <span class="board-menu-action-label">View: ${activeOption.label}</span>
-  `;
+  for (const option of WORKSPACE_VIEW_OPTIONS) {
+    const button = getWorkspaceViewButton(option.id);
+    if (!button) {
+      continue;
+    }
 
-  if (
-    !(
-      window.feather &&
-      window.feather.icons &&
-      typeof window.feather.icons[iconName]?.toSvg === 'function'
-    ) &&
-    typeof feather !== 'undefined' &&
-    feather &&
-    typeof feather.replace === 'function'
-  ) {
-    feather.replace();
-  }
-
-  const svgIcon = viewButton.querySelector('svg');
-  if (svgIcon) {
-    svgIcon.setAttribute('aria-hidden', 'true');
-    svgIcon.setAttribute('focusable', 'false');
+    const isActive = option.id === activeView;
+    button.classList.toggle('is-active', isActive);
+    button.classList.toggle('is-primary', option.id === WORKSPACE_VIEW_IDS.KANBAN);
+    button.setAttribute('aria-pressed', String(isActive));
+    button.setAttribute('aria-label', `${isActive ? 'Current view: ' : 'Show '}${option.label}`);
+    button.setAttribute('title', `${option.label}${option.shortcutActionId ? ` (${getShortcutHintText(option.shortcutActionId)})` : ''}`);
+    if (option.shortcutActionId) {
+      button.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(option.shortcutActionId));
+    } else {
+      button.removeAttribute('aria-keyshortcuts');
+    }
   }
 }
 
-function syncBoardViewControlState() {
-  syncBoardViewSelectWithState();
-  renderBoardViewPopover();
-}
+function initializeWorkspaceViewDockControls() {
+  const dock = document.getElementById('workspaceViewDock');
+  if (!dock || dock.dataset.sbInitialized === 'true') {
+    syncWorkspaceViewDockState();
+    return;
+  }
 
-function getBoardViewIconMarkup(viewId) {
-  const normalizedViewId = normalizeBoardViewId(viewId);
-  const iconName = BOARD_VIEW_ICON_BY_ID[normalizedViewId] || BOARD_VIEW_ICON_BY_ID[BOARD_VIEW_IDS.KANBAN];
+  for (const option of WORKSPACE_VIEW_OPTIONS) {
+    const button = getWorkspaceViewButton(option.id);
+    if (!button) {
+      continue;
+    }
 
-  if (
-    window.feather &&
-    window.feather.icons &&
-    typeof window.feather.icons[iconName]?.toSvg === 'function'
-  ) {
-    return window.feather.icons[iconName].toSvg({
-      width: 14,
-      height: 14,
-      stroke: 'currentColor',
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      switchWorkspaceView(option.id).catch((error) => {
+        console.error('Failed to switch workspace view.', error);
+      });
     });
   }
 
-  return `<i data-feather="${iconName}" aria-hidden="true"></i>`;
+  dock.dataset.sbInitialized = 'true';
+  syncWorkspaceViewDockState();
 }
 
 function closeBoardViewPopover() {
-  const popover = document.getElementById('boardViewPopover');
-  if (!popover) {
-    return;
-  }
-
-  popover.classList.add('hidden');
-  popover.setAttribute('aria-hidden', 'true');
 }
 
 function closeBoardViewPopoverIfClickOutside(target) {
-  const viewButton = document.getElementById('boardViewButton');
-  const popover = document.getElementById('boardViewPopover');
-  if (!viewButton || !popover || popover.classList.contains('hidden')) {
-    return;
-  }
-
-  if (viewButton.contains(target) || popover.contains(target)) {
-    return;
-  }
-
-  closeBoardViewPopover();
-}
-
-function renderBoardViewPopover() {
-  const popover = document.getElementById('boardViewPopover');
-  if (!popover) {
-    return;
-  }
-
-  const activeView = getActiveBoardView();
-  popover.innerHTML = '';
-
-  for (const option of BOARD_VIEW_OPTIONS) {
-    const shortcutActionId = option.shortcutActionId || '';
-    const optionButton = document.createElement('button');
-    optionButton.type = 'button';
-    optionButton.className = 'board-view-option';
-    optionButton.dataset.viewId = option.id;
-    optionButton.setAttribute('aria-pressed', String(option.id === activeView));
-    if (shortcutActionId) {
-      optionButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(shortcutActionId));
-    } else {
-      optionButton.removeAttribute('aria-keyshortcuts');
-    }
-    optionButton.innerHTML = `
-      <span class="board-view-option-check">${option.id === activeView ? '✓' : ''}</span>
-      <span class="board-view-option-icon" aria-hidden="true">${getBoardViewIconMarkup(option.id)}</span>
-      <span class="board-view-option-label">${option.label}</span>
-      <span class="menu-shortcut-hint board-view-option-shortcut" aria-hidden="true">${shortcutActionId ? getShortcutHintText(shortcutActionId) : ''}</span>
-    `;
-    optionButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setActiveBoardView(option.id);
-    });
-    popover.appendChild(optionButton);
-  }
-}
-
-function toggleBoardViewPopover() {
-  const popover = document.getElementById('boardViewPopover');
-  if (!popover) {
-    return;
-  }
-
-  if (typeof closeBoardLabelFilterPopover === 'function') {
-    closeBoardLabelFilterPopover();
-  }
-  if (typeof closeCardLabelPopover === 'function') {
-    closeCardLabelPopover();
-  }
-  if (typeof closeListActionsPopover === 'function') {
-    closeListActionsPopover();
-  }
-
-  renderBoardViewPopover();
-  const isHidden = popover.classList.contains('hidden');
-  popover.classList.toggle('hidden', !isHidden);
-  popover.setAttribute('aria-hidden', isHidden ? 'false' : 'true');
 }
 
 function initializeBoardViewControls() {
   const state = getBoardViewState();
   if (state.controlsInitialized) {
+    initializeWorkspaceViewDockControls();
     syncBoardViewControlState();
     return;
   }
 
-  const viewButton = document.getElementById('boardViewButton');
-  const popover = document.getElementById('boardViewPopover');
-  if (!viewButton || !popover) {
-    return;
-  }
+  initializeWorkspaceViewDockControls();
 
   syncBoardViewControlState();
-
-  viewButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    toggleBoardViewPopover();
-  });
-
-  popover.addEventListener('click', (event) => {
-    event.stopPropagation();
-  });
-
   state.controlsInitialized = true;
 }
 

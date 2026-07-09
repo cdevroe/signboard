@@ -18,8 +18,8 @@ Signboard is free for personal use. If you are using Signboard for your work, it
 - 🌙 Light and dark mode variants for all color schemes
 - 🏷 Custom labels per board
 - 🗓 Compact calendar controls for card and task list item start/due dates
-- 📋 Kanban and Table board views, including card age columns, sorting, list filtering, and bulk actions in Table
-- 🗂 Planner overlay for actionable dated work across open boards
+- 📋 Bottom view dock for Planner, Kanban, and Table, including card age columns, sorting, list filtering, and bulk actions in Table
+- 🗂 Planner workspace view for actionable dated work across open boards
 - 📆 Optional local External Published Calendar feed for calendar app subscriptions
 - 🔮 Obsidian-friendly properties, Bases generation, linked objects, linked-object counts, and `signboard://` card links
 - 🎨 Board-colored source pills in Planner date views
@@ -93,7 +93,7 @@ In board search, Planner search, and archive search, `Enter` or `Arrow Down` mov
 Board tabs, list actions, label/filter popovers, and Settings sections support arrow-key navigation. `Home` and `End` jump to the edges, `Esc` closes popovers, and `Delete` / `Backspace` closes a focused board tab.
 
 When a card is open, workspace-level shortcuts such as create, board switcher, Planner/view switching, Settings, Archive, and search close the card first. Card-specific shortcuts such as moving or archiving the open card still act on that card.
-In the Quick Add card modal, choose the board and list before creating the card. `Shift + Enter` creates the card, opens it immediately, and focuses the notes field. App Settings can also register an optional global Quick Add shortcut that works while Signboard is open.
+Use the header `Card` button or `Cmd/Ctrl + N` to open Quick Add. In the Quick Add card modal, choose the board and list before creating the card. `Shift + Enter` creates the card, opens it immediately, and focuses the notes field. App Settings can also register an optional global Quick Add shortcut that works while Signboard is open.
 
 You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 

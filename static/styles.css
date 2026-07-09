@@ -134,7 +134,8 @@ html, body { margin: 0; height: 100%; }
 
   /* Card sizing */
   --card-spacing: 16px;
-  --planner-rail-width: 42px;
+  --workspace-view-dock-height: 58px;
+  --workspace-view-dock-bottom: 26px;
 }
 
 :root[data-theme="dark"] {
@@ -222,7 +223,7 @@ body:not(.board-empty) > header {
   grid-template-areas: "tabs controls";
   align-items: end;
   gap: 8px 12px;
-  padding-left: calc(var(--spacing) + var(--planner-rail-width));
+  padding-left: var(--spacing);
   padding-top: 8px;
 }
 
@@ -310,23 +311,148 @@ body:not(.board-empty) #boardPathWrapper {
   height: 16px;
 }
 
-.sponsor-signboard-button {
+.sponsor-signboard-pill {
   position: fixed;
   right: max(18px, env(safe-area-inset-right));
   bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 34;
-  min-height: 38px;
-  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid color-mix(in oklab, var(--accent) 28%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
   box-shadow: 0 12px 30px color-mix(in oklab, var(--text) 12%, transparent);
+  padding: 0 5px 0 0;
 }
 
-.sponsor-signboard-button:hover {
+.sponsor-signboard-button {
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sponsor-signboard-pill:hover,
+.sponsor-signboard-pill:focus-within {
   background: color-mix(in oklab, var(--accent) 18%, var(--bg-card));
   border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
 }
 
-body.board-empty .sponsor-signboard-button {
+body.board-empty .sponsor-signboard-pill,
+body.sponsor-pill-dismissed .sponsor-signboard-pill {
   display: none;
+}
+
+.sponsor-signboard-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+}
+
+.sponsor-signboard-dismiss:hover,
+.sponsor-signboard-dismiss:focus-visible {
+  background: color-mix(in oklab, var(--bg-card) 78%, var(--border));
+  color: var(--text);
+  outline: none;
+}
+
+.sponsor-signboard-dismiss svg {
+  width: 13px;
+  height: 13px;
+}
+
+.workspace-view-dock {
+  position: fixed;
+  left: 50%;
+  bottom: max(var(--workspace-view-dock-bottom), env(safe-area-inset-bottom));
+  z-index: 47;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--workspace-view-dock-height);
+  padding: 5px 18px;
+  border: 1px solid color-mix(in oklab, var(--border) 86%, var(--text));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-card) 92%, transparent);
+  box-shadow:
+    0 18px 42px color-mix(in oklab, var(--text) 16%, transparent),
+    0 1px 1px color-mix(in oklab, var(--text) 10%, transparent);
+  backdrop-filter: saturate(1.15) blur(14px);
+  opacity: .72;
+  transform: translateX(-50%);
+  transition: opacity .16s ease, transform .16s ease, background .16s ease;
+}
+
+.workspace-view-dock:hover,
+.workspace-view-dock:focus-within {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-1px);
+}
+
+body.board-empty .workspace-view-dock {
+  display: none;
+}
+
+.workspace-view-dock-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 116px;
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.workspace-view-dock-button:hover {
+  background: color-mix(in oklab, var(--bg-card) 84%, var(--border));
+  color: var(--text);
+}
+
+.workspace-view-dock-button:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 42%, var(--bg-card));
+  outline-offset: 2px;
+}
+
+.workspace-view-dock-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.workspace-view-dock-button.is-primary {
+  min-width: 146px;
+  min-height: 48px;
+}
+
+.workspace-view-dock-button.is-active {
+  background: color-mix(in oklab, var(--accent) 15%, var(--bg-card));
+  color: color-mix(in oklab, var(--accent) 88%, var(--text));
+}
+
+.workspace-view-dock-button.is-active.is-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow:
+    0 8px 18px color-mix(in oklab, var(--accent) 23%, transparent),
+    0 1px 1px color-mix(in oklab, var(--text) 12%, transparent);
 }
 
 .board-toolbar-group {
@@ -339,6 +465,52 @@ body.board-empty .sponsor-signboard-button {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+#quickAddHeaderButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--accent) 26%, var(--border));
+  background: color-mix(in oklab, var(--accent) 11%, var(--bg-card));
+  color: var(--text);
+  font-size: var(--font-sm);
+  font-weight: 650;
+}
+
+#quickAddHeaderButton:hover,
+#quickAddHeaderButton:focus-visible {
+  background: color-mix(in oklab, var(--accent) 16%, var(--bg-card));
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+}
+
+#quickAddHeaderButton svg {
+  width: 15px;
+  height: 15px;
+}
+
+.board-filter-summary-button {
+  max-width: 180px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--border));
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
+  color: color-mix(in oklab, var(--accent) 78%, var(--text));
+  box-shadow: none;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-filter-summary-button:hover,
+.board-filter-summary-button:focus-visible {
+  background: color-mix(in oklab, var(--accent) 18%, var(--bg-card));
 }
 
 body:not(.board-empty) #boardControls {
@@ -546,60 +718,6 @@ body:not(.board-empty) #boardTabs {
 }
 
 /* Planner overlay */
-.planner-rail-button {
-  position: fixed;
-  z-index: 42;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: var(--planner-rail-width);
-  border: 0;
-  border-right: 1px solid color-mix(in oklab, var(--border) 88%, var(--bg));
-  border-radius: 0;
-  background: color-mix(in oklab, var(--bg-card) 92%, var(--bg));
-  color: var(--muted);
-  box-shadow: 2px 0 10px var(--shadow);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  cursor: pointer;
-  transition: background .16s ease, color .16s ease, transform .16s ease, opacity .16s ease;
-}
-
-body.board-empty .planner-rail-button,
-.planner-rail-button:disabled {
-  display: none;
-}
-
-.planner-rail-button svg {
-  width: 18px;
-  height: 18px;
-  transition: transform .16s ease;
-}
-
-.planner-rail-button:hover,
-.planner-rail-button:focus-visible {
-  background: color-mix(in oklab, var(--bg-card) 82%, var(--accent));
-  color: var(--text);
-}
-
-.planner-rail-button:hover svg,
-.planner-rail-button:focus-visible svg {
-  transform: scale(1.1);
-}
-
-.planner-rail-button:focus-visible {
-  outline: 3px solid color-mix(in oklab, var(--accent) 42%, var(--bg-card));
-  outline-offset: -4px;
-}
-
-body.planner-open .planner-rail-button {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-100%);
-}
-
 .planner-overlay {
   --bg: #f7f8fa;
   --bg-card: #ffffff;
@@ -653,6 +771,44 @@ body.planner-open .planner-overlay {
   transform: translateX(0);
 }
 
+.planner-overlay[data-transition-direction="right"] {
+  transform: translateX(100%);
+}
+
+body.planner-open .planner-overlay[data-transition-direction="right"] {
+  transform: translateX(0);
+}
+
+body[data-workspace-transition="right"] main#board {
+  animation: workspace-view-enter-from-right .22s ease;
+}
+
+body[data-workspace-transition="left"] main#board {
+  animation: workspace-view-enter-from-left .22s ease;
+}
+
+@keyframes workspace-view-enter-from-right {
+  from {
+    opacity: .72;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes workspace-view-enter-from-left {
+  from {
+    opacity: .72;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .planner-panel {
   position: relative;
   height: 100%;
@@ -671,7 +827,7 @@ body.planner-open .planner-overlay {
   justify-content: space-between;
   gap: 16px;
   min-height: 58px;
-  padding: 10px calc(var(--planner-rail-width) + 14px) 0 14px;
+  padding: 10px 14px 0;
   border-bottom: 1px solid var(--border);
   background: color-mix(in oklab, var(--bg) 88%, var(--border));
   backdrop-filter: saturate(1.2) blur(6px);
@@ -944,7 +1100,7 @@ body.planner-open .planner-overlay {
   z-index: 1;
   min-height: 0;
   overflow: auto;
-  padding: 16px calc(var(--planner-rail-width) + 14px) 16px 16px;
+  padding: 16px 16px calc(var(--workspace-view-dock-height) + var(--workspace-view-dock-bottom) + 24px);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1052,43 +1208,6 @@ body.planner-open .planner-overlay {
   color: var(--due-date-today-color);
 }
 
-.planner-close-rail {
-  position: absolute;
-  z-index: 4;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: var(--planner-rail-width);
-  border: 0;
-  border-left: 1px solid color-mix(in oklab, var(--border) 88%, var(--bg));
-  border-radius: 0;
-  background: color-mix(in oklab, var(--bg-card) 92%, var(--bg));
-  color: var(--muted);
-  box-shadow: -2px 0 10px var(--shadow);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  cursor: pointer;
-}
-
-.planner-close-rail:hover,
-.planner-close-rail:focus-visible {
-  background: color-mix(in oklab, var(--bg-card) 82%, var(--accent));
-  color: var(--text);
-}
-
-.planner-close-rail svg {
-  width: 18px;
-  height: 18px;
-  transition: transform .16s ease;
-}
-
-.planner-close-rail:hover svg,
-.planner-close-rail:focus-visible svg {
-  transform: scale(1.1);
-}
-
 #boardMenuButton {
   display: inline-flex;
   align-items: center;
@@ -1137,11 +1256,6 @@ body.planner-open .planner-overlay {
 }
 
 .board-menu-group {
-  width: 100%;
-}
-
-.board-menu-view-group {
-  position: relative;
   width: 100%;
 }
 
@@ -1202,12 +1316,6 @@ body.planner-open .planner-overlay {
   white-space: nowrap;
 }
 
-#boardViewPopover {
-  right: calc(100% + 8px);
-  top: -8px;
-  min-width: 170px;
-}
-
 /* 4) Board layout */
 main#board {
   flex: 1 1 auto;
@@ -1215,7 +1323,7 @@ main#board {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  padding: 16px;
+  padding: 16px 16px calc(var(--workspace-view-dock-height) + var(--workspace-view-dock-bottom) + 24px);
   border-top: 1px solid var(--border);
   overflow-x: auto;
   overflow-y: auto;
@@ -1226,17 +1334,17 @@ main#board.board-view-table,
 main#board.board-view-calendar,
 main#board.board-view-week {
   display: block;
-  padding: 16px;
+  padding: 16px 16px calc(var(--workspace-view-dock-height) + var(--workspace-view-dock-bottom) + 24px);
 }
 
 body:not(.board-empty) main#board {
-  padding-left: calc(16px + var(--planner-rail-width));
+  padding-left: 16px;
 }
 
 body:not(.board-empty) main#board.board-view-table,
 body:not(.board-empty) main#board.board-view-calendar,
 body:not(.board-empty) main#board.board-view-week {
-  padding-left: calc(16px + var(--planner-rail-width));
+  padding-left: 16px;
 }
 
 .board-table-view {
@@ -1682,16 +1790,38 @@ body:not(.board-empty) main#board.board-view-week {
 }
 
 .board-table-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
   min-height: 180px;
+  padding: 24px;
   border: 1px dashed color-mix(in oklab, var(--border) 82%, var(--bg));
   border-radius: var(--radius-lg);
   background: color-mix(in oklab, var(--bg-card) 86%, var(--bg));
   color: var(--muted);
   font-size: var(--font-sm);
   text-align: center;
+}
+
+.board-table-empty h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-md);
+}
+
+.board-table-empty p {
+  max-width: 460px;
+  margin: 0;
+}
+
+.board-table-empty button {
+  margin-top: 4px;
+  border-radius: 999px;
+  border-color: color-mix(in oklab, var(--accent) 30%, var(--border));
+  background: color-mix(in oklab, var(--accent) 11%, var(--bg-card));
+  color: var(--text);
+  font-weight: 650;
 }
 
 .board-calendar {
@@ -1701,6 +1831,10 @@ body:not(.board-empty) main#board.board-view-week {
   min-width: 900px;
   min-height: 640px;
   height: 100%;
+}
+
+.planner-calendar.has-empty-notice {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .board-calendar-header {
@@ -1891,6 +2025,10 @@ body:not(.board-empty) main#board.board-view-week {
   min-width: 900px;
   min-height: 640px;
   height: 100%;
+}
+
+.planner-this-week.has-empty-notice {
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .board-this-week-grid {
@@ -2618,9 +2756,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
   .sb-tooltip,
   .planner-overlay,
-  .planner-rail-button,
-  .planner-rail-button svg,
-  .planner-close-rail svg {
+  .workspace-view-dock,
+  .workspace-view-dock-button {
     transition: none;
   }
 
@@ -4037,15 +4174,27 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 .board-settings-status {
   flex: 0 0 auto;
-  min-width: 96px;
+  min-width: auto;
+  max-width: 180px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, var(--bg-card));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-card) 90%, var(--border));
   color: var(--muted);
   font-size: var(--font-sm);
-  text-align: right;
+  line-height: 1;
+  overflow: hidden;
+  padding: 5px 9px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .board-settings-status-inline {
   min-height: 20px;
   margin-top: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0;
   text-align: left;
 }
 
@@ -4093,6 +4242,34 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 #boardSettingsAiDetails .board-settings-ai-actions-header,
 #boardSettingsAiDetails .board-settings-ai-actions-list {
   grid-column: 1 / -1;
+}
+
+.board-settings-disabled-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed color-mix(in oklab, var(--border) 84%, var(--text));
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 92%, var(--border));
+}
+
+.board-settings-disabled-state.hidden {
+  display: none;
+}
+
+.board-settings-disabled-state .boardSettingsHint:last-child {
+  margin-bottom: 0;
+}
+
+.board-settings-disabled-state button {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border-color: color-mix(in oklab, var(--accent) 30%, var(--border));
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
+  font-weight: 650;
 }
 
 .board-settings-ai-actions-header {
@@ -4462,7 +4639,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 @media (max-width: 980px), (max-height: 700px) {
-  .sponsor-signboard-button {
+  .sponsor-signboard-pill {
     display: none;
   }
 }
@@ -4713,51 +4890,6 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   max-height: min(320px, calc(100vh - 220px));
   overflow-y: auto;
   padding-right: 4px;
-}
-
-.board-view-option {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  box-shadow: none;
-  font-size: var(--font-sm);
-  padding: 7px 8px;
-  text-align: left;
-}
-
-.board-view-option:hover {
-  background: color-mix(in oklab, var(--bg-card) 86%, var(--border));
-}
-
-.board-view-option-check {
-  width: 12px;
-  color: color-mix(in oklab, var(--accent) 70%, var(--text));
-  font-weight: 700;
-  flex: 0 0 12px;
-}
-
-.board-view-option-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  color: var(--muted);
-  flex: 0 0 14px;
-}
-
-.board-view-option-icon svg {
-  width: 14px;
-  height: 14px;
-}
-
-.board-view-option-label {
-  min-width: 0;
-  flex: 1 1 auto;
 }
 
 .label-color-swatch {
@@ -5798,7 +5930,11 @@ select:disabled {
 
 /* 10) Small screens */
 @media (max-width: 700px) {
-  :root { --list-min: 260px; --planner-rail-width: 36px; }
+  :root {
+    --list-min: 260px;
+    --workspace-view-dock-height: 52px;
+    --workspace-view-dock-bottom: 14px;
+  }
   body > header { position: static; }
   .headerTopRow {
     flex-direction: column;
@@ -5810,19 +5946,19 @@ select:disabled {
     flex-wrap: wrap;
   }
   main#board {
-    padding: 12px;
+    padding: 12px 12px calc(var(--workspace-view-dock-height) + var(--workspace-view-dock-bottom) + 20px);
   }
   main#board.board-view-table {
-    padding: 12px;
+    padding: 12px 12px calc(var(--workspace-view-dock-height) + var(--workspace-view-dock-bottom) + 20px);
   }
   main#board.board-view-calendar {
-    padding: 12px;
+    padding: 12px 12px calc(var(--workspace-view-dock-height) + var(--workspace-view-dock-bottom) + 20px);
   }
   main#board.board-view-week {
-    padding: 12px;
+    padding: 12px 12px calc(var(--workspace-view-dock-height) + var(--workspace-view-dock-bottom) + 20px);
   }
   body:not(.board-empty) > header {
-    padding-left: calc(var(--spacing) + var(--planner-rail-width));
+    padding-left: var(--spacing);
   }
   body:not(.board-empty) .headerTopRow {
     align-items: center;
@@ -5845,10 +5981,10 @@ select:disabled {
   body:not(.board-empty) main#board.board-view-table,
   body:not(.board-empty) main#board.board-view-calendar,
   body:not(.board-empty) main#board.board-view-week {
-    padding-left: calc(12px + var(--planner-rail-width));
+    padding-left: 12px;
   }
   .planner-header {
-    padding-right: calc(var(--planner-rail-width) + 10px);
+    padding-right: 10px;
   }
   .planner-header-left {
     width: 100%;
@@ -5864,7 +6000,24 @@ select:disabled {
     padding: 6px 9px;
   }
   .planner-body {
-    padding: 12px calc(var(--planner-rail-width) + 10px) 12px 12px;
+    padding: 12px 12px calc(var(--workspace-view-dock-height) + var(--workspace-view-dock-bottom) + 20px);
+  }
+  .workspace-view-dock {
+    width: min(calc(100vw - 24px), 390px);
+    padding: 4px 8px;
+  }
+  .workspace-view-dock-button {
+    min-width: 0;
+    flex: 1 1 0;
+    padding: 7px 8px;
+  }
+  .workspace-view-dock-button.is-primary {
+    min-width: 0;
+    min-height: 42px;
+  }
+  #quickAddHeaderButton span,
+  .sponsor-signboard-button span:not(.sponsor-signboard-dismiss) {
+    display: none;
   }
   .planner-calendar,
   .planner-this-week,
@@ -5962,7 +6115,7 @@ select:disabled {
 
 /* 11) Print – simple, text-first */
 @media print {
-  body > header, #themeToggle, .planner-rail-button, .planner-overlay { display: none !important; }
+  body > header, #themeToggle, .workspace-view-dock, .planner-overlay { display: none !important; }
   main#board { overflow: visible; }
   .list { box-shadow: none; border-color: #bbb; }
   .card { box-shadow: none; border-color: #bbb; }

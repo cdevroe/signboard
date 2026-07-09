@@ -225,6 +225,7 @@ function createLabel(index, name = `Label ${index}`) {
 
 function createContext() {
   const elements = new Map();
+  const workspaceButtonMap = new Map();
   const documentElement = {
     dataset: { theme: 'light' },
     style: {
@@ -238,6 +239,13 @@ function createContext() {
     getElementById: (id) => elements.get(id) || null,
     documentElement,
     body: new MockElement('body'),
+    querySelector: (selector) => {
+      const match = String(selector || '').match(/\.workspace-view-dock-button\[data-workspace-view="([^"]+)"\]/);
+      if (match) {
+        return workspaceButtonMap.get(match[1]) || null;
+      }
+      return null;
+    },
     querySelectorAll: () => [],
   };
 
@@ -288,21 +296,27 @@ function createContext() {
   const filterButton = new MockElement('button');
   const filterLabel = new MockElement('span');
   const filterPopover = new MockElement('div');
-  const viewButton = new MockElement('button');
-  const viewPopover = new MockElement('div');
+  const workspaceDock = new MockElement('nav');
   const listActionsPopover = new MockElement('div');
   elements.set('labelFilterButton', filterButton);
   elements.set('labelFilterButtonText', filterLabel);
   elements.set('labelFilterPopover', filterPopover);
-  elements.set('boardViewButton', viewButton);
-  elements.set('boardViewPopover', viewPopover);
+  elements.set('workspaceViewDock', workspaceDock);
   elements.set('listActionsPopover', listActionsPopover);
+  for (const viewId of ['planner', 'kanban', 'table']) {
+    const button = new MockElement('button');
+    button.className = 'workspace-view-dock-button';
+    button.dataset.workspaceView = viewId;
+    workspaceButtonMap.set(viewId, button);
+    workspaceDock.appendChild(button);
+  }
 
   return {
     context,
     filterButton,
     filterPopover,
-    viewPopover,
+    workspaceDock,
+    workspaceButtonMap,
     listActionsPopover,
   };
 }
@@ -312,7 +326,8 @@ async function run() {
     context,
     filterButton,
     filterPopover,
-    viewPopover,
+    workspaceDock,
+    workspaceButtonMap,
     listActionsPopover,
   } = createContext();
 
@@ -572,12 +587,18 @@ async function run() {
     'expected created oldest-first sort to surface oldest cards',
   );
 
-  context.renderBoardViewPopover();
-  assert(viewPopover.textContent.includes('Ctrl+1'), 'expected Kanban shortcut hint in view popover');
-  assert(viewPopover.textContent.includes('Ctrl+Alt+1'), 'expected Table shortcut hint in view popover');
-  assert(viewPopover.textContent.includes('Table'), 'expected Table option in board view popover');
-  assert(!viewPopover.textContent.includes('Ctrl+2'), 'expected Calendar shortcut to move out of the board view popover');
-  assert(!viewPopover.textContent.includes('Ctrl+3'), 'expected This Week shortcut to move out of the board view popover');
+  context.window.boardRoot = '/tmp/client-a/';
+  context.initializeBoardViewControls();
+  assert.strictEqual(workspaceDock.getAttribute('aria-hidden'), 'false', 'expected workspace dock to be visible with an open board');
+  assert.strictEqual(workspaceButtonMap.get('planner').getAttribute('title'), 'Planner (Ctrl+Shift+P)');
+  assert.strictEqual(workspaceButtonMap.get('kanban').getAttribute('title'), 'Kanban (Ctrl+1)');
+  assert.strictEqual(workspaceButtonMap.get('table').getAttribute('title'), 'Table (Ctrl+Alt+1)');
+  assert.strictEqual(workspaceButtonMap.get('kanban').getAttribute('aria-pressed'), 'true', 'expected Kanban to default active');
+  assert.strictEqual(workspaceButtonMap.get('table').getAttribute('aria-pressed'), 'false', 'expected Table to start inactive');
+
+  context.setActiveBoardView('table', { render: false });
+  assert.strictEqual(workspaceButtonMap.get('table').getAttribute('aria-pressed'), 'true', 'expected Table dock button to become active');
+  assert.strictEqual(workspaceButtonMap.get('kanban').getAttribute('aria-pressed'), 'false', 'expected Kanban dock button to become inactive');
 
   const listActionsState = context.getListActionsPopoverState();
   listActionsState.anchorElement = new MockElement('button');

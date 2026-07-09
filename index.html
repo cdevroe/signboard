@@ -22,6 +22,11 @@
         </div>
         <div id="boardControls">
           <input id="boardSearchInput" type="search" placeholder="Search cards" aria-label="Search cards">
+          <button id="quickAddHeaderButton" type="button" title="Quick add card" aria-label="Quick add card">
+            <i data-feather="plus"></i>
+            <span>Card</span>
+          </button>
+          <button id="boardFilterSummaryButton" class="board-filter-summary-button hidden" type="button" aria-hidden="true"></button>
           <div class="board-toolbar-group">
             <button id="labelFilterButton" title="Filter cards" aria-label="Filter cards">
               <i data-feather="filter" class="label-toolbar-icon"></i>
@@ -37,10 +42,6 @@
       <div id="boardTabs" role="tablist" aria-label="Open Boards"></div>
     </div>
   </header>
-
-  <button id="plannerRailButton" class="planner-rail-button" type="button" title="Open Planner" aria-label="Open Planner" aria-expanded="false">
-    <i data-feather="calendar"></i>
-  </button>
 
   <section id="plannerOverlay" class="planner-overlay hidden" aria-hidden="true" aria-labelledby="plannerTitle">
     <div class="planner-panel">
@@ -65,9 +66,6 @@
         </div>
       </div>
       <div id="plannerBody" class="planner-body"></div>
-      <button id="plannerCloseRail" class="planner-close-rail" type="button" title="Close Planner" aria-label="Close Planner">
-        <i data-feather="chevron-left"></i>
-      </button>
     </div>
   </section>
 
@@ -93,13 +91,6 @@
       <span class="board-menu-action-label">Settings</span>
       <span class="menu-shortcut-hint" data-shortcut-action="boardSettings" data-shortcut-format="menu" aria-hidden="true">⌘,</span>
     </button>
-    <div class="board-menu-view-group">
-      <button id="boardViewButton" class="board-menu-action" type="button" title="Current view: Kanban. Change view." aria-label="Current view: Kanban. Change view.">
-        <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="columns"></i></span>
-        <span class="board-menu-action-label">View: Kanban</span>
-      </button>
-      <div id="boardViewPopover" class="label-popover hidden" aria-hidden="true"></div>
-    </div>
     <button id="openArchiveBrowser" class="board-menu-action" type="button" title="Browse archived cards and lists" aria-label="Browse archived cards and lists">
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="archive"></i></span>
       <span class="board-menu-action-label">Archive</span>
@@ -117,10 +108,30 @@
 
   <div id="listActionsPopover" class="label-popover list-actions-popover hidden" aria-hidden="true"></div>
 
-  <button id="openSponsorPillButton" class="sponsor-signboard-button" type="button" title="Sponsor Signboard" aria-label="Sponsor Signboard">
-    <i data-feather="heart" aria-hidden="true"></i>
-    <span>Sponsor</span>
-  </button>
+  <div id="sponsorSignboardPill" class="sponsor-signboard-pill">
+    <button id="openSponsorPillButton" class="sponsor-signboard-button" type="button" title="Sponsor Signboard" aria-label="Sponsor Signboard">
+      <i data-feather="heart" aria-hidden="true"></i>
+      <span>Sponsor</span>
+    </button>
+    <button id="dismissSponsorPillButton" class="sponsor-signboard-dismiss" type="button" title="Hide Sponsor button" aria-label="Hide Sponsor button">
+      <i data-feather="x" aria-hidden="true"></i>
+    </button>
+  </div>
+
+  <nav id="workspaceViewDock" class="workspace-view-dock" aria-label="Workspace views">
+    <button id="workspaceViewPlanner" class="workspace-view-dock-button" type="button" data-workspace-view="planner" title="Open Planner" aria-label="Open Planner">
+      <i data-feather="calendar"></i>
+      <span>Planner</span>
+    </button>
+    <button id="workspaceViewKanban" class="workspace-view-dock-button is-active is-primary" type="button" data-workspace-view="kanban" title="Show Kanban view" aria-label="Show Kanban view">
+      <i data-feather="columns"></i>
+      <span>Kanban</span>
+    </button>
+    <button id="workspaceViewTable" class="workspace-view-dock-button" type="button" data-workspace-view="table" title="Show Table view" aria-label="Show Table view">
+      <i data-feather="list"></i>
+      <span>Table</span>
+    </button>
+  </nav>
 
   <div id="modalBoardSwitcher" class="modal board-switcher-modal hidden" role="dialog" aria-modal="false" aria-label="Switch to board" aria-hidden="true">
     <input id="boardSwitcherInput" type="search" role="combobox" placeholder="Switch to board" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-controls="boardSwitcherResults" aria-expanded="false">
@@ -434,7 +445,7 @@
     <div class="board-settings-layout">
       <nav class="board-settings-nav" role="tablist" aria-orientation="vertical" aria-label="Settings sections">
         <p class="board-settings-nav-label">App Settings</p>
-        <button id="boardSettingsNavApp" type="button" role="tab" aria-selected="true" aria-controls="boardSettingsPanelApp" class="board-settings-nav-button is-active" data-settings-panel="app">Settings</button>
+        <button id="boardSettingsNavApp" type="button" role="tab" aria-selected="true" aria-controls="boardSettingsPanelApp" class="board-settings-nav-button is-active" data-settings-panel="app">General</button>
         <button id="boardSettingsNavNotifications" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelNotifications" class="board-settings-nav-button" data-settings-panel="notifications">Notifications</button>
         <button id="boardSettingsNavSmartActions" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelSmartActions" class="board-settings-nav-button" data-settings-panel="smart-actions">Smart Actions</button>
         <div class="board-settings-nav-separator" role="separator"></div>
@@ -448,7 +459,7 @@
       </nav>
       <div class="board-settings-panels">
         <section id="boardSettingsPanelApp" class="boardSettingsSection board-settings-panel is-active" role="tabpanel" aria-hidden="false" aria-labelledby="boardSettingsNavApp" data-settings-panel="app">
-          <h3>Settings</h3>
+          <h3>General</h3>
           <div class="board-settings-group">
             <div class="board-settings-toggle-row">
               <div>
@@ -530,6 +541,13 @@
                 <input id="boardSettingsAiToggle" type="checkbox" role="switch" aria-label="Enable AI assistance">
                 <span class="board-settings-switch-track" aria-hidden="true"></span>
               </label>
+            </div>
+            <div id="boardSettingsAiDisabledState" class="board-settings-disabled-state">
+              <div>
+                <p class="boardSettingsHint boardSettingsHintTight">Smart Actions are off</p>
+                <p class="boardSettingsHint">Enable them to choose an Ollama model and customize card actions.</p>
+              </div>
+              <button id="btnEnableAiSmartActions" type="button">Enable Smart Actions</button>
             </div>
           </div>
           <div id="boardSettingsAiDetails" class="board-settings-group hidden" aria-hidden="true">

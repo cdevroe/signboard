@@ -330,6 +330,7 @@ function renderAppSettingsControls() {
   const externalCalendarCopyButton = document.getElementById('btnCopyExternalCalendarUrl');
   const externalCalendarStatus = document.getElementById('boardSettingsExternalCalendarStatus');
   const aiToggle = document.getElementById('boardSettingsAiToggle');
+  const aiDisabledState = document.getElementById('boardSettingsAiDisabledState');
   const aiDetails = document.getElementById('boardSettingsAiDetails');
   const aiOllamaUrlInput = document.getElementById('boardSettingsAiOllamaUrl');
   const aiOllamaModelSelect = document.getElementById('boardSettingsAiOllamaModel');
@@ -414,6 +415,11 @@ function renderAppSettingsControls() {
   if (aiDetails) {
     aiDetails.classList.toggle('hidden', !aiSettings.enabled);
     aiDetails.setAttribute('aria-hidden', aiSettings.enabled ? 'false' : 'true');
+  }
+
+  if (aiDisabledState) {
+    aiDisabledState.classList.toggle('hidden', aiSettings.enabled);
+    aiDisabledState.setAttribute('aria-hidden', aiSettings.enabled ? 'true' : 'false');
   }
 
   if (aiOllamaUrlInput) {

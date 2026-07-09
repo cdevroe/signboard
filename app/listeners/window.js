@@ -69,6 +69,13 @@ async function openPlannerViewForShortcut(viewId, options = {}) {
         setPlannerActiveView(viewId, { render: false });
     }
 
+    if (typeof switchWorkspaceView === 'function') {
+        return switchWorkspaceView('planner', {
+            plannerViewId: viewId,
+            scope: options.scope === 'current' ? 'current' : 'all',
+        });
+    }
+
     if (typeof openPlannerView === 'function') {
         return openPlannerView({
             viewId,
@@ -117,11 +124,15 @@ async function handleBoardViewShortcut(e, options = {}) {
     switch (e.code) {
         case 'Digit1': {
             e.preventDefault();
-            if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
-                closePlannerView();
-            }
-            if (typeof setActiveBoardView === 'function') {
-                setActiveBoardView(e.altKey ? 'table' : 'kanban');
+            if (typeof switchWorkspaceView === 'function') {
+                await switchWorkspaceView(e.altKey ? 'table' : 'kanban');
+            } else {
+                if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
+                    closePlannerView();
+                }
+                if (typeof setActiveBoardView === 'function') {
+                    setActiveBoardView(e.altKey ? 'table' : 'kanban');
+                }
             }
             return true;
         }
@@ -144,11 +155,15 @@ async function handleBoardViewShortcut(e, options = {}) {
         default:
             if (isDigit1ShortcutEvent(e)) {
                 e.preventDefault();
-                if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
-                    closePlannerView();
-                }
-                if (typeof setActiveBoardView === 'function') {
-                    setActiveBoardView(e.altKey ? 'table' : 'kanban');
+                if (typeof switchWorkspaceView === 'function') {
+                    await switchWorkspaceView(e.altKey ? 'table' : 'kanban');
+                } else {
+                    if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
+                        closePlannerView();
+                    }
+                    if (typeof setActiveBoardView === 'function') {
+                        setActiveBoardView(e.altKey ? 'table' : 'kanban');
+                    }
                 }
                 return true;
             }
@@ -375,6 +390,11 @@ async function switchBoardViewFromCommand(viewId) {
         await closeAllModals({ key: 'Escape' });
     }
 
+    if (typeof switchWorkspaceView === 'function') {
+        await switchWorkspaceView(normalizedViewId);
+        return true;
+    }
+
     if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
         closePlannerView();
     }
@@ -525,6 +545,24 @@ function closePlannerBeforeBoardCreationShortcut() {
     if (typeof isPlannerOpen === 'function' && isPlannerOpen() && typeof closePlannerView === 'function') {
         closePlannerView();
     }
+}
+
+function initializeHeaderQuickAddButton() {
+    const button = document.getElementById('quickAddHeaderButton');
+    if (!button || button.dataset.sbInitialized === 'true') {
+        return;
+    }
+
+    button.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts('addCard'));
+    button.setAttribute('title', `Quick add card (${getShortcutHintText('addCard')})`);
+    button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openQuickAddCardFromCommand().catch((error) => {
+            console.error('Unable to open quick add from header button.', error);
+        });
+    });
+    button.dataset.sbInitialized = 'true';
 }
 
 async function openAddListFromShortcut() {
@@ -781,14 +819,14 @@ async function openAddCardFromShortcut(options = {}) {
     if (userInputBoardPath) {
         userInputBoardPath.onchange = async () => {
             const selectedBoardRoot = userInputBoardPath.value;
-            syncQuickAddLabelButtonForBoard(selectedBoardRoot);
-            if (typeof waitForNativeMenuTrackingToSettle === 'function') {
-                await waitForNativeMenuTrackingToSettle();
-            }
-            if (!userInputBoardPath.isConnected || userInputBoardPath.value !== selectedBoardRoot) {
+            if (
+                typeof waitForNativeSelectChangeToSettle === 'function' &&
+                !await waitForNativeSelectChangeToSettle(userInputBoardPath, selectedBoardRoot)
+            ) {
                 return;
             }
 
+            syncQuickAddLabelButtonForBoard(selectedBoardRoot);
             await renderQuickAddListOptions(selectedBoardRoot);
         };
     }

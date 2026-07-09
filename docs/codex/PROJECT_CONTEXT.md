@@ -62,7 +62,7 @@ File: `main.js`
 File: `preload.js`
 
 - Exposes `window.board`, `window.chooser`, and `window.electronAPI`.
-- `window.electronAPI` includes external-link opening, clipboard text copying, manual update checks, app settings reads/writes, Smart Card Actions, Ollama model inspection, Quick Add global shortcut status, one-time migration from legacy board-level tooltip/notification settings, and main-process-triggered renderer events such as board view switching and Quick Add.
+- `window.electronAPI` includes external-link opening, clipboard text copying, manual update checks, app settings reads/writes, Smart Card Actions, Ollama model inspection, Quick Add global shortcut status, one-time migration from legacy board-level tooltip/notification settings, and main-process-triggered renderer events such as workspace view switching and Quick Add.
 - `window.electronAPI.onOpenSignboardCardLink(...)` lets `main.js` hand resolved `signboard://open-card` links to the renderer, which switches to the board and opens the normal card editor. `window.electronAPI.onOpenSignboardBoardLink(...)` switches to a board opened through `signboard://open-board`.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
@@ -76,11 +76,11 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
 
 - UI is vanilla HTML/CSS/JS.
 - `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
-- The left-edge Planner rail and overlay markup live in `index.html`; Planner covers the board header/tabs while open and is hidden when no boards are open.
+- The bottom Planner/Kanban/Table workspace dock and Planner overlay markup live in `index.html`; Planner covers the board header/tabs while open and is hidden when no boards are open.
 - `app/signboard.js` is concatenated from source modules and shared renderer schema by `buildjs.sh`.
-- Settings groups app-level controls into Settings, Notifications, and Smart Actions panels. The Smart Actions panel owns AI assistance, Ollama verification/model selection, and Smart Card Action prompt customization; generated task-list quantity is controlled by the task-list prompt text rather than a separate app setting. Shared app-settings defaults and normalizers, including built-in Smart Card Action prompts, live in `shared/appSettingsSchema.js` and are consumed by both `lib/appSettings.js` and `app/appSettings.js`. Current-board settings are ordered General, Labels, Appearance, Workflow, Obsidian, and Import; General owns board rename/move/duplicate actions, with import summary/warning rendering in the existing settings modal.
+- Settings groups app-level controls into General, Notifications, and Smart Actions panels. The Smart Actions panel owns AI assistance, Ollama verification/model selection, disabled/setup state, and Smart Card Action prompt customization; generated task-list quantity is controlled by the task-list prompt text rather than a separate app setting. Shared app-settings defaults and normalizers, including built-in Smart Card Action prompts, live in `shared/appSettingsSchema.js` and are consumed by both `lib/appSettings.js` and `app/appSettings.js`. Current-board settings are ordered General, Labels, Appearance, Workflow, Obsidian, and Import; board General owns board rename/move/duplicate actions, with import summary/warning rendering in the existing settings modal.
 - The shared Obsidian-vault-required info modal lives in `index.html` and is controlled from `app/init.js`; linked-note creation and Base generation use it when the active board is not inside a detected vault.
-- The sponsorship modal is available from the Board menu "Sponsor" item, About modal, and a fixed bottom-right "Sponsor" pill that hides on compact windows so it does not cover lists.
+- The sponsorship modal is available from the Board menu "Sponsor" item, About modal, and a fixed bottom-right "Sponsor" pill that hides on compact windows so it does not cover lists and can be dismissed locally.
 - The Board menu now opens a dedicated Archive browser modal; Archive remains hidden from normal board rendering and is not a fourth board view.
 - The quick board switcher is a top-center renderer overlay opened with `Cmd/Ctrl + K`; it searches all currently open boards, supports closing boards, and switches through the same safe board transition helper as tab and overflow-tab clicks.
 
@@ -145,7 +145,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - Initializes board label toolbar/settings controls.
   - Initializes board search input for live filtering.
   - Initializes app settings, including one-time migration from the left-most open board's legacy settings values.
-  - Initializes Planner controls for the left rail, overlay, Planner search/filter popover, and Planner view tabs.
+  - Initializes Planner controls for the bottom workspace dock, overlay, Planner search/filter popover, and Planner view tabs.
   - Runs an external-change sync loop that watches active board files, re-renders after external updates (for example MCP card moves), and refreshes an unchanged open card editor after external/MCP card edits.
   - Calls directory chooser and `openBoard`.
 - `app/board/boardTabs.js`:
@@ -184,10 +184,10 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - Filters currently open boards by visible board name, highlights autocomplete results, closes open boards from result rows, and delegates switching to the shared board switch helper.
 - `app/board/boardViews.js`:
   - Owns shared Kanban/Planner temporal helpers such as calendar math, week math, card collection, open task start/due date placement, and temporal card rendering.
-  - Owns board-facing Kanban/Table view state and the Board menu view popover.
+  - Owns workspace-facing Planner/Kanban/Table dock state, direct view transitions, and board-facing Kanban/Table view state.
   - Shows task progress badges and source-list/source-board pills on temporal cards, tinting source-board pills from each board's color scheme when available.
 - `app/board/plannerView.js`:
-  - Owns the workspace Planner overlay opened from the left rail or `Cmd/Ctrl + Shift + P`.
+  - Owns the workspace Planner overlay opened from the bottom dock or `Cmd/Ctrl + Shift + P`.
   - Scopes Planner data to currently open board tabs only and defaults to all open boards.
   - Offers quick `All Boards` and `Current Board` scope controls plus custom board selection in the filter menu.
   - Renders Planner Calendar, This Week, Day, and Agenda views from card start/due dates and incomplete task-level start/due markers.

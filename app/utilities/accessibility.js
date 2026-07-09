@@ -1,6 +1,6 @@
 const SB_STATUS_REGION_ID = 'signboardStatusRegion';
 // Give AppKit time to exit native menu/select tracking before layout changes.
-const SB_NATIVE_MENU_SETTLE_DELAY_MS = 100;
+const SB_NATIVE_MENU_SETTLE_DELAY_MS = 250;
 const SB_MODAL_FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
@@ -271,13 +271,33 @@ function waitForNativeMenuTrackingToSettle() {
   return new Promise((resolve) => {
     window.setTimeout(() => {
       if (typeof window.requestAnimationFrame === 'function') {
-        window.requestAnimationFrame(() => resolve());
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => resolve());
+        });
         return;
       }
 
       resolve();
     }, SB_NATIVE_MENU_SETTLE_DELAY_MS);
   });
+}
+
+async function waitForNativeSelectChangeToSettle(selectElement, expectedValue) {
+  await waitForNativeMenuTrackingToSettle();
+
+  if (!selectElement) {
+    return false;
+  }
+
+  if ('isConnected' in selectElement && !selectElement.isConnected) {
+    return false;
+  }
+
+  if (typeof expectedValue === 'undefined') {
+    return true;
+  }
+
+  return String(selectElement.value || '') === String(expectedValue || '');
 }
 
 function handleModalFocusTrap(event) {
