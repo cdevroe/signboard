@@ -8,18 +8,28 @@
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createAppSettingsSchema() {
   const APP_SETTINGS_FILE_NAME = 'app-settings.json';
-  const APP_SETTINGS_VERSION = 5;
+  const APP_SETTINGS_VERSION = 6;
   const DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_PORT = 48273;
   const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
   const DEFAULT_OLLAMA_MODEL = 'llama3.2';
   const SMART_CARD_ACTION_LABEL_MAX_LENGTH = 80;
   const SMART_CARD_ACTION_PROMPT_MAX_LENGTH = 6000;
   const CUSTOM_SMART_CARD_ACTION_LIMIT = 12;
+  const DEFAULT_SMART_CARD_ACTION_TARGET = 'content';
+  const SMART_CARD_ACTION_TARGETS = Object.freeze(['title', 'labels', 'content', 'due', 'attachments']);
+  const SMART_CARD_ACTION_TARGET_LABELS = Object.freeze({
+    title: 'Title',
+    labels: 'Labels',
+    content: 'Content',
+    due: 'Due Dates',
+    attachments: 'Attachments',
+  });
   const GLOBAL_SHORTCUT_MAX_LENGTH = 80;
   const DEFAULT_SMART_CARD_ACTIONS = Object.freeze([
     Object.freeze({
       id: 'generate-title',
       type: 'title',
+      target: 'title',
       label: 'Generate new card title',
       prompt: [
         'Improve the card title using the current title and card body as inspiration.',
@@ -31,6 +41,7 @@
     Object.freeze({
       id: 'generate-summary',
       type: 'summary',
+      target: 'content',
       label: 'Generate card summary',
       prompt: [
         'Inspect the card title and body contents and write a summary.',
@@ -43,6 +54,7 @@
     Object.freeze({
       id: 'generate-task-list',
       type: 'tasks',
+      target: 'content',
       label: 'Generate task list',
       prompt: [
         'Generate 6 practical checklist items for this card.',
@@ -56,6 +68,7 @@
     Object.freeze({
       id: 'auto-label-card',
       type: 'labels',
+      target: 'labels',
       label: 'Auto-label card',
       prompt: [
         'Choose labels for this card from the existing board labels only.',
@@ -70,6 +83,7 @@
     Object.freeze({
       id: 'smart-paste',
       type: 'paste',
+      target: 'content',
       label: 'Smart paste',
       prompt: [
         'Format the pasted information for this Signboard Markdown card.',
@@ -78,6 +92,24 @@
         'Do not invent facts.',
       ].join('\n'),
       builtIn: true,
+    }),
+    Object.freeze({
+      id: 'quick-smart-action',
+      type: 'quick',
+      target: 'content',
+      label: 'Quick Smart Action',
+      prompt: '',
+      builtIn: true,
+      editable: false,
+    }),
+    Object.freeze({
+      id: 'question-card',
+      type: 'question',
+      target: 'content',
+      label: 'Question the Card',
+      prompt: '',
+      builtIn: true,
+      editable: false,
     }),
   ]);
   const DEFAULT_NOTIFICATION_SETTINGS = Object.freeze({
@@ -254,6 +286,27 @@
     return candidate.slice(0, SMART_CARD_ACTION_PROMPT_MAX_LENGTH).trim() || normalizedFallback;
   }
 
+  function normalizeSmartCardActionTarget(value, fallback = DEFAULT_SMART_CARD_ACTION_TARGET) {
+    const candidate = String(value || '').trim().toLowerCase().replace(/[_\s]+/g, '-');
+    if (SMART_CARD_ACTION_TARGETS.includes(candidate)) {
+      return candidate;
+    }
+
+    if (candidate === 'custom' || candidate === 'summary' || candidate === 'tasks' || candidate === 'paste' || candidate === 'body' || candidate === 'markdown') {
+      return 'content';
+    }
+
+    if (candidate === 'date' || candidate === 'dates' || candidate === 'due-date' || candidate === 'due-dates' || candidate === 'duedate' || candidate === 'duedates') {
+      return 'due';
+    }
+
+    if (candidate === 'attachment' || candidate === 'linked-object' || candidate === 'linked-objects' || candidate === 'link') {
+      return 'attachments';
+    }
+
+    return SMART_CARD_ACTION_TARGETS.includes(fallback) ? fallback : DEFAULT_SMART_CARD_ACTION_TARGET;
+  }
+
   function normalizeSmartCardActionId(value, fallback = '') {
     const candidate = String(value || '')
       .trim()
@@ -280,15 +333,19 @@
       const sourceId = normalizeSmartCardActionId(action.id);
       const defaultAction = defaultActionsById.get(sourceId);
       if (defaultAction && !seenIds.has(defaultAction.id)) {
-        normalizedActions.push({
-          ...defaultAction,
-          label: defaultAction.label,
-          prompt: normalizeSmartCardActionPrompt(
+        const prompt = defaultAction.editable === false
+          ? defaultAction.prompt
+          : normalizeSmartCardActionPrompt(
             Object.prototype.hasOwnProperty.call(action, 'prompt')
               ? action.prompt
               : defaultAction.prompt,
             defaultAction.prompt,
-          ),
+          );
+        normalizedActions.push({
+          ...defaultAction,
+          label: defaultAction.label,
+          target: normalizeSmartCardActionTarget(defaultAction.target, DEFAULT_SMART_CARD_ACTION_TARGET),
+          prompt,
           builtIn: true,
         });
         seenIds.add(defaultAction.id);
@@ -317,6 +374,7 @@
       normalizedActions.push({
         id,
         type: 'custom',
+        target: normalizeSmartCardActionTarget(action.target || action.type),
         label,
         prompt,
         builtIn: false,
@@ -336,6 +394,7 @@
       normalizedActions.push({
         ...defaultAction,
         label: defaultAction.label,
+        target: normalizeSmartCardActionTarget(defaultAction.target, DEFAULT_SMART_CARD_ACTION_TARGET),
         prompt: defaultAction.prompt,
         builtIn: true,
       });
@@ -391,11 +450,14 @@
     DEFAULT_NOTIFICATION_SETTINGS,
     DEFAULT_QUICK_ADD_SETTINGS,
     DEFAULT_SMART_CARD_ACTIONS,
+    DEFAULT_SMART_CARD_ACTION_TARGET,
     DEFAULT_TOOLTIPS_ENABLED,
     CUSTOM_SMART_CARD_ACTION_LIMIT,
     GLOBAL_SHORTCUT_MAX_LENGTH,
     SMART_CARD_ACTION_LABEL_MAX_LENGTH,
     SMART_CARD_ACTION_PROMPT_MAX_LENGTH,
+    SMART_CARD_ACTION_TARGETS,
+    SMART_CARD_ACTION_TARGET_LABELS,
     cloneDefaultAiSettings,
     cloneDefaultSmartCardActions,
     isObject,
@@ -415,6 +477,7 @@
     normalizeSmartCardActionId,
     normalizeSmartCardActionLabel,
     normalizeSmartCardActionPrompt,
+    normalizeSmartCardActionTarget,
     normalizeSmartCardActions,
     normalizeTooltipsEnabled,
   };

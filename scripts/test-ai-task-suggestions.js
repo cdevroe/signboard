@@ -8,6 +8,9 @@ const {
   buildOllamaChatUrl,
   buildOllamaTagsUrl,
   extractExistingChecklistItems,
+  extractSuggestedAnswerFromContent,
+  extractSuggestedAttachmentsFromContent,
+  extractSuggestedDueDateFromContent,
   extractSuggestedLabelReferencesFromContent,
   extractSuggestedMarkdownBodyFromContent,
   extractSuggestedTasksFromContent,
@@ -15,6 +18,7 @@ const {
   listOllamaModels,
   normalizeOllamaBaseUrl,
   normalizeOllamaModelList,
+  normalizeSmartCardActionTarget,
   normalizeSuggestedTaskItems,
   runSmartCardActionWithOllama,
   suggestCardTasksWithOllama,
@@ -83,10 +87,25 @@ Here are useful tasks:
   ]);
   assert.strictEqual(extractSuggestedTitleFromContent('{"title":"Plan camping meals"}'), 'Plan camping meals');
   assert.strictEqual(extractSuggestedMarkdownBodyFromContent('{"body":"## Summary\\n\\nKeep the full details."}'), '## Summary\n\nKeep the full details.');
+  assert.strictEqual(extractSuggestedAnswerFromContent('{"answer":"The remaining work is QA and publish prep."}'), 'The remaining work is QA and publish prep.');
   assert.deepStrictEqual(extractSuggestedLabelReferencesFromContent('{"labels":["Launch",{"name":"Content"},"Launch"]}'), [
     'Launch',
     'Content',
   ]);
+  assert.strictEqual(extractSuggestedDueDateFromContent('{"due":"2026-08-14"}'), '2026-08-14');
+  assert.strictEqual(extractSuggestedDueDateFromContent('{"due":"August 14"}'), '');
+  assert.deepStrictEqual(extractSuggestedAttachmentsFromContent(JSON.stringify({
+    attachments: [
+      { type: 'url', url: 'https://example.com/spec', title: 'Spec' },
+      { type: 'app-link', url: 'obsidian://open?vault=Main&file=Note', title: 'Note' },
+      { type: 'url', url: 'file:///tmp/private.txt' },
+    ],
+  })), [
+    { type: 'url', title: 'Spec', url: 'https://example.com/spec' },
+    { type: 'app-link', title: 'Note', url: 'obsidian://open?vault=Main&file=Note' },
+  ]);
+  assert.strictEqual(normalizeSmartCardActionTarget('due-dates'), 'due');
+  assert.strictEqual(normalizeSmartCardActionTarget('tasks'), 'content');
 
   let capturedRequest = null;
   const result = await suggestCardTasksWithOllama({
@@ -343,6 +362,120 @@ Here are useful tasks:
   assert(labelActionBody.messages[1].content.includes('"due":"2026-04-05"'));
   assert.strictEqual(labelActionResult.actionType, 'labels');
   assert.deepStrictEqual(labelActionResult.labels, ['Content']);
+
+  let capturedQuickDueActionRequest = null;
+  const quickDueActionResult = await runSmartCardActionWithOllama({
+    url: 'http://127.0.0.1:11434',
+    model: 'llama3.2',
+  }, {
+    id: 'quick-smart-action',
+    type: 'quick',
+    target: 'due',
+    label: 'Quick Smart Action',
+    prompt: 'Choose a due date for this card.',
+    builtIn: true,
+  }, {
+    title: 'Ship launch notes',
+    body: 'Publish by the second week of August.',
+  }, {
+    fetchImpl: async (url, request) => {
+      capturedQuickDueActionRequest = { url, request };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          message: {
+            content: JSON.stringify({ due: '2026-08-14' }),
+          },
+        }),
+      };
+    },
+  });
+  const quickDueActionBody = JSON.parse(capturedQuickDueActionRequest.request.body);
+  assert.strictEqual(quickDueActionBody.options.num_predict, DEFAULT_TITLE_NUM_PREDICT);
+  assert(quickDueActionBody.messages[0].content.includes('{"due":"YYYY-MM-DD"}'));
+  assert(quickDueActionBody.messages[1].content.includes('"target":"due"'));
+  assert.strictEqual(quickDueActionResult.actionType, 'due');
+  assert.strictEqual(quickDueActionResult.due, '2026-08-14');
+
+  let capturedQuestionActionRequest = null;
+  const questionActionResult = await runSmartCardActionWithOllama({
+    url: 'http://127.0.0.1:11434',
+    model: 'llama3.2',
+  }, {
+    id: 'question-card',
+    type: 'question',
+    target: 'content',
+    label: 'Question the Card',
+    prompt: 'What is left to do?',
+    builtIn: true,
+  }, {
+    title: 'Ship launch notes',
+    body: '- [ ] Finish QA\n- [x] Draft notes',
+    cardMarkdown: '---\ntitle: "Ship launch notes"\nlabels: ["Launch"]\n---\n\n- [ ] Finish QA\n- [x] Draft notes',
+  }, {
+    fetchImpl: async (url, request) => {
+      capturedQuestionActionRequest = { url, request };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          message: {
+            content: JSON.stringify({ answer: 'The remaining visible task is to finish QA.' }),
+          },
+        }),
+      };
+    },
+  });
+  const questionActionBody = JSON.parse(capturedQuestionActionRequest.request.body);
+  assert.strictEqual(questionActionBody.options.num_predict, DEFAULT_SMART_BODY_NUM_PREDICT);
+  assert(questionActionBody.messages[0].content.includes('{"answer":"Answer text"}'));
+  assert(questionActionBody.messages[1].content.includes('"type":"question"'));
+  assert(questionActionBody.messages[1].content.includes('"cardMarkdown"'));
+  assert.strictEqual(questionActionResult.actionType, 'answer');
+  assert.strictEqual(questionActionResult.answer, 'The remaining visible task is to finish QA.');
+
+  let capturedAttachmentActionRequest = null;
+  const attachmentActionResult = await runSmartCardActionWithOllama({
+    url: 'http://127.0.0.1:11434',
+    model: 'llama3.2',
+  }, {
+    id: 'custom-links',
+    type: 'custom',
+    target: 'attachments',
+    label: 'Find links',
+    prompt: 'Suggest relevant links to attach.',
+    builtIn: false,
+  }, {
+    title: 'Reference material',
+    linkedObjects: [
+      { type: 'url', title: 'Existing', url: 'https://example.com/existing' },
+    ],
+  }, {
+    fetchImpl: async (url, request) => {
+      capturedAttachmentActionRequest = { url, request };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          message: {
+            content: JSON.stringify({
+              attachments: [
+                { type: 'url', url: 'https://example.com/new', title: 'New reference' },
+              ],
+            }),
+          },
+        }),
+      };
+    },
+  });
+  const attachmentActionBody = JSON.parse(capturedAttachmentActionRequest.request.body);
+  assert(attachmentActionBody.messages[0].content.includes('Do not return local file paths.'));
+  assert(attachmentActionBody.messages[1].content.includes('"linkedObjects"'));
+  assert.strictEqual(attachmentActionResult.actionType, 'attachments');
+  assert.deepStrictEqual(attachmentActionResult.attachments, [
+    { type: 'url', title: 'New reference', url: 'https://example.com/new' },
+  ]);
 
   let capturedPasteActionRequest = null;
   const pasteActionResult = await runSmartCardActionWithOllama({

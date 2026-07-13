@@ -14,17 +14,30 @@ function assertDefaultSmartCardActions(actions) {
   assert.deepStrictEqual(actions.map((action) => ({
     id: action.id,
     type: action.type,
+    target: action.target,
     label: action.label,
     builtIn: action.builtIn,
+    editable: action.editable,
   })), DEFAULT_SMART_CARD_ACTIONS().map((action) => ({
     id: action.id,
     type: action.type,
+    target: action.target,
     label: action.label,
     builtIn: action.builtIn,
+    editable: action.editable,
   })));
-  assert(actions.every((action) => typeof action.prompt === 'string' && action.prompt.length > 0));
+  assert(actions.every((action) => (
+    action.id === 'quick-smart-action' || action.id === 'question-card'
+      ? action.prompt === ''
+      : typeof action.prompt === 'string' && action.prompt.length > 0
+  )));
   const taskAction = actions.find((action) => action.id === 'generate-task-list');
   assert(taskAction.prompt.includes('Generate 6 practical checklist items'));
+  const quickAction = actions.find((action) => action.id === 'quick-smart-action');
+  assert.strictEqual(quickAction.editable, false);
+  const questionAction = actions.find((action) => action.id === 'question-card');
+  assert.strictEqual(questionAction.editable, false);
+  assert.strictEqual(questionAction.type, 'question');
 }
 
 async function run() {
@@ -77,6 +90,7 @@ async function run() {
           {
             id: 'custom-follow-up',
             type: 'custom',
+            target: 'labels',
             label: ' Draft follow up ',
             prompt: ' Draft a follow-up section. ',
           },
@@ -121,6 +135,7 @@ async function run() {
     assert.deepStrictEqual(updated.ai.smartCardActions[1], {
       id: 'custom-follow-up',
       type: 'custom',
+      target: 'labels',
       label: 'Draft follow up',
       prompt: 'Draft a follow-up section.',
       builtIn: false,

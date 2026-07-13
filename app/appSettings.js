@@ -14,6 +14,9 @@ const APP_SMART_CARD_ACTION_LABEL_MAX_LENGTH = APP_SETTINGS_SCHEMA.SMART_CARD_AC
 const APP_SMART_CARD_ACTION_PROMPT_MAX_LENGTH = APP_SETTINGS_SCHEMA.SMART_CARD_ACTION_PROMPT_MAX_LENGTH;
 const APP_CUSTOM_SMART_CARD_ACTION_LIMIT = APP_SETTINGS_SCHEMA.CUSTOM_SMART_CARD_ACTION_LIMIT;
 const DEFAULT_APP_SMART_CARD_ACTIONS = APP_SETTINGS_SCHEMA.DEFAULT_SMART_CARD_ACTIONS;
+const DEFAULT_APP_SMART_CARD_ACTION_TARGET = APP_SETTINGS_SCHEMA.DEFAULT_SMART_CARD_ACTION_TARGET;
+const APP_SMART_CARD_ACTION_TARGETS = APP_SETTINGS_SCHEMA.SMART_CARD_ACTION_TARGETS;
+const APP_SMART_CARD_ACTION_TARGET_LABELS = APP_SETTINGS_SCHEMA.SMART_CARD_ACTION_TARGET_LABELS;
 const DEFAULT_APP_AI_SETTINGS = APP_SETTINGS_SCHEMA.cloneDefaultAiSettings();
 const cloneDefaultAppSmartCardActions = APP_SETTINGS_SCHEMA.cloneDefaultSmartCardActions;
 const normalizeAppNotificationSettings = APP_SETTINGS_SCHEMA.normalizeNotificationSettings;
@@ -25,6 +28,7 @@ const normalizeAppExternalPublishedCalendarSettings = APP_SETTINGS_SCHEMA.normal
 const normalizeAppSmartCardActionLabel = APP_SETTINGS_SCHEMA.normalizeSmartCardActionLabel;
 const normalizeAppSmartCardActionPrompt = APP_SETTINGS_SCHEMA.normalizeSmartCardActionPrompt;
 const normalizeAppSmartCardActionId = APP_SETTINGS_SCHEMA.normalizeSmartCardActionId;
+const normalizeAppSmartCardActionTarget = APP_SETTINGS_SCHEMA.normalizeSmartCardActionTarget;
 const normalizeAppSmartCardActions = APP_SETTINGS_SCHEMA.normalizeSmartCardActions;
 const normalizeAppAiSettings = APP_SETTINGS_SCHEMA.normalizeAiSettings;
 const DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_STATUS = Object.freeze({
@@ -516,7 +520,7 @@ function renderAppSmartCardActionSettings(container, actions) {
 
     const kind = document.createElement('p');
     kind.className = 'board-settings-ai-action-kind';
-    kind.textContent = action.builtIn ? 'Built in' : 'Custom';
+    kind.textContent = getAppSmartCardActionKindLabel(action);
     titleWrap.appendChild(kind);
     header.appendChild(titleWrap);
 
@@ -543,24 +547,29 @@ function renderAppSmartCardActionSettings(container, actions) {
     });
     headerActions.appendChild(dragHandle);
 
-    const editButton = document.createElement('button');
-    editButton.type = 'button';
-    editButton.className = 'board-settings-ai-action-edit';
-    editButton.dataset.smartActionCommand = 'toggle-edit';
-    editButton.dataset.actionId = action.id;
-    editButton.setAttribute('aria-expanded', String(isExpanded));
-    editButton.setAttribute('aria-controls', `boardSettingsAiActionDetails-${action.id}`);
-    editButton.textContent = isExpanded ? 'Done' : 'Edit';
-    headerActions.appendChild(editButton);
+    const canEditAction = canEditAppSmartCardAction(action);
+    if (canEditAction) {
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.className = 'board-settings-ai-action-edit';
+      editButton.dataset.smartActionCommand = 'toggle-edit';
+      editButton.dataset.actionId = action.id;
+      editButton.setAttribute('aria-expanded', String(isExpanded));
+      editButton.setAttribute('aria-controls', `boardSettingsAiActionDetails-${action.id}`);
+      editButton.textContent = isExpanded ? 'Done' : 'Edit';
+      headerActions.appendChild(editButton);
+    }
 
     if (action.builtIn) {
-      const resetButton = document.createElement('button');
-      resetButton.type = 'button';
-      resetButton.className = 'board-settings-ai-action-reset';
-      resetButton.dataset.smartActionCommand = 'reset';
-      resetButton.dataset.actionId = action.id;
-      resetButton.textContent = 'Reset';
-      headerActions.appendChild(resetButton);
+      if (canEditAction) {
+        const resetButton = document.createElement('button');
+        resetButton.type = 'button';
+        resetButton.className = 'board-settings-ai-action-reset';
+        resetButton.dataset.smartActionCommand = 'reset';
+        resetButton.dataset.actionId = action.id;
+        resetButton.textContent = 'Reset';
+        headerActions.appendChild(resetButton);
+      }
     } else {
       const removeButton = document.createElement('button');
       removeButton.type = 'button';
@@ -576,8 +585,8 @@ function renderAppSmartCardActionSettings(container, actions) {
     const details = document.createElement('div');
     details.id = `boardSettingsAiActionDetails-${action.id}`;
     details.className = 'board-settings-ai-action-details';
-    details.hidden = !isExpanded;
-    details.setAttribute('aria-hidden', isExpanded ? 'false' : 'true');
+    details.hidden = !isExpanded || !canEditAction;
+    details.setAttribute('aria-hidden', isExpanded && canEditAction ? 'false' : 'true');
 
     if (!action.builtIn) {
       const label = document.createElement('label');
@@ -595,30 +604,80 @@ function renderAppSmartCardActionSettings(container, actions) {
       labelInput.dataset.actionId = action.id;
       labelInput.placeholder = 'Action label';
       details.appendChild(labelInput);
+
+      const targetLabel = document.createElement('label');
+      targetLabel.className = 'board-settings-ai-action-label';
+      targetLabel.setAttribute('for', `boardSettingsAiActionTarget-${action.id}`);
+      targetLabel.textContent = 'Affects';
+      details.appendChild(targetLabel);
+
+      const targetSelect = document.createElement('select');
+      targetSelect.id = `boardSettingsAiActionTarget-${action.id}`;
+      targetSelect.dataset.smartActionField = 'target';
+      targetSelect.dataset.actionId = action.id;
+      const currentTarget = normalizeAppSmartCardActionTarget(action.target || action.type, DEFAULT_APP_SMART_CARD_ACTION_TARGET);
+      APP_SMART_CARD_ACTION_TARGETS.forEach((target) => {
+        const option = document.createElement('option');
+        option.value = target;
+        option.textContent = getAppSmartCardActionTargetLabel(target);
+        option.selected = target === currentTarget;
+        targetSelect.appendChild(option);
+      });
+      details.appendChild(targetSelect);
     }
 
-    const promptLabel = document.createElement('label');
-    promptLabel.className = 'board-settings-ai-action-label';
-    promptLabel.setAttribute('for', `boardSettingsAiActionPrompt-${action.id}`);
-    promptLabel.textContent = action.builtIn ? 'Prompt' : 'Custom action prompt';
-    details.appendChild(promptLabel);
+    if (canEditAction) {
+      const promptLabel = document.createElement('label');
+      promptLabel.className = 'board-settings-ai-action-label';
+      promptLabel.setAttribute('for', `boardSettingsAiActionPrompt-${action.id}`);
+      promptLabel.textContent = action.builtIn ? 'Prompt' : 'Custom action prompt';
+      details.appendChild(promptLabel);
 
-    const promptTextarea = document.createElement('textarea');
-    promptTextarea.id = `boardSettingsAiActionPrompt-${action.id}`;
-    promptTextarea.value = action.prompt;
-    promptTextarea.rows = action.builtIn ? 4 : 5;
-    promptTextarea.maxLength = APP_SMART_CARD_ACTION_PROMPT_MAX_LENGTH;
-    promptTextarea.dataset.smartActionField = 'prompt';
-    promptTextarea.dataset.actionId = action.id;
-    promptTextarea.spellcheck = true;
-    details.appendChild(promptTextarea);
-    actionEl.appendChild(details);
+      const promptTextarea = document.createElement('textarea');
+      promptTextarea.id = `boardSettingsAiActionPrompt-${action.id}`;
+      promptTextarea.value = action.prompt;
+      promptTextarea.rows = action.builtIn ? 4 : 5;
+      promptTextarea.maxLength = APP_SMART_CARD_ACTION_PROMPT_MAX_LENGTH;
+      promptTextarea.dataset.smartActionField = 'prompt';
+      promptTextarea.dataset.actionId = action.id;
+      promptTextarea.spellcheck = true;
+      details.appendChild(promptTextarea);
+    }
+    if (canEditAction) {
+      actionEl.appendChild(details);
+    }
 
     container.appendChild(actionEl);
   });
 
   initializeAppSmartCardActionsSortable(container);
   focusPendingAppSmartCardActionControl(container);
+}
+
+function canEditAppSmartCardAction(action) {
+  return !action || action.editable !== false;
+}
+
+function getAppSmartCardActionTargetLabel(target) {
+  const normalizedTarget = normalizeAppSmartCardActionTarget(target, DEFAULT_APP_SMART_CARD_ACTION_TARGET);
+  return APP_SMART_CARD_ACTION_TARGET_LABELS[normalizedTarget] || APP_SMART_CARD_ACTION_TARGET_LABELS[DEFAULT_APP_SMART_CARD_ACTION_TARGET] || 'Content';
+}
+
+function getAppSmartCardActionKindLabel(action) {
+  if (!action) {
+    return 'Built in';
+  }
+
+  if (action.id === 'quick-smart-action') {
+    return 'Built in - One-off';
+  }
+
+  if (action.id === 'question-card' || action.type === 'question') {
+    return 'Built in - Read-only';
+  }
+
+  const prefix = action.builtIn ? 'Built in' : 'Custom';
+  return `${prefix} - ${getAppSmartCardActionTargetLabel(action.target || action.type)}`;
 }
 
 function getAppSmartCardActionDragHandleMarkup() {
@@ -856,6 +915,7 @@ function addAppSmartCardAction() {
       {
         id: newActionId,
         type: 'custom',
+        target: DEFAULT_APP_SMART_CARD_ACTION_TARGET,
         label: `Custom action ${customActionCount + 1}`,
         prompt: 'Use the card context to create useful Markdown to append to this card.',
         builtIn: false,

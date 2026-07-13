@@ -3092,12 +3092,35 @@ async function runSmartCardAction(payload = {}) {
     };
   }
 
+  let actionToRun = action;
+  if (action.type === 'quick' || action.type === 'question') {
+    const prompt = String(payloadSource.prompt || payloadSource.quickPrompt || '').replace(/\r\n?/g, '\n').trim();
+    if (!prompt) {
+      return {
+        ok: false,
+        error: 'AI_ACTION_PROMPT_MISSING',
+        message: action.type === 'question'
+          ? 'Enter a question for Question the Card.'
+          : 'Enter a prompt for Quick Smart Action.',
+      };
+    }
+
+    actionToRun = {
+      ...action,
+      prompt,
+    };
+
+    if (action.type === 'quick') {
+      actionToRun.target = appSettings.normalizeSmartCardActionTarget(payloadSource.target || payloadSource.actionTarget);
+    }
+  }
+
   const cardContext = payloadSource.context && typeof payloadSource.context === 'object'
     ? payloadSource.context
     : payloadSource;
 
   try {
-    const result = await runSmartCardActionWithOllama(settings.ai.ollama, action, cardContext, {
+    const result = await runSmartCardActionWithOllama(settings.ai.ollama, actionToRun, cardContext, {
       currentDate: new Date().toISOString().slice(0, 10),
       pasteText: typeof payloadSource.pasteText === 'string' ? payloadSource.pasteText : '',
     });

@@ -3027,12 +3027,29 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
     await expect(actionRows).toHaveCount(defaultSmartCardActionLabels.length);
     await expect(actionRows.first()).toContainText('Generate new card title');
     await expect(actionRows.first().locator('.board-settings-ai-action-details')).toBeHidden();
+    const quickActionSettingsRow = actionRows.filter({ hasText: 'Quick Smart Action' });
+    await expect(quickActionSettingsRow).toContainText('Built in - One-off');
+    await expect(quickActionSettingsRow.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    const questionActionSettingsRow = actionRows.filter({ hasText: 'Question the Card' });
+    await expect(questionActionSettingsRow).toContainText('Built in - Read-only');
+    await expect(questionActionSettingsRow.getByRole('button', { name: 'Edit' })).toHaveCount(0);
     await actionRows.first().getByRole('button', { name: 'Edit' }).click();
     await expect(actionRows.first().locator('.board-settings-ai-action-details')).toBeVisible();
 
     await page.locator('#btnAddAiSmartCardAction').click();
     await expect(actionRows.first()).toContainText('Custom action 1');
     await expect(actionRows.first().locator('.board-settings-ai-action-details')).toBeVisible();
+    const customActionTarget = actionRows.first().locator('select[data-smart-action-field="target"]');
+    await expect(customActionTarget).toHaveValue('content');
+    expect(await customActionTarget.evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
+    await customActionTarget.selectOption('labels');
+    await expect.poll(async () => {
+      return await page.evaluate(async () => {
+        const settings = await window.electronAPI.readAppSettings();
+        const action = settings.ai.smartCardActions.find((candidate) => candidate.label === 'Custom action 1');
+        return action ? action.target : '';
+      });
+    }).toBe('labels');
     await expect(actionRows.first().getByRole('button', { name: 'Move Custom action 1 down' })).toHaveCount(0);
     const customActionDragHandle = actionRows.first().getByRole('button', { name: 'Reorder Custom action 1' });
     await expect(customActionDragHandle).toBeVisible();
@@ -3079,6 +3096,20 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
     expect(summaryIconClass).toContain('feather-pen-tool');
 
     const settingsShortcut = smartActionsPopover.getByRole('button', { name: 'Open Smart Actions settings' });
+    await expect(settingsShortcut).toBeVisible();
+    const quickSmartActionButton = smartActionsPopover.locator('.card-editor-smart-action-button').filter({ hasText: 'Quick Smart Action' });
+    await expect(quickSmartActionButton).toBeVisible();
+    await quickSmartActionButton.click();
+    await expect(page.locator('#cardEditorQuickSmartActionPrompt')).toBeVisible();
+    await expect(page.locator('#cardEditorQuickSmartActionTarget')).toHaveValue('content');
+    expect(await page.locator('#cardEditorQuickSmartActionTarget').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
+    await smartActionsPopover.getByRole('button', { name: 'Back' }).click();
+    const questionCardButton = smartActionsPopover.locator('.card-editor-smart-action-button').filter({ hasText: 'Question the Card' });
+    await expect(questionCardButton).toBeVisible();
+    await questionCardButton.click();
+    await expect(page.locator('#cardEditorQuestionCardPrompt')).toBeVisible();
+    await expect(page.locator('#cardEditorQuestionCardTarget')).toHaveCount(0);
+    await smartActionsPopover.getByRole('button', { name: 'Back' }).click();
     await expect(settingsShortcut).toBeVisible();
     await settingsShortcut.click();
     await expect(page.locator('#modalEditCard')).toBeHidden();

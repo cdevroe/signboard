@@ -4389,8 +4389,31 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 .board-settings-ai-action input,
+.board-settings-ai-action select,
 .board-settings-ai-action textarea {
   width: 100%;
+}
+
+.board-settings-ai-action select {
+  min-height: 34px;
+  padding: 6px 32px 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--bg-card);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) 50%,
+    calc(100% - 12px) 50%;
+  background-repeat: no-repeat;
+  background-size: 5px 5px, 5px 5px;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
 }
 
 .board-settings-ai-action textarea {
@@ -5348,6 +5371,36 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   line-height: 1.4;
   padding: 8px 9px;
   resize: vertical;
+}
+.card-editor-smart-action-field-label {
+  display: block;
+  margin: 8px 0 5px;
+  color: var(--text);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.card-editor-smart-action-target-select {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 32px 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--bg-card);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) 50%,
+    calc(100% - 12px) 50%;
+  background-repeat: no-repeat;
+  background-size: 5px 5px, 5px 5px;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
 }
 .card-editor-smart-action-preview {
   max-height: min(360px, calc(100vh - 220px));
