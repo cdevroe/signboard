@@ -99,10 +99,10 @@ The server currently exposes these tools:
 - `signboard_create_board` (write mode only)
 - `signboard_list_lists`
 - `signboard_list_cards`
-- `signboard_read_card` (includes `timestamps`, `taskSummary`, and `taskDueDates`)
-- `signboard_create_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports `dryRun`)
-- `signboard_update_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports section edits, note insertion, label operations, and `dryRun`)
-- `signboard_duplicate_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports title/body override, label operations, and `dryRun`)
+- `signboard_read_card` (includes `timestamps`, `taskSummary`, `taskStartDates`, and `taskDueDates`)
+- `signboard_create_card` (write mode only, includes `timestamps`, `taskSummary`, `taskStartDates`, and `taskDueDates`; supports `dryRun`)
+- `signboard_update_card` (write mode only, includes `timestamps`, `taskSummary`, `taskStartDates`, and `taskDueDates`; supports section edits, note insertion, label operations, and `dryRun`)
+- `signboard_duplicate_card` (write mode only, includes `timestamps`, `taskSummary`, `taskStartDates`, and `taskDueDates`; supports title/body override, label operations, and `dryRun`)
 - `signboard_archive_card` (write mode only)
 - `signboard_archive_list` (write mode only)
 - `signboard_list_archive_entries`
