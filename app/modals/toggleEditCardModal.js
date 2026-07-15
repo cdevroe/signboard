@@ -1608,35 +1608,62 @@ function decorateCardEditorBodyUrlPreview(preview) {
     }
 }
 
-function createCardEditorTextareaMeasurementMirror(textarea, wrapper) {
+function setCardEditorMeasurementStyle(element, property, value) {
+    if (!element || !element.style || typeof element.style.setProperty !== 'function') {
+        return;
+    }
+
+    element.style.setProperty(property, value, 'important');
+}
+
+function applyCardEditorTextareaMeasurementStyles(mirror, textarea, position) {
     const style = window.getComputedStyle(textarea);
+    const properties = [
+        ['position', 'absolute'],
+        ['top', `${Math.round(position.top)}px`],
+        ['left', `${Math.round(position.left)}px`],
+        ['visibility', 'hidden'],
+        ['pointer-events', 'none'],
+        ['white-space', 'pre-wrap'],
+        ['word-wrap', 'break-word'],
+        ['overflow-wrap', 'break-word'],
+        ['box-sizing', 'border-box'],
+        ['width', `${Math.max(textarea.clientWidth, 1)}px`],
+        ['padding', style.padding],
+        ['margin', '0'],
+        ['border', '0'],
+        ['font', style.font],
+        ['font-feature-settings', style.fontFeatureSettings],
+        ['font-kerning', style.fontKerning],
+        ['font-stretch', style.fontStretch],
+        ['font-variant', style.fontVariant],
+        ['font-variant-ligatures', style.fontVariantLigatures],
+        ['line-height', style.lineHeight],
+        ['letter-spacing', style.letterSpacing],
+        ['text-rendering', style.textRendering],
+        ['text-indent', style.textIndent],
+        ['text-transform', style.textTransform],
+        ['text-align', style.textAlign],
+        ['direction', style.direction],
+        ['tab-size', style.tabSize],
+        ['word-spacing', style.wordSpacing],
+        ['-webkit-text-size-adjust', '100%'],
+    ];
+
+    for (const [property, value] of properties) {
+        setCardEditorMeasurementStyle(mirror, property, value);
+    }
+}
+
+function createCardEditorTextareaMeasurementMirror(textarea, wrapper) {
     const mirror = document.createElement('div');
     const textareaRect = textarea.getBoundingClientRect();
     const wrapperRect = wrapper.getBoundingClientRect();
 
-    mirror.style.position = 'absolute';
-    mirror.style.top = `${Math.round(textareaRect.top - wrapperRect.top)}px`;
-    mirror.style.left = `${Math.round(textareaRect.left - wrapperRect.left)}px`;
-    mirror.style.visibility = 'hidden';
-    mirror.style.pointerEvents = 'none';
-    mirror.style.whiteSpace = 'pre-wrap';
-    mirror.style.wordWrap = 'break-word';
-    mirror.style.overflowWrap = 'break-word';
-    mirror.style.boxSizing = 'border-box';
-    mirror.style.width = `${Math.max(textarea.clientWidth, 1)}px`;
-    mirror.style.padding = style.padding;
-    mirror.style.margin = '0';
-    mirror.style.border = '0';
-    mirror.style.font = style.font;
-    mirror.style.lineHeight = style.lineHeight;
-    mirror.style.letterSpacing = style.letterSpacing;
-    mirror.style.textIndent = style.textIndent;
-    mirror.style.textTransform = style.textTransform;
-    mirror.style.textAlign = style.textAlign;
-    mirror.style.direction = style.direction;
-    mirror.style.tabSize = style.tabSize;
-    mirror.style.wordSpacing = style.wordSpacing;
-    mirror.style.webkitTextSizeAdjust = '100%';
+    applyCardEditorTextareaMeasurementStyles(mirror, textarea, {
+        top: textareaRect.top - wrapperRect.top,
+        left: textareaRect.left - wrapperRect.left,
+    });
 
     wrapper.appendChild(mirror);
     return mirror;
@@ -2041,34 +2068,14 @@ function setupTaskLineDueDateControls(editor) {
     }
 
     function createTextareaMeasurementMirror() {
-        const style = window.getComputedStyle(textarea);
         const mirror = document.createElement('div');
         const textareaRect = textarea.getBoundingClientRect();
         const layerRect = layer.getBoundingClientRect();
 
-        mirror.style.position = 'absolute';
-        mirror.style.top = `${Math.round(textareaRect.top - layerRect.top)}px`;
-        mirror.style.left = `${Math.round(textareaRect.left - layerRect.left)}px`;
-        mirror.style.visibility = 'hidden';
-        mirror.style.pointerEvents = 'none';
-        mirror.style.whiteSpace = 'pre-wrap';
-        mirror.style.wordWrap = 'break-word';
-        mirror.style.overflowWrap = 'break-word';
-        mirror.style.boxSizing = 'border-box';
-        mirror.style.width = `${Math.max(textarea.clientWidth, 1)}px`;
-        mirror.style.padding = style.padding;
-        mirror.style.margin = '0';
-        mirror.style.border = '0';
-        mirror.style.font = style.font;
-        mirror.style.lineHeight = style.lineHeight;
-        mirror.style.letterSpacing = style.letterSpacing;
-        mirror.style.textIndent = style.textIndent;
-        mirror.style.textTransform = style.textTransform;
-        mirror.style.textAlign = style.textAlign;
-        mirror.style.direction = style.direction;
-        mirror.style.tabSize = style.tabSize;
-        mirror.style.wordSpacing = style.wordSpacing;
-        mirror.style.webkitTextSizeAdjust = '100%';
+        applyCardEditorTextareaMeasurementStyles(mirror, textarea, {
+            top: textareaRect.top - layerRect.top,
+            left: textareaRect.left - layerRect.left,
+        });
 
         layer.appendChild(mirror);
         return mirror;

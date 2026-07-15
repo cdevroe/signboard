@@ -6032,17 +6032,39 @@ select:disabled {
   padding: 8px important!;
 }
 
-#cardEditorOverType .overtype-wrapper .overtype-preview strong {
+#cardEditorOverType .overtype-container:not(.preview-mode) .overtype-wrapper .overtype-preview strong,
+#cardEditorOverType .overtype-container:not(.preview-mode) .overtype-wrapper .overtype-preview h1,
+#cardEditorOverType .overtype-container:not(.preview-mode) .overtype-wrapper .overtype-preview h2,
+#cardEditorOverType .overtype-container:not(.preview-mode) .overtype-wrapper .overtype-preview h3,
+#cardEditorOverType .overtype-container:not(.preview-mode) .overtype-wrapper .overtype-preview em {
+  font-weight: normal !important;
+  font-style: normal !important;
+}
+
+#cardEditorOverType .overtype-container:not(.preview-mode) .overtype-wrapper .overtype-preview strong,
+#cardEditorOverType .overtype-container:not(.preview-mode) .overtype-wrapper .overtype-preview h1,
+#cardEditorOverType .overtype-container:not(.preview-mode) .overtype-wrapper .overtype-preview h2,
+#cardEditorOverType .overtype-container:not(.preview-mode) .overtype-wrapper .overtype-preview h3 {
+  text-shadow: 0.35px 0 currentColor !important;
+}
+
+#cardEditorOverType .overtype-container:not(.preview-mode) .overtype-wrapper .overtype-preview .syntax-marker {
+  font-weight: normal !important;
+  font-style: normal !important;
+  text-shadow: none !important;
+}
+
+#cardEditorOverType .overtype-container.preview-mode .overtype-wrapper .overtype-preview strong {
   font-weight: 700 !important;
 }
 
-#cardEditorOverType .overtype-wrapper .overtype-preview h1,
-#cardEditorOverType .overtype-wrapper .overtype-preview h2,
-#cardEditorOverType .overtype-wrapper .overtype-preview h3 {
+#cardEditorOverType .overtype-container.preview-mode .overtype-wrapper .overtype-preview h1,
+#cardEditorOverType .overtype-container.preview-mode .overtype-wrapper .overtype-preview h2,
+#cardEditorOverType .overtype-container.preview-mode .overtype-wrapper .overtype-preview h3 {
   font-weight: 700 !important;
 }
 
-#cardEditorOverType .overtype-wrapper .overtype-preview h3 {
+#cardEditorOverType .overtype-container.preview-mode .overtype-wrapper .overtype-preview h3 {
   font-weight: 600 !important;
 }
 

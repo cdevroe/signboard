@@ -2759,6 +2759,171 @@ test('keeps the editor scroll position when toggling a task checkbox control', a
   expect(finalScrollTop).toBeGreaterThan(initialScrollTop - 10);
 });
 
+test('keeps bold-at-start list items aligned with editor caret metrics', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  const boldWord = 'AlignmentRegressionMarker';
+  const body = [
+    `- **${boldWord}** unordered list text`,
+    `- [ ] **${boldWord}** task list text`,
+    `1. **${boldWord}** ordered list text`,
+  ].join('\n');
+  await setEditorBody(page, body);
+
+  const measurements = await page.evaluate(async ({ source, word }) => {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+    const textarea = document.querySelector('#cardEditorOverType .overtype-input');
+    const wrapper = document.querySelector('#cardEditorOverType .overtype-wrapper');
+    const preview = document.querySelector('#cardEditorOverType .overtype-preview');
+    if (!(textarea instanceof HTMLTextAreaElement) || !(wrapper instanceof HTMLElement) || !(preview instanceof HTMLElement)) {
+      throw new Error('Card editor OverType layers were not available.');
+    }
+
+    function setMirrorStyle(element, property, value) {
+      element.style.setProperty(property, value, 'important');
+    }
+
+    function createTextareaMirror() {
+      const style = window.getComputedStyle(textarea);
+      const mirror = document.createElement('div');
+
+      setMirrorStyle(mirror, 'position', 'absolute');
+      setMirrorStyle(mirror, 'top', '0');
+      setMirrorStyle(mirror, 'left', '0');
+      setMirrorStyle(mirror, 'visibility', 'hidden');
+      setMirrorStyle(mirror, 'pointer-events', 'none');
+      setMirrorStyle(mirror, 'white-space', 'pre-wrap');
+      setMirrorStyle(mirror, 'word-wrap', 'break-word');
+      setMirrorStyle(mirror, 'overflow-wrap', 'break-word');
+      setMirrorStyle(mirror, 'box-sizing', 'border-box');
+      setMirrorStyle(mirror, 'width', `${Math.max(textarea.clientWidth, 1)}px`);
+      setMirrorStyle(mirror, 'padding', style.padding);
+      setMirrorStyle(mirror, 'margin', '0');
+      setMirrorStyle(mirror, 'border', '0');
+      setMirrorStyle(mirror, 'font', style.font);
+      setMirrorStyle(mirror, 'font-feature-settings', style.fontFeatureSettings);
+      setMirrorStyle(mirror, 'font-kerning', style.fontKerning);
+      setMirrorStyle(mirror, 'font-stretch', style.fontStretch);
+      setMirrorStyle(mirror, 'font-variant', style.fontVariant);
+      setMirrorStyle(mirror, 'font-variant-ligatures', style.fontVariantLigatures);
+      setMirrorStyle(mirror, 'line-height', style.lineHeight);
+      setMirrorStyle(mirror, 'letter-spacing', style.letterSpacing);
+      setMirrorStyle(mirror, 'text-rendering', style.textRendering);
+      setMirrorStyle(mirror, 'text-indent', style.textIndent);
+      setMirrorStyle(mirror, 'text-transform', style.textTransform);
+      setMirrorStyle(mirror, 'text-align', style.textAlign);
+      setMirrorStyle(mirror, 'direction', style.direction);
+      setMirrorStyle(mirror, 'tab-size', style.tabSize);
+      setMirrorStyle(mirror, 'word-spacing', style.wordSpacing);
+      setMirrorStyle(mirror, '-webkit-text-size-adjust', '100%');
+
+      wrapper.appendChild(mirror);
+      return mirror;
+    }
+
+    function measureTextareaOffset(offset) {
+      const text = String(textarea.value || '');
+      const safeOffset = Math.max(0, Math.min(text.length, offset));
+      const mirror = createTextareaMirror();
+
+      try {
+        mirror.appendChild(document.createTextNode(text.slice(0, safeOffset)));
+
+        const marker = document.createElement('span');
+        marker.textContent = '\u200b';
+        marker.style.display = 'inline';
+        marker.style.padding = '0';
+        marker.style.margin = '0';
+        marker.style.border = '0';
+        marker.style.lineHeight = 'inherit';
+        mirror.appendChild(marker);
+
+        if (safeOffset < text.length) {
+          mirror.appendChild(document.createTextNode(text.slice(safeOffset)));
+        }
+
+        const markerRect = marker.getBoundingClientRect();
+        const wrapperRect = wrapper.getBoundingClientRect();
+        return markerRect.left - wrapperRect.left;
+      } finally {
+        mirror.remove();
+      }
+    }
+
+    function getWordTextNode(strong, expectedWord) {
+      return Array.from(strong.childNodes).find((node) => (
+        node.nodeType === Node.TEXT_NODE &&
+        String(node.nodeValue || '').includes(expectedWord)
+      ));
+    }
+
+    function measurePreviewTextNodeOffset(textNode, offset) {
+      const range = document.createRange();
+      const safeOffset = Math.max(0, Math.min(String(textNode.nodeValue || '').length, offset));
+
+      try {
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, safeOffset);
+        const rects = Array.from(range.getClientRects()).filter((rect) => (
+          rect && Number.isFinite(rect.right) && rect.width >= 0 && rect.height > 0
+        ));
+        const rect = rects[rects.length - 1];
+        if (!rect) {
+          throw new Error('Unable to measure preview text range.');
+        }
+
+        const wrapperRect = wrapper.getBoundingClientRect();
+        return rect.right - wrapperRect.left;
+      } finally {
+        if (typeof range.detach === 'function') {
+          range.detach();
+        }
+      }
+    }
+
+    const lines = source.split('\n');
+    const lineStarts = [];
+    let cursor = 0;
+    for (const line of lines) {
+      lineStarts.push(cursor);
+      cursor += line.length + 1;
+    }
+
+    const strongElements = Array.from(preview.querySelectorAll('li strong'));
+    const compareOffsetWithinWord = word.length - 3;
+
+    return strongElements.map((strong, index) => {
+      const textNode = getWordTextNode(strong, word);
+      if (!textNode) {
+        throw new Error(`Unable to find bold word text node for list item ${index}.`);
+      }
+
+      const line = lines[index];
+      const wordStart = line.indexOf(word);
+      if (wordStart < 0) {
+        throw new Error(`Unable to find bold word in source line ${index}.`);
+      }
+
+      const rawOffset = lineStarts[index] + wordStart + compareOffsetWithinWord;
+      const previewLeft = measurePreviewTextNodeOffset(textNode, compareOffsetWithinWord);
+      const textareaLeft = measureTextareaOffset(rawOffset);
+
+      return {
+        index,
+        previewLeft,
+        textareaLeft,
+        delta: Math.abs(previewLeft - textareaLeft),
+      };
+    });
+  }, { source: body, word: boldWord });
+
+  expect(measurements).toHaveLength(3);
+  for (const measurement of measurements) {
+    expect(measurement.delta, JSON.stringify(measurement)).toBeLessThan(1.5);
+  }
+});
+
 test('closes the task due date picker when clearing a task due date', async ({ page }) => {
   await openFirstCardInEditor(page);
 
