@@ -1047,6 +1047,36 @@ test('exposes Obsidian actions and generates a board Base', async ({ page, board
   expect(card.frontmatter.signboard_uri).toBe('signboard://open-card?id=stock');
 });
 
+test('activating a vault board creates its Base without rewriting cards', async ({ page, boardRoot }) => {
+  const listPath = path.join(boardRoot, '000-To-do-stock');
+  const cardPath = path.join(listPath, '099-activation-metadata-ab123.md');
+  const basePath = path.join(boardRoot, 'Signboard Board.base');
+
+  await cardFrontmatter.writeCard(cardPath, {
+    frontmatter: {
+      title: 'Leave this card alone on activation',
+    },
+    body: 'This card intentionally has no Signboard metadata yet.',
+  });
+  const originalCardContent = await fs.readFile(cardPath, 'utf8');
+  await fs.mkdir(path.join(path.dirname(boardRoot), '.obsidian'), { recursive: true });
+
+  await page.evaluate(async () => {
+    await window.board.setActiveBoardRoot(window.boardRoot);
+  });
+
+  await expect.poll(async () => {
+    try {
+      await fs.access(basePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }).toBe(true);
+
+  await expect.poll(async () => fs.readFile(cardPath, 'utf8')).toBe(originalCardContent);
+});
+
 test('shows the workspace view dock without covering board tabs', async ({ page }) => {
   const dockBox = await page.locator('#workspaceViewDock').boundingBox();
   const firstTabBox = await page.locator('.board-tab').first().boundingBox();

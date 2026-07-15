@@ -4009,7 +4009,10 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     case 'authorizeBoardSelection': {
       const result = authorizeBoardSelectionForSender(event.sender, args[0]);
       if (result && result.ok && result.boardRoot) {
-        await autoSyncManagedObsidianBaseForBoard(result.boardRoot, { refreshMetadata: true });
+        // Activating a board must remain read-only for its card Markdown files.
+        // Card metadata is reconciled by card mutations, imports, board moves, and
+        // explicit Base actions; activation only ensures the managed Base itself.
+        await autoSyncManagedObsidianBaseForBoard(result.boardRoot);
       }
       return result;
     }
@@ -4020,7 +4023,9 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
     case 'setActiveBoardRoot': {
       const result = authorizeTrustedBoardRootForSender(event.sender, args[0]);
       if (result && result.ok && result.boardRoot) {
-        await autoSyncManagedObsidianBaseForBoard(result.boardRoot, { refreshMetadata: true });
+        // Keep board switches fast and non-mutating for card files. See the
+        // authorizeBoardSelection path above for where metadata reconciliation runs.
+        await autoSyncManagedObsidianBaseForBoard(result.boardRoot);
       }
       return result;
     }
