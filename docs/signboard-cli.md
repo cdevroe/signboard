@@ -13,7 +13,6 @@ This guide covers the Signboard command-line interface.
 - [Archive Workflows](#archive-workflows)
 - [Settings and Imports](#settings-and-imports)
 - [Markdown and Date Conventions](#markdown-and-date-conventions)
-- [Troubleshooting](#troubleshooting)
 
 ## How to Run It
 
