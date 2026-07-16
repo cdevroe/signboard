@@ -8,7 +8,7 @@ This guide covers the desktop app and the core workflow for managing a project i
 - [Create or Open a Board](#create-or-open-a-board)
 - [Work with Lists](#work-with-lists)
 - [Work with Cards](#work-with-cards)
-- [Due Dates, Labels, and Checklists](#due-dates-labels-and-checklists)
+- [Start Dates, Due Dates, Labels, and Checklists](#start-dates-due-dates-labels-and-checklists)
 - [Search, Filters, and Open Boards](#search-filters-and-open-boards)
 - [Board and Planner Views](#board-and-planner-views)
 - [Planner](#planner)
@@ -88,6 +88,7 @@ Cards are Markdown files, so every card is portable and readable outside the app
 
 You can create a card by:
 
+- Clicking the header `Card` button
 - Pressing `Cmd/Ctrl + N` to open Quick Add for any currently open board
 - Using the `Add new card` button for a specific list
 
@@ -101,7 +102,7 @@ Click a card to open it. In the card editor you can:
 
 - Rename the card
 - Edit the Markdown body
-- Set a due date
+- Set start and due dates
 - Add or remove labels
 - Move the card to another list
 - Move it to the next list
@@ -110,6 +111,7 @@ Click a card to open it. In the card editor you can:
 - Open it in Obsidian or the default Markdown app
 - Open raw web URLs from the card body
 - Create, open, or remove linked objects
+- Use Smart Card Actions when AI assistance is enabled
 - Archive it
 
 The card body is Markdown, so plain text notes, headings, lists, and checklists all work naturally.
@@ -152,9 +154,15 @@ New or edited cards include flat Obsidian-friendly properties such as `title`, `
 
 Signboard also includes an optional desktop-only Obsidian companion plugin in `obsidian-plugin/`. Copy or symlink that folder into your vault as `.obsidian/plugins/signboard-companion` and enable it from Obsidian's Community plugins settings. The plugin can open and copy Signboard links, attach the active Obsidian note to a Signboard card, open cards by `obsidian://signboard?cardId=...`, and add a folder context-menu action named `Create Signboard`. That action asks first, then adds board metadata/list folders, treats existing child folders as lists, moves top-level Markdown notes into a To-do list, and opens the board in Signboard. When you delete an Obsidian note that is linked from Signboard cards, the plugin asks before removing those linked objects from the cards.
 
-## Due Dates, Labels, and Checklists
+## Start Dates, Due Dates, Labels, and Checklists
 
 These features are what make cards show up in Planner and filters.
+
+### Card start dates
+
+Every card can have a start date in addition to a due date. Use a start date when work is scheduled to begin or become actionable before it is due.
+
+Start dates appear on cards, in Table's `Start` column, in Planner date views, and in date-aware filters. On Kanban cards and in the card editor, start and due dates share one compact `Dates` control. Click the calendar icon or date range to open both fields.
 
 ### Card due dates
 
@@ -162,28 +170,30 @@ Every card can have a due date.
 
 Once a card has a due date, it becomes visible in:
 
-- due date displays on the card
+- date displays on the card
 - due-date-aware filters
 - Planner
 - daily due notifications if enabled in app settings
 
-### Task list items with due dates
+### Task list items with start and due dates
 
-Signboard also understands due dates inside Markdown task lists.
+Signboard also understands start and due dates inside Markdown task lists.
 
 Example:
 
 ```md
 - [ ] Draft release notes
-- [ ] (due: 2026-04-05) Send beta build
+- [ ] (start: 2026-04-02) Draft beta announcement
+- [ ] (start: 2026-04-03) (due: 2026-04-05) Send beta build
+- [ ] (scheduled: 2026-04-06) Follow up with testers
 - [x] Review copy
 ```
 
-Task due dates are separate from the card’s main due date. Open checklist item due dates are included in Planner and board date filters, so a card can surface because one of its unchecked checklist items is due even if the card itself has no top-level due date. Once that checklist item is checked off, its due date stays in the Markdown but no longer keeps the card in date-based views. CLI due filters expose `--task-status open|any` when you need to choose whether checked task due markers count.
+Task dates are separate from the card’s main start and due dates. Open checklist item start/due dates are included in Planner and board date filters, so a card can surface because one of its unchecked checklist items is dated even if the card itself has no top-level date. Once that checklist item is checked off, its date stays in the Markdown but no longer keeps the card in date-based views. CLI due filters expose `--task-status open|any` when you need to choose whether checked task due markers count.
 
 ### Labels
 
-Labels are defined per board. Add them in `Settings > Labels`, then assign them to cards from the card editor.
+Labels are defined per board. Add them in `Settings > Labels`, or create a new label directly from the label picker while editing or creating a card. The label picker also has a gear button that opens the board's Labels settings for renaming labels or changing colors.
 
 Labels are useful for:
 
@@ -209,7 +219,7 @@ From the search field, press `Enter` or `Arrow Down` to focus the first visible 
 
 ### Date and Label filters
 
-Use the filter button in the header to narrow the visible cards by due today, overdue, and your board labels.
+Use the filter button in the header to narrow the visible cards by `Today`, `Overdue`, `Next 7 days`, `Next 14 days`, `Next 30 days`, and your board labels. When filters are active, Signboard shows a compact summary chip beside search; click it to clear the active filters.
 
 When a filter popover is open, use arrow keys, `Home`, and `End` to move through its controls. Press `Esc` to close the popover and return focus to the button that opened it.
 
@@ -219,19 +229,21 @@ Board context can be Kanban or Table. Dated planning happens in Planner.
 
 ### Kanban
 
-Kanban is the board view. Use it for day-to-day drag-and-drop organization. Cards show compact metadata for due dates, checklist progress, labels, and linked-object counts.
+Kanban is the board view. Use it for day-to-day drag-and-drop organization. Cards show compact metadata for start/due date ranges, checklist progress, labels, and linked-object counts.
 
 ### Table
 
-Table is an active-board view for scanning cards in board/list order. It uses the same board search, label filters, Today/Overdue date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.
+Table is an active-board view for scanning and bulk-managing cards in board/list order. It uses the same board search, label filters, date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.
 
-Open `Board menu > View > Table`. Click a card title or row to open the normal card editor. Use the row's list dropdown to move a card to another list; moved cards land at the top of the destination list.
+Use the bottom view dock to switch to Table. Click a card title or row to open the normal card editor. Use the row's list dropdown to move a card to another list; moved cards land at the top of the destination list.
 
-Table includes `Updated` and `Created` columns plus a sort control. Sort by `Updated, oldest first` to find cards you have not touched in a while, or by `Created, oldest first` to find your oldest cards. Search and filters apply first, then the Table sort orders the visible cards.
+Table includes `Start`, `Due`, `Updated`, and `Created` columns plus list filtering and sorting. Filter to one list, all completed lists, or all lists. Sort by `Updated, oldest first` to find cards you have not touched in a while, or by `Created, oldest first` to find your oldest cards. Search and filters apply first, then the Table sort orders the visible cards.
+
+Use the row checkboxes to select visible cards for bulk actions. After selecting one card, hold `Shift` while checking another row to select the range between them. The header checkbox selects the currently visible rows only. Bulk actions can archive selected cards, move them to another list, add or remove labels, set or clear start dates, and set or clear due dates.
 
 ### Dated Views
 
-Planner Calendar, This Week, Day, and Agenda place cards and due task items on dates across your open boards. Calendar and This Week use Monday-first weeks.
+Planner Calendar, This Week, Day, and Agenda place cards and dated task items on dates across your open boards. Calendar and This Week use Monday-first weeks.
 
 Use it when you want to answer questions like:
 
@@ -242,7 +254,7 @@ Use it when you want to answer questions like:
 
 ### Switch views
 
-- Use `Board menu > View` to switch the current board between Kanban and Table.
+- Use the bottom view dock to switch between Planner, Kanban, and Table. Kanban is centered in the dock as the default board view.
 - `Cmd/Ctrl + 1`: Kanban, closing Planner if it is open
 - `Cmd/Ctrl + Option/Alt + 1`: Table, closing Planner if it is open
 - `Cmd/Ctrl + 2`: Planner Calendar for all open boards
@@ -256,9 +268,9 @@ Use it when you want to answer questions like:
 
 ## Planner
 
-Planner is a workspace-level view for dated work across your currently open boards. It appears as a narrow rail on the far left when at least one board is open.
+Planner is a workspace-level view for dated work across your currently open boards. It is the left-most item in the bottom view dock when at least one board is open.
 
-Open Planner from the left rail or press `Cmd/Ctrl + Shift + P`. Planner slides over the board tabs and board content, so it is clear you are no longer looking at a single board.
+Open Planner from the bottom view dock or press `Cmd/Ctrl + Shift + P`. Planner slides over the board tabs and board content, so it is clear you are no longer looking at a single board.
 
 Planner includes:
 
@@ -271,7 +283,7 @@ Planner cards show their source as `Board · List`, with that source pill tinted
 
 Planner defaults to all open boards. Use the scope toggle to narrow to the current board, or use the filter menu to choose a custom set of open boards.
 
-Planner search matches card title, body, board name, and list name. Planner filters can narrow by date (`Today` or `Overdue`), completed-card visibility, and open board. When Planner is scoped to the current board only, the filter menu also includes that board's labels.
+Planner search matches card title, body, board name, and list name. Planner filters can narrow by date (`Today`, `Overdue`, `Next 7 days`, `Next 14 days`, or `Next 30 days`), completed-card visibility, and open board. When Planner is scoped to the current board only, the filter menu also includes that board's labels.
 
 From Planner search, press `Enter` or `Arrow Down` to focus the first visible Planner card. Arrow keys move through the visible Planner cards, `Enter` or `Space` opens the focused card, and `Esc` returns focus to Planner search.
 
@@ -291,7 +303,7 @@ Planner uses your light/dark mode but keeps the default Signboard color palette 
 - `Cmd/Ctrl + Option/Alt + 4`: Day for the current board
 - `Cmd/Ctrl + Option/Alt + 5`: Agenda for the current board
 
-Inside Planner, `Cmd/Ctrl + 1` closes Planner and returns to Kanban. `Cmd/Ctrl + Option/Alt + 1` closes Planner and returns to Table.
+Inside Planner, `Cmd/Ctrl + 1` switches directly to Kanban. `Cmd/Ctrl + Option/Alt + 1` switches directly to Table. The bottom dock always shows the active workspace view.
 
 ## Archive and Restore
 
@@ -304,6 +316,8 @@ Open the card editor and choose the archive action.
 ### Archive all cards in a list
 
 Open the list actions menu and choose `Archive cards in this list`.
+
+For selective cleanup, switch to Table, filter to `Completed lists` or a specific list, select the cards you want, and choose `Archive` from the bulk toolbar.
 
 ### Archive a list
 
@@ -332,20 +346,21 @@ Open `Settings` from the board menu or press `Cmd/Ctrl + ,`.
 
 ### App Settings
 
-The `App Settings` section controls settings that apply across Signboard:
+The `App Settings` group controls settings that apply across Signboard:
 
-- tooltips
-- daily due-date reminders
-- an optional global Quick Add shortcut while Signboard is open
-- External Published Calendar
+- `General`: tooltips and the optional global Quick Add shortcut while Signboard is open
+- `Notifications`: daily due-date reminders and External Published Calendar publishing
+- `Smart Actions`: AI assistance through Ollama and Smart Card Actions
 
 If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due. The notification time field is shown only while reminders are enabled.
+
+When AI assistance is enabled, Signboard checks the configured Ollama URL, shows whether it can connect, and loads the locally installed models from Ollama into a model dropdown. Use the refresh button next to the model picker after pulling a new model. When AI assistance is off, Smart Actions shows a setup state with an enable button. The card editor then shows a floating Smart Card Actions button with default actions for generating a new title, generating a summary, generating a task list, auto-labeling from the current board's existing labels, smart paste formatting, a one-off Quick Smart Action, and a read-only Question the Card action. Use the gear in the Smart Card Actions menu to open the Smart Actions settings panel directly. App Settings lets you drag actions to reorder them, expand an action with `Edit`, customize each built-in prompt, and add custom actions with a label, affected card data, and prompt. Custom actions can target Title, Labels, Content, Due Dates, or Attachments. Content suggestions are appended to the card instead of replacing existing notes. Quick Smart Action is reorderable in settings but does not store a prompt; choose its prompt and target when you run it from the card editor. Question the Card is reorderable in settings but does not store a prompt or show an affected-data selector; type a question when you run it, review the answer in the modal, and optionally ask a fresh follow-up without storing chat history or changing card data. New custom actions appear at the top of the actions list. For the generated task list action, change the number in the prompt when you want a different number of tasks. Suggestions are previewed before they replace the title, insert Markdown, set a due date, link suggested URL/app attachments, or apply labels. Auto-label only applies labels that already exist on the current board, preserves labels already assigned to the card, and skips duplicates. Attachment suggestions only link web URLs, app links, or `signboard://` links after confirmation; local file paths are not attached by AI. Card title, body, board/list context, start/due dates, current labels, available board labels, linked-object summaries, a compact markdown-file view of the card for questions, pasted smart-paste text, Quick Smart Action prompts, and Question the Card prompts are sent to the configured Ollama URL only when you use an action.
 
 ### External Published Calendar
 
 External Published Calendar is an optional read-only iCalendar feed for local calendar apps.
 
-When enabled in App Settings, Signboard serves a local subscription URL on `127.0.0.1` while Signboard is open. The port and subscription URL settings are shown only while publishing is enabled. Copy the URL from Settings and subscribe to it from your calendar app. The feed is built from boards Signboard has opened and trusted, unless a board is toggled off.
+When enabled in `App Settings` > `Notifications`, Signboard serves a local subscription URL on `127.0.0.1` while Signboard is open. The port and subscription URL settings are shown only while publishing is enabled. Copy the URL from Settings and subscribe to it from your calendar app. The feed is built from boards Signboard has opened and trusted, unless a board is toggled off.
 
 The feed includes:
 
@@ -358,7 +373,7 @@ The feed hides:
 - cards in completed lists
 - boards that are toggled off in that board's Workflow settings
 
-Due items are published as all-day events because Signboard due dates are date-only. The port can be changed in App Settings if the default local port is unavailable.
+Due items are published as all-day events because Signboard due dates are date-only. The port can be changed in `App Settings` > `Notifications` if the default local port is unavailable.
 
 ### Board General
 
@@ -366,16 +381,9 @@ The board `General` section lets you:
 
 - rename the board
 - move the board folder to a new location
+- duplicate the board into a chosen folder with a chosen board name
 
-### Workflow
-
-The `Workflow` section controls which lists count as completed work for the current board.
-
-Completed-list cards and checked-off task due markers keep their due dates, but Planner date views, Planner date filters, board date filters, and daily due reminders hide them by default so finished work does not look actionable.
-
-Auto-detection is enabled by default. You can turn it off, manually choose completed lists, or uncheck an auto-detected list.
-
-Workflow also includes the board-level External Published Calendar inclusion toggle. Leave it on to include this board in the app-wide local calendar feed, or turn it off to keep the board out of subscribed calendar apps.
+Duplicating a board copies the board folder, lists, cards, labels, settings, archive contents, and linked objects. Signboard gives copied cards fresh card IDs and updates their `signboard://open-card` links so the new board does not collide with the original.
 
 ### Labels
 
@@ -388,11 +396,25 @@ The `Labels` section lets you:
 
 Labels are stored with the board so each board can have its own vocabulary.
 
-### Colors
+### Appearance
 
-The `Colors` section lets you choose a board color scheme. Each scheme includes both light and dark variants.
+The `Appearance` section lets you choose a board color scheme. Each scheme includes both light and dark variants.
 
 You can also apply the color scheme to all currently open boards.
+
+### Workflow
+
+The `Workflow` section controls which lists count as completed work for the current board.
+
+Completed-list cards and checked-off task date markers keep their dates, but Planner date views, Planner date filters, board date filters, and daily due reminders hide them by default so finished work does not look actionable.
+
+Auto-detection is enabled by default. You can turn it off, manually choose completed lists, or uncheck an auto-detected list.
+
+Workflow also includes the board-level External Published Calendar inclusion toggle. Leave it on to include this board in the app-wide local calendar feed, or turn it off to keep the board out of subscribed calendar apps.
+
+### Obsidian
+
+The `Obsidian` section lets you generate or open the managed `Signboard Board.base` file for boards stored inside an Obsidian vault.
 
 ### Import
 

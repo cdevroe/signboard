@@ -72,6 +72,10 @@ function isCardEditorRelatedClickTarget(target) {
         return true;
     }
 
+    if (target.closest('#cardEditorSmartActionsPopover')) {
+        return true;
+    }
+
     if (target.closest('.sb-themed-fdatepicker')) {
         return true;
     }
@@ -161,6 +165,9 @@ async function closeAllModals(e, options = {}){
     }
     if (closeAllRequest && typeof closeCardEditorLinkedObjectsPopover === 'function') {
         closeCardEditorLinkedObjectsPopover();
+    }
+    if (closeAllRequest && typeof closeCardEditorSmartActionsPopover === 'function') {
+        closeCardEditorSmartActionsPopover();
     }
 
     if ( closeAllRequest ) {

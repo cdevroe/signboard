@@ -3,6 +3,7 @@
 
 # Concatenate in the required order
 cat \
+  shared/appSettingsSchema.js \
   app/utilities/santizeFileName.js \
   app/utilities/timestampListItem.js \
   app/utilities/dueDateStatus.js \
@@ -15,6 +16,7 @@ cat \
   app/appSettings.js \
   app/board/boardLabels.js \
   app/board/boardSearch.js \
+  app/board/boardSnapshot.js \
   app/board/boardViews.js \
   app/board/tableView.js \
   app/board/plannerView.js \

@@ -1433,10 +1433,10 @@ function initializeArchiveBrowserControls() {
   if (sortSelect) {
     sortSelect.addEventListener('change', async (event) => {
       const nextSortKey = String(event.currentTarget.value || 'archived-desc');
-      if (typeof waitForNativeMenuTrackingToSettle === 'function') {
-        await waitForNativeMenuTrackingToSettle();
-      }
-      if (!sortSelect.isConnected || sortSelect.value !== nextSortKey) {
+      if (
+        typeof waitForNativeSelectChangeToSettle === 'function' &&
+        !await waitForNativeSelectChangeToSettle(sortSelect, nextSortKey)
+      ) {
         return;
       }
 

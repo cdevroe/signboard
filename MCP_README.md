@@ -23,6 +23,7 @@ By default, the server starts in read-only mode.
   - optional allowlist for board-scoped tools when the desktop app already has trusted board roots
   - uses your OS path delimiter (`:` on macOS/Linux, `;` on Windows)
   - MCP combines these paths with Signboard's desktop trusted board roots from `trusted-board-roots.json`
+  - `signboard_list_boards` reports known usable boards from desktop-open, desktop-trusted, and configured MCP roots
   - `boardRoot` arguments must resolve inside one configured or trusted root
   - import tool `sourcePath` / `sourcePaths` arguments must also resolve inside one configured or trusted root
 
@@ -92,15 +93,16 @@ Use it to standardize how agents call `signboard_*` tools (safety checks, read/w
 The server currently exposes these tools:
 
 - `signboard_get_config`
+- `signboard_list_boards`
 - `signboard_list_board_views`
 - `signboard_resolve_board_by_name`
 - `signboard_create_board` (write mode only)
 - `signboard_list_lists`
 - `signboard_list_cards`
-- `signboard_read_card` (includes `timestamps`, `taskSummary`, and `taskDueDates`)
-- `signboard_create_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports `dryRun`)
-- `signboard_update_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports section edits, note insertion, label operations, and `dryRun`)
-- `signboard_duplicate_card` (write mode only, includes `timestamps`, `taskSummary`, and `taskDueDates`; supports title/body override, label operations, and `dryRun`)
+- `signboard_read_card` (includes `timestamps`, `taskSummary`, `taskStartDates`, and `taskDueDates`)
+- `signboard_create_card` (write mode only, includes `timestamps`, `taskSummary`, `taskStartDates`, and `taskDueDates`; supports `dryRun`)
+- `signboard_update_card` (write mode only, includes `timestamps`, `taskSummary`, `taskStartDates`, and `taskDueDates`; supports section edits, note insertion, label operations, and `dryRun`)
+- `signboard_duplicate_card` (write mode only, includes `timestamps`, `taskSummary`, `taskStartDates`, and `taskDueDates`; supports title/body override, label operations, and `dryRun`)
 - `signboard_archive_card` (write mode only)
 - `signboard_archive_list` (write mode only)
 - `signboard_list_archive_entries`
@@ -120,7 +122,7 @@ The server currently exposes these tools:
 `tools/list` advertises underscore tool names. Dotted `signboard.*` names are still accepted as legacy aliases for backward compatibility.
 
 Board-scoped tools take absolute `boardRoot` paths, `signboard_create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
-Board settings tools include labels, theme overrides, completed-list workflow settings, and board-level External Published Calendar inclusion. App tooltip, notification, Quick Add, and External Published Calendar server preferences are desktop app settings.
+Board settings tools include labels, theme overrides, completed-list workflow settings, and board-level External Published Calendar inclusion. App tooltip, notification, Quick Add, AI assistance/Smart Card Action prompt, and External Published Calendar server preferences are desktop app settings.
 Import tools also take absolute external source paths, and those paths must resolve inside configured or trusted roots.
 
 ## Card Metadata in Card Tool Responses
@@ -130,18 +132,24 @@ Import tools also take absolute external source paths, and those paths must reso
 - `card.timestamps.createdAt`: ISO timestamp for when the card was created, preferring Signboard card metadata and falling back to filesystem timestamps for older cards
 - `card.timestamps.updatedAt`: ISO timestamp from the card file's filesystem modification time when available
 - `taskSummary`: `{ total, completed, remaining }`
-- `taskDueDates`: sorted unique ISO dates found in task lines (`YYYY-MM-DD`)
+- `card.start`: optional card start/scheduled date (`YYYY-MM-DD`) when present
+- `card.due`: optional card due date (`YYYY-MM-DD`) when present
+- `taskStartDates`: sorted unique ISO start/scheduled dates found in task lines (`YYYY-MM-DD`)
+- `taskDueDates`: sorted unique ISO due dates found in task lines (`YYYY-MM-DD`)
 
 Task parsing rules:
 
 - Checklist items are recognized from markdown checkbox lines (for example: `- [ ]`, `- [x]`, `- [X]`, `- [x ]`, `- [ x]`, `- [ x ]`).
-- Task-level due dates are recognized only when the task content starts with:
+- Task-level date markers are recognized when the task content starts with one or more of:
+  - `(start: YYYY-MM-DD)`
+  - `(scheduled: YYYY-MM-DD)`
   - `(due: YYYY-MM-DD)`
 
 Example:
 
 ```md
-- [ ] (due: 2026-03-20) Draft announcement
+- [ ] (start: 2026-03-18) (due: 2026-03-20) Draft announcement
+- [ ] (scheduled: 2026-03-21) Follow up
 - [x ] Confirm reviewers
 ```
 
@@ -154,13 +162,20 @@ Returned metadata shape:
     "completed": 1,
     "remaining": 1
   },
+  "taskStartDates": ["2026-03-18", "2026-03-21"],
   "taskDueDates": ["2026-03-20"]
 }
 ```
 
-## Board name lookup
+## Board discovery and lookup
 
-If you do not want to manually type absolute board paths, use:
+Agents should call this first:
+
+- `signboard_list_boards`
+
+It returns known board roots plus context flags such as `isOpen`, `isActive`, `isTrusted`, `isAllowed`, and `sources`. Desktop-open state comes from the last synced Signboard window tab state; trusted roots come from the desktop app's persisted trusted board roots; configured MCP roots are scanned with a bounded shallow search for board-looking folders.
+
+If you know a board name but do not know its absolute path, use:
 
 - `signboard_resolve_board_by_name`
 
@@ -206,7 +221,7 @@ If neither `SIGNBOARD_MCP_ALLOWED_ROOTS` nor desktop trusted board roots are ava
 - The process communicates over stdio (MCP JSON-RPC framing).
 - The stdio parser accepts both header-framed MCP and newline-delimited JSON-RPC payloads.
 - `signboard_list_board_views` reports the board-scoped Kanban and Table views; dated Calendar/This Week/Day/Agenda planning is handled by the desktop Planner overlay.
-- Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`).
+- Card reads/writes use Signboard's existing frontmatter logic (`lib/cardFrontmatter.js`), including optional `start` and `due` fields.
 - `signboard_create_card` and `signboard_update_card` normalize literal `\n` / `\N` escape sequences in body input into real line breaks.
 - `signboard_update_card` can replace a Markdown heading section (`replaceSection` + `body`), insert text after a heading (`insertAfterHeading` + `insertText`), append a note under `## Notes` (`addNote`), and clear/add/remove labels without replacing the full body.
 - `dryRun: true` on card create/update/duplicate returns the planned card payload without writing a file.

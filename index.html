@@ -22,6 +22,11 @@
         </div>
         <div id="boardControls">
           <input id="boardSearchInput" type="search" placeholder="Search cards" aria-label="Search cards">
+          <button id="quickAddHeaderButton" type="button" title="Quick add card" aria-label="Quick add card">
+            <i data-feather="plus"></i>
+            <span>Card</span>
+          </button>
+          <button id="boardFilterSummaryButton" class="board-filter-summary-button hidden" type="button" aria-hidden="true"></button>
           <div class="board-toolbar-group">
             <button id="labelFilterButton" title="Filter cards" aria-label="Filter cards">
               <i data-feather="filter" class="label-toolbar-icon"></i>
@@ -37,10 +42,6 @@
       <div id="boardTabs" role="tablist" aria-label="Open Boards"></div>
     </div>
   </header>
-
-  <button id="plannerRailButton" class="planner-rail-button" type="button" title="Open Planner" aria-label="Open Planner" aria-expanded="false">
-    <i data-feather="calendar"></i>
-  </button>
 
   <section id="plannerOverlay" class="planner-overlay hidden" aria-hidden="true" aria-labelledby="plannerTitle">
     <div class="planner-panel">
@@ -65,9 +66,6 @@
         </div>
       </div>
       <div id="plannerBody" class="planner-body"></div>
-      <button id="plannerCloseRail" class="planner-close-rail" type="button" title="Close Planner" aria-label="Close Planner">
-        <i data-feather="chevron-left"></i>
-      </button>
     </div>
   </section>
 
@@ -93,13 +91,6 @@
       <span class="board-menu-action-label">Settings</span>
       <span class="menu-shortcut-hint" data-shortcut-action="boardSettings" data-shortcut-format="menu" aria-hidden="true">⌘,</span>
     </button>
-    <div class="board-menu-view-group">
-      <button id="boardViewButton" class="board-menu-action" type="button" title="Current view: Kanban. Change view." aria-label="Current view: Kanban. Change view.">
-        <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="columns"></i></span>
-        <span class="board-menu-action-label">View: Kanban</span>
-      </button>
-      <div id="boardViewPopover" class="label-popover hidden" aria-hidden="true"></div>
-    </div>
     <button id="openArchiveBrowser" class="board-menu-action" type="button" title="Browse archived cards and lists" aria-label="Browse archived cards and lists">
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="archive"></i></span>
       <span class="board-menu-action-label">Archive</span>
@@ -117,10 +108,30 @@
 
   <div id="listActionsPopover" class="label-popover list-actions-popover hidden" aria-hidden="true"></div>
 
-  <button id="openSponsorPillButton" class="sponsor-signboard-button" type="button" title="Sponsor Signboard" aria-label="Sponsor Signboard">
-    <i data-feather="heart" aria-hidden="true"></i>
-    <span>Sponsor</span>
-  </button>
+  <div id="sponsorSignboardPill" class="sponsor-signboard-pill">
+    <button id="openSponsorPillButton" class="sponsor-signboard-button" type="button" title="Sponsor Signboard" aria-label="Sponsor Signboard">
+      <i data-feather="heart" aria-hidden="true"></i>
+      <span>Sponsor</span>
+    </button>
+    <button id="dismissSponsorPillButton" class="sponsor-signboard-dismiss" type="button" title="Hide Sponsor button" aria-label="Hide Sponsor button">
+      <i data-feather="x" aria-hidden="true"></i>
+    </button>
+  </div>
+
+  <nav id="workspaceViewDock" class="workspace-view-dock" aria-label="Workspace views">
+    <button id="workspaceViewPlanner" class="workspace-view-dock-button" type="button" data-workspace-view="planner" title="Open Planner" aria-label="Open Planner">
+      <i data-feather="calendar"></i>
+      <span>Planner</span>
+    </button>
+    <button id="workspaceViewKanban" class="workspace-view-dock-button is-active is-primary" type="button" data-workspace-view="kanban" title="Show Kanban view" aria-label="Show Kanban view">
+      <i data-feather="columns"></i>
+      <span>Kanban</span>
+    </button>
+    <button id="workspaceViewTable" class="workspace-view-dock-button" type="button" data-workspace-view="table" title="Show Table view" aria-label="Show Table view">
+      <i data-feather="list"></i>
+      <span>Table</span>
+    </button>
+  </nav>
 
   <div id="modalBoardSwitcher" class="modal board-switcher-modal hidden" role="dialog" aria-modal="false" aria-label="Switch to board" aria-hidden="true">
     <input id="boardSwitcherInput" type="search" role="combobox" placeholder="Switch to board" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-controls="boardSwitcherResults" aria-expanded="false">
@@ -174,6 +185,7 @@
 
   <div id="modalAddCard" class="modal hidden" role="dialog" aria-modal="true" aria-label="Add card" aria-hidden="true">
     <input id="userInput" type="text" placeholder="A small task" aria-label="Card title">
+    <button id="newCardLabelButton" class="new-card-label-button" type="button" title="Set labels" aria-label="Set labels"><i data-feather="tag"></i><span class="new-card-label-button-text">Labels</span></button>
     <input id="hiddenListPath" type="hidden" value="">
     <p class="new-card-modal-helper"><kbd>Shift</kbd> + <kbd>Enter</kbd> to create and open</p>
     <button id="btnAddCard" title="Add card">Add card</button>
@@ -183,6 +195,7 @@
     <p><select id="userInputBoardPath" aria-label="Board"></select></p>
     <p><select id="userInputListPath" aria-label="List"></select></p>
     <p class="modalAddCardToListInputRow"><input id="userInputCardName" type="text" placeholder="Go fishing" aria-label="Card title"></p>
+    <button id="quickAddCardLabelButton" class="new-card-label-button" type="button" title="Set labels" aria-label="Set labels"><i data-feather="tag"></i><span class="new-card-label-button-text">Labels</span></button>
     <p class="new-card-modal-helper"><kbd>Shift</kbd> + <kbd>Enter</kbd> to create and open</p>
     <button id="btnAddCardToList" title="Add card to selected list">Add</button>
   </div>
@@ -431,19 +444,22 @@
     </div>
     <div class="board-settings-layout">
       <nav class="board-settings-nav" role="tablist" aria-orientation="vertical" aria-label="Settings sections">
-        <button id="boardSettingsNavApp" type="button" role="tab" aria-selected="true" aria-controls="boardSettingsPanelApp" class="board-settings-nav-button is-active" data-settings-panel="app">App Settings</button>
+        <p class="board-settings-nav-label">App Settings</p>
+        <button id="boardSettingsNavApp" type="button" role="tab" aria-selected="true" aria-controls="boardSettingsPanelApp" class="board-settings-nav-button is-active" data-settings-panel="app">General</button>
+        <button id="boardSettingsNavNotifications" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelNotifications" class="board-settings-nav-button" data-settings-panel="notifications">Notifications</button>
+        <button id="boardSettingsNavSmartActions" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelSmartActions" class="board-settings-nav-button" data-settings-panel="smart-actions">Smart Actions</button>
         <div class="board-settings-nav-separator" role="separator"></div>
         <p class="board-settings-nav-label">Current Board</p>
         <button id="boardSettingsNavGeneral" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelGeneral" class="board-settings-nav-button" data-settings-panel="general">General</button>
-        <button id="boardSettingsNavObsidian" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelObsidian" class="board-settings-nav-button" data-settings-panel="obsidian">Obsidian</button>
-        <button id="boardSettingsNavWorkflow" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelWorkflow" class="board-settings-nav-button" data-settings-panel="workflow">Workflow</button>
         <button id="boardSettingsNavLabels" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelLabels" class="board-settings-nav-button" data-settings-panel="labels">Labels</button>
-        <button id="boardSettingsNavColors" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelColors" class="board-settings-nav-button" data-settings-panel="colors">Colors</button>
+        <button id="boardSettingsNavColors" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelColors" class="board-settings-nav-button" data-settings-panel="colors">Appearance</button>
+        <button id="boardSettingsNavWorkflow" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelWorkflow" class="board-settings-nav-button" data-settings-panel="workflow">Workflow</button>
+        <button id="boardSettingsNavObsidian" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelObsidian" class="board-settings-nav-button" data-settings-panel="obsidian">Obsidian</button>
         <button id="boardSettingsNavImport" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsPanelImport" class="board-settings-nav-button" data-settings-panel="import">Import</button>
       </nav>
       <div class="board-settings-panels">
         <section id="boardSettingsPanelApp" class="boardSettingsSection board-settings-panel is-active" role="tabpanel" aria-hidden="false" aria-labelledby="boardSettingsNavApp" data-settings-panel="app">
-          <h3>App Settings</h3>
+          <h3>General</h3>
           <div class="board-settings-group">
             <div class="board-settings-toggle-row">
               <div>
@@ -456,6 +472,18 @@
               </label>
             </div>
           </div>
+          <div class="board-settings-group">
+            <label for="boardSettingsQuickAddShortcut">Global Quick Add shortcut</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsQuickAddShortcut" type="text" placeholder="CommandOrControl+Shift+Space" spellcheck="false" autocomplete="off">
+              <span id="boardSettingsQuickAddShortcutStatus" class="board-settings-status">Disabled</span>
+            </div>
+            <p class="boardSettingsHint">Leave blank to disable. Signboard must be open.</p>
+          </div>
+        </section>
+
+        <section id="boardSettingsPanelNotifications" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavNotifications" data-settings-panel="notifications">
+          <h3>Notifications</h3>
           <div class="board-settings-group">
             <div class="board-settings-toggle-row">
               <div>
@@ -472,14 +500,6 @@
             <label for="boardSettingsNotificationsTime">Notification time (local)</label>
             <input id="boardSettingsNotificationsTime" type="text" value="09:00" placeholder="HH:MM" inputmode="numeric" maxlength="5" width="10" pattern="(?:0[1-9]|1[0-9]|2[0-4]):[0-5][0-9]">
             <p class="boardSettingsHint">Use HH:MM in 24-hour format. Hours can be 01 through 24 (example: 21:30).</p>
-          </div>
-          <div class="board-settings-group">
-            <label for="boardSettingsQuickAddShortcut">Global Quick Add shortcut</label>
-            <div class="board-settings-inline-actions">
-              <input id="boardSettingsQuickAddShortcut" type="text" placeholder="CommandOrControl+Shift+Space" spellcheck="false" autocomplete="off">
-              <span id="boardSettingsQuickAddShortcutStatus" class="board-settings-status">Disabled</span>
-            </div>
-            <p class="boardSettingsHint">Leave blank to disable. Signboard must be open.</p>
           </div>
           <div class="board-settings-group">
             <div class="board-settings-toggle-row">
@@ -509,6 +529,48 @@
           </div>
         </section>
 
+        <section id="boardSettingsPanelSmartActions" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavSmartActions" data-settings-panel="smart-actions">
+          <h3>Smart Actions</h3>
+          <div class="board-settings-group">
+            <div class="board-settings-toggle-row">
+              <div>
+                <p class="boardSettingsHint boardSettingsHintTight">AI assistance</p>
+                <p class="boardSettingsHint">Use Ollama for local Smart Card Actions in the card editor.</p>
+              </div>
+              <label class="board-settings-switch" for="boardSettingsAiToggle" title="Enable AI assistance">
+                <input id="boardSettingsAiToggle" type="checkbox" role="switch" aria-label="Enable AI assistance">
+                <span class="board-settings-switch-track" aria-hidden="true"></span>
+              </label>
+            </div>
+            <div id="boardSettingsAiDisabledState" class="board-settings-disabled-state">
+              <div>
+                <p class="boardSettingsHint boardSettingsHintTight">Smart Actions are off</p>
+                <p class="boardSettingsHint">Enable them to choose an Ollama model and customize card actions.</p>
+              </div>
+              <button id="btnEnableAiSmartActions" type="button">Enable Smart Actions</button>
+            </div>
+          </div>
+          <div id="boardSettingsAiDetails" class="board-settings-group hidden" aria-hidden="true">
+            <label for="boardSettingsAiOllamaUrl">Ollama URL</label>
+            <input id="boardSettingsAiOllamaUrl" type="url" value="http://127.0.0.1:11434" placeholder="http://127.0.0.1:11434" spellcheck="false" autocomplete="off">
+            <label for="boardSettingsAiOllamaModel">Ollama model</label>
+            <div class="board-settings-inline-actions board-settings-ai-model-actions">
+              <select id="boardSettingsAiOllamaModel" aria-label="Ollama model"></select>
+              <button id="btnRefreshAiOllamaModels" type="button" title="Refresh Ollama models" aria-label="Refresh Ollama models"><i data-feather="refresh-cw"></i></button>
+              <span id="boardSettingsAiOllamaStatus" class="board-settings-status">Not checked</span>
+            </div>
+            <div class="board-settings-ai-actions-header">
+              <div>
+                <p class="boardSettingsHint boardSettingsHintTight">Smart Card Actions</p>
+                <p class="boardSettingsHint">Customize the prompts used by card editor AI actions.</p>
+              </div>
+              <button id="btnAddAiSmartCardAction" type="button" title="Add Smart Card Action">Add Action</button>
+            </div>
+            <div id="boardSettingsAiActionsList" class="board-settings-ai-actions-list"></div>
+            <p class="boardSettingsHint">Card content is sent to this Ollama URL only when you use an AI action.</p>
+          </div>
+        </section>
+
         <section id="boardSettingsPanelGeneral" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavGeneral" data-settings-panel="general">
           <h3>Board General</h3>
           <div class="board-settings-group">
@@ -527,19 +589,42 @@
             </div>
             <p class="boardSettingsHint">Move this board folder to another location on your computer.</p>
           </div>
+          <div class="board-settings-group">
+            <label for="boardSettingsDuplicateNameInput">Duplicate Board name</label>
+            <div class="board-settings-inline-actions">
+              <input id="boardSettingsDuplicateNameInput" type="text" placeholder="Duplicate board name">
+              <button id="btnDuplicateBoard" type="button" title="Duplicate board">Duplicate Board</button>
+            </div>
+            <p class="boardSettingsHint">Duplicating a board will create a copy of all board files in a new directory of your choice.</p>
+            <div id="boardSettingsDuplicateStatus" class="board-settings-status board-settings-status-inline" aria-live="polite"></div>
+          </div>
         </section>
 
-        <section id="boardSettingsPanelObsidian" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavObsidian" data-settings-panel="obsidian">
-          <h3>Obsidian</h3>
-          <p class="boardSettingsHint">Keep this board inside an Obsidian vault to open cards in Obsidian, create linked notes, manage linked objects, and generate a Bases view.</p>
-          <div class="board-settings-group">
-            <h4 class="board-settings-subheading">Bases</h4>
-            <p class="boardSettingsHint">Generate a <code>Signboard Board.base</code> file in this board folder for Obsidian Bases.</p>
-            <div class="board-settings-inline-actions board-settings-inline-actions-right">
-              <button id="btnGenerateObsidianBase" type="button" title="Generate Obsidian Base">Generate Base</button>
-              <button id="btnOpenObsidianBase" type="button" title="Open Obsidian Base">Open Base</button>
+        <section id="boardSettingsPanelLabels" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavLabels" data-settings-panel="labels">
+          <h3>Labels</h3>
+          <p class="boardSettingsHint">Rename labels, choose a color, add new labels, and remove labels.</p>
+          <div id="boardSettingsLabels"></div>
+          <button id="btnAddBoardLabel" type="button" title="Add label">Add label</button>
+        </section>
+
+        <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavColors" data-settings-panel="colors">
+          <h3>Appearance</h3>
+          <p class="boardSettingsHint">Choose a color scheme for this board. Each scheme has a light and dark variant.</p>
+          <div class="board-color-scheme-selector">
+            <select id="boardColorSchemeSelect" aria-label="Color scheme"></select>
+          </div>
+          <div class="board-theme-settings-grid">
+            <div class="board-theme-settings-mode">
+              <h4>Light</h4>
+              <div id="boardThemeLightPreview" class="board-theme-preview"></div>
             </div>
-            <p id="boardSettingsObsidianStatus" class="boardSettingsHint" aria-live="polite"></p>
+            <div class="board-theme-settings-mode">
+              <h4>Dark</h4>
+              <div id="boardThemeDarkPreview" class="board-theme-preview"></div>
+            </div>
+          </div>
+          <div class="board-theme-settings-actions">
+            <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply color scheme to all open boards">Apply to all Open Boards</button>
           </div>
         </section>
 
@@ -577,31 +662,17 @@
           </div>
         </section>
 
-        <section id="boardSettingsPanelLabels" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavLabels" data-settings-panel="labels">
-          <h3>Labels</h3>
-          <p class="boardSettingsHint">Rename labels, choose a color, add new labels, and remove labels.</p>
-          <div id="boardSettingsLabels"></div>
-          <button id="btnAddBoardLabel" type="button" title="Add label">Add label</button>
-        </section>
-
-        <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavColors" data-settings-panel="colors">
-          <h3>Color Scheme</h3>
-          <p class="boardSettingsHint">Choose a color scheme for this board. Each scheme has a light and dark variant.</p>
-          <div class="board-color-scheme-selector">
-            <select id="boardColorSchemeSelect" aria-label="Color scheme"></select>
-          </div>
-          <div class="board-theme-settings-grid">
-            <div class="board-theme-settings-mode">
-              <h4>Light</h4>
-              <div id="boardThemeLightPreview" class="board-theme-preview"></div>
+        <section id="boardSettingsPanelObsidian" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavObsidian" data-settings-panel="obsidian">
+          <h3>Obsidian</h3>
+          <p class="boardSettingsHint">Keep this board inside an Obsidian vault to open cards in Obsidian, create linked notes, manage linked objects, and generate a Bases view.</p>
+          <div class="board-settings-group">
+            <h4 class="board-settings-subheading">Bases</h4>
+            <p class="boardSettingsHint">Generate a <code>Signboard Board.base</code> file in this board folder for Obsidian Bases.</p>
+            <div class="board-settings-inline-actions board-settings-inline-actions-right">
+              <button id="btnGenerateObsidianBase" type="button" title="Generate Obsidian Base">Generate Base</button>
+              <button id="btnOpenObsidianBase" type="button" title="Open Obsidian Base">Open Base</button>
             </div>
-            <div class="board-theme-settings-mode">
-              <h4>Dark</h4>
-              <div id="boardThemeDarkPreview" class="board-theme-preview"></div>
-            </div>
-          </div>
-          <div class="board-theme-settings-actions">
-            <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply color scheme to all open boards">Apply to all Open Boards</button>
+            <p id="boardSettingsObsidianStatus" class="boardSettingsHint" aria-live="polite"></p>
           </div>
         </section>
 
@@ -657,12 +728,14 @@
     </div>
     <div id="cardEditorOpenWithPopover" class="label-popover card-editor-open-with-popover hidden" aria-hidden="true" data-sb-modal-layer></div>
     <div id="cardEditorLinkedObjectsPopover" class="label-popover card-editor-linked-objects-popover hidden" aria-hidden="true" data-sb-modal-layer></div>
+    <button type="button" id="cardEditorSmartActionsButton" class="card-editor-smart-actions-button" title="Smart Card Actions" aria-label="Smart Card Actions" aria-expanded="false" hidden><i data-feather="zap"></i></button>
+    <div id="cardEditorSmartActionsPopover" class="label-popover card-editor-smart-actions-popover hidden" aria-hidden="true" data-sb-modal-layer></div>
     <button type="button" id="cardEditorCardID" title="Open this card's file" aria-label="Open this card's file"></button>
     
     <div>
       <h2 id="cardEditorTitle" contenteditable="true" role="textbox" aria-label="Card title" aria-multiline="false" spellcheck="true"></h2>
       <div class="cardEditorMetadataButtons">
-        <button type="button" id="cardEditorSetDueDateLink" title="Edit Due Date" aria-label="Edit due date"><i data-feather="clock"></i> <span id="cardEditorCardDueDateDisplay" title="This card's due date"></span></button>
+        <button type="button" id="cardEditorSetDatesLink" title="Edit Dates" aria-label="Edit dates"><i data-feather="calendar"></i> <span id="cardEditorCardDatesDisplay" title="This card's dates"></span></button>
         <button type="button" id="cardEditorSetLabelsLink" title="Edit Labels" aria-label="Edit labels"><i data-feather="tag"></i> <span id="cardEditorCardLabels" title="This card's labels"></span></button>
         <button type="button" id="cardEditorLinkedObjectsLink" title="Linked objects" aria-label="Linked objects" aria-expanded="false"><i data-feather="paperclip"></i> <span id="cardEditorLinkedObjectsCount" class="card-editor-linked-objects-count" hidden></span></button>
       </div>

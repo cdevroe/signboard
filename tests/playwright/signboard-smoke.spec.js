@@ -1,14 +1,20 @@
 const fs = require('fs').promises;
+const http = require('http');
+const net = require('net');
 const os = require('os');
 const path = require('path');
 const electronBinary = require('electron');
 const { test: base, expect, _electron: electron } = require('@playwright/test');
 const { createFixtureBoard, createFixtureBoardAt } = require('./helpers/fixtureBoard');
 const cardFrontmatter = require('../../lib/cardFrontmatter');
+const appSettingsSchema = require('../../shared/appSettingsSchema');
 
 const repoRoot = path.resolve(__dirname, '../..');
 const usesMetaModifier = process.platform === 'darwin';
 const shouldBringPlaywrightAppToFront = process.env.SIGNBOARD_PLAYWRIGHT_FOREGROUND === '1';
+const defaultSmartCardActionLabels = appSettingsSchema
+  .cloneDefaultSmartCardActions()
+  .map((action) => action.label);
 
 function normalizeBoardRoot(boardRoot) {
   const normalized = String(boardRoot || '').replace(/\\/g, '/').trim();
@@ -48,6 +54,54 @@ function getCurrentWeekDate(dayOffset) {
   const today = new Date();
   const mondayFirstOffset = (today.getDay() + 6) % 7;
   return new Date(today.getFullYear(), today.getMonth(), today.getDate() - mondayFirstOffset + dayOffset);
+}
+
+async function getAvailableLoopbackPort() {
+  return await new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      const port = address && typeof address === 'object' ? address.port : 0;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(port);
+      });
+    });
+  });
+}
+
+async function startFakeOllamaServer(models) {
+  const server = http.createServer((request, response) => {
+    if (request.method === 'GET' && request.url === '/api/tags') {
+      response.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+      });
+      response.end(JSON.stringify({ models }));
+      return;
+    }
+
+    response.writeHead(404, {
+      'Content-Type': 'application/json; charset=utf-8',
+    });
+    response.end(JSON.stringify({ error: 'not found' }));
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+
+  const address = server.address();
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    close: () => new Promise((resolve) => server.close(() => resolve())),
+  };
 }
 
 async function openCurrentBoardPlannerView(page, shortcut, viewSelector) {
@@ -147,6 +201,29 @@ async function pathExists(targetPath) {
     }
     throw error;
   }
+}
+
+async function findFixtureCardPath(boardRoot, listName, fileNamePart) {
+  const listPath = path.join(boardRoot, listName);
+  const entries = await fs.readdir(listPath);
+  const match = entries.find((entry) => entry.includes(fileNamePart));
+  if (!match) {
+    throw new Error(`Unable to find fixture card containing "${fileNamePart}" in ${listName}.`);
+  }
+
+  return path.join(listPath, match);
+}
+
+async function expectBulkDateRowControlsDoNotOverlap(rowLocator) {
+  const inputBox = await rowLocator.locator('input').boundingBox();
+  const setBox = await rowLocator.getByRole('button', { name: 'Set' }).boundingBox();
+  const clearBox = await rowLocator.getByRole('button', { name: 'Clear' }).boundingBox();
+
+  expect(inputBox).toBeTruthy();
+  expect(setBox).toBeTruthy();
+  expect(clearBox).toBeTruthy();
+  expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(setBox.x - 1);
+  expect(setBox.x + setBox.width).toBeLessThanOrEqual(clearBox.x - 1);
 }
 
 async function seedBoardState(page, boardRoot) {
@@ -296,6 +373,72 @@ async function openCardInEditor(page, listIndex, cardIndex = 0) {
   await expect(page.locator('#cardEditorOverType .overtype-input')).toBeVisible();
 }
 
+async function closeCardClickProbeUi(page, state) {
+  if (state.editorOpen) {
+    await page.locator('#cardEditorClose').click();
+    await expect(page.locator('#modalEditCard')).toBeHidden();
+    return;
+  }
+
+  if (state.datePickerOpen || state.labelPopoverOpen || state.cardDatePopoverOpen) {
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => {
+      if (typeof destroyActiveDueDatePicker === 'function') {
+        destroyActiveDueDatePicker();
+      }
+      if (typeof closeCardDatePopover === 'function') {
+        closeCardDatePopover();
+      }
+      if (typeof closeCardLabelSelector === 'function') {
+        closeCardLabelSelector();
+      }
+    });
+  }
+}
+
+async function getCardClickProbeState(page) {
+  return await page.evaluate(() => {
+    const modalEditCard = document.getElementById('modalEditCard');
+    const editorOpen = Boolean(
+      modalEditCard &&
+      !modalEditCard.classList.contains('hidden') &&
+      modalEditCard.getAttribute('aria-hidden') !== 'true' &&
+      modalEditCard.style.display !== 'none'
+    );
+
+    return {
+      editorOpen,
+      datePickerOpen: Boolean(document.querySelector('.sb-themed-fdatepicker, .flatpickr-calendar.open, .flatpickr-calendar.inline')),
+      cardDatePopoverOpen: Boolean(document.querySelector('.card-date-popover')),
+      labelPopoverOpen: Boolean(document.querySelector('.card-label-selector-popover, .label-popover')),
+    };
+  });
+}
+
+async function getCardClickProbeTarget(page, point) {
+  return await page.evaluate(({ x, y }) => {
+    const element = document.elementFromPoint(x, y);
+    const describe = (target) => {
+      if (!(target instanceof Element)) {
+        return null;
+      }
+
+      return {
+        tagName: target.tagName.toLowerCase(),
+        id: target.id || '',
+        className: typeof target.className === 'string' ? target.className : '',
+      };
+    };
+
+    return {
+      element: describe(element),
+      button: describe(element && element.closest('button')),
+      metadataAction: describe(element && element.closest('.metadata-action')),
+      card: describe(element && element.closest('.card')),
+    };
+  }, point);
+}
+
 async function setEditorBody(page, body) {
   await page.locator('#cardEditorOverType .overtype-input').evaluate((element, nextBody) => {
     element.value = String(nextBody || '');
@@ -315,6 +458,29 @@ async function waitForBoardWatch(page) {
   }, { timeout: 5000 }).toBeGreaterThan(0);
 }
 
+async function removePathWithRetries(targetPath, options = {}) {
+  const retryableCodes = new Set(['EBUSY', 'ENOTEMPTY', 'EPERM']);
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      await fs.rm(targetPath, options);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!error || !retryableCodes.has(error.code) || attempt === 5) {
+        throw error;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 75 * (attempt + 1)));
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+}
+
 const test = base.extend({
   boardRoot: async ({}, use) => {
     const fixture = await createFixtureBoard();
@@ -322,7 +488,7 @@ const test = base.extend({
     try {
       await use(fixture.boardRoot);
     } finally {
-      await fs.rm(fixture.root, { recursive: true, force: true });
+      await removePathWithRetries(fixture.root, { recursive: true, force: true });
     }
   },
 
@@ -332,7 +498,7 @@ const test = base.extend({
     try {
       await use(userDataDir);
     } finally {
-      await fs.rm(userDataDir, { recursive: true, force: true });
+      await removePathWithRetries(userDataDir, { recursive: true, force: true });
     }
   },
 
@@ -373,6 +539,67 @@ test('keeps add modals hidden on startup', async ({ page }) => {
   await expect(page.locator('#modalAddCardToList')).toBeHidden();
   await expect(page.locator('#modalAddList')).toBeHidden();
   await expect(page.locator('#boardMenuPopover')).toBeHidden();
+});
+
+test('responds to sampled card surface clicks immediately after startup', async ({ page }) => {
+  const card = page.locator('.list').first().locator('.card').first();
+  await expect(card).toBeVisible();
+
+  const box = await card.boundingBox();
+  expect(box).toBeTruthy();
+
+  const horizontalSamples = [0.02, 0.16, 0.33, 0.5, 0.67, 0.84, 0.98];
+  const verticalSamples = [0.04, 0.22, 0.5, 0.78, 0.96];
+  const misses = [];
+
+  for (const yRatio of verticalSamples) {
+    for (const xRatio of horizontalSamples) {
+      const point = {
+        x: box.x + Math.max(2, Math.min(box.width - 2, box.width * xRatio)),
+        y: box.y + Math.max(2, Math.min(box.height - 2, box.height * yRatio)),
+      };
+      const roundedPoint = {
+        x: Math.round(point.x),
+        y: Math.round(point.y),
+      };
+      const target = await getCardClickProbeTarget(page, point);
+
+      await page.mouse.click(point.x, point.y);
+      const state = await getCardClickProbeState(page);
+
+      if (!state.editorOpen && !state.datePickerOpen && !state.cardDatePopoverOpen && !state.labelPopoverOpen) {
+        misses.push({
+          point: roundedPoint,
+          ratio: {
+            x: xRatio,
+            y: yRatio,
+          },
+          target,
+        });
+      }
+
+      await closeCardClickProbeUi(page, state);
+    }
+  }
+
+  expect(misses, JSON.stringify(misses, null, 2)).toEqual([]);
+});
+
+test('opens a card when a startup board refresh lands between pointer down and up', async ({ page }) => {
+  const card = page.locator('.list').first().locator('.card').first();
+  await expect(card).toBeVisible();
+
+  const box = await card.boundingBox();
+  expect(box).toBeTruthy();
+
+  await page.mouse.move(box.x + (box.width / 2), box.y + (box.height / 2));
+  await page.mouse.down();
+  await page.evaluate(async () => {
+    await renderBoard();
+  });
+  await page.mouse.up();
+
+  await expect(page.locator('#modalEditCard')).toBeVisible();
 });
 
 test('installs native application menu actions', async ({ electronApp }) => {
@@ -583,7 +810,14 @@ test('exposes Obsidian actions and generates a board Base', async ({ page, board
   await page.locator('#cardEditorLinkedObjectsLink').click();
   await expect(page.locator('#cardEditorLinkedObjectsPopover')).toBeVisible();
   await page.locator('#cardEditorLinkedObjectsPopover').getByRole('button', { name: 'Create Linked Obsidian Note' }).click();
-  await fs.access(linkedNotePath);
+  await expect.poll(async () => {
+    try {
+      await fs.access(linkedNotePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }).toBe(true);
   const linkedNoteRaw = await fs.readFile(linkedNotePath, 'utf8');
   expect(linkedNoteRaw).toContain('signboard_card_id: stock');
   expect(linkedNoteRaw).not.toContain('# Plan release notes');
@@ -656,7 +890,14 @@ test('exposes Obsidian actions and generates a board Base', async ({ page, board
   await expect(page.locator('#signboardStatusRegion'))
     .toHaveText('Linked note not found.');
   await page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Recreate Renamed Project Brief' }).click();
-  await fs.access(renamedLinkedNotePath);
+  await expect.poll(async () => {
+    try {
+      await fs.access(renamedLinkedNotePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }).toBe(true);
   await expect(page.locator('#cardEditorRelatedNotes .card-editor-related-note.is-missing')).toHaveCount(0);
   await expect(page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Open Renamed Project Brief' })).toBeVisible();
   await page.locator('#cardEditorRelatedNotes').getByRole('button', { name: 'Remove Renamed Project Brief' }).click();
@@ -806,15 +1047,45 @@ test('exposes Obsidian actions and generates a board Base', async ({ page, board
   expect(card.frontmatter.signboard_uri).toBe('signboard://open-card?id=stock');
 });
 
-test('keeps the first board tab clear of the Planner rail', async ({ page }) => {
-  const railBox = await page.locator('#plannerRailButton').boundingBox();
+test('activating a vault board creates its Base without rewriting cards', async ({ page, boardRoot }) => {
+  const listPath = path.join(boardRoot, '000-To-do-stock');
+  const cardPath = path.join(listPath, '099-activation-metadata-ab123.md');
+  const basePath = path.join(boardRoot, 'Signboard Board.base');
+
+  await cardFrontmatter.writeCard(cardPath, {
+    frontmatter: {
+      title: 'Leave this card alone on activation',
+    },
+    body: 'This card intentionally has no Signboard metadata yet.',
+  });
+  const originalCardContent = await fs.readFile(cardPath, 'utf8');
+  await fs.mkdir(path.join(path.dirname(boardRoot), '.obsidian'), { recursive: true });
+
+  await page.evaluate(async () => {
+    await window.board.setActiveBoardRoot(window.boardRoot);
+  });
+
+  await expect.poll(async () => {
+    try {
+      await fs.access(basePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }).toBe(true);
+
+  await expect.poll(async () => fs.readFile(cardPath, 'utf8')).toBe(originalCardContent);
+});
+
+test('shows the workspace view dock without covering board tabs', async ({ page }) => {
+  const dockBox = await page.locator('#workspaceViewDock').boundingBox();
   const firstTabBox = await page.locator('.board-tab').first().boundingBox();
 
-  if (!railBox || !firstTabBox) {
-    throw new Error('Unable to measure Planner rail or first board tab.');
+  if (!dockBox || !firstTabBox) {
+    throw new Error('Unable to measure workspace view dock or first board tab.');
   }
 
-  expect(firstTabBox.x).toBeGreaterThanOrEqual(railBox.x + railBox.width);
+  expect(dockBox.y).toBeGreaterThan(firstTabBox.y + firstTabBox.height);
 });
 
 test('refreshes board card previews after external markdown edits', async ({ page, boardRoot }) => {
@@ -860,6 +1131,146 @@ test('does not throw when formatting invalid due date values', async ({ page }) 
     impossible: '2026-02-31',
     valid: 'Mar 14',
   });
+});
+
+test('renders card start and due dates as a compact date range', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+
+  await cardFrontmatter.updateFrontmatter(cardPath, {
+    start: '2026-06-17',
+    due: '2026-06-26',
+  });
+  await page.evaluate(async () => {
+    await renderBoard();
+  });
+
+  const firstCard = page.locator('.list').first().locator('.card').first();
+  const dateButton = firstCard.locator('.card-date-action');
+  await expect(dateButton).toContainText('Jun 17-26');
+  await expect(dateButton).toHaveAttribute('aria-label', 'Dates Jun 17 through Jun 26. Change dates.');
+
+  await dateButton.click();
+  const datePopover = page.locator('.card-date-popover');
+  await expect(datePopover).toBeVisible();
+  await expect(datePopover.getByRole('button', { name: 'Change start date' })).toContainText('Jun 17');
+  await expect(datePopover.getByRole('button', { name: 'Change due date' })).toContainText('Jun 26');
+});
+
+test('keeps the card date popover open during a pending board refresh', async ({ page }) => {
+  const firstCard = page.locator('.list').first().locator('.card').first();
+  await firstCard.hover();
+
+  await firstCard.locator('.card-date-action').click();
+  const datePopover = page.locator('.card-date-popover');
+  await expect(datePopover).toBeVisible();
+
+  const popoverBox = await datePopover.boundingBox();
+  expect(popoverBox).toBeTruthy();
+
+  await page.mouse.move(
+    popoverBox.x + (popoverBox.width / 2),
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await page.evaluate(async () => {
+    await runExternalBoardRefresh();
+  });
+
+  await page.mouse.move(
+    popoverBox.x + popoverBox.width + 24,
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await expect(datePopover).toBeVisible();
+});
+
+test('keeps the card label picker open during a pending board refresh', async ({ page }) => {
+  const firstCard = page.locator('.list').first().locator('.card').first();
+  await firstCard.hover();
+
+  await firstCard.locator('.card-label-button').click();
+  const labelPopover = page.locator('.card-label-popover');
+  await expect(labelPopover).toBeVisible();
+
+  const popoverBox = await labelPopover.boundingBox();
+  expect(popoverBox).toBeTruthy();
+
+  await page.mouse.move(
+    popoverBox.x + (popoverBox.width / 2),
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await page.evaluate(async () => {
+    await runExternalBoardRefresh();
+  });
+
+  await page.mouse.move(
+    popoverBox.x + popoverBox.width + 24,
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await expect(labelPopover).toBeVisible();
+});
+
+test('keeps the list actions popover open during a pending board refresh', async ({ page }) => {
+  const firstList = page.locator('.list').first();
+  await expect(firstList).toBeVisible();
+
+  await firstList.locator('.list-actions-button').click();
+  const listActionsPopover = page.locator('#listActionsPopover');
+  await expect(listActionsPopover).toBeVisible();
+
+  const popoverBox = await listActionsPopover.boundingBox();
+  expect(popoverBox).toBeTruthy();
+
+  await page.mouse.move(
+    popoverBox.x + (popoverBox.width / 2),
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await page.evaluate(async () => {
+    await runExternalBoardRefresh();
+  });
+
+  await page.mouse.move(
+    popoverBox.x + popoverBox.width + 24,
+    popoverBox.y + (popoverBox.height / 2),
+  );
+
+  await expect(listActionsPopover).toBeVisible();
+});
+
+test('opens board label settings from the card label picker shortcut', async ({ page }) => {
+  const firstCard = page.locator('.list').first().locator('.card').first();
+  await firstCard.hover();
+
+  await firstCard.locator('.card-label-button').click();
+  const labelPopover = page.locator('.card-label-popover');
+  await expect(labelPopover).toBeVisible();
+
+  await labelPopover.getByRole('button', { name: 'Open label settings' }).click();
+
+  await expect(labelPopover).toBeHidden();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await expect(page.locator('#boardSettingsNavLabels')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#boardSettingsPanelLabels')).toHaveAttribute('aria-hidden', 'false');
+  await expect(page.locator('#boardSettingsLabels .board-settings-label-name').first()).toBeFocused();
+});
+
+test('closes the card date picker before opening the label picker', async ({ page }) => {
+  const firstCard = page.locator('.list').first().locator('.card').first();
+  await firstCard.hover();
+
+  await firstCard.locator('.card-date-action').click();
+  const datePopover = page.locator('.card-date-popover');
+  await expect(datePopover).toBeVisible();
+  await datePopover.getByRole('button', { name: 'Set due date' }).click();
+  await expect(page.locator('.sb-themed-fdatepicker')).toBeVisible();
+
+  await firstCard.locator('.card-label-button').click();
+  await expect(page.locator('.sb-themed-fdatepicker')).toBeHidden();
+  await expect(datePopover).toBeHidden();
+  await expect(page.locator('.card-label-popover')).toBeVisible();
 });
 
 test('navigates board search results from the keyboard', async ({ page }) => {
@@ -910,7 +1321,7 @@ test('navigates board popovers and settings sections from the keyboard', async (
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('#labelFilterPopover input').nth(1)).toBeFocused();
   await page.keyboard.press('End');
-  await expect(page.locator('#labelFilterPopover input').nth(3)).toBeFocused();
+  await expect(page.locator('#labelFilterPopover input').last()).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.locator('#labelFilterPopover')).toBeHidden();
   await expect(filterButton).toBeFocused();
@@ -927,6 +1338,12 @@ test('navigates board popovers and settings sections from the keyboard', async (
   await page.keyboard.press(getShortcut(','));
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
   await expect(page.locator('#boardSettingsNavApp')).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#boardSettingsNavNotifications')).toBeFocused();
+  await expect(page.locator('#boardSettingsPanelNotifications')).toHaveAttribute('aria-hidden', 'false');
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#boardSettingsNavSmartActions')).toBeFocused();
+  await expect(page.locator('#boardSettingsPanelSmartActions')).toHaveAttribute('aria-hidden', 'false');
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('#boardSettingsNavGeneral')).toBeFocused();
   await expect(page.locator('#boardSettingsPanelGeneral')).toHaveAttribute('aria-hidden', 'false');
@@ -1408,13 +1825,10 @@ test('switches to table view and moves a card through the list column', async ({
   await expect(page.locator('main#board')).not.toHaveClass(/board-view-table/);
   await expect(page.locator('.list')).toHaveCount(3);
 
-  await openBoardMenu(page);
-  await page.locator('#boardViewButton').click();
-  await expect(page.locator('#boardViewPopover')).toBeVisible();
-  await expect(page.locator('#boardViewPopover')).toContainText(usesMetaModifier ? '⌘⌥1' : 'Ctrl+Alt+1');
-  await page.locator('#boardViewPopover').getByRole('button', { name: /Table/ }).click();
+  await page.locator('#workspaceViewTable').click();
 
   await expect(page.locator('main#board')).toHaveClass(/board-view-table/);
+  await expect(page.locator('#workspaceViewTable')).toHaveClass(/is-active/);
   await expect(page.locator('.board-table-row')).toHaveCount(3);
   await expect(page.locator('.board-table-heading-updated')).toHaveText('Updated');
   await expect(page.locator('.board-table-heading-created')).toHaveText('Created');
@@ -1459,6 +1873,105 @@ test('switches to table view and moves a card through the list column', async ({
 
   await page.locator('#cardEditorClose').click();
   await expect(page.locator('#modalEditCard')).toBeHidden();
+});
+
+test('bulk manages selected table cards', async ({ page, boardRoot }) => {
+  await page.locator('#boardSearchInput').focus();
+  await page.keyboard.press(getCurrentBoardPlannerShortcut('1'));
+  await expect(page.locator('main#board')).toHaveClass(/board-view-table/);
+  await expect(page.locator('.board-table-row')).toHaveCount(3);
+
+  await page.locator('.board-table-filter-select').selectOption({ label: 'Completed lists' });
+  await expect(page.locator('.board-table-row')).toHaveCount(1);
+  await expect(page.locator('.board-table-row')).toContainText('Ship beta');
+  await page.locator('.board-table-filter-select').selectOption({ label: 'All lists' });
+  await expect(page.locator('.board-table-row')).toHaveCount(3);
+
+  const rows = page.locator('.board-table-row');
+  await rows.nth(0).locator('.board-table-select-checkbox').click();
+  await rows.nth(2).locator('.board-table-select-checkbox').click({ modifiers: ['Shift'] });
+  await expect(page.locator('.board-table-bulk-count')).toHaveText('3 selected');
+  await expect(rows.nth(1)).toHaveAttribute('aria-selected', 'true');
+
+  await page.getByRole('button', { name: 'Labels' }).click();
+  const labelsMenu = page.locator('.board-table-bulk-labels-menu');
+  await expect(labelsMenu).toBeVisible();
+  await labelsMenu.locator('.board-table-bulk-label-row').filter({ hasText: 'Content' }).locator('input').check();
+  await labelsMenu.getByRole('button', { name: 'Add labels' }).click();
+  await expect(page.locator('.board-table-bulk-toolbar')).toHaveCount(0);
+
+  const planPath = await findFixtureCardPath(boardRoot, '000-To-do-stock', 'plan-release');
+  const shipPath = await findFixtureCardPath(boardRoot, '002-Done-stock', 'ship-beta');
+  await expect.poll(async () => {
+    const planCard = await cardFrontmatter.readCard(planPath);
+    const shipCard = await cardFrontmatter.readCard(shipPath);
+    return {
+      planLabels: planCard.frontmatter.labels || [],
+      shipLabels: shipCard.frontmatter.labels || [],
+    };
+  }).toEqual({
+    planLabels: ['launch', 'content'],
+    shipLabels: ['content'],
+  });
+
+  await rows.nth(0).locator('.board-table-select-checkbox').click();
+  await rows.nth(1).locator('.board-table-select-checkbox').click({ modifiers: ['Shift'] });
+  await expect(page.locator('.board-table-bulk-count')).toHaveText('2 selected');
+  await page.getByRole('button', { name: 'Dates' }).click();
+  const datesMenu = page.locator('.board-table-bulk-dates-menu');
+  await expectBulkDateRowControlsDoNotOverlap(datesMenu.locator('.board-table-bulk-date-row').nth(0));
+  await expectBulkDateRowControlsDoNotOverlap(datesMenu.locator('.board-table-bulk-date-row').nth(1));
+  const dueRow = datesMenu.locator('.board-table-bulk-date-row').filter({ hasText: 'Due' });
+  await dueRow.locator('input').fill('2026-04-20');
+  await dueRow.getByRole('button', { name: 'Set' }).click();
+  await expect.poll(async () => {
+    const planCard = await cardFrontmatter.readCard(planPath);
+    const polishPath = await findFixtureCardPath(boardRoot, '001-Doing-stock', 'polish-copy');
+    const polishCard = await cardFrontmatter.readCard(polishPath);
+    return [planCard.frontmatter.due || '', polishCard.frontmatter.due || ''];
+  }).toEqual(['2026-04-20', '2026-04-20']);
+
+  await rows.nth(0).locator('.board-table-select-checkbox').click();
+  await rows.nth(1).locator('.board-table-select-checkbox').click({ modifiers: ['Shift'] });
+  await page.getByRole('button', { name: 'Dates' }).click();
+  const clearDueRow = page.locator('.board-table-bulk-dates-menu .board-table-bulk-date-row').filter({ hasText: 'Due' });
+  page.once('dialog', (dialog) => dialog.accept());
+  await clearDueRow.getByRole('button', { name: 'Clear' }).click();
+  await expect.poll(async () => {
+    const planCard = await cardFrontmatter.readCard(planPath);
+    const polishPath = await findFixtureCardPath(boardRoot, '001-Doing-stock', 'polish-copy');
+    const polishCard = await cardFrontmatter.readCard(polishPath);
+    return [planCard.frontmatter.due || '', polishCard.frontmatter.due || ''];
+  }).toEqual(['', '']);
+
+  await rows.nth(0).locator('.board-table-select-checkbox').click();
+  await rows.nth(2).locator('.board-table-select-checkbox').click({ modifiers: ['Shift'] });
+  await page.getByRole('button', { name: 'Move' }).click();
+  await page.locator('.board-table-bulk-move-menu').getByRole('button', { name: 'Doing' }).click();
+  await expect.poll(async () => {
+    const toDoEntries = await fs.readdir(path.join(boardRoot, '000-To-do-stock'));
+    const doingEntries = await fs.readdir(path.join(boardRoot, '001-Doing-stock'));
+    const doneEntries = await fs.readdir(path.join(boardRoot, '002-Done-stock'));
+    return {
+      toDo: toDoEntries.filter((entry) => entry.endsWith('.md')).length,
+      doing: doingEntries.filter((entry) => entry.endsWith('.md')).length,
+      done: doneEntries.filter((entry) => entry.endsWith('.md')).length,
+    };
+  }).toEqual({
+    toDo: 0,
+    doing: 3,
+    done: 0,
+  });
+
+  await page.locator('.board-table-select-all-checkbox').click();
+  await expect(page.locator('.board-table-bulk-count')).toHaveText('3 selected');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Archive' }).click();
+  await expect(page.locator('.board-table-row')).toHaveCount(0);
+  await expect.poll(async () => {
+    const archiveEntries = await fs.readdir(path.join(boardRoot, 'XXX-Archive'));
+    return archiveEntries.filter((entry) => entry.endsWith('.md')).length;
+  }).toBe(3);
 });
 
 test('updates task item due dates from Planner calendar drops', async ({ page, boardRoot }) => {
@@ -1988,7 +2501,7 @@ test('opens Planner across currently open boards', async ({ electronApp, boardRo
     return card.frontmatter.due;
   }).toBe(targetPlannerIso);
 
-  await page.locator('#plannerCloseRail').click();
+  await page.locator('#workspaceViewKanban').click();
   await expect(page.locator('#plannerOverlay')).toBeHidden();
 });
 
@@ -2071,6 +2584,8 @@ test('opens settings from the renderer keyboard shortcut', async ({ page }) => {
   expect(switchLabelStyles.marginBottom).toBe('0px');
   expect(switchLabelStyles.textTransform).toBe('none');
 
+  await page.locator('#boardSettingsNavNotifications').click();
+  await expect(page.locator('#boardSettingsPanelNotifications')).toBeVisible();
   const notificationsDetails = page.locator('#boardSettingsNotificationsDetails');
   await expect(notificationsDetails).toBeHidden();
   await expect(notificationsDetails).toHaveAttribute('aria-hidden', 'true');
@@ -2274,24 +2789,222 @@ test('keeps the editor scroll position when toggling a task checkbox control', a
   expect(finalScrollTop).toBeGreaterThan(initialScrollTop - 10);
 });
 
+test('keeps bold-at-start list items aligned with editor caret metrics', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  const boldWord = 'AlignmentRegressionMarker';
+  const body = [
+    `- **${boldWord}** unordered list text`,
+    `- [ ] **${boldWord}** task list text`,
+    `1. **${boldWord}** ordered list text`,
+  ].join('\n');
+  await setEditorBody(page, body);
+
+  const measurements = await page.evaluate(async ({ source, word }) => {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+    const textarea = document.querySelector('#cardEditorOverType .overtype-input');
+    const wrapper = document.querySelector('#cardEditorOverType .overtype-wrapper');
+    const preview = document.querySelector('#cardEditorOverType .overtype-preview');
+    if (!(textarea instanceof HTMLTextAreaElement) || !(wrapper instanceof HTMLElement) || !(preview instanceof HTMLElement)) {
+      throw new Error('Card editor OverType layers were not available.');
+    }
+
+    function setMirrorStyle(element, property, value) {
+      element.style.setProperty(property, value, 'important');
+    }
+
+    function createTextareaMirror() {
+      const style = window.getComputedStyle(textarea);
+      const mirror = document.createElement('div');
+
+      setMirrorStyle(mirror, 'position', 'absolute');
+      setMirrorStyle(mirror, 'top', '0');
+      setMirrorStyle(mirror, 'left', '0');
+      setMirrorStyle(mirror, 'visibility', 'hidden');
+      setMirrorStyle(mirror, 'pointer-events', 'none');
+      setMirrorStyle(mirror, 'white-space', 'pre-wrap');
+      setMirrorStyle(mirror, 'word-wrap', 'break-word');
+      setMirrorStyle(mirror, 'overflow-wrap', 'break-word');
+      setMirrorStyle(mirror, 'box-sizing', 'border-box');
+      setMirrorStyle(mirror, 'width', `${Math.max(textarea.clientWidth, 1)}px`);
+      setMirrorStyle(mirror, 'padding', style.padding);
+      setMirrorStyle(mirror, 'margin', '0');
+      setMirrorStyle(mirror, 'border', '0');
+      setMirrorStyle(mirror, 'font', style.font);
+      setMirrorStyle(mirror, 'font-feature-settings', style.fontFeatureSettings);
+      setMirrorStyle(mirror, 'font-kerning', style.fontKerning);
+      setMirrorStyle(mirror, 'font-stretch', style.fontStretch);
+      setMirrorStyle(mirror, 'font-variant', style.fontVariant);
+      setMirrorStyle(mirror, 'font-variant-ligatures', style.fontVariantLigatures);
+      setMirrorStyle(mirror, 'line-height', style.lineHeight);
+      setMirrorStyle(mirror, 'letter-spacing', style.letterSpacing);
+      setMirrorStyle(mirror, 'text-rendering', style.textRendering);
+      setMirrorStyle(mirror, 'text-indent', style.textIndent);
+      setMirrorStyle(mirror, 'text-transform', style.textTransform);
+      setMirrorStyle(mirror, 'text-align', style.textAlign);
+      setMirrorStyle(mirror, 'direction', style.direction);
+      setMirrorStyle(mirror, 'tab-size', style.tabSize);
+      setMirrorStyle(mirror, 'word-spacing', style.wordSpacing);
+      setMirrorStyle(mirror, '-webkit-text-size-adjust', '100%');
+
+      wrapper.appendChild(mirror);
+      return mirror;
+    }
+
+    function measureTextareaOffset(offset) {
+      const text = String(textarea.value || '');
+      const safeOffset = Math.max(0, Math.min(text.length, offset));
+      const mirror = createTextareaMirror();
+
+      try {
+        mirror.appendChild(document.createTextNode(text.slice(0, safeOffset)));
+
+        const marker = document.createElement('span');
+        marker.textContent = '\u200b';
+        marker.style.display = 'inline';
+        marker.style.padding = '0';
+        marker.style.margin = '0';
+        marker.style.border = '0';
+        marker.style.lineHeight = 'inherit';
+        mirror.appendChild(marker);
+
+        if (safeOffset < text.length) {
+          mirror.appendChild(document.createTextNode(text.slice(safeOffset)));
+        }
+
+        const markerRect = marker.getBoundingClientRect();
+        const wrapperRect = wrapper.getBoundingClientRect();
+        return markerRect.left - wrapperRect.left;
+      } finally {
+        mirror.remove();
+      }
+    }
+
+    function getWordTextNode(strong, expectedWord) {
+      return Array.from(strong.childNodes).find((node) => (
+        node.nodeType === Node.TEXT_NODE &&
+        String(node.nodeValue || '').includes(expectedWord)
+      ));
+    }
+
+    function measurePreviewTextNodeOffset(textNode, offset) {
+      const range = document.createRange();
+      const safeOffset = Math.max(0, Math.min(String(textNode.nodeValue || '').length, offset));
+
+      try {
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, safeOffset);
+        const rects = Array.from(range.getClientRects()).filter((rect) => (
+          rect && Number.isFinite(rect.right) && rect.width >= 0 && rect.height > 0
+        ));
+        const rect = rects[rects.length - 1];
+        if (!rect) {
+          throw new Error('Unable to measure preview text range.');
+        }
+
+        const wrapperRect = wrapper.getBoundingClientRect();
+        return rect.right - wrapperRect.left;
+      } finally {
+        if (typeof range.detach === 'function') {
+          range.detach();
+        }
+      }
+    }
+
+    const lines = source.split('\n');
+    const lineStarts = [];
+    let cursor = 0;
+    for (const line of lines) {
+      lineStarts.push(cursor);
+      cursor += line.length + 1;
+    }
+
+    const strongElements = Array.from(preview.querySelectorAll('li strong'));
+    const compareOffsetWithinWord = word.length - 3;
+
+    return strongElements.map((strong, index) => {
+      const textNode = getWordTextNode(strong, word);
+      if (!textNode) {
+        throw new Error(`Unable to find bold word text node for list item ${index}.`);
+      }
+
+      const line = lines[index];
+      const wordStart = line.indexOf(word);
+      if (wordStart < 0) {
+        throw new Error(`Unable to find bold word in source line ${index}.`);
+      }
+
+      const rawOffset = lineStarts[index] + wordStart + compareOffsetWithinWord;
+      const previewLeft = measurePreviewTextNodeOffset(textNode, compareOffsetWithinWord);
+      const textareaLeft = measureTextareaOffset(rawOffset);
+
+      return {
+        index,
+        previewLeft,
+        textareaLeft,
+        delta: Math.abs(previewLeft - textareaLeft),
+      };
+    });
+  }, { source: body, word: boldWord });
+
+  expect(measurements).toHaveLength(3);
+  for (const measurement of measurements) {
+    expect(measurement.delta, JSON.stringify(measurement)).toBeLessThan(1.5);
+  }
+});
+
 test('closes the task due date picker when clearing a task due date', async ({ page }) => {
   await openFirstCardInEditor(page);
 
   await setEditorBody(page, '- [ ] (due: 2026-04-20) Follow up with beta testers');
-  await expect(page.locator('#cardEditorOverType .task-line-due-control.has-due')).toHaveCount(1);
+  await expect(page.locator('#cardEditorOverType .task-line-date-control.has-due')).toHaveCount(1);
 
-  await page.locator('#cardEditorOverType .task-line-due-control.has-due').click();
+  await page.locator('#cardEditorOverType .task-line-date-control.has-due').click();
+  await expect(page.locator('.card-date-popover')).toBeVisible();
+  await page.locator('.card-date-popover-row[data-field="due"] .card-date-popover-field').click();
   const datepickerPopup = page.locator('.sb-themed-fdatepicker');
   await expect(datepickerPopup).toBeVisible();
 
   await datepickerPopup.getByRole('button', { name: 'Clear' }).click();
 
   await expect(datepickerPopup).toBeHidden();
-  await expect(page.locator('#cardEditorOverType .task-line-due-control.has-due')).toHaveCount(0);
+  await expect(page.locator('#cardEditorOverType .task-line-date-control.has-due')).toHaveCount(0);
   await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue(/^- \[ \] Follow up with beta testers$/);
 
-  await page.locator('#cardEditorOverType .task-line-due-control').click();
+  await page.locator('#cardEditorOverType .task-line-date-control').click();
+  await expect(page.locator('.card-date-popover')).toBeVisible();
+  await page.locator('.card-date-popover-row[data-field="due"] .card-date-popover-field').click();
   await expect(datepickerPopup).toBeVisible();
+});
+
+test('keeps the task date popover anchored after choosing a task start date', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  await setEditorBody(page, '- [ ] This task needs a start date');
+  const dateButton = page.locator('#cardEditorOverType .task-line-date-control').first();
+  await expect(dateButton).toBeVisible();
+
+  await dateButton.click();
+  const datePopover = page.locator('.card-date-popover');
+  await expect(datePopover).toBeVisible();
+  const initialPopoverBox = await datePopover.boundingBox();
+  expect(initialPopoverBox).toBeTruthy();
+
+  await page.locator('.card-date-popover-row[data-field="start"] .card-date-popover-field').click();
+  const datepickerPopup = page.locator('.sb-themed-fdatepicker');
+  await expect(datepickerPopup).toBeVisible();
+  await datepickerPopup.getByRole('button', { name: 'Today' }).click();
+
+  await expect(datepickerPopup).toBeHidden();
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue(/\(start: \d{4}-\d{2}-\d{2}\)/);
+  await expect(datePopover).toBeVisible();
+  await page.waitForTimeout(100);
+
+  const finalPopoverBox = await datePopover.boundingBox();
+  expect(finalPopoverBox).toBeTruthy();
+  expect(Math.abs(finalPopoverBox.x - initialPopoverBox.x)).toBeLessThan(12);
+  expect(Math.abs(finalPopoverBox.y - initialPopoverBox.y)).toBeLessThan(12);
 });
 
 test('opens raw card body URLs without rewriting the body', async ({ page }) => {
@@ -2421,7 +3134,321 @@ test('persists the global quick add shortcut setting', async ({ page }) => {
   await expect(shortcutInput).toHaveValue('CommandOrControl+Shift+Space');
 });
 
+test('persists AI assistance settings and shows the card editor Smart Card Actions menu', async ({ page }) => {
+  const fakeOllama = await startFakeOllamaServer([
+    {
+      name: 'llama3.2:latest',
+      model: 'llama3.2:latest',
+      details: { parameter_size: '3.2B' },
+    },
+    {
+      name: 'qwen2.5:7b',
+      model: 'qwen2.5:7b',
+      details: { parameter_size: '7.6B' },
+    },
+  ]);
+
+  try {
+    await page.evaluate(async (ollamaUrl) => {
+      const current = await window.electronAPI.readAppSettings();
+      await window.electronAPI.updateAppSettings({
+        ai: {
+          ...current.ai,
+          enabled: false,
+          ollama: {
+            ...current.ai.ollama,
+            url: ollamaUrl,
+            model: 'llama3.2',
+          },
+        },
+      });
+      if (typeof loadAppSettings === 'function') {
+        await loadAppSettings();
+      }
+    }, fakeOllama.url);
+
+    await openBoardMenu(page);
+    await page.locator('#openBoardSettings').click();
+    await expect(page.locator('#modalBoardSettings')).toBeVisible();
+    await page.locator('#boardSettingsNavSmartActions').click();
+    await expect(page.locator('#boardSettingsPanelSmartActions')).toBeVisible();
+
+    const aiToggle = page.locator('#boardSettingsAiToggle');
+    const aiDetails = page.locator('#boardSettingsAiDetails');
+    const aiUrlInput = page.locator('#boardSettingsAiOllamaUrl');
+    const aiModelSelect = page.locator('#boardSettingsAiOllamaModel');
+    const aiRefreshButton = page.locator('#btnRefreshAiOllamaModels');
+    const aiStatus = page.locator('#boardSettingsAiOllamaStatus');
+
+    await expect(aiToggle).not.toBeChecked();
+    await expect(aiDetails).toBeHidden();
+    await expect(aiDetails).toHaveAttribute('aria-hidden', 'true');
+
+    await page.locator('label[for="boardSettingsAiToggle"]').click();
+    await expect(aiToggle).toBeChecked();
+    await expect(aiDetails).toBeVisible();
+    await expect(aiDetails).toHaveAttribute('aria-hidden', 'false');
+    await expect(aiUrlInput).toHaveValue(fakeOllama.url);
+    await expect(aiStatus).toContainText(/Connected/);
+    await expect(aiModelSelect).toContainText('qwen2.5:7b');
+    await expect(aiModelSelect).toContainText('llama3.2:latest');
+    await expect(page.locator('#boardSettingsAiTaskCount')).toHaveCount(0);
+
+    await aiModelSelect.selectOption('qwen2.5:7b');
+    await aiRefreshButton.click();
+    await expect(aiStatus).toContainText(/Connected/);
+
+    await expect.poll(async () => {
+      return await page.evaluate(async () => {
+        const settings = await window.electronAPI.readAppSettings();
+        return {
+          enabled: settings.ai.enabled,
+          provider: settings.ai.provider,
+          ollama: settings.ai.ollama,
+          actionLabels: settings.ai.smartCardActions.map((action) => action.label),
+        };
+      });
+    }).toEqual({
+      enabled: true,
+      provider: 'ollama',
+      ollama: {
+        url: fakeOllama.url,
+        model: 'qwen2.5:7b',
+      },
+      actionLabels: defaultSmartCardActionLabels,
+    });
+
+    const actionRows = page.locator('#boardSettingsAiActionsList .board-settings-ai-action');
+    await expect(actionRows).toHaveCount(defaultSmartCardActionLabels.length);
+    await expect(actionRows.first()).toContainText('Generate new card title');
+    await expect(actionRows.first().locator('.board-settings-ai-action-details')).toBeHidden();
+    const quickActionSettingsRow = actionRows.filter({ hasText: 'Quick Smart Action' });
+    await expect(quickActionSettingsRow).toContainText('Built in - One-off');
+    await expect(quickActionSettingsRow.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    const questionActionSettingsRow = actionRows.filter({ hasText: 'Question the Card' });
+    await expect(questionActionSettingsRow).toContainText('Built in - Read-only');
+    await expect(questionActionSettingsRow.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    await actionRows.first().getByRole('button', { name: 'Edit' }).click();
+    await expect(actionRows.first().locator('.board-settings-ai-action-details')).toBeVisible();
+
+    await page.locator('#btnAddAiSmartCardAction').click();
+    await expect(actionRows.first()).toContainText('Custom action 1');
+    await expect(actionRows.first().locator('.board-settings-ai-action-details')).toBeVisible();
+    const customActionTarget = actionRows.first().locator('select[data-smart-action-field="target"]');
+    await expect(customActionTarget).toHaveValue('content');
+    expect(await customActionTarget.evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
+    await customActionTarget.selectOption('labels');
+    await expect.poll(async () => {
+      return await page.evaluate(async () => {
+        const settings = await window.electronAPI.readAppSettings();
+        const action = settings.ai.smartCardActions.find((candidate) => candidate.label === 'Custom action 1');
+        return action ? action.target : '';
+      });
+    }).toBe('labels');
+    await expect(actionRows.first().getByRole('button', { name: 'Move Custom action 1 down' })).toHaveCount(0);
+    const customActionDragHandle = actionRows.first().getByRole('button', { name: 'Reorder Custom action 1' });
+    await expect(customActionDragHandle).toBeVisible();
+    await customActionDragHandle.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(actionRows.first()).toContainText('Generate new card title');
+    await expect(actionRows.nth(1)).toContainText('Custom action 1');
+
+    await page.locator('#boardSettingsClose').click();
+    await expect(page.locator('#modalBoardSettings')).toBeHidden();
+
+    await openFirstCardInEditor(page);
+    const aiButton = page.locator('#cardEditorSmartActionsButton');
+    await expect(aiButton).toBeVisible();
+    await expect(aiButton).toHaveAttribute('aria-label', 'Smart Card Actions with qwen2.5:7b');
+    await aiButton.click();
+    const smartActionsPopover = page.locator('#cardEditorSmartActionsPopover');
+    await expect(smartActionsPopover).toBeVisible();
+    await expect.poll(async () => {
+      return await page.evaluate(() => {
+        const modal = document.getElementById('modalEditCard');
+        const popover = document.getElementById('cardEditorSmartActionsPopover');
+        return {
+          modalZIndex: Number.parseInt(window.getComputedStyle(modal).zIndex || '0', 10),
+          popoverZIndex: Number.parseInt(window.getComputedStyle(popover).zIndex || '0', 10),
+          popoverHidden: popover.classList.contains('hidden'),
+        };
+      });
+    }).toEqual({
+      modalZIndex: 50,
+      popoverZIndex: 12020,
+      popoverHidden: false,
+    });
+    for (const label of defaultSmartCardActionLabels) {
+      await expect(smartActionsPopover).toContainText(label);
+    }
+
+    const summaryIconClass = await page.evaluate(() => {
+      const button = Array.from(document.querySelectorAll('.card-editor-smart-action-button'))
+        .find((element) => element.textContent.includes('Generate card summary'));
+      const icon = button ? button.querySelector('svg') : null;
+      return icon ? String(icon.getAttribute('class') || '') : '';
+    });
+    expect(summaryIconClass).toContain('feather-pen-tool');
+
+    const settingsShortcut = smartActionsPopover.getByRole('button', { name: 'Open Smart Actions settings' });
+    await expect(settingsShortcut).toBeVisible();
+    const quickSmartActionButton = smartActionsPopover.locator('.card-editor-smart-action-button').filter({ hasText: 'Quick Smart Action' });
+    await expect(quickSmartActionButton).toBeVisible();
+    await quickSmartActionButton.click();
+    await expect(page.locator('#cardEditorQuickSmartActionPrompt')).toBeVisible();
+    await expect(page.locator('#cardEditorQuickSmartActionTarget')).toHaveValue('content');
+    expect(await page.locator('#cardEditorQuickSmartActionTarget').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
+    await smartActionsPopover.getByRole('button', { name: 'Back' }).click();
+    const questionCardButton = smartActionsPopover.locator('.card-editor-smart-action-button').filter({ hasText: 'Question the Card' });
+    await expect(questionCardButton).toBeVisible();
+    await questionCardButton.click();
+    await expect(page.locator('#cardEditorQuestionCardPrompt')).toBeVisible();
+    await expect(page.locator('#cardEditorQuestionCardTarget')).toHaveCount(0);
+    await smartActionsPopover.getByRole('button', { name: 'Back' }).click();
+    await expect(settingsShortcut).toBeVisible();
+    await settingsShortcut.click();
+    await expect(page.locator('#modalEditCard')).toBeHidden();
+    await expect(page.locator('#modalBoardSettings')).toBeVisible();
+    await expect(page.locator('#boardSettingsNavSmartActions')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#boardSettingsPanelSmartActions')).toHaveClass(/is-active/);
+  } finally {
+    await fakeOllama.close();
+  }
+});
+
+test('inserts generated Smart Card Action summaries at the top of the card body', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  await setEditorBody(page, 'Existing card notes.\n\n- [ ] Keep this task');
+  await page.evaluate(async () => {
+    await window.insertCardEditorSmartSummary('Generated overview.\n\nSecond sentence.\n\n---\nEnd generated summary');
+  });
+
+  await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue([
+    'Generated overview.',
+    '',
+    'Second sentence.',
+    '',
+    '---',
+    'End generated summary',
+    '',
+    'Existing card notes.',
+    '',
+    '- [ ] Keep this task',
+  ].join('\n'));
+});
+
+test('anchors Smart Card Action results and refreshes generated task controls', async ({ page }) => {
+  await page.evaluate(async () => {
+    const current = await window.electronAPI.readAppSettings();
+    await window.electronAPI.updateAppSettings({
+      ai: {
+        ...current.ai,
+        enabled: true,
+        ollama: {
+          ...current.ai.ollama,
+          model: 'llama3.2',
+        },
+        smartCardActions: current.ai.smartCardActions,
+      },
+    });
+    if (typeof loadAppSettings === 'function') {
+      await loadAppSettings();
+    }
+  });
+
+  await openFirstCardInEditor(page);
+
+  const aiButton = page.locator('#cardEditorSmartActionsButton');
+  await expect(aiButton).toBeVisible();
+  await aiButton.click();
+
+  const smartActionsPopover = page.locator('#cardEditorSmartActionsPopover');
+  await expect(smartActionsPopover).toBeVisible();
+
+  const assertPopoverAboveButton = async () => {
+    const geometry = await page.evaluate(() => {
+      const button = document.getElementById('cardEditorSmartActionsButton');
+      const popover = document.getElementById('cardEditorSmartActionsPopover');
+      const buttonRect = button.getBoundingClientRect();
+      const popoverRect = popover.getBoundingClientRect();
+      return {
+        buttonTop: buttonRect.top,
+        popoverBottom: popoverRect.bottom,
+        popoverLeft: popoverRect.left,
+        popoverRight: popoverRect.right,
+        viewportWidth: window.innerWidth,
+      };
+    });
+    expect(geometry.popoverBottom).toBeLessThanOrEqual(geometry.buttonTop - 4);
+    expect(geometry.popoverLeft).toBeGreaterThanOrEqual(7);
+    expect(geometry.popoverRight).toBeLessThanOrEqual(geometry.viewportWidth - 7);
+  };
+
+  await assertPopoverAboveButton();
+
+  await page.evaluate(() => {
+    const popover = document.getElementById('cardEditorSmartActionsPopover');
+    window.renderCardEditorSmartTasksResult(
+      popover,
+      { id: 'generate-task-list', type: 'tasks', label: 'Generate task list' },
+      {
+        actionType: 'tasks',
+        tasks: [
+          '(due: 2026-03-10) Prepare launch checklist',
+          'Draft handoff notes',
+        ],
+      },
+    );
+  });
+  await expect(smartActionsPopover).toContainText('Suggested tasks');
+  await assertPopoverAboveButton();
+
+  await smartActionsPopover.getByRole('button', { name: 'Back' }).click();
+  await expect(smartActionsPopover).toContainText('Smart Card Actions');
+  await assertPopoverAboveButton();
+
+  await page.evaluate(async () => {
+    await window.insertCardEditorSmartTasks([
+      '(due: 2026-03-10) Prepare launch checklist',
+      'Draft handoff notes',
+    ]);
+  });
+
+  await expect(page.locator('#cardEditorOverType .task-line-checkbox-control')).toHaveCount(2);
+  await expect(page.locator('#cardEditorOverType .task-line-date-control.has-due')).toHaveCount(1);
+});
+
+test('merges auto-label Smart Card Action suggestions with existing card labels', async ({ page }) => {
+  await openFirstCardInEditor(page);
+
+  const result = await page.evaluate(async () => {
+    const suggestions = window.getCardEditorSmartLabelSuggestions([
+      'Launch',
+      'Content',
+      'Missing Label',
+      'content',
+    ]);
+    const applied = await window.applyCardEditorSmartLabels(suggestions);
+    const cardPath = document.getElementById('cardEditorCardPath').value;
+    const card = await window.board.readCard(cardPath);
+    return {
+      suggestedNames: suggestions.map((label) => label.name),
+      applied,
+      editorLabels: window.getEditorFrontmatter().labels,
+      diskLabels: card.frontmatter.labels,
+    };
+  });
+
+  expect(result.suggestedNames).toEqual(['Content']);
+  expect(result.applied).toBe(true);
+  expect(result.editorLabels.sort()).toEqual(['content', 'launch']);
+  expect(result.diskLabels.sort()).toEqual(['content', 'launch']);
+  await expect(page.locator('#cardEditorCardLabels .card-label-chip')).toContainText(['Launch', 'Content']);
+});
+
 test('publishes the External Published Calendar and respects board opt-out', async ({ page, boardRoot, request }) => {
+  const calendarPort = await getAvailableLoopbackPort();
   await cardFrontmatter.updateFrontmatter(
     path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md'),
     { due: '2026-04-05' },
@@ -2430,10 +3457,13 @@ test('publishes the External Published Calendar and respects board opt-out', asy
   await openBoardMenu(page);
   await page.locator('#openBoardSettings').click();
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await page.locator('#boardSettingsNavNotifications').click();
+  await expect(page.locator('#boardSettingsPanelNotifications')).toBeVisible();
 
   const calendarToggle = page.locator('#boardSettingsExternalCalendarToggle');
   const calendarStatus = page.locator('#boardSettingsExternalCalendarStatus');
   const calendarPortGroup = page.locator('#boardSettingsExternalCalendarPortGroup');
+  const calendarPortInput = page.locator('#boardSettingsExternalCalendarPort');
   const calendarUrlGroup = page.locator('#boardSettingsExternalCalendarUrlGroup');
   const calendarUrlInput = page.locator('#boardSettingsExternalCalendarUrl');
 
@@ -2450,22 +3480,28 @@ test('publishes the External Published Calendar and respects board opt-out', asy
   await expect(calendarUrlGroup).toBeVisible();
   await expect(calendarUrlGroup).toHaveAttribute('aria-hidden', 'false');
 
+  await calendarPortInput.fill(String(calendarPort));
+  await calendarPortInput.press('Enter');
+  await expect(calendarPortInput).toHaveValue(String(calendarPort));
+
   await expect.poll(async () => {
     return await page.evaluate(async () => {
       const settings = await window.electronAPI.readAppSettings();
       return {
         enabled: settings.externalPublishedCalendar.enabled,
+        port: settings.externalPublishedCalendar.port,
         running: settings.externalPublishedCalendarStatus.running,
         url: settings.externalPublishedCalendarStatus.url,
       };
     });
   }).toMatchObject({
     enabled: true,
+    port: calendarPort,
     running: true,
   });
 
   await expect(calendarStatus).toContainText('Publishing');
-  await expect(calendarUrlInput).toHaveValue(/http:\/\/127\.0\.0\.1:48273\/external-published-calendar\/.+\.ics/);
+  await expect(calendarUrlInput).toHaveValue(new RegExp(`http://127\\.0\\.0\\.1:${calendarPort}/external-published-calendar/.+\\.ics`));
 
   const calendarUrl = await calendarUrlInput.inputValue();
   const response = await request.get(calendarUrl);

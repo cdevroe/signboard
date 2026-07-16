@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('board', {
   authorizeBoardSelection: async (selectionToken) => invokeBoard('authorizeBoardSelection', selectionToken),
   adoptLegacyBoardRoots: async (boardRoots) => invokeBoard('adoptLegacyBoardRoots', boardRoots),
   setActiveBoardRoot: async (boardRoot) => invokeBoard('setActiveBoardRoot', boardRoot),
+  syncOpenBoardsState: async (state) => invokeBoard('syncOpenBoardsState', state),
   clearActiveBoardRoot: async () => invokeBoard('clearActiveBoardRoot'),
   listLists: async (root) => invokeBoard('listLists', root),
   listCards: async (listPath) => invokeBoard('listCards', listPath),
@@ -55,6 +56,7 @@ contextBridge.exposeInMainWorld('board', {
   getCardFileName: (filePath) => getNormalizedBaseName(filePath),
   getListDirectoryName: (filePath) => getNormalizedBaseName(filePath),
   listDirectories: async (root) => invokeBoard('listDirectories', root),
+  readBoardSnapshot: async (root, options) => invokeBoard('readBoardSnapshot', root, options),
   startBoardWatch: async (boardRoot) => invokeBoard('startBoardWatch', boardRoot),
   stopBoardWatch: async () => invokeBoard('stopBoardWatch'),
   getBoardWatchToken: async () => invokeBoard('getBoardWatchToken'),
@@ -87,7 +89,8 @@ contextBridge.exposeInMainWorld('board', {
     invokeBoard('updateBoardThemeOverrides', boardRoot, themeOverrides),
   updateBoardSettings: async (boardRoot, partialSettings) =>
     invokeBoard('updateBoardSettings', boardRoot, partialSettings),
-  createCard: async (filePath, content) => invokeBoard('createCard', filePath, content),
+  duplicateBoard: async (boardRoot, options) => invokeBoard('duplicateBoard', boardRoot, options),
+  createCard: async (filePath, content, options) => invokeBoard('createCard', filePath, content, options),
   generateObsidianBase: async (boardRoot) => invokeBoard('generateObsidianBase', boardRoot),
   openObsidianBase: async (boardRoot) => invokeBoard('openObsidianBase', boardRoot),
   createLinkedObsidianNote: async (boardRoot, filePath) =>
@@ -100,6 +103,9 @@ contextBridge.exposeInMainWorld('board', {
     invokeBoard('restoreArchivedList', archivedListPath, restoredDirectoryName),
   recordCardListMove: async (cardPath, fromListPath, toListPath) =>
     invokeBoard('recordCardListMove', cardPath, fromListPath, toListPath),
+  reorderCardsInList: async (listPath, orderedCardPaths) =>
+    invokeBoard('reorderCardsInList', listPath, orderedCardPaths),
+  reorderLists: async (orderedListPaths) => invokeBoard('reorderLists', orderedListPaths),
   moveCardToTop: async (cardPath, targetListPath) => invokeBoard('moveCardToTop', cardPath, targetListPath),
   moveCard: async (src, dst) => invokeBoard('moveCard', src, dst),
   moveList: async (src, dst) => invokeBoard('moveList', src, dst),
@@ -128,6 +134,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readAppSettings: () => ipcRenderer.invoke('read-app-settings'),
   updateAppSettings: (partialSettings) => ipcRenderer.invoke('update-app-settings', partialSettings),
   getGlobalShortcutStatus: () => ipcRenderer.invoke('get-global-shortcut-status'),
+  suggestCardTasks: (payload) => ipcRenderer.invoke('suggest-card-tasks', payload),
+  runSmartCardAction: (payload) => ipcRenderer.invoke('run-smart-card-action', payload),
+  inspectOllama: (payload) => ipcRenderer.invoke('inspect-ollama', payload),
   migrateAppSettingsFromBoard: (boardRoot) => ipcRenderer.invoke('migrate-app-settings-from-board', boardRoot),
   copyTextToClipboard: (text) => ipcRenderer.invoke('copy-text-to-clipboard', text),
   openExternal: (url) => ipcRenderer.invoke('open-external-url', url),

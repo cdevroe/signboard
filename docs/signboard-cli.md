@@ -12,8 +12,7 @@ This guide covers the Signboard command-line interface.
 - [Common Workflows](#common-workflows)
 - [Archive Workflows](#archive-workflows)
 - [Settings and Imports](#settings-and-imports)
-- [Markdown and Due-Date Conventions](#markdown-and-due-date-conventions)
-- [Troubleshooting](#troubleshooting)
+- [Markdown and Date Conventions](#markdown-and-date-conventions)
 
 ## How to Run It
 
@@ -64,6 +63,12 @@ You can print the current chosen board by running:
 signboard use
 ```
 
+You can list known boards before choosing one:
+
+```bash
+signboard boards list --json
+```
+
 ## Command Groups
 
 The CLI is organized into six command groups:
@@ -77,9 +82,11 @@ The CLI is organized into six command groups:
 
 ### `boards`
 
-Create a new board folder with Signboard's default starter lists.
+List known boards or create a new board folder with Signboard's default starter lists.
 
 ```bash
+signboard boards list
+signboard boards list --json
 signboard boards create /Path/To/NewBoard
 signboard boards create /Path/To/NewBoard --use
 signboard boards create --parent /Path/To --name "New Board" --json
@@ -88,6 +95,7 @@ signboard boards create /Path/To/EmptyBoard --no-welcome
 
 Notes:
 
+- `boards list --json` reports the current CLI board plus desktop-open and desktop-trusted boards when Signboard has synced that state.
 - New boards get `000-To-do-stock`, `001-Doing-stock`, `002-Done-stock`, and `XXX-Archive`.
 - By default, Signboard seeds `000-hello-stock.md` in the To do list with the same starter guidance used by MCP-created boards.
 - Add `--use` to make the new board the active CLI board for later commands.
@@ -160,7 +168,7 @@ signboard cards read --card 003-ship-release-notes-ab123.md
 
 ```bash
 signboard cards create --list "To do" --title "Ship release notes"
-signboard cards create --list "To do" --title "Write announcement" --due 2026-04-10
+signboard cards create --list "To do" --title "Write announcement" --start 2026-04-08 --due 2026-04-10
 signboard cards create --list "To do" --title "Draft copy" --label Writing --label Marketing
 signboard cards create --from-card ab123 --list "Leads" --title "New lead" --remove-label Template
 ```
@@ -173,6 +181,7 @@ Create options:
 - `--body-file <path>`
 - `--from-card <card-ref>` optional source card/template to copy
 - `--from-list <list-ref>` optional source list disambiguation for `--from-card`
+- `--start <YYYY-MM-DD|none>`
 - `--due <YYYY-MM-DD|none>`
 - `--label <ref>` repeatable
 - `--remove-label <ref>` repeatable with `--from-card`
@@ -194,6 +203,7 @@ signboard cards create \
 
 ```bash
 signboard cards edit --card ab123 --title "Ship v1.2.0"
+signboard cards edit --card ab123 --start 2026-04-10
 signboard cards edit --card ab123 --due 2026-04-12
 signboard cards edit --card ab123 --due none
 signboard cards edit --card ab123 --move-to Doing
@@ -215,6 +225,7 @@ Edit options:
 - `--append-body <text>`
 - `--replace-section <heading>` with `--body` or `--body-file`
 - `--insert-after-heading <heading>` with `--text` or `--text-file`
+- `--start <YYYY-MM-DD|none>`
 - `--due <YYYY-MM-DD|none>`
 - `--set-label <ref>` repeatable, replaces all labels
 - `--add-label <ref>` repeatable
@@ -240,6 +251,8 @@ Duplicate options:
 - `--list <list-ref>` optional target list; defaults to the source list
 - `--title <title>` optional exact title; defaults to `Copy of <source title>`
 - `--body <text>` or `--body-file <path>` optional replacement body
+- `--start <YYYY-MM-DD|none>`
+- `--due <YYYY-MM-DD|none>`
 - `--label <ref>` repeatable, adds labels to the duplicate
 - `--remove-label <ref>` repeatable
 - `--clear-labels`
@@ -316,6 +329,7 @@ Examples:
 
 ```bash
 signboard lists --json
+signboard boards list --json
 signboard cards --due next:7 --json
 signboard archive cards --search launch --json
 signboard settings --json
@@ -324,11 +338,12 @@ signboard import obsidian --source ~/Vault/Boards --json
 
 Recommended agent workflow:
 
-1. Pass `--board <path>` instead of changing global state with `signboard use`.
-2. Read before write when references may be ambiguous.
-3. Use `--json` for reads and verification.
-4. Use `--dry-run --json` before card writes when you need to preview a mutation.
-5. Use exact list or card references when possible.
+1. Run `signboard boards list --json` to find known usable board roots.
+2. Pass `--board <path>` instead of changing global state with `signboard use`.
+3. Read before write when references may be ambiguous.
+4. Use `--json` for reads and verification.
+5. Use `--dry-run --json` before card writes when you need to preview a mutation.
+6. Use exact list or card references when possible.
 
 ## Common Workflows
 
@@ -354,7 +369,7 @@ signboard cards --due overdue --due-source task --task-status open --json
 ### Create a card and move it later
 
 ```bash
-signboard cards create --list Backlog --title "Write release post" --label Docs --due 2026-04-08
+signboard cards create --list Backlog --title "Write release post" --label Docs --start 2026-04-06 --due 2026-04-08
 signboard cards edit --card "Write release post" --move-to Doing
 ```
 
@@ -434,7 +449,7 @@ signboard settings
 signboard settings --json
 ```
 
-This returns the board settings Markdown document, including labels, color scheme data, workflow settings for completed lists, and whether the board is included in External Published Calendar. App-wide tooltip, notification, Quick Add global shortcut, and External Published Calendar server preferences are desktop app settings, not board settings.
+This returns the board settings Markdown document, including labels, color scheme data, workflow settings for completed lists, and whether the board is included in External Published Calendar. App-wide tooltip, notification, Quick Add global shortcut, AI assistance, and External Published Calendar server preferences are desktop app settings, not board settings.
 
 Current CLI editing support is intentionally narrow.
 
@@ -467,11 +482,11 @@ signboard import tasksmd --source ~/Projects/MyTasksBoard
 
 All import commands support `--json`.
 
-## Markdown and Due-Date Conventions
+## Markdown and Date Conventions
 
 Cards are Markdown files with frontmatter. The CLI reads and writes that structure for you. So you don't need to worry about that unless you are supplying your own files.
 
-### Card due dates
+### Card start and due dates
 
 Use ISO local dates:
 
@@ -483,15 +498,19 @@ Examples:
 
 - `2026-04-02`
 - `2026-04-14`
-- `none` to clear the card due date
+- `none` to clear the card start or due date
 
-### Checklist due dates
+`start` is for the day work starts or becomes scheduled. `due` is the deadline.
 
-Checklist items may also contain due dates in the body:
+### Checklist start and due dates
+
+Checklist items may also contain start and due dates in the body:
 
 ```md
-- [ ] (due: 2026-04-05) Review screenshots
+- [ ] (start: 2026-04-02) Review screenshots
+- [ ] (start: 2026-04-03) (due: 2026-04-05) Publish announcement
+- [ ] (scheduled: 2026-04-06) Follow up with testers
 - [x] (due: 2026-04-01) Draft release notes
 ```
 
-Task due dates participate in CLI due-date filtering. Use `--task-status open` to limit task matches to unchecked items, or `--task-status any` to include checked task due markers when you want historical matches.
+Task due dates participate in CLI due-date filtering. Start/scheduled task dates are returned in JSON metadata for agents and used by the desktop Planner/date-filter views. Use `--task-status open` to limit task due matches to unchecked items, or `--task-status any` to include checked task due markers when you want historical matches.

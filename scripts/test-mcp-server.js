@@ -109,12 +109,13 @@ async function createFixtureBoard() {
     [
       '---',
       'title: Template Card',
+      'start: 2026-03-18',
       'labels:',
       '  - template',
       '---',
       'Customer details go here.',
-      '- [ ] Initial outreach',
-      '- [x ] (due: 2026-03-20) Send proposal',
+      '- [ ] (start: 2026-03-18) Initial outreach',
+      '- [x ] (start: 2026-03-19) (due: 2026-03-20) Send proposal',
       '- [ X] Confirm timeline',
       '',
     ].join('\n'),
@@ -151,6 +152,7 @@ async function createFixtureBoard() {
           idList: 'mcp-trello-list-1',
           name: 'Imported via MCP',
           desc: 'Created through signboard.import_trello.',
+          start: '2026-03-28',
           due: '2026-03-30',
           closed: false,
           pos: 1,
@@ -170,7 +172,7 @@ async function createFixtureBoard() {
       '---',
       '',
       '## Inbox',
-      '- [ ] MCP draft @{2026-03-29} #MCP',
+      '- [ ] MCP draft @scheduled(2026-03-27) @{2026-03-29} #MCP',
       '',
       '## Review',
       '- [ ] MCP review',
@@ -345,6 +347,7 @@ async function runForTransport(transportMode, fixture) {
 
   const requiredToolNames = [
     'signboard_get_config',
+    'signboard_list_boards',
     'signboard_list_board_views',
     'signboard_resolve_board_by_name',
     'signboard_create_board',
@@ -394,6 +397,32 @@ async function runForTransport(transportMode, fixture) {
 
   if (legacyAliasResponse.result?.structuredContent?.ok !== true) {
     throw new Error(`Legacy tool alias returned unexpected payload (${transportMode}): ${JSON.stringify(legacyAliasResponse.result)}`);
+  }
+
+  send({
+    jsonrpc: '2.0',
+    id: 251,
+    method: 'tools/call',
+    params: {
+      name: 'signboard_list_boards',
+      arguments: {},
+    },
+  });
+
+  const listBoardsResponse = await waitForResponse(251);
+  if (listBoardsResponse.error) {
+    throw new Error(`list_boards failed (${transportMode}): ${JSON.stringify(listBoardsResponse.error)}`);
+  }
+
+  const listBoardsOutput = listBoardsResponse.result?.structuredContent || {};
+  const discoveredBoard = Array.isArray(listBoardsOutput.boards)
+    ? listBoardsOutput.boards.find((board) => board.boardRoot === path.resolve(fixture.boardRoot))
+    : null;
+  if (!discoveredBoard || !discoveredBoard.isAllowed || !discoveredBoard.isBoardRoot) {
+    throw new Error(`list_boards did not discover fixture board (${transportMode}): ${JSON.stringify(listBoardsOutput)}`);
+  }
+  if (!Array.isArray(discoveredBoard.sources) || !discoveredBoard.sources.includes('mcp-allowed-root-scan')) {
+    throw new Error(`list_boards fixture board sources mismatch (${transportMode}): ${JSON.stringify(discoveredBoard)}`);
   }
 
   send({
@@ -531,6 +560,12 @@ async function runForTransport(transportMode, fixture) {
 
   if (!Array.isArray(duplicateOutput.taskDueDates) || !duplicateOutput.taskDueDates.includes('2026-03-20')) {
     throw new Error(`duplicate_card taskDueDates mismatch (${transportMode}): ${JSON.stringify(duplicateOutput)}`);
+  }
+  if (duplicateOutput.card?.frontmatter?.start !== '2026-03-18') {
+    throw new Error(`duplicate_card start mismatch (${transportMode}): ${JSON.stringify(duplicateOutput)}`);
+  }
+  if (!Array.isArray(duplicateOutput.taskStartDates) || !duplicateOutput.taskStartDates.includes('2026-03-18') || !duplicateOutput.taskStartDates.includes('2026-03-19')) {
+    throw new Error(`duplicate_card taskStartDates mismatch (${transportMode}): ${JSON.stringify(duplicateOutput)}`);
   }
 
   send({
@@ -789,7 +824,7 @@ async function runForTransport(transportMode, fixture) {
     path.join(fixture.boardRoot, trelloImportedList.name, trelloImportedCards[0]),
     'utf8',
   );
-  if (!trelloImportedCardBody.includes('title: Imported via MCP') || !trelloImportedCardBody.includes('due: 2026-03-30')) {
+  if (!trelloImportedCardBody.includes('title: Imported via MCP') || !trelloImportedCardBody.includes('start: 2026-03-28') || !trelloImportedCardBody.includes('due: 2026-03-30')) {
     throw new Error(`import_trello card content mismatch (${transportMode}): ${trelloImportedCardBody}`);
   }
 
@@ -831,7 +866,7 @@ async function runForTransport(transportMode, fixture) {
     path.join(fixture.boardRoot, obsidianImportedList.name, obsidianImportedCards[0]),
     'utf8',
   );
-  if (!obsidianImportedCardBody.includes('title: MCP draft') || !obsidianImportedCardBody.includes('due: 2026-03-29')) {
+  if (!obsidianImportedCardBody.includes('title: MCP draft') || !obsidianImportedCardBody.includes('start: 2026-03-27') || !obsidianImportedCardBody.includes('due: 2026-03-29')) {
     throw new Error(`import_obsidian card content mismatch (${transportMode}): ${obsidianImportedCardBody}`);
   }
 
@@ -989,8 +1024,14 @@ async function runForTransport(transportMode, fixture) {
 
   const readCardOutput = readCardResponse.result?.structuredContent || {};
   assertCardTimestamps(readCardOutput.card, `read_card (${transportMode})`);
+  if (readCardOutput.card?.frontmatter?.start !== '2026-03-18') {
+    throw new Error(`read_card start mismatch (${transportMode}): ${JSON.stringify(readCardOutput)}`);
+  }
   if (!readCardOutput.taskSummary || readCardOutput.taskSummary.total !== 3 || readCardOutput.taskSummary.completed !== 2) {
     throw new Error(`read_card taskSummary mismatch (${transportMode}): ${JSON.stringify(readCardOutput)}`);
+  }
+  if (!Array.isArray(readCardOutput.taskStartDates) || !readCardOutput.taskStartDates.includes('2026-03-18') || !readCardOutput.taskStartDates.includes('2026-03-19')) {
+    throw new Error(`read_card taskStartDates mismatch (${transportMode}): ${JSON.stringify(readCardOutput)}`);
   }
   if (!Array.isArray(readCardOutput.taskDueDates) || !readCardOutput.taskDueDates.includes('2026-03-20')) {
     throw new Error(`read_card taskDueDates mismatch (${transportMode}): ${JSON.stringify(readCardOutput)}`);
@@ -1006,7 +1047,8 @@ async function runForTransport(transportMode, fixture) {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
         cardFile: fixture.templateCardFile,
-        body: 'Customer details go here.\\n- [x ] Initial outreach\\n- [x ] (due: 2026-03-20) Send proposal\\n- [ X] Confirm timeline\\n',
+        start: '2026-03-17',
+        body: 'Customer details go here.\\n- [x ] (start: 2026-03-18) Initial outreach\\n- [x ] (start: 2026-03-19) (due: 2026-03-20) Send proposal\\n- [ X] Confirm timeline\\n',
       },
     },
   });
@@ -1018,8 +1060,14 @@ async function runForTransport(transportMode, fixture) {
 
   const updateCardOutput = updateCardResponse.result?.structuredContent || {};
   assertCardTimestamps(updateCardOutput.card, `update_card (${transportMode})`);
+  if (updateCardOutput.card?.frontmatter?.start !== '2026-03-17') {
+    throw new Error(`update_card start mismatch (${transportMode}): ${JSON.stringify(updateCardOutput)}`);
+  }
   if (!updateCardOutput.taskSummary || updateCardOutput.taskSummary.total !== 3 || updateCardOutput.taskSummary.completed !== 3) {
     throw new Error(`update_card taskSummary mismatch (${transportMode}): ${JSON.stringify(updateCardOutput)}`);
+  }
+  if (!Array.isArray(updateCardOutput.taskStartDates) || !updateCardOutput.taskStartDates.includes('2026-03-18') || !updateCardOutput.taskStartDates.includes('2026-03-19')) {
+    throw new Error(`update_card taskStartDates mismatch (${transportMode}): ${JSON.stringify(updateCardOutput)}`);
   }
   if (!Array.isArray(updateCardOutput.taskDueDates) || !updateCardOutput.taskDueDates.includes('2026-03-20')) {
     throw new Error(`update_card taskDueDates mismatch (${transportMode}): ${JSON.stringify(updateCardOutput)}`);
@@ -1035,7 +1083,8 @@ async function runForTransport(transportMode, fixture) {
         boardRoot: fixture.boardRoot,
         listName: fixture.leadsList,
         title: 'Task metadata coverage',
-        body: 'Created by MCP test.\\n- [x ] (due: 2026-03-21) Complete prep\\n- [ X] (due: 2026-03-22) Confirm review\\n- [ x] Share recap\\n- [ ] Follow up\\n',
+        start: '2026-03-23',
+        body: 'Created by MCP test.\\n- [x ] (start: 2026-03-21) (due: 2026-03-21) Complete prep\\n- [ X] (scheduled: 2026-03-22) (due: 2026-03-22) Confirm review\\n- [ x] Share recap\\n- [ ] Follow up\\n',
       },
     },
   });
@@ -1047,8 +1096,19 @@ async function runForTransport(transportMode, fixture) {
 
   const createCardOutput = createCardResponse.result?.structuredContent || {};
   assertCardTimestamps(createCardOutput.card, `create_card (${transportMode})`);
+  if (createCardOutput.card?.frontmatter?.start !== '2026-03-23') {
+    throw new Error(`create_card start mismatch (${transportMode}): ${JSON.stringify(createCardOutput)}`);
+  }
   if (!createCardOutput.taskSummary || createCardOutput.taskSummary.total !== 4 || createCardOutput.taskSummary.completed !== 3) {
     throw new Error(`create_card taskSummary mismatch (${transportMode}): ${JSON.stringify(createCardOutput)}`);
+  }
+  const expectedStartDates = ['2026-03-21', '2026-03-22'];
+  if (
+    !Array.isArray(createCardOutput.taskStartDates) ||
+    createCardOutput.taskStartDates.length !== expectedStartDates.length ||
+    expectedStartDates.some((dateValue) => !createCardOutput.taskStartDates.includes(dateValue))
+  ) {
+    throw new Error(`create_card taskStartDates mismatch (${transportMode}): ${JSON.stringify(createCardOutput)}`);
   }
   const expectedDueDates = ['2026-03-21', '2026-03-22'];
   if (
@@ -1241,7 +1301,8 @@ async function runTrustedRootsSmoke() {
       [
         "const { startSignboardMcpServer } = require('./lib/mcpServer');",
         "const trustedBoardRoots = JSON.parse(process.env.SIGNBOARD_TEST_TRUSTED_ROOTS || '[]');",
-        "startSignboardMcpServer({ appVersion: 'test', trustedBoardRoots });",
+        "const desktopOpenBoardsState = JSON.parse(process.env.SIGNBOARD_TEST_OPEN_BOARDS || '{}');",
+        "startSignboardMcpServer({ appVersion: 'test', trustedBoardRoots, desktopOpenBoardsState });",
       ].join(' '),
     ],
     {
@@ -1251,6 +1312,10 @@ async function runTrustedRootsSmoke() {
         SIGNBOARD_MCP_ALLOWED_ROOTS: path.join(fixture.cleanupRoot, 'unrelated-root'),
         SIGNBOARD_MCP_READ_ONLY: 'true',
         SIGNBOARD_TEST_TRUSTED_ROOTS: JSON.stringify([fixture.boardRoot]),
+        SIGNBOARD_TEST_OPEN_BOARDS: JSON.stringify({
+          openBoardRoots: [fixture.boardRoot],
+          activeBoardRoot: fixture.boardRoot,
+        }),
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     },
@@ -1353,6 +1418,28 @@ async function runTrustedRootsSmoke() {
     const config = configResponse.result?.structuredContent || {};
     if (!Array.isArray(config.allowedRoots) || !config.allowedRoots.includes(path.resolve(fixture.boardRoot))) {
       throw new Error(`Trusted board root missing from get_config: ${JSON.stringify(config)}`);
+    }
+    if (!Array.isArray(config.openBoardRoots) || !config.openBoardRoots.includes(path.resolve(fixture.boardRoot))) {
+      throw new Error(`Open board root missing from get_config: ${JSON.stringify(config)}`);
+    }
+
+    send({
+      jsonrpc: '2.0',
+      id: 25,
+      method: 'tools/call',
+      params: {
+        name: 'signboard_list_boards',
+        arguments: {},
+      },
+    });
+
+    const listBoardsResponse = await waitForResponse(25);
+    const listBoardsOutput = listBoardsResponse.result?.structuredContent || {};
+    const openBoard = Array.isArray(listBoardsOutput.boards)
+      ? listBoardsOutput.boards.find((board) => board.boardRoot === path.resolve(fixture.boardRoot))
+      : null;
+    if (!openBoard || !openBoard.isOpen || !openBoard.isActive || !openBoard.isTrusted) {
+      throw new Error(`Trusted/open board metadata missing from list_boards: ${JSON.stringify(listBoardsOutput)}`);
     }
 
     send({

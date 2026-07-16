@@ -1026,6 +1026,14 @@ function hasThemeModeOverride(themeModeOverrides) {
 const BOARD_DATE_FILTER_NONE = '';
 const BOARD_DATE_FILTER_TODAY = 'today';
 const BOARD_DATE_FILTER_OVERDUE = 'overdue';
+const BOARD_DATE_FILTER_NEXT_7 = 'next:7';
+const BOARD_DATE_FILTER_NEXT_14 = 'next:14';
+const BOARD_DATE_FILTER_NEXT_30 = 'next:30';
+const BOARD_DATE_FILTER_NEXT_DAY_COUNTS = Object.freeze({
+  [BOARD_DATE_FILTER_NEXT_7]: 7,
+  [BOARD_DATE_FILTER_NEXT_14]: 14,
+  [BOARD_DATE_FILTER_NEXT_30]: 30,
+});
 const BOARD_LABEL_SCROLL_THRESHOLD = 11;
 
 function getBoardLabelState() {
@@ -1036,6 +1044,7 @@ function getBoardLabelState() {
       filterIds: [],
       activeDateFilter: BOARD_DATE_FILTER_NONE,
       activeCardLabelPopover: null,
+      cardCreationLabelIdsByContext: new Map(),
       colorScheme: '',
       themeOverrides: { light: {}, dark: {} },
       themePalettes: {
@@ -1330,6 +1339,10 @@ function normalizeBoardDateFilter(value) {
     return BOARD_DATE_FILTER_OVERDUE;
   }
 
+  if (Object.prototype.hasOwnProperty.call(BOARD_DATE_FILTER_NEXT_DAY_COUNTS, normalized)) {
+    return normalized;
+  }
+
   return BOARD_DATE_FILTER_NONE;
 }
 
@@ -1348,6 +1361,11 @@ function getBoardDateFilterLabel(filterValue) {
 
   if (filterValue === BOARD_DATE_FILTER_OVERDUE) {
     return 'Overdue';
+  }
+
+  const nextDayCount = BOARD_DATE_FILTER_NEXT_DAY_COUNTS[filterValue];
+  if (nextDayCount) {
+    return `Next ${nextDayCount} days`;
   }
 
   return '';
@@ -1370,6 +1388,19 @@ function normalizeBoardFilterDueDate(value) {
   return parseIsoDateStringToLocalDate(normalized) ? normalized : '';
 }
 
+function addDaysToBoardFilterDate(isoDate, dayCount) {
+  const parsedDate = parseIsoDateStringToLocalDate(isoDate);
+  if (!parsedDate) {
+    return '';
+  }
+
+  parsedDate.setDate(parsedDate.getDate() + Number(dayCount || 0));
+  const year = parsedDate.getFullYear();
+  const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+  const day = String(parsedDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function doesBoardDateFilterMatchDueDate(dueDateValue, activeFilter = getActiveBoardDateFilter()) {
   const normalizedDueDate = normalizeBoardFilterDueDate(dueDateValue);
   if (!normalizedDueDate) {
@@ -1387,6 +1418,12 @@ function doesBoardDateFilterMatchDueDate(dueDateValue, activeFilter = getActiveB
 
   if (activeFilter === BOARD_DATE_FILTER_OVERDUE) {
     return normalizedDueDate < todayIsoDate;
+  }
+
+  const nextDayCount = BOARD_DATE_FILTER_NEXT_DAY_COUNTS[activeFilter];
+  if (nextDayCount) {
+    const endIsoDate = addDaysToBoardFilterDate(todayIsoDate, nextDayCount);
+    return normalizedDueDate >= todayIsoDate && normalizedDueDate <= endIsoDate;
   }
 
   return true;
@@ -1423,7 +1460,7 @@ function getActiveBoardFilterDueDates(
   incompleteTaskDueDateValues = taskDueDateValues,
   activeFilter = getActiveBoardDateFilter(),
 ) {
-  if (activeFilter === BOARD_DATE_FILTER_TODAY || activeFilter === BOARD_DATE_FILTER_OVERDUE) {
+  if (activeFilter !== BOARD_DATE_FILTER_NONE) {
     return getCardFilterDueDates(
       cardDueDateValue,
       Array.isArray(incompleteTaskDueDateValues) ? incompleteTaskDueDateValues : taskDueDateValues,
@@ -1467,6 +1504,7 @@ function cardMatchesBoardLabelFilter(cardLabelIds, cardDueDates = [], activeFilt
 
 function renderBoardLabelFilterButton() {
   const button = document.getElementById('labelFilterButton');
+  const summaryButton = document.getElementById('boardFilterSummaryButton');
   if (!button) {
     return;
   }
@@ -1482,6 +1520,11 @@ function renderBoardLabelFilterButton() {
   if (activeFilterCount === 0) {
     button.setAttribute('aria-label', summaryText);
     button.setAttribute('data-sb-tooltip', summaryText);
+    if (summaryButton) {
+      summaryButton.classList.add('hidden');
+      summaryButton.setAttribute('aria-hidden', 'true');
+      summaryButton.textContent = '';
+    }
     return;
   }
 
@@ -1490,6 +1533,13 @@ function renderBoardLabelFilterButton() {
       summaryText = `Filter cards: ${getBoardDateFilterLabel(activeDateFilter)}`;
       button.setAttribute('aria-label', summaryText);
       button.setAttribute('data-sb-tooltip', summaryText);
+      if (summaryButton) {
+        summaryButton.textContent = `${getBoardDateFilterLabel(activeDateFilter)} ×`;
+        summaryButton.classList.remove('hidden');
+        summaryButton.setAttribute('aria-hidden', 'false');
+        summaryButton.setAttribute('aria-label', `Clear ${getBoardDateFilterLabel(activeDateFilter)} filter`);
+        summaryButton.title = 'Clear filters';
+      }
       return;
     }
 
@@ -1497,12 +1547,34 @@ function renderBoardLabelFilterButton() {
     summaryText = selectedLabel ? `Filter cards: ${selectedLabel.name}` : 'Filter cards: 1 active';
     button.setAttribute('aria-label', summaryText);
     button.setAttribute('data-sb-tooltip', summaryText);
+    if (summaryButton) {
+      const labelText = selectedLabel ? selectedLabel.name : '1 filter';
+      summaryButton.textContent = `${labelText} ×`;
+      summaryButton.classList.remove('hidden');
+      summaryButton.setAttribute('aria-hidden', 'false');
+      summaryButton.setAttribute('aria-label', `Clear ${labelText} filter`);
+      summaryButton.title = 'Clear filters';
+    }
     return;
   }
 
   summaryText = `Filter cards: ${activeFilterCount} active`;
   button.setAttribute('aria-label', summaryText);
   button.setAttribute('data-sb-tooltip', summaryText);
+  if (summaryButton) {
+    summaryButton.textContent = `${activeFilterCount} filters ×`;
+    summaryButton.classList.remove('hidden');
+    summaryButton.setAttribute('aria-hidden', 'false');
+    summaryButton.setAttribute('aria-label', `Clear ${activeFilterCount} active filters`);
+    summaryButton.title = 'Clear filters';
+  }
+}
+
+async function clearActiveBoardFilters() {
+  resetBoardLabelFilter();
+  renderBoardLabelFilterButton();
+  renderBoardLabelFilterPopover();
+  await renderBoard();
 }
 
 async function handleBoardLabelFilterChange(labelId, enabled) {
@@ -1569,6 +1641,9 @@ function renderBoardLabelFilterPopover() {
 
   popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_TODAY, 'Today', 'sun'));
   popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_OVERDUE, 'Overdue', 'alert-circle'));
+  popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_NEXT_7, 'Next 7 days', 'calendar'));
+  popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_NEXT_14, 'Next 14 days', 'calendar'));
+  popover.appendChild(createDateFilterRow(BOARD_DATE_FILTER_NEXT_30, 'Next 30 days', 'calendar'));
 
   const separator = document.createElement('div');
   separator.className = 'label-popover-separator';
@@ -1622,10 +1697,7 @@ function renderBoardLabelFilterPopover() {
   clearButton.title = 'Clear active date and label filters';
   clearButton.disabled = selectedFilterIds.size === 0 && !activeDateFilter;
   clearButton.addEventListener('click', async () => {
-    resetBoardLabelFilter();
-    renderBoardLabelFilterButton();
-    renderBoardLabelFilterPopover();
-    await renderBoard();
+    await clearActiveBoardFilters();
   });
   popover.appendChild(clearButton);
 
@@ -1789,6 +1861,11 @@ function closeCardLabelPopover() {
   state.activeCardLabelPopover = null;
 }
 
+function isCardLabelPopoverOpen() {
+  const state = getBoardLabelState();
+  return Boolean(state.activeCardLabelPopover && state.activeCardLabelPopover.parentNode);
+}
+
 function closeCardLabelSelectorIfClickOutside(target) {
   const state = getBoardLabelState();
   const popover = state.activeCardLabelPopover;
@@ -1804,11 +1881,144 @@ function closeCardLabelSelectorIfClickOutside(target) {
   closeCardLabelPopover();
 }
 
+async function openBoardLabelSettingsFromPopover() {
+  if (!window.boardRoot) {
+    return;
+  }
+
+  closeBoardLabelFilterPopover();
+  closeCardLabelPopover();
+  if (typeof closeCardDatePopover === 'function') {
+    closeCardDatePopover();
+  }
+  if (typeof closeBoardMenuPopover === 'function') {
+    closeBoardMenuPopover();
+  }
+  if (typeof closeBoardViewPopover === 'function') {
+    closeBoardViewPopover();
+  }
+  if (typeof closeListActionsPopover === 'function') {
+    closeListActionsPopover();
+  }
+  if (typeof closeAllModals === 'function') {
+    await closeAllModals({ key: 'Escape' });
+  }
+
+  await ensureBoardLabelsLoaded();
+  openBoardSettingsModal({
+    panel: 'labels',
+    initialFocus: '#boardSettingsLabels .board-settings-label-name, #btnAddBoardLabel',
+  });
+}
+
 function positionCardLabelPopover(popover, anchorElement) {
   const bounds = anchorElement.getBoundingClientRect();
   popover.style.position = 'fixed';
   popover.style.top = `${Math.min(window.innerHeight - 220, bounds.bottom + 6)}px`;
   popover.style.left = `${Math.min(window.innerWidth - 260, Math.max(8, bounds.left - 60))}px`;
+}
+
+function createCardLabelCreateForm(knownSelection, unknownLabelIds, onChange) {
+  const form = document.createElement('form');
+  form.className = 'card-label-create-form';
+  form.noValidate = true;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'card-label-create-input';
+  input.placeholder = 'New label';
+  input.setAttribute('aria-label', 'New label name');
+  form.appendChild(input);
+
+  const button = document.createElement('button');
+  button.type = 'submit';
+  button.className = 'card-label-create-button';
+  button.textContent = 'Add';
+  form.appendChild(button);
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const labelName = String(input.value || '').trim();
+    if (!labelName) {
+      input.setAttribute('aria-invalid', 'true');
+      input.focus();
+      return;
+    }
+
+    input.removeAttribute('aria-invalid');
+    input.disabled = true;
+    button.disabled = true;
+
+    try {
+      const createdLabel = addBoardLabelDefinition({
+        name: labelName,
+        renderSettings: false,
+      });
+      await flushBoardSettingsSave();
+      if (createdLabel && createdLabel.id) {
+        knownSelection.add(createdLabel.id);
+      }
+
+      const orderedKnownSelection = getBoardLabels()
+        .map((entry) => entry.id)
+        .filter((entryId) => knownSelection.has(entryId));
+      await onChange([...orderedKnownSelection, ...unknownLabelIds]);
+      closeCardLabelPopover();
+      if (typeof announceSignboardStatus === 'function') {
+        announceSignboardStatus(`Created label "${labelName}".`);
+      }
+    } catch (error) {
+      console.error('Unable to create label.', error);
+      input.disabled = false;
+      button.disabled = false;
+      input.setAttribute('aria-invalid', 'true');
+      input.focus();
+    }
+  });
+
+  return form;
+}
+
+function createCardLabelPopoverHeader() {
+  const header = document.createElement('div');
+  header.className = 'card-label-popover-header';
+
+  const title = document.createElement('span');
+  title.className = 'card-label-popover-title';
+  title.textContent = 'Labels';
+
+  const settingsButton = document.createElement('button');
+  settingsButton.type = 'button';
+  settingsButton.className = 'card-label-settings-shortcut';
+  settingsButton.title = 'Open label settings';
+  settingsButton.setAttribute('aria-label', 'Open label settings');
+  settingsButton.innerHTML = '<i data-feather="settings"></i>';
+  settingsButton.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await openBoardLabelSettingsFromPopover();
+  });
+
+  header.append(title, settingsButton);
+  return header;
+}
+
+function focusFirstCardLabelPopoverControl(popover) {
+  if (!popover || typeof popover.querySelector !== 'function') {
+    return false;
+  }
+
+  const preferredControl = popover.querySelector(
+    '.label-popover-row input:not(:disabled), .card-label-create-input:not(:disabled)',
+  );
+  if (preferredControl && typeof preferredControl.focus === 'function') {
+    preferredControl.focus();
+    return true;
+  }
+
+  return focusFirstLabelPopoverControl(popover);
 }
 
 function createCardLabelPopoverContent(selectedLabelIds, onChange) {
@@ -1818,13 +2028,13 @@ function createCardLabelPopoverContent(selectedLabelIds, onChange) {
   const knownSelection = new Set(selectedLabelIds.filter((labelId) => knownLabelIds.has(labelId)));
 
   const fragment = document.createDocumentFragment();
+  fragment.appendChild(createCardLabelPopoverHeader());
 
   if (labels.length === 0) {
     const emptyState = document.createElement('p');
     emptyState.className = 'label-popover-empty';
-    emptyState.textContent = 'No labels yet. Add labels in Settings.';
+    emptyState.textContent = 'No labels yet.';
     fragment.appendChild(emptyState);
-    return fragment;
   }
 
   for (const label of labels) {
@@ -1869,12 +2079,25 @@ function createCardLabelPopoverContent(selectedLabelIds, onChange) {
     fragment.appendChild(unknownHint);
   }
 
+  const separator = document.createElement('div');
+  separator.className = 'label-popover-separator';
+  separator.setAttribute('aria-hidden', 'true');
+  fragment.appendChild(separator);
+  fragment.appendChild(createCardLabelCreateForm(knownSelection, unknownLabelIds, onChange));
+
   return fragment;
 }
 
 function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onChange) {
   const state = getBoardLabelState();
   const popover = state.activeCardLabelPopover;
+
+  if (typeof destroyActiveDueDatePicker === 'function') {
+    destroyActiveDueDatePicker();
+  }
+  if (typeof closeCardDatePopover === 'function') {
+    closeCardDatePopover();
+  }
 
   if (popover && popover.__anchorElement === anchorElement) {
     closeCardLabelPopover();
@@ -1892,6 +2115,9 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
   menu.setAttribute('role', 'group');
   menu.setAttribute('aria-label', 'Card labels');
   menu.setAttribute('aria-hidden', 'false');
+  menu.setAttribute('data-sb-modal-layer', '');
+  menu.inert = false;
+  menu.removeAttribute('data-sb-modal-inert');
   menu.__anchorElement = anchorElement;
   menu.__cardPath = cardPath;
 
@@ -1913,10 +2139,104 @@ function toggleCardLabelSelector(anchorElement, cardPath, selectedLabelIds, onCh
   });
 
   document.body.appendChild(menu);
+  if (typeof feather !== 'undefined' && feather && typeof feather.replace === 'function') {
+    feather.replace();
+  }
   positionCardLabelPopover(menu, anchorElement);
-  focusFirstLabelPopoverControl(menu);
+  focusFirstCardLabelPopoverControl(menu);
 
   state.activeCardLabelPopover = menu;
+}
+
+function normalizeCardCreationLabelContext(contextId) {
+  return String(contextId || 'default').trim() || 'default';
+}
+
+function getCardCreationLabelIds(contextId = 'default') {
+  const state = getBoardLabelState();
+  const key = normalizeCardCreationLabelContext(contextId);
+  const values = state.cardCreationLabelIdsByContext.get(key);
+  return Array.isArray(values) ? values.slice() : [];
+}
+
+function getCardCreationLabelButton(contextId = 'default') {
+  const key = normalizeCardCreationLabelContext(contextId);
+  const buttonId = key === 'quick-add' ? 'quickAddCardLabelButton' : 'newCardLabelButton';
+  return document.getElementById(buttonId);
+}
+
+function renderCardCreationLabelButton(contextId = 'default') {
+  const button = getCardCreationLabelButton(contextId);
+  if (!button) {
+    return;
+  }
+
+  const selectedLabelIds = getCardCreationLabelIds(contextId);
+  const labelNames = selectedLabelIds
+    .map((labelId) => getBoardLabelById(labelId))
+    .filter(Boolean)
+    .map((label) => String(label.name || '').trim())
+    .filter(Boolean);
+  const text = button.querySelector('.new-card-label-button-text');
+  const summary = labelNames.length === 0
+    ? 'Labels'
+    : (labelNames.length === 1 ? labelNames[0] : `${labelNames.length} labels`);
+
+  if (text) {
+    text.textContent = summary;
+  }
+  button.classList.toggle('has-labels', labelNames.length > 0);
+  button.setAttribute('aria-label', labelNames.length > 0 ? `Edit labels: ${labelNames.join(', ')}` : 'Set labels');
+  button.title = labelNames.length > 0 ? `Labels: ${labelNames.join(', ')}` : 'Set labels';
+}
+
+function setCardCreationLabelIds(contextId = 'default', labelIds = []) {
+  const state = getBoardLabelState();
+  const key = normalizeCardCreationLabelContext(contextId);
+  const normalizedIds = Array.isArray(labelIds)
+    ? labelIds.map((labelId) => String(labelId)).filter(Boolean)
+    : [];
+
+  if (normalizedIds.length > 0) {
+    state.cardCreationLabelIdsByContext.set(key, normalizedIds);
+  } else {
+    state.cardCreationLabelIdsByContext.delete(key);
+  }
+
+  renderCardCreationLabelButton(key);
+}
+
+function resetCardCreationLabelSelection(contextId = 'default') {
+  setCardCreationLabelIds(contextId, []);
+}
+
+function getCardCreationFrontmatter(contextId = 'default') {
+  const labelIds = getCardCreationLabelIds(contextId);
+  return labelIds.length > 0 ? { labels: labelIds } : {};
+}
+
+function initializeCardCreationLabelButton(contextId = 'default') {
+  const key = normalizeCardCreationLabelContext(contextId);
+  const button = getCardCreationLabelButton(key);
+  if (!button) {
+    return;
+  }
+
+  button.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    toggleCardLabelSelector(
+      button,
+      '',
+      getCardCreationLabelIds(key),
+      async (nextLabelIds) => {
+        setCardCreationLabelIds(key, nextLabelIds);
+      },
+    );
+  };
+
+  renderCardCreationLabelButton(key);
 }
 
 function createBoardSettingsLabelRow(label, index) {
@@ -2110,27 +2430,33 @@ function getNextBoardLabelColors() {
   return { ...colorPair };
 }
 
-function addBoardLabelDefinition() {
+function addBoardLabelDefinition(options = {}) {
+  const sourceOptions = typeof options === 'string' ? { name: options } : (options && typeof options === 'object' ? options : {});
   const labels = getBoardLabels();
   const nextIndex = labels.length + 1;
+  const requestedName = String(sourceOptions.name || '').trim();
   const candidateColors = getNextBoardLabelColors();
   const colors = createReadableLabelColors(candidateColors.colorLight, candidateColors.colorLight);
+  const newLabel = {
+    id: generateBoardLabelId(),
+    name: requestedName || `Label ${nextIndex}`,
+    colorLight: colors.colorLight,
+    colorDark: colors.colorDark,
+  };
 
   const nextLabels = [
     ...labels.map((label) => ({ ...label })),
-    {
-      id: generateBoardLabelId(),
-      name: `Label ${nextIndex}`,
-      colorLight: colors.colorLight,
-      colorDark: colors.colorDark,
-    },
+    newLabel,
   ];
 
   setBoardLabels(nextLabels);
-  renderBoardSettingsLabels();
+  if (sourceOptions.renderSettings !== false) {
+    renderBoardSettingsLabels();
+  }
   renderBoardLabelFilterButton();
   renderBoardLabelFilterPopover();
   scheduleBoardLabelSettingsSave();
+  return newLabel;
 }
 
 async function removeBoardLabelReferencesFromCards(labelId) {
@@ -2359,7 +2685,7 @@ function renderBoardSettingsPanelState() {
 }
 
 function setActiveBoardSettingsPanel(panelId) {
-  const normalizedPanelId = ['app', 'general', 'obsidian', 'workflow', 'labels', 'colors', 'import'].includes(panelId)
+  const normalizedPanelId = ['app', 'notifications', 'smart-actions', 'general', 'labels', 'colors', 'workflow', 'obsidian', 'import'].includes(panelId)
     ? panelId
     : 'app';
   const state = getBoardLabelState();
@@ -2445,9 +2771,28 @@ function handleBoardSettingsNavKeydown(event) {
   }
 }
 
+function getBoardSettingsNavButtonId(panelId) {
+  const normalizedPanelId = String(panelId || '');
+  const navButtonIds = {
+    app: 'boardSettingsNavApp',
+    notifications: 'boardSettingsNavNotifications',
+    'smart-actions': 'boardSettingsNavSmartActions',
+    general: 'boardSettingsNavGeneral',
+    labels: 'boardSettingsNavLabels',
+    colors: 'boardSettingsNavColors',
+    workflow: 'boardSettingsNavWorkflow',
+    obsidian: 'boardSettingsNavObsidian',
+    import: 'boardSettingsNavImport',
+  };
+
+  return navButtonIds[normalizedPanelId] || navButtonIds.app;
+}
+
 function renderBoardGeneralSettingsControls() {
   const boardNameInput = document.getElementById('boardSettingsBoardNameInput');
   const boardPathInput = document.getElementById('boardSettingsBoardPathInput');
+  const duplicateNameInput = document.getElementById('boardSettingsDuplicateNameInput');
+  const duplicateStatus = document.getElementById('boardSettingsDuplicateStatus');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
   const boardInfo = getBoardRootInfo();
 
@@ -2457,6 +2802,22 @@ function renderBoardGeneralSettingsControls() {
 
   if (boardPathInput) {
     boardPathInput.value = boardInfo ? boardInfo.normalizedRoot.replace(/\/+$/, '') : '';
+  }
+
+  if (duplicateNameInput) {
+    const currentSourceRoot = duplicateNameInput.dataset.sourceBoardRoot || '';
+    if (!boardInfo) {
+      duplicateNameInput.value = '';
+      duplicateNameInput.dataset.sourceBoardRoot = '';
+    } else if (currentSourceRoot !== boardInfo.normalizedRoot || !duplicateNameInput.value.trim()) {
+      duplicateNameInput.value = `${boardInfo.boardName} Copy`;
+      duplicateNameInput.dataset.sourceBoardRoot = boardInfo.normalizedRoot;
+    }
+  }
+
+  if (duplicateStatus) {
+    duplicateStatus.textContent = '';
+    duplicateStatus.classList.remove('is-success', 'is-warning');
   }
 
   if (tooltipsToggle) {
@@ -2931,11 +3292,55 @@ async function moveCurrentBoardDirectory(nextParentDirectory) {
   return moveBoardDirectory(nextBoardRoot);
 }
 
-function openBoardSettingsModal() {
+async function duplicateCurrentBoardDirectory(boardNameRaw, destinationParentSelection) {
+  const boardInfo = getBoardRootInfo();
+  if (!boardInfo || !window.board || typeof window.board.duplicateBoard !== 'function') {
+    return false;
+  }
+
+  const nextBoardName = sanitizeBoardDirectoryName(boardNameRaw);
+  if (!nextBoardName) {
+    return false;
+  }
+
+  const destinationParentDirectory = getDirectorySelectionPath(destinationParentSelection);
+  if (!destinationParentDirectory || !destinationParentSelection || !destinationParentSelection.token) {
+    return false;
+  }
+
+  await flushBoardSettingsSave();
+  const result = await window.board.duplicateBoard(boardInfo.normalizedRoot, {
+    boardName: nextBoardName,
+    destinationParentToken: destinationParentSelection.token,
+  });
+  const duplicatedBoardRoot = normalizeBoardPath(result && result.boardRoot);
+  if (!duplicatedBoardRoot) {
+    return false;
+  }
+
+  if (typeof ensureBoardInTabs === 'function') {
+    ensureBoardInTabs(duplicatedBoardRoot);
+  }
+
+  await openBoard(duplicatedBoardRoot);
+  if (typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus(`Duplicated board: ${nextBoardName}.`);
+  }
+  return true;
+}
+
+function openBoardSettingsModal(options = {}) {
   const modal = document.getElementById('modalBoardSettings');
   if (!modal) {
     return;
   }
+
+  const panel = typeof options === 'string'
+    ? options
+    : String(options.panel || 'app');
+  const initialFocus = options && typeof options === 'object' && options.initialFocus
+    ? options.initialFocus
+    : (panel === 'labels' ? '#boardSettingsNavLabels' : `#${getBoardSettingsNavButtonId(panel)}`);
 
   closeBoardLabelFilterPopover();
   closeCardLabelPopover();
@@ -2946,11 +3351,11 @@ function openBoardSettingsModal() {
   renderBoardExternalPublishedCalendarSettingsControls();
   renderAppSettingsControls();
   renderBoardImportControls();
-  setActiveBoardSettingsPanel('app');
+  setActiveBoardSettingsPanel(panel);
   if (typeof setAccessibleModalVisible === 'function') {
     setAccessibleModalVisible(modal, true, {
       display: 'block',
-      initialFocus: '#boardSettingsNavApp',
+      initialFocus,
       labelledBy: 'boardSettingsTitle',
     });
   } else {
@@ -3063,6 +3468,7 @@ function closeAllLabelPopovers() {
 
 function initializeBoardLabelControls() {
   const filterButton = document.getElementById('labelFilterButton');
+  const filterSummaryButton = document.getElementById('boardFilterSummaryButton');
   const filterPopover = document.getElementById('labelFilterPopover');
   const openSettingsButton = document.getElementById('openBoardSettings');
   const closeSettingsButton = document.getElementById('boardSettingsClose');
@@ -3071,12 +3477,22 @@ function initializeBoardLabelControls() {
   const renameBoardInput = document.getElementById('boardSettingsBoardNameInput');
   const renameBoardButton = document.getElementById('btnRenameBoard');
   const moveBoardButton = document.getElementById('btnMoveBoard');
+  const duplicateBoardInput = document.getElementById('boardSettingsDuplicateNameInput');
+  const duplicateBoardButton = document.getElementById('btnDuplicateBoard');
+  const duplicateBoardStatus = document.getElementById('boardSettingsDuplicateStatus');
   const colorSchemeSelect = document.getElementById('boardColorSchemeSelect');
   const applyThemeToOpenBoardsButton = document.getElementById('btnApplyThemeColorsToOpenBoards');
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
   const quickAddShortcutInput = document.getElementById('boardSettingsQuickAddShortcut');
+  const aiToggle = document.getElementById('boardSettingsAiToggle');
+  const aiEnableButton = document.getElementById('btnEnableAiSmartActions');
+  const aiOllamaUrlInput = document.getElementById('boardSettingsAiOllamaUrl');
+  const aiOllamaModelSelect = document.getElementById('boardSettingsAiOllamaModel');
+  const aiOllamaRefreshButton = document.getElementById('btnRefreshAiOllamaModels');
+  const aiActionsList = document.getElementById('boardSettingsAiActionsList');
+  const aiAddActionButton = document.getElementById('btnAddAiSmartCardAction');
   const externalCalendarToggle = document.getElementById('boardSettingsExternalCalendarToggle');
   const externalCalendarPortInput = document.getElementById('boardSettingsExternalCalendarPort');
   const externalCalendarCopyButton = document.getElementById('btnCopyExternalCalendarUrl');
@@ -3098,6 +3514,9 @@ function initializeBoardLabelControls() {
         return;
       }
       closeCardLabelPopover();
+      if (typeof closeCardDatePopover === 'function') {
+        closeCardDatePopover();
+      }
       if (typeof closeBoardViewPopover === 'function') {
         closeBoardViewPopover();
       }
@@ -3117,6 +3536,17 @@ function initializeBoardLabelControls() {
       filterPopover.setAttribute('aria-hidden', 'false');
       positionBoardLabelFilterPopover(filterButton, filterPopover);
       focusFirstLabelPopoverControl(filterPopover);
+    });
+  }
+
+  if (filterSummaryButton) {
+    filterSummaryButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await clearActiveBoardFilters();
+      if (typeof closeBoardLabelFilterPopover === 'function') {
+        closeBoardLabelFilterPopover();
+      }
     });
   }
 
@@ -3254,13 +3684,90 @@ function initializeBoardLabelControls() {
     });
   }
 
+  if (duplicateBoardButton) {
+    duplicateBoardButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (
+        duplicateBoardButton.disabled ||
+        !window.chooser ||
+        typeof window.chooser.pickDirectory !== 'function'
+      ) {
+        return;
+      }
+
+      const boardInfo = getBoardRootInfo();
+      const defaultPath = boardInfo ? boardInfo.parentRoot.replace(/\/+$/, '') : undefined;
+      const duplicateName = duplicateBoardInput ? duplicateBoardInput.value : '';
+      const sanitizedDuplicateName = sanitizeBoardDirectoryName(duplicateName);
+      if (!sanitizedDuplicateName) {
+        if (duplicateBoardStatus) {
+          duplicateBoardStatus.textContent = 'Name required';
+          duplicateBoardStatus.classList.add('is-warning');
+        }
+        return;
+      }
+
+      duplicateBoardButton.disabled = true;
+      if (duplicateBoardStatus) {
+        duplicateBoardStatus.textContent = 'Choose folder';
+        duplicateBoardStatus.classList.remove('is-success', 'is-warning');
+      }
+
+      try {
+        const destinationParentSelection = await window.chooser.pickDirectory({ defaultPath });
+        const destinationParentDirectory = getDirectorySelectionPath(destinationParentSelection);
+        if (!destinationParentDirectory) {
+          if (duplicateBoardStatus) {
+            duplicateBoardStatus.textContent = '';
+          }
+          return;
+        }
+
+        if (duplicateBoardStatus) {
+          duplicateBoardStatus.textContent = 'Duplicating';
+        }
+        const duplicated = await duplicateCurrentBoardDirectory(sanitizedDuplicateName, destinationParentSelection);
+        if (!duplicated && duplicateBoardStatus) {
+          duplicateBoardStatus.textContent = 'Unable to duplicate';
+          duplicateBoardStatus.classList.add('is-warning');
+        }
+      } catch (error) {
+        console.error('Unable to duplicate board.', error);
+        if (duplicateBoardStatus) {
+          duplicateBoardStatus.textContent = 'Unable to duplicate';
+          duplicateBoardStatus.classList.add('is-warning');
+        }
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert(`Unable to duplicate board.\n\n${String(error?.message || error || 'Unknown error')}`);
+        }
+      } finally {
+        duplicateBoardButton.disabled = false;
+      }
+    });
+  }
+
+  if (duplicateBoardInput) {
+    duplicateBoardInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      if (duplicateBoardButton && !duplicateBoardButton.disabled) {
+        duplicateBoardButton.click();
+      }
+    });
+  }
+
   if (colorSchemeSelect) {
     colorSchemeSelect.addEventListener('change', async (event) => {
       const schemeId = event.target.value;
-      if (typeof waitForNativeMenuTrackingToSettle === 'function') {
-        await waitForNativeMenuTrackingToSettle();
-      }
-      if (!colorSchemeSelect.isConnected || colorSchemeSelect.value !== schemeId) {
+      if (
+        typeof waitForNativeSelectChangeToSettle === 'function' &&
+        !await waitForNativeSelectChangeToSettle(colorSchemeSelect, schemeId)
+      ) {
         return;
       }
 
@@ -3329,6 +3836,168 @@ function initializeBoardLabelControls() {
 
       event.preventDefault();
       quickAddShortcutInput.blur();
+    });
+  }
+
+  if (aiToggle) {
+    aiToggle.addEventListener('change', (event) => {
+      if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppAiSettings();
+      setAppAiSettings({
+        ...currentSettings,
+        enabled: Boolean(event.target.checked),
+      });
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+      if (event.target.checked && typeof refreshAppAiOllamaModels === 'function') {
+        refreshAppAiOllamaModels();
+      } else if (!event.target.checked && typeof resetAppOllamaModelStatus === 'function') {
+        resetAppOllamaModelStatus('Disabled');
+        renderAppSettingsControls();
+      }
+    });
+  }
+
+  if (aiEnableButton) {
+    aiEnableButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (aiToggle) {
+        aiToggle.checked = true;
+        aiToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  }
+
+  if (aiOllamaUrlInput) {
+    aiOllamaUrlInput.addEventListener('change', (event) => {
+      if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppAiSettings();
+      setAppAiSettings({
+        ...currentSettings,
+        ollama: {
+          ...currentSettings.ollama,
+          url: event.target.value,
+        },
+      });
+      if (typeof resetAppOllamaModelStatus === 'function') {
+        resetAppOllamaModelStatus('Not checked');
+      }
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+      if (getAppAiSettings().enabled && typeof refreshAppAiOllamaModels === 'function') {
+        refreshAppAiOllamaModels();
+      }
+    });
+
+    aiOllamaUrlInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      aiOllamaUrlInput.blur();
+    });
+  }
+
+  if (aiOllamaModelSelect) {
+    aiOllamaModelSelect.addEventListener('change', async (event) => {
+      const selectedModel = event.target.value;
+      if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
+        return;
+      }
+
+      const currentSettings = getAppAiSettings();
+      setAppAiSettings({
+        ...currentSettings,
+        ollama: {
+          ...currentSettings.ollama,
+          model: selectedModel,
+        },
+      });
+
+      const shouldRender = typeof waitForNativeSelectChangeToSettle !== 'function' ||
+        await waitForNativeSelectChangeToSettle(aiOllamaModelSelect, selectedModel);
+      scheduleAppSettingsSave();
+      if (shouldRender) {
+        renderAppSettingsControls();
+      }
+    });
+
+    aiOllamaModelSelect.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      aiOllamaModelSelect.blur();
+    });
+  }
+
+  if (aiOllamaRefreshButton) {
+    aiOllamaRefreshButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof refreshAppAiOllamaModels === 'function') {
+        refreshAppAiOllamaModels();
+      }
+    });
+  }
+
+  if (aiActionsList) {
+    aiActionsList.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target || !target.dataset || !target.dataset.smartActionField || !target.dataset.actionId) {
+        return;
+      }
+
+      if (typeof updateAppSmartCardAction !== 'function') {
+        return;
+      }
+
+      updateAppSmartCardAction(target.dataset.actionId, {
+        [target.dataset.smartActionField]: target.value,
+      });
+    });
+
+    aiActionsList.addEventListener('click', (event) => {
+      const target = event.target && typeof event.target.closest === 'function'
+        ? event.target.closest('[data-smart-action-command][data-action-id]')
+        : event.target;
+      if (!target || !target.dataset || !target.dataset.smartActionCommand || !target.dataset.actionId) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (target.dataset.smartActionCommand === 'toggle-edit' && typeof toggleAppSmartCardActionExpanded === 'function') {
+        toggleAppSmartCardActionExpanded(target.dataset.actionId);
+      } else if (target.dataset.smartActionCommand === 'move-up' && typeof moveAppSmartCardAction === 'function') {
+        moveAppSmartCardAction(target.dataset.actionId, 'up');
+      } else if (target.dataset.smartActionCommand === 'move-down' && typeof moveAppSmartCardAction === 'function') {
+        moveAppSmartCardAction(target.dataset.actionId, 'down');
+      } else if (target.dataset.smartActionCommand === 'reset' && typeof resetAppSmartCardActionPrompt === 'function') {
+        resetAppSmartCardActionPrompt(target.dataset.actionId);
+      } else if (target.dataset.smartActionCommand === 'remove' && typeof removeAppSmartCardAction === 'function') {
+        removeAppSmartCardAction(target.dataset.actionId);
+      }
+    });
+  }
+
+  if (aiAddActionButton) {
+    aiAddActionButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof addAppSmartCardAction === 'function') {
+        addAppSmartCardAction();
+      }
     });
   }
 

@@ -10,12 +10,35 @@ const BOARD_VIEW_OPTIONS = Object.freeze([
   { id: BOARD_VIEW_IDS.TABLE, label: 'Table', shortcutActionId: 'tableView' },
 ]);
 
-const BOARD_VIEW_ICON_BY_ID = Object.freeze({
-  [BOARD_VIEW_IDS.KANBAN]: 'columns',
-  [BOARD_VIEW_IDS.TABLE]: 'list',
-  [BOARD_VIEW_IDS.CALENDAR]: 'calendar',
-  [BOARD_VIEW_IDS.THIS_WEEK]: 'clock',
+const WORKSPACE_VIEW_IDS = Object.freeze({
+  PLANNER: 'planner',
+  KANBAN: BOARD_VIEW_IDS.KANBAN,
+  TABLE: BOARD_VIEW_IDS.TABLE,
 });
+
+const WORKSPACE_VIEW_ORDER = Object.freeze([
+  WORKSPACE_VIEW_IDS.PLANNER,
+  WORKSPACE_VIEW_IDS.KANBAN,
+  WORKSPACE_VIEW_IDS.TABLE,
+]);
+
+const WORKSPACE_VIEW_OPTIONS = Object.freeze([
+  {
+    id: WORKSPACE_VIEW_IDS.PLANNER,
+    label: 'Planner',
+    shortcutActionId: 'plannerToggle',
+  },
+  {
+    id: WORKSPACE_VIEW_IDS.KANBAN,
+    label: 'Kanban',
+    shortcutActionId: 'kanbanView',
+  },
+  {
+    id: WORKSPACE_VIEW_IDS.TABLE,
+    label: 'Table',
+    shortcutActionId: 'tableView',
+  },
+]);
 
 const BOARD_CALENDAR_WEEKDAY_LABELS = Object.freeze([
   { short: 'Mon', full: 'Monday' },
@@ -31,6 +54,8 @@ function getBoardViewState() {
   if (!window.__boardViewState) {
     window.__boardViewState = {
       controlsInitialized: false,
+      workspaceTransitionTimerId: 0,
+      pendingWorkspaceTransitionDirection: '',
       viewByBoard: new Map(),
       calendarCursorByBoard: new Map(),
       weekCursorByBoard: new Map(),
@@ -59,6 +84,177 @@ function normalizeBoardViewId(viewId) {
   }
 
   return BOARD_VIEW_IDS.KANBAN;
+}
+
+function normalizeWorkspaceViewId(viewId) {
+  const normalized = String(viewId || '').trim().toLowerCase();
+  if (normalized === WORKSPACE_VIEW_IDS.PLANNER) {
+    return WORKSPACE_VIEW_IDS.PLANNER;
+  }
+  if (normalized === WORKSPACE_VIEW_IDS.TABLE) {
+    return WORKSPACE_VIEW_IDS.TABLE;
+  }
+
+  return WORKSPACE_VIEW_IDS.KANBAN;
+}
+
+function getWorkspaceViewIndex(viewId) {
+  const normalizedViewId = normalizeWorkspaceViewId(viewId);
+  const index = WORKSPACE_VIEW_ORDER.indexOf(normalizedViewId);
+  return index >= 0 ? index : WORKSPACE_VIEW_ORDER.indexOf(WORKSPACE_VIEW_IDS.KANBAN);
+}
+
+function getWorkspaceViewTransitionDirection(fromViewId, toViewId) {
+  const fromIndex = getWorkspaceViewIndex(fromViewId);
+  const toIndex = getWorkspaceViewIndex(toViewId);
+  if (toIndex > fromIndex) {
+    return 'right';
+  }
+  if (toIndex < fromIndex) {
+    return 'left';
+  }
+
+  return '';
+}
+
+function normalizeWorkspaceTransitionDirection(direction) {
+  const normalizedDirection = String(direction || '').trim().toLowerCase();
+  return normalizedDirection === 'left' || normalizedDirection === 'right'
+    ? normalizedDirection
+    : '';
+}
+
+function shouldAnimateWorkspaceTransition() {
+  return !(typeof prefersReducedMotion === 'function' && prefersReducedMotion());
+}
+
+function scheduleWorkspaceTransitionCallback(callback, delayMs = 0) {
+  const scheduler = typeof window !== 'undefined' && window && typeof window.setTimeout === 'function'
+    ? window.setTimeout.bind(window)
+    : (typeof setTimeout === 'function' ? setTimeout : null);
+  if (!scheduler) {
+    callback();
+    return 0;
+  }
+  return scheduler(callback, delayMs);
+}
+
+function clearWorkspaceTransitionCallback(timerId) {
+  const clearer = typeof window !== 'undefined' && window && typeof window.clearTimeout === 'function'
+    ? window.clearTimeout.bind(window)
+    : (typeof clearTimeout === 'function' ? clearTimeout : null);
+  if (clearer) {
+    clearer(timerId);
+  }
+}
+
+function getActiveWorkspaceView() {
+  if (typeof isPlannerOpen === 'function' && isPlannerOpen()) {
+    return WORKSPACE_VIEW_IDS.PLANNER;
+  }
+
+  return getActiveBoardView();
+}
+
+function clearWorkspaceTransitionState() {
+  const state = getBoardViewState();
+  const body = document.body;
+  if (state.workspaceTransitionTimerId) {
+    clearWorkspaceTransitionCallback(state.workspaceTransitionTimerId);
+    state.workspaceTransitionTimerId = 0;
+  }
+  state.pendingWorkspaceTransitionDirection = '';
+  if (body) {
+    body.removeAttribute('data-workspace-transition');
+  }
+}
+
+function waitForWorkspaceTransitionFrame() {
+  return new Promise((resolve) => {
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(resolve);
+      });
+      return;
+    }
+
+    scheduleWorkspaceTransitionCallback(resolve, 32);
+  });
+}
+
+function waitForWorkspaceTransitionDelay(delayMs) {
+  return new Promise((resolve) => {
+    scheduleWorkspaceTransitionCallback(resolve, delayMs);
+  });
+}
+
+function setWorkspaceTransitionAttribute(value) {
+  const state = getBoardViewState();
+  const body = document.body;
+  if (!body) {
+    return;
+  }
+
+  if (state.workspaceTransitionTimerId) {
+    clearWorkspaceTransitionCallback(state.workspaceTransitionTimerId);
+    state.workspaceTransitionTimerId = 0;
+  }
+  body.setAttribute('data-workspace-transition', value);
+}
+
+function setWorkspaceTransitionDirection(direction) {
+  const normalizedDirection = normalizeWorkspaceTransitionDirection(direction);
+  const state = getBoardViewState();
+  if (!normalizedDirection || !shouldAnimateWorkspaceTransition()) {
+    clearWorkspaceTransitionState();
+    return;
+  }
+
+  state.pendingWorkspaceTransitionDirection = normalizedDirection;
+}
+
+function playPendingWorkspaceBoardTransition() {
+  const state = getBoardViewState();
+  const normalizedDirection = normalizeWorkspaceTransitionDirection(state.pendingWorkspaceTransitionDirection);
+  state.pendingWorkspaceTransitionDirection = '';
+
+  if (!normalizedDirection || !shouldAnimateWorkspaceTransition()) {
+    clearWorkspaceTransitionState();
+    return;
+  }
+
+  if (state.workspaceTransitionTimerId) {
+    clearWorkspaceTransitionCallback(state.workspaceTransitionTimerId);
+    state.workspaceTransitionTimerId = 0;
+  }
+
+  setWorkspaceTransitionAttribute(`enter-${normalizedDirection}`);
+  state.workspaceTransitionTimerId = scheduleWorkspaceTransitionCallback(() => {
+    if (document.body) {
+      document.body.removeAttribute('data-workspace-transition');
+    }
+    state.workspaceTransitionTimerId = 0;
+  }, 260);
+}
+
+async function prepareWorkspaceBoardTransition(direction) {
+  const normalizedDirection = normalizeWorkspaceTransitionDirection(direction);
+  if (!normalizedDirection || !shouldAnimateWorkspaceTransition()) {
+    clearWorkspaceTransitionState();
+    return;
+  }
+
+  const boardEl = document.getElementById('board');
+  if (!boardEl || !window.boardRoot) {
+    setWorkspaceTransitionDirection(normalizedDirection);
+    return;
+  }
+
+  const exitDirection = normalizedDirection === 'right' ? 'left' : 'right';
+  setWorkspaceTransitionAttribute(`exit-${exitDirection}`);
+  await waitForWorkspaceTransitionFrame();
+  await waitForWorkspaceTransitionDelay(120);
+  setWorkspaceTransitionDirection(normalizedDirection);
 }
 
 function getActiveBoardKeyForViewState() {
@@ -112,8 +308,64 @@ function setActiveBoardView(viewId, options = {}) {
   }
 
   renderBoard().catch((error) => {
+    clearWorkspaceTransitionState();
     console.error('Failed to render board after changing view.', error);
   });
+}
+
+async function switchWorkspaceView(viewId, options = {}) {
+  const targetView = normalizeWorkspaceViewId(viewId);
+  const currentView = getActiveWorkspaceView();
+  const direction = getWorkspaceViewTransitionDirection(currentView, targetView);
+
+  if (typeof closeBoardSwitcher === 'function') {
+    closeBoardSwitcher();
+  }
+  if (typeof closeBoardLabelFilterPopover === 'function') {
+    closeBoardLabelFilterPopover();
+  }
+  if (typeof closeBoardMenuPopover === 'function') {
+    closeBoardMenuPopover();
+  }
+  if (typeof closeBoardViewPopover === 'function') {
+    closeBoardViewPopover();
+  }
+
+  if (targetView === WORKSPACE_VIEW_IDS.PLANNER) {
+    if (typeof openPlannerView === 'function') {
+      await openPlannerView({
+        viewId: options.plannerViewId,
+        scope: options.scope,
+        transitionDirection: 'left',
+      });
+    }
+    syncWorkspaceViewDockState();
+    return true;
+  }
+
+  if (typeof closePlannerView === 'function' && typeof isPlannerOpen === 'function' && isPlannerOpen()) {
+    setActiveBoardView(targetView, { render: false });
+    closePlannerView({
+      restoreFocus: false,
+      transitionDirection: 'left',
+    });
+    if (targetView === WORKSPACE_VIEW_IDS.TABLE) {
+      setWorkspaceTransitionDirection('right');
+    } else {
+      clearWorkspaceTransitionState();
+    }
+    renderBoard().catch((error) => {
+      clearWorkspaceTransitionState();
+      console.error('Failed to render board after leaving Planner.', error);
+    });
+    syncWorkspaceViewDockState(targetView);
+    return true;
+  }
+
+  await prepareWorkspaceBoardTransition(direction);
+  setActiveBoardView(targetView);
+  syncWorkspaceViewDockState(targetView);
+  return true;
 }
 
 function createMonthCursorDate(dateValue) {
@@ -312,12 +564,25 @@ function getOpenTaskDueDatesForEntry(cardEntry) {
     : [];
 }
 
+function getOpenTaskStartDatesForEntry(cardEntry) {
+  if (cardEntry && Array.isArray(cardEntry.incompleteTaskStartDates)) {
+    return cardEntry.incompleteTaskStartDates;
+  }
+
+  return cardEntry && Array.isArray(cardEntry.taskStartDates)
+    ? cardEntry.taskStartDates
+    : [];
+}
+
 function getTemporalDueDatesForEntry(cardEntry) {
   if (!cardEntry) {
     return [];
   }
 
-  return getCardFilterDueDates(cardEntry.due, getOpenTaskDueDatesForEntry(cardEntry));
+  return getCardFilterDueDates(
+    [cardEntry.start, cardEntry.due],
+    [...getOpenTaskStartDatesForEntry(cardEntry), ...getOpenTaskDueDatesForEntry(cardEntry)],
+  );
 }
 
 function getTaskItemsDueOnDate(taskItems, dueDateValue, options = {}) {
@@ -336,6 +601,22 @@ function getTaskItemsDueOnDate(taskItems, dueDateValue, options = {}) {
   });
 }
 
+function getTaskItemsStartingOnDate(taskItems, startDateValue, options = {}) {
+  const normalizedStartDate = normalizeTaskStartDateValue(startDateValue);
+  if (!normalizedStartDate || !Array.isArray(taskItems)) {
+    return [];
+  }
+
+  const includeCompleted = options && options.includeCompleted === true;
+  return taskItems.filter((taskItem) => {
+    if (!includeCompleted && taskItem && taskItem.isCompleted) {
+      return false;
+    }
+
+    return normalizeTaskStartDateValue(taskItem && taskItem.start) === normalizedStartDate;
+  });
+}
+
 function formatTemporalTaskTitle(taskItems) {
   if (!Array.isArray(taskItems) || taskItems.length === 0) {
     return 'Task due';
@@ -350,6 +631,10 @@ function formatTemporalTaskTitle(taskItems) {
   }
 
   return `${firstTaskText} +${additionalCount} more`;
+}
+
+function formatTemporalStartTitle(titleText) {
+  return `Start: ${truncateCalendarCardTitle(titleText)}`;
 }
 
 function createTemporalPlacementForDate(cardEntry, dueDateValue) {
@@ -373,7 +658,31 @@ function createTemporalPlacementForDate(cardEntry, dueDateValue) {
   }
 
   if (normalizeTaskDueDateValue(cardEntry && cardEntry.due) !== normalizedDueDate) {
-    return null;
+    const taskItemsStartingOnDate = getTaskItemsStartingOnDate(cardEntry.taskItems, normalizedDueDate);
+    if (taskItemsStartingOnDate.length > 0) {
+      return {
+        ...cardEntry,
+        temporalDisplayTitle: formatTemporalStartTitle(formatTemporalTaskTitle(taskItemsStartingOnDate)),
+        temporalDisplaySubtitle: cardEntry.title,
+        temporalReason: 'task-start',
+        temporalTaskCount: taskItemsStartingOnDate.length,
+        temporalTaskLineIndexes: taskItemsStartingOnDate
+          .map((taskItem) => Number(taskItem && taskItem.lineIndex))
+          .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0),
+      };
+    }
+
+    if (normalizeTaskStartDateValue(cardEntry && cardEntry.start) !== normalizedDueDate) {
+      return null;
+    }
+
+    return {
+      ...cardEntry,
+      temporalDisplayTitle: formatTemporalStartTitle(cardEntry.title),
+      temporalDisplaySubtitle: '',
+      temporalReason: 'card-start',
+      temporalTaskCount: 0,
+    };
   }
 
   return {
@@ -409,6 +718,19 @@ function getTaskLineIndexesDueOnDateFromBody(bodyValue, dueDateValue) {
     .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0);
 }
 
+function getTaskLineIndexesStartingOnDateFromBody(bodyValue, startDateValue) {
+  const normalizedStartDate = normalizeTaskStartDateValue(startDateValue);
+  if (!normalizedStartDate) {
+    return [];
+  }
+
+  return parseTaskListItems(bodyValue)
+    .filter((taskItem) => taskItem && !taskItem.isCompleted)
+    .filter((taskItem) => normalizeTaskStartDateValue(taskItem.start) === normalizedStartDate)
+    .map((taskItem) => Number(taskItem.lineIndex))
+    .filter((lineIndex) => Number.isInteger(lineIndex) && lineIndex >= 0);
+}
+
 async function moveTemporalTaskDueDate(cardPath, sourceDate, targetDate, taskLineIndexes) {
   const card = await window.board.readCard(cardPath);
   const body = String(card && card.body ? card.body : '');
@@ -425,6 +747,31 @@ async function moveTemporalTaskDueDate(cardPath, sourceDate, targetDate, taskLin
   let nextBody = body;
   for (const lineIndex of lineIndexes) {
     nextBody = setTaskListItemDueDateByLineIndex(nextBody, lineIndex, targetDate);
+  }
+
+  await window.board.writeCard(cardPath, {
+    frontmatter,
+    body: nextBody,
+  });
+  return true;
+}
+
+async function moveTemporalTaskStartDate(cardPath, sourceDate, targetDate, taskLineIndexes) {
+  const card = await window.board.readCard(cardPath);
+  const body = String(card && card.body ? card.body : '');
+  const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
+    ? card.frontmatter
+    : {};
+  const lineIndexes = Array.isArray(taskLineIndexes) && taskLineIndexes.length > 0
+    ? taskLineIndexes
+    : getTaskLineIndexesStartingOnDateFromBody(body, sourceDate);
+  if (lineIndexes.length === 0) {
+    return false;
+  }
+
+  let nextBody = body;
+  for (const lineIndex of lineIndexes) {
+    nextBody = setTaskListItemStartDateByLineIndex(nextBody, lineIndex, targetDate);
   }
 
   await window.board.writeCard(cardPath, {
@@ -451,6 +798,23 @@ async function moveTemporalCardDueDate(cardPath, sourceDate, targetDate, dragged
     }
   }
 
+  if (temporalReason === 'task-start') {
+    const updatedTask = await moveTemporalTaskStartDate(
+      cardPath,
+      sourceDate,
+      targetDate,
+      getTemporalTaskLineIndexesFromElement(draggedCard),
+    );
+    if (updatedTask) {
+      return;
+    }
+  }
+
+  if (temporalReason === 'card-start') {
+    await window.board.updateFrontmatter(cardPath, { start: targetDate });
+    return;
+  }
+
   await window.board.updateFrontmatter(cardPath, { due: targetDate });
 }
 
@@ -467,9 +831,17 @@ async function collectCardsForCalendar(boardRoot, lists, options = {}) {
     : String(boardRoot || '');
 
   const listEntries = await Promise.all(
-    listNames.map(async (listName) => {
-      const listPath = `${boardRoot}${listName}`;
-      const cardNames = await window.board.listCards(listPath);
+    listNames.map(async (listEntry) => {
+      const isSnapshotList = listEntry && typeof listEntry === 'object' && !Array.isArray(listEntry);
+      const listName = isSnapshotList
+        ? String(listEntry.listName || '').trim()
+        : String(listEntry || '').trim();
+      const listPath = isSnapshotList
+        ? String(listEntry.listPath || (typeof joinBoardSnapshotPath === 'function' ? joinBoardSnapshotPath(boardRoot, listName) : `${boardRoot}${listName}`)).trim()
+        : `${boardRoot}${listName}`;
+      const cardNames = isSnapshotList && Array.isArray(listEntry.cards)
+        ? listEntry.cards
+        : await window.board.listCards(listPath);
       return {
         listName,
         listDisplayName: getBoardListDisplayName(listName),
@@ -483,24 +855,31 @@ async function collectCardsForCalendar(boardRoot, lists, options = {}) {
   );
 
   for (const { listName, listDisplayName, listPath, cardNames, isCompletedList } of listEntries) {
-    for (const cardName of cardNames) {
+    for (const cardItem of cardNames) {
+      const cardPath = typeof getBoardSnapshotCardPath === 'function'
+        ? getBoardSnapshotCardPath(listPath, cardItem)
+        : `${listPath}/${cardItem}`;
       cardPaths.push({
         listName,
         listDisplayName,
-        cardPath: `${listPath}/${cardName}`,
+        cardPath,
+        cardRecord: cardItem,
         isCompletedList,
       });
     }
   }
 
   const cardEntries = await Promise.all(
-    cardPaths.map(async ({ listName, listDisplayName, cardPath, isCompletedList }) => {
-      const card = await window.board.readCard(cardPath);
+    cardPaths.map(async ({ listName, listDisplayName, cardPath, cardRecord, isCompletedList }) => {
+      const snapshotCard = typeof getBoardSnapshotCardData === 'function'
+        ? getBoardSnapshotCardData(cardRecord)
+        : null;
+      const card = snapshotCard || await window.board.readCard(cardPath);
       const frontmatter = card && card.frontmatter && typeof card.frontmatter === 'object'
         ? card.frontmatter
         : {};
       const body = String(card && card.body ? card.body : '');
-      const taskItems = parseTaskListItems(body);
+      const taskItems = Array.isArray(card.taskItems) ? card.taskItems : parseTaskListItems(body);
 
       return {
         boardRoot: normalizedBoardRoot,
@@ -512,15 +891,26 @@ async function collectCardsForCalendar(boardRoot, lists, options = {}) {
         listDisplayName,
         isCompletedList: Boolean(isCompletedList),
         title: truncateCalendarCardTitle(frontmatter.title),
+        start: String(frontmatter.start || '').trim(),
         due: String(frontmatter.due || '').trim(),
         labels: Array.isArray(frontmatter.labels)
           ? frontmatter.labels.map((labelId) => String(labelId))
           : [],
         body,
-        taskSummary: getTaskListSummary(body),
+        taskSummary: card.taskSummary && typeof card.taskSummary === 'object'
+          ? card.taskSummary
+          : getTaskListSummary(body),
         taskItems,
-        taskDueDates: getTaskListDueDates(body),
-        incompleteTaskDueDates: getIncompleteTaskListDueDates(body),
+        taskStartDates: Array.isArray(card.taskStartDates)
+          ? card.taskStartDates
+          : (typeof getTaskListStartDates === 'function' ? getTaskListStartDates(body) : []),
+        incompleteTaskStartDates: Array.isArray(card.incompleteTaskStartDates)
+          ? card.incompleteTaskStartDates
+          : (typeof getIncompleteTaskListStartDates === 'function' ? getIncompleteTaskListStartDates(body) : []),
+        taskDueDates: Array.isArray(card.taskDueDates) ? card.taskDueDates : getTaskListDueDates(body),
+        incompleteTaskDueDates: Array.isArray(card.incompleteTaskDueDates)
+          ? card.incompleteTaskDueDates
+          : getIncompleteTaskListDueDates(body),
       };
     }),
   );
@@ -623,187 +1013,96 @@ function buildWeekCardBuckets(cardEntries, weekStartDate) {
   return buckets;
 }
 
-function syncBoardViewSelectWithState() {
-  const viewButton = document.getElementById('boardViewButton');
-  if (!viewButton) {
+function syncBoardViewControlState() {
+  syncWorkspaceViewDockState();
+}
+
+function getWorkspaceViewOption(viewId) {
+  const normalizedViewId = normalizeWorkspaceViewId(viewId);
+  return WORKSPACE_VIEW_OPTIONS.find((option) => option.id === normalizedViewId) || WORKSPACE_VIEW_OPTIONS[1];
+}
+
+function getWorkspaceViewButton(viewId) {
+  const normalizedViewId = normalizeWorkspaceViewId(viewId);
+  return document.querySelector(`.workspace-view-dock-button[data-workspace-view="${normalizedViewId}"]`);
+}
+
+function syncWorkspaceViewDockState(forcedActiveView = '') {
+  const dock = document.getElementById('workspaceViewDock');
+  if (!dock) {
     return;
   }
 
-  const activeView = getActiveBoardView();
-  const activeOption = BOARD_VIEW_OPTIONS.find((option) => option.id === activeView) || BOARD_VIEW_OPTIONS[0];
-  const iconName = BOARD_VIEW_ICON_BY_ID[activeOption.id] || BOARD_VIEW_ICON_BY_ID[BOARD_VIEW_IDS.KANBAN];
-  viewButton.setAttribute('data-active-view', activeOption.id);
-  viewButton.setAttribute('aria-label', `Current view: ${activeOption.label}. Change view.`);
-  viewButton.setAttribute('title', `Current view: ${activeOption.label}. Change view.`);
+  const hasOpenBoard = Boolean(window.boardRoot);
+  dock.setAttribute('aria-hidden', hasOpenBoard ? 'false' : 'true');
 
-  const iconMarkup = (
-    window.feather &&
-    window.feather.icons &&
-    typeof window.feather.icons[iconName]?.toSvg === 'function'
-  )
-    ? window.feather.icons[iconName].toSvg({
-      width: 16,
-      height: 16,
-      stroke: 'currentColor',
-    })
-    : `<i data-feather="${iconName}"></i>`;
+  const activeView = forcedActiveView
+    ? normalizeWorkspaceViewId(forcedActiveView)
+    : getActiveWorkspaceView();
 
-  viewButton.innerHTML = `
-    <span class="board-menu-action-icon" aria-hidden="true">${iconMarkup}</span>
-    <span class="board-menu-action-label">View: ${activeOption.label}</span>
-  `;
+  for (const option of WORKSPACE_VIEW_OPTIONS) {
+    const button = getWorkspaceViewButton(option.id);
+    if (!button) {
+      continue;
+    }
 
-  if (
-    !(
-      window.feather &&
-      window.feather.icons &&
-      typeof window.feather.icons[iconName]?.toSvg === 'function'
-    ) &&
-    typeof feather !== 'undefined' &&
-    feather &&
-    typeof feather.replace === 'function'
-  ) {
-    feather.replace();
-  }
-
-  const svgIcon = viewButton.querySelector('svg');
-  if (svgIcon) {
-    svgIcon.setAttribute('aria-hidden', 'true');
-    svgIcon.setAttribute('focusable', 'false');
+    const isActive = option.id === activeView;
+    button.classList.toggle('is-active', isActive);
+    button.classList.toggle('is-primary', option.id === WORKSPACE_VIEW_IDS.KANBAN);
+    button.setAttribute('aria-pressed', String(isActive));
+    button.setAttribute('aria-label', `${isActive ? 'Current view: ' : 'Show '}${option.label}`);
+    button.setAttribute('title', `${option.label}${option.shortcutActionId ? ` (${getShortcutHintText(option.shortcutActionId)})` : ''}`);
+    if (option.shortcutActionId) {
+      button.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(option.shortcutActionId));
+    } else {
+      button.removeAttribute('aria-keyshortcuts');
+    }
   }
 }
 
-function syncBoardViewControlState() {
-  syncBoardViewSelectWithState();
-  renderBoardViewPopover();
-}
+function initializeWorkspaceViewDockControls() {
+  const dock = document.getElementById('workspaceViewDock');
+  if (!dock || dock.dataset.sbInitialized === 'true') {
+    syncWorkspaceViewDockState();
+    return;
+  }
 
-function getBoardViewIconMarkup(viewId) {
-  const normalizedViewId = normalizeBoardViewId(viewId);
-  const iconName = BOARD_VIEW_ICON_BY_ID[normalizedViewId] || BOARD_VIEW_ICON_BY_ID[BOARD_VIEW_IDS.KANBAN];
+  for (const option of WORKSPACE_VIEW_OPTIONS) {
+    const button = getWorkspaceViewButton(option.id);
+    if (!button) {
+      continue;
+    }
 
-  if (
-    window.feather &&
-    window.feather.icons &&
-    typeof window.feather.icons[iconName]?.toSvg === 'function'
-  ) {
-    return window.feather.icons[iconName].toSvg({
-      width: 14,
-      height: 14,
-      stroke: 'currentColor',
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      switchWorkspaceView(option.id).catch((error) => {
+        console.error('Failed to switch workspace view.', error);
+      });
     });
   }
 
-  return `<i data-feather="${iconName}" aria-hidden="true"></i>`;
+  dock.dataset.sbInitialized = 'true';
+  syncWorkspaceViewDockState();
 }
 
 function closeBoardViewPopover() {
-  const popover = document.getElementById('boardViewPopover');
-  if (!popover) {
-    return;
-  }
-
-  popover.classList.add('hidden');
-  popover.setAttribute('aria-hidden', 'true');
 }
 
 function closeBoardViewPopoverIfClickOutside(target) {
-  const viewButton = document.getElementById('boardViewButton');
-  const popover = document.getElementById('boardViewPopover');
-  if (!viewButton || !popover || popover.classList.contains('hidden')) {
-    return;
-  }
-
-  if (viewButton.contains(target) || popover.contains(target)) {
-    return;
-  }
-
-  closeBoardViewPopover();
-}
-
-function renderBoardViewPopover() {
-  const popover = document.getElementById('boardViewPopover');
-  if (!popover) {
-    return;
-  }
-
-  const activeView = getActiveBoardView();
-  popover.innerHTML = '';
-
-  for (const option of BOARD_VIEW_OPTIONS) {
-    const shortcutActionId = option.shortcutActionId || '';
-    const optionButton = document.createElement('button');
-    optionButton.type = 'button';
-    optionButton.className = 'board-view-option';
-    optionButton.dataset.viewId = option.id;
-    optionButton.setAttribute('aria-pressed', String(option.id === activeView));
-    if (shortcutActionId) {
-      optionButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts(shortcutActionId));
-    } else {
-      optionButton.removeAttribute('aria-keyshortcuts');
-    }
-    optionButton.innerHTML = `
-      <span class="board-view-option-check">${option.id === activeView ? '✓' : ''}</span>
-      <span class="board-view-option-icon" aria-hidden="true">${getBoardViewIconMarkup(option.id)}</span>
-      <span class="board-view-option-label">${option.label}</span>
-      <span class="menu-shortcut-hint board-view-option-shortcut" aria-hidden="true">${shortcutActionId ? getShortcutHintText(shortcutActionId) : ''}</span>
-    `;
-    optionButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setActiveBoardView(option.id);
-    });
-    popover.appendChild(optionButton);
-  }
-}
-
-function toggleBoardViewPopover() {
-  const popover = document.getElementById('boardViewPopover');
-  if (!popover) {
-    return;
-  }
-
-  if (typeof closeBoardLabelFilterPopover === 'function') {
-    closeBoardLabelFilterPopover();
-  }
-  if (typeof closeCardLabelPopover === 'function') {
-    closeCardLabelPopover();
-  }
-  if (typeof closeListActionsPopover === 'function') {
-    closeListActionsPopover();
-  }
-
-  renderBoardViewPopover();
-  const isHidden = popover.classList.contains('hidden');
-  popover.classList.toggle('hidden', !isHidden);
-  popover.setAttribute('aria-hidden', isHidden ? 'false' : 'true');
 }
 
 function initializeBoardViewControls() {
   const state = getBoardViewState();
   if (state.controlsInitialized) {
+    initializeWorkspaceViewDockControls();
     syncBoardViewControlState();
     return;
   }
 
-  const viewButton = document.getElementById('boardViewButton');
-  const popover = document.getElementById('boardViewPopover');
-  if (!viewButton || !popover) {
-    return;
-  }
+  initializeWorkspaceViewDockControls();
 
   syncBoardViewControlState();
-
-  viewButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    toggleBoardViewPopover();
-  });
-
-  popover.addEventListener('click', (event) => {
-    event.stopPropagation();
-  });
-
   state.controlsInitialized = true;
 }
 

@@ -147,6 +147,7 @@ async function run() {
     assert.strictEqual(backlogFiles.length, 1);
     const openCard = await cardFrontmatter.readCard(path.join(boardRoot, backlogDirectory, backlogFiles[0]));
     assert.strictEqual(openCard.frontmatter.title, 'Open Trello Card');
+    assert.strictEqual(openCard.frontmatter.start, '2026-04-01');
     assert.strictEqual(openCard.frontmatter.due, '2026-04-02');
     assert.deepStrictEqual(openCard.frontmatter.labels.sort(), ['quoted-existing', settings.labels.find((label) => label.name === 'Trello Blue').id].sort());
     assert(openCard.body.includes('Body from Trello'));

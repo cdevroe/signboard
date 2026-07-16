@@ -41,6 +41,7 @@ async function run() {
     const roundTripContent = [
       '---',
       'title: Keep body exact',
+      'scheduled: 2026-03-28',
       'due: 2026-04-01',
       'labels:',
       '  - alpha',
@@ -60,6 +61,7 @@ async function run() {
     await fs.writeFile(roundTripPath, roundTripContent, 'utf8');
 
     const firstRead = await readCard(roundTripPath);
+    assert.strictEqual(firstRead.frontmatter.start, '2026-03-28');
     const bodyBefore = firstRead.body;
 
     await writeCard(roundTripPath, firstRead);
@@ -71,6 +73,7 @@ async function run() {
     await updateFrontmatter(roundTripPath, { due: '2026-05-20' });
     const updated = await readCard(roundTripPath);
     assert.strictEqual(updated.frontmatter.title, 'Keep body exact');
+    assert.strictEqual(updated.frontmatter.start, '2026-03-28');
     assert.strictEqual(updated.frontmatter.due, '2026-05-20');
     assert.strictEqual(updated.frontmatter.owner, 'Colin');
     assert.deepStrictEqual(updated.frontmatter.labels, ['alpha']);
@@ -90,13 +93,14 @@ async function run() {
     assert.deepStrictEqual(plainCard.frontmatter.labels, []);
     assert.strictEqual(plainCard.body, plainContent);
 
-    // 5) due should not be written when null/empty
+    // 5) start and due should not be written when null/empty
     const noDuePath = path.join(tmpDir, '020-no-due.md');
     await writeCard(noDuePath, {
-      frontmatter: { title: 'No Due', due: null, labels: [] },
+      frontmatter: { title: 'No Due', start: '', due: null, labels: [] },
       body: 'Body',
     });
     const noDueRaw = await fs.readFile(noDuePath, 'utf8');
+    assert(!noDueRaw.includes('\nstart:'), 'start field should be omitted when null/empty');
     assert(!noDueRaw.includes('\ndue:'), 'due field should be omitted when null/empty');
 
     console.log('Frontmatter tests passed.');

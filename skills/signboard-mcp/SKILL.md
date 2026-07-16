@@ -18,16 +18,17 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 ## Tool Workflow
 
 1. Call `signboard_get_config` first.
-2. If board root is unknown, prefer `signboard_resolve_board_by_name` first when `allowedRoots` are available; otherwise ask user for the absolute board path.
-3. Discover structure:
+2. Call `signboard_list_boards` when board root is unknown or ambiguous; prefer an `isActive` or `isOpen` match when it fits the user's request.
+3. If the board is not listed but the name is known, use `signboard_resolve_board_by_name` when `allowedRoots` are available; otherwise ask user for the absolute board path.
+4. Discover structure:
    - `signboard_list_lists`
    - `signboard_list_cards`
    - `signboard_read_card` as needed
-4. Before write actions, verify:
+5. Before write actions, verify:
    - user requested the change
    - server is not read-only
    - target list/card exists (or should be created)
-5. Execute write tool only after checks:
+6. Execute write tool only after checks:
    - `signboard_create_card`
    - `signboard_update_card`
    - `signboard_duplicate_card`
@@ -49,7 +50,8 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 ## Tool Reference
 
 - `signboard_get_config`: inspect MCP mode and path constraints.
-- `signboard_list_board_views`: list available board views (`kanban`, `calendar`, `this-week`).
+- `signboard_list_boards`: list known usable board roots with desktop-open, active, trusted, current, and allowed-root metadata.
+- `signboard_list_board_views`: list available board views (`kanban`, `table`).
 - `signboard_resolve_board_by_name`: map a board directory name to absolute board paths under allowed roots, including allowed roots that are themselves board folders.
 - `signboard_list_lists`: get list directory names in a board.
 - `signboard_list_cards`: get card markdown files in a list.

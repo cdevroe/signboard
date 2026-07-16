@@ -2,7 +2,7 @@
 
 Signboard is a local-first desktop kanban app that stores your lists as directories and cards as Markdown files on disk.
 
-Signboard is free for personal use. If you are using Signboard for your work it would be appreciated if you purchase a commercial license to sponsor future development. See the app's "Sponsor" button.
+Signboard is free for personal use. If you are using Signboard for your work, it would be appreciated if you make the commercial-use sponsorship payment to support future development. See the app's "Sponsor" button.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](../../issues)
@@ -17,9 +17,9 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - 🖌️ Color scheme per board (several to choose from!)
 - 🌙 Light and dark mode variants for all color schemes
 - 🏷 Custom labels per board
-- 🗓 Card due dates and task list item due dates
-- 📋 Kanban and Table board views, including card age columns and sorting in Table
-- 🗂 Planner overlay for actionable dated work across open boards
+- 🗓 Compact calendar controls for card and task list item start/due dates
+- 📋 Bottom view dock for Planner, Kanban, and Table, including card age columns, sorting, list filtering, and bulk actions in Table
+- 🗂 Planner workspace view for actionable dated work across open boards
 - 📆 Optional local External Published Calendar feed for calendar app subscriptions
 - 🔮 Obsidian-friendly properties, Bases generation, linked objects, linked-object counts, and `signboard://` card links
 - 🎨 Board-colored source pills in Planner date views
@@ -27,8 +27,10 @@ Signboard is free for personal use. If you are using Signboard for your work it 
 - ✅ Progress counters on cards
 - 🔎 Live search
 - 🗄️ Linked files and URLs on cards
+- ✨ Optional local Ollama Smart Card Actions for titles, summaries, task lists, auto-labeling, smart paste, due dates, linked objects, one-off quick prompts, read-only card questions, and drag-reorderable custom actions
 - 🧲 Drag-and-drop card movement
 - ⚡ Unlimited open boards with overflow tabs and a quick switcher
+- 🧬 Board duplication from Settings with fresh copied-card IDs
 - ⌨️ Keyboard shortcuts
 - ♿ Keyboard, screen reader, reduced-motion, and forced-colors improvements
 - 🤖 MCP server
@@ -91,7 +93,7 @@ In board search, Planner search, and archive search, `Enter` or `Arrow Down` mov
 Board tabs, list actions, label/filter popovers, and Settings sections support arrow-key navigation. `Home` and `End` jump to the edges, `Esc` closes popovers, and `Delete` / `Backspace` closes a focused board tab.
 
 When a card is open, workspace-level shortcuts such as create, board switcher, Planner/view switching, Settings, Archive, and search close the card first. Card-specific shortcuts such as moving or archiving the open card still act on that card.
-In the Quick Add card modal, choose the board and list before creating the card. `Shift + Enter` creates the card, opens it immediately, and focuses the notes field. App Settings can also register an optional global Quick Add shortcut that works while Signboard is open.
+Use the header `Card` button or `Cmd/Ctrl + N` to open Quick Add. In the Quick Add card modal, choose the board and list before creating the card. `Shift + Enter` creates the card, opens it immediately, and focuses the notes field. App Settings can also register an optional global Quick Add shortcut that works while Signboard is open.
 
 You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 
@@ -107,7 +109,7 @@ Signboard includes a built-in MCP server so agents can interact with local board
 
 - Dedicated instructions: [MCP_README.md](./MCP_README.md)
 - To copy config: `Help` -> `Copy MCP Config`
-- MCP uses both explicit allowed roots and Signboard's desktop trusted board roots for board lookup.
+- MCP uses `signboard_list_boards` plus both explicit allowed roots and Signboard's desktop trusted/open board state for board lookup.
 - Optional agent skill: `skills/signboard-mcp/SKILL.md`
 
 ## 💻 CLI
@@ -117,6 +119,7 @@ Signboard includes a terminal CLI for direct board management without going thro
 - Full guide: [docs/signboard-cli.md](./docs/signboard-cli.md)
 
 - In the desktop app on macOS/Linux: `Help` -> `Install Signboard CLI`
+- Use `signboard boards list --json` to list known boards before choosing one
 - Use `signboard use /Path/to/Board` once to remember the active board for later commands
 - Use `signboard boards create /Path/to/NewBoard --use` to create and select a new board from the terminal
 - The installed `signboard` wrapper runs the bundled CLI in Electron's Node mode, avoiding desktop app startup for terminal commands.
@@ -125,6 +128,7 @@ Examples:
 
 ```bash
 # Select a board once
+signboard boards list --json
 signboard use /Path/to/Board
 
 # Create a board
@@ -139,7 +143,7 @@ signboard lists rename "Waiting" "Blocked"
 signboard cards --due next:7
 signboard cards "To do"
 signboard cards --label Urgent --search launch
-signboard cards create --list "To do" --title "Ship release notes" --due 2026-03-20
+signboard cards create --list "To do" --title "Ship release notes" --start 2026-03-18 --due 2026-03-20
 signboard cards edit --card ab123 --due none --move-to Doing
 signboard cards duplicate --card ab123 --list Leads --remove-label Template --dry-run --json
 signboard cards create --from-card ab123 --list Leads --title "New lead"
@@ -192,7 +196,9 @@ Example task checklist syntax:
 
 ```md
 - [ ] Draft update
+- [ ] (start: 2026-03-18) Outline proposal
 - [x ] (due: 2026-03-20) Send proposal
+- [ ] (scheduled: 2026-03-21) Follow up
 - [ X] Confirm scope
 - [ x ] Share notes
 ```
@@ -220,7 +226,10 @@ npm start
 ```bash
 npm run test:frontmatter
 npm run test:board-labels
+npm run test:board-snapshot
+npm run test:board-duplication
 npm run test:app-settings
+npm run test:ai-task-suggestions
 npm run test:board-card-metadata
 npm run test:due-notifications
 npm run test:task-list

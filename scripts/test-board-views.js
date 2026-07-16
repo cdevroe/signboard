@@ -225,6 +225,9 @@ function createLabel(index, name = `Label ${index}`) {
 
 function createContext() {
   const elements = new Map();
+  const workspaceButtonMap = new Map();
+  let timerId = 0;
+  const timers = new Map();
   const documentElement = {
     dataset: { theme: 'light' },
     style: {
@@ -238,6 +241,13 @@ function createContext() {
     getElementById: (id) => elements.get(id) || null,
     documentElement,
     body: new MockElement('body'),
+    querySelector: (selector) => {
+      const match = String(selector || '').match(/\.workspace-view-dock-button\[data-workspace-view="([^"]+)"\]/);
+      if (match) {
+        return workspaceButtonMap.get(match[1]) || null;
+      }
+      return null;
+    },
     querySelectorAll: () => [],
   };
 
@@ -253,6 +263,18 @@ function createContext() {
         listCards: async () => [],
         readCard: async () => ({ frontmatter: {}, body: '' }),
         formatDueDate: async (dateValue) => String(dateValue || ''),
+      },
+      setTimeout: (callback, delay = 0) => {
+        const id = ++timerId;
+        timers.set(id, { callback, delay });
+        return id;
+      },
+      clearTimeout: (id) => {
+        timers.delete(id);
+      },
+      requestAnimationFrame: (callback) => {
+        callback();
+        return 0;
       },
     },
     document,
@@ -279,6 +301,7 @@ function createContext() {
   loadSource(context, 'app/utilities/linkedObjects.js');
   loadSource(context, 'app/board/boardLabels.js');
   loadSource(context, 'app/board/boardSearch.js');
+  loadSource(context, 'app/board/boardSnapshot.js');
   loadSource(context, 'app/board/boardViews.js');
   loadSource(context, 'app/board/tableView.js');
   loadSource(context, 'app/board/plannerView.js');
@@ -287,21 +310,29 @@ function createContext() {
   const filterButton = new MockElement('button');
   const filterLabel = new MockElement('span');
   const filterPopover = new MockElement('div');
-  const viewButton = new MockElement('button');
-  const viewPopover = new MockElement('div');
+  const workspaceDock = new MockElement('nav');
+  const boardEl = new MockElement('main');
   const listActionsPopover = new MockElement('div');
   elements.set('labelFilterButton', filterButton);
   elements.set('labelFilterButtonText', filterLabel);
   elements.set('labelFilterPopover', filterPopover);
-  elements.set('boardViewButton', viewButton);
-  elements.set('boardViewPopover', viewPopover);
+  elements.set('workspaceViewDock', workspaceDock);
+  elements.set('board', boardEl);
   elements.set('listActionsPopover', listActionsPopover);
+  for (const viewId of ['planner', 'kanban', 'table']) {
+    const button = new MockElement('button');
+    button.className = 'workspace-view-dock-button';
+    button.dataset.workspaceView = viewId;
+    workspaceButtonMap.set(viewId, button);
+    workspaceDock.appendChild(button);
+  }
 
   return {
     context,
     filterButton,
     filterPopover,
-    viewPopover,
+    workspaceDock,
+    workspaceButtonMap,
     listActionsPopover,
   };
 }
@@ -311,7 +342,8 @@ async function run() {
     context,
     filterButton,
     filterPopover,
-    viewPopover,
+    workspaceDock,
+    workspaceButtonMap,
     listActionsPopover,
   } = createContext();
 
@@ -455,6 +487,11 @@ async function run() {
   assert.strictEqual(filterButton.classList.contains('is-active'), true);
   assert.strictEqual(filterButton.getAttribute('data-active-filters'), '2');
 
+  filterState.filterIds = [];
+  filterState.activeDateFilter = 'next:7';
+  context.renderBoardLabelFilterButton();
+  assert.strictEqual(filterButton.getAttribute('aria-label'), 'Filter cards: Next 7 days');
+
   assert.deepStrictEqual(
     toPlain(context.getCardFilterDueDates('2026-03-10', ['2026-03-09', '2026-03-10'])),
     ['2026-03-09', '2026-03-10'],
@@ -473,6 +510,17 @@ async function run() {
   assert.strictEqual(context.cardMatchesBoardLabelFilter([], ['2026-03-10']), false);
   assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-09'), true);
   assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-10'), false);
+  filterState.activeDateFilter = 'next:7';
+  assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-10'), true);
+  assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-17'), true);
+  assert.strictEqual(context.doesBoardDateFilterMatchDueDate('2026-03-18'), false);
+  assert.strictEqual(context.cardMatchesBoardLabelFilter([], ['2026-03-12']), true);
+  assert.deepStrictEqual(
+    toPlain(context.getActiveBoardFilterDueDates('', ['2026-03-12'], [])),
+    [],
+    'expected next-range active-filter due dates to ignore completed task dates',
+  );
+  filterState.activeDateFilter = 'overdue';
   assert.strictEqual(
     context.cardMatchesBoardLabelFilter([], ['2026-03-09'], []),
     false,
@@ -513,7 +561,7 @@ async function run() {
   const tableHeader = context.createBoardTableHeader();
   assert.deepStrictEqual(
     toPlain(tableHeader.children[0].children.map((headerCell) => headerCell.textContent)),
-    ['Due', 'Updated', 'Created', 'Tasks', 'Links', 'Card', 'List', 'Labels'],
+    ['', 'Start', 'Due', 'Updated', 'Created', 'Tasks', 'Links', 'Card', 'List', 'Labels'],
     'expected table columns to keep the configured order',
   );
 
@@ -555,12 +603,30 @@ async function run() {
     'expected created oldest-first sort to surface oldest cards',
   );
 
-  context.renderBoardViewPopover();
-  assert(viewPopover.textContent.includes('Ctrl+1'), 'expected Kanban shortcut hint in view popover');
-  assert(viewPopover.textContent.includes('Ctrl+Alt+1'), 'expected Table shortcut hint in view popover');
-  assert(viewPopover.textContent.includes('Table'), 'expected Table option in board view popover');
-  assert(!viewPopover.textContent.includes('Ctrl+2'), 'expected Calendar shortcut to move out of the board view popover');
-  assert(!viewPopover.textContent.includes('Ctrl+3'), 'expected This Week shortcut to move out of the board view popover');
+  context.window.boardRoot = '/tmp/client-a/';
+  context.initializeBoardViewControls();
+  assert.strictEqual(workspaceDock.getAttribute('aria-hidden'), 'false', 'expected workspace dock to be visible with an open board');
+  assert.strictEqual(workspaceButtonMap.get('planner').getAttribute('title'), 'Planner (Ctrl+Shift+P)');
+  assert.strictEqual(workspaceButtonMap.get('kanban').getAttribute('title'), 'Kanban (Ctrl+1)');
+  assert.strictEqual(workspaceButtonMap.get('table').getAttribute('title'), 'Table (Ctrl+Alt+1)');
+  assert.strictEqual(workspaceButtonMap.get('kanban').getAttribute('aria-pressed'), 'true', 'expected Kanban to default active');
+  assert.strictEqual(workspaceButtonMap.get('table').getAttribute('aria-pressed'), 'false', 'expected Table to start inactive');
+
+  context.setActiveBoardView('table', { render: false });
+  assert.strictEqual(workspaceButtonMap.get('table').getAttribute('aria-pressed'), 'true', 'expected Table dock button to become active');
+  assert.strictEqual(workspaceButtonMap.get('kanban').getAttribute('aria-pressed'), 'false', 'expected Kanban dock button to become inactive');
+  assert.strictEqual(context.getWorkspaceViewTransitionDirection('planner', 'kanban'), 'right', 'expected Kanban to sit right of Planner');
+  assert.strictEqual(context.getWorkspaceViewTransitionDirection('kanban', 'planner'), 'left', 'expected Planner to sit left of Kanban');
+  assert.strictEqual(context.getWorkspaceViewTransitionDirection('kanban', 'table'), 'right', 'expected Table to sit right of Kanban');
+  assert.strictEqual(context.getWorkspaceViewTransitionDirection('table', 'kanban'), 'left', 'expected Kanban to sit left of Table');
+  context.setWorkspaceTransitionDirection('right');
+  context.playPendingWorkspaceBoardTransition();
+  assert.strictEqual(context.document.body.getAttribute('data-workspace-transition'), 'enter-right', 'expected Table-side views to enter from the right');
+  context.clearWorkspaceTransitionState();
+  context.setWorkspaceTransitionDirection('left');
+  context.playPendingWorkspaceBoardTransition();
+  assert.strictEqual(context.document.body.getAttribute('data-workspace-transition'), 'enter-left', 'expected Planner-side views to enter from the left');
+  context.clearWorkspaceTransitionState();
 
   const listActionsState = context.getListActionsPopoverState();
   listActionsState.anchorElement = new MockElement('button');
@@ -578,6 +644,7 @@ async function run() {
 
   assert(filterPopover.textContent.includes('Today'), 'expected Today row in filter popover');
   assert(filterPopover.textContent.includes('Overdue'), 'expected Overdue row in filter popover');
+  assert(filterPopover.textContent.includes('Next 7 days'), 'expected Next 7 days row in filter popover');
   assert(findFirstByClass(filterPopover, 'label-popover-separator'), 'expected separator in filter popover');
   assert(findFirstByClass(filterPopover, 'label-popover-labels-scroll'), 'expected scroll container for long label lists');
 
@@ -588,6 +655,38 @@ async function run() {
   const todayTaskBody = '- [ ] (due: 2026-03-10) Prep launch';
   const todayTaskItems = context.parseTaskListItems(todayTaskBody);
   const entries = [
+    {
+      cardPath: '/tmp/task-starts-soon.md',
+      listName: '003-In Progress-abc12',
+      listDisplayName: 'In Progress',
+      title: 'Task starts soon',
+      start: '',
+      due: '',
+      labels: [],
+      body: '- [ ] (start: 2026-03-12) Draft outline',
+      taskSummary: { total: 1, completed: 0, remaining: 1 },
+      taskItems: context.parseTaskListItems('- [ ] (start: 2026-03-12) Draft outline'),
+      taskStartDates: ['2026-03-12'],
+      incompleteTaskStartDates: ['2026-03-12'],
+      taskDueDates: [],
+      incompleteTaskDueDates: [],
+    },
+    {
+      cardPath: '/tmp/card-starts-soon.md',
+      listName: '001-Backlog-abc12',
+      listDisplayName: 'Backlog',
+      title: 'Card starts soon',
+      start: '2026-03-12',
+      due: '',
+      labels: [],
+      body: 'Body',
+      taskSummary: { total: 0, completed: 0, remaining: 0 },
+      taskItems: [],
+      taskStartDates: [],
+      incompleteTaskStartDates: [],
+      taskDueDates: [],
+      incompleteTaskDueDates: [],
+    },
     {
       cardPath: '/tmp/task-today.md',
       listName: '003-In Progress-abc12',
@@ -683,6 +782,15 @@ async function run() {
   assert.strictEqual(overdueWeekEntries[0].temporalReason, 'card');
   assert.strictEqual(overdueWeekBuckets.has('2026-03-10'), false);
 
+  filterState.activeDateFilter = 'next:7';
+  const nextCalendarBuckets = context.buildCalendarCardBuckets(entries, new context.Date(2026, 2, 1));
+  const nextStartEntries = nextCalendarBuckets.get('2026-03-12') || [];
+  assert.deepStrictEqual(
+    toPlain(nextStartEntries.map((entry) => entry.temporalReason).sort()),
+    ['card-start', 'task-start'],
+    'expected next-range calendar view to include card and task start placements',
+  );
+
   const tableLists = [
     {
       listName: '000-To-do-stock',
@@ -726,6 +834,55 @@ async function run() {
   assert.strictEqual(unfilteredTableState.allCards.length, 3, 'expected table collection to read every card');
   assert.strictEqual(unfilteredTableState.visibleCards.length, 3, 'expected table view to include every unfiltered card');
   assert.strictEqual(unfilteredTableState.allCards[0].linkedObjectCount, 2, 'expected table collection to count linked objects');
+
+  context.getBoardTableState().listFilter = 'completed';
+  const completedListTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);
+  assert.deepStrictEqual(
+    toPlain(completedListTableState.visibleCards.map((card) => card.title)),
+    ['Finished overdue'],
+    'expected table list filter to show completed-list cards',
+  );
+  context.getBoardTableState().listFilter = 'list:/tmp/board/000-To-do-stock';
+  const singleListTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);
+  assert.deepStrictEqual(
+    toPlain(singleListTableState.visibleCards.map((card) => card.title)),
+    ['Alpha task', 'Beta overdue'],
+    'expected table list filter to show cards from one list',
+  );
+  context.getBoardTableState().listFilter = 'all';
+
+  context.clearBoardTableSelection();
+  const tableSelectionEntries = context.sortBoardTableCards(unfilteredTableState.visibleCards);
+  context.selectBoardTableEntryRange(tableSelectionEntries[0], tableSelectionEntries, true, false);
+  assert.deepStrictEqual(
+    toPlain(context.getBoardTableSelectedEntries(tableSelectionEntries).map((card) => card.title)),
+    ['Alpha task'],
+    'expected first selected table row to seed selection',
+  );
+  context.selectBoardTableEntryRange(tableSelectionEntries[2], tableSelectionEntries, true, true);
+  assert.deepStrictEqual(
+    toPlain(context.getBoardTableSelectedEntries(tableSelectionEntries).map((card) => card.title)),
+    ['Alpha task', 'Beta overdue', 'Finished overdue'],
+    'expected shift-select to select the row range',
+  );
+  context.selectBoardTableEntryRange(tableSelectionEntries[1], tableSelectionEntries, false, true);
+  assert.deepStrictEqual(
+    toPlain(context.getBoardTableSelectedEntries(tableSelectionEntries).map((card) => card.title)),
+    ['Alpha task'],
+    'expected shift-unselect to clear the row range',
+  );
+  context.clearBoardTableSelection();
+
+  assert.deepStrictEqual(
+    toPlain(context.getBoardTableLabelsWithAddedIds(['label-2'], ['label-1', 'label-2'])),
+    ['label-2', 'label-1'],
+    'expected bulk add labels to preserve existing labels and append new labels',
+  );
+  assert.deepStrictEqual(
+    toPlain(context.getBoardTableLabelsWithoutIds(['label-1', 'label-2'], ['label-1'])),
+    ['label-2'],
+    'expected bulk remove labels to remove only selected labels',
+  );
 
   filterState.filterIds = ['label-1'];
   const labelFilteredTableState = await context.collectBoardTableCards('/tmp/board/', tableLists);

@@ -158,12 +158,9 @@ function getPlannerActiveView() {
 }
 
 function getPlannerActiveDateFilter() {
-  const normalized = String(getPlannerState().dateFilter || '').trim();
-  if (normalized === BOARD_DATE_FILTER_TODAY || normalized === BOARD_DATE_FILTER_OVERDUE) {
-    return normalized;
-  }
-
-  return BOARD_DATE_FILTER_NONE;
+  return typeof normalizeBoardDateFilter === 'function'
+    ? normalizeBoardDateFilter(getPlannerState().dateFilter)
+    : BOARD_DATE_FILTER_NONE;
 }
 
 function getPlannerShowCompletedCards() {
@@ -596,10 +593,9 @@ function handlePlannerSearchResultKeydown(event) {
 }
 
 function setPlannerDateFilter(filterValue) {
-  const normalized = String(filterValue || '').trim();
   const state = getPlannerState();
-  state.dateFilter = (normalized === BOARD_DATE_FILTER_TODAY || normalized === BOARD_DATE_FILTER_OVERDUE)
-    ? normalized
+  state.dateFilter = typeof normalizeBoardDateFilter === 'function'
+    ? normalizeBoardDateFilter(filterValue)
     : BOARD_DATE_FILTER_NONE;
   renderPlannerViewControls();
   renderPlannerFilterPopover();
@@ -855,13 +851,14 @@ async function collectPlannerCardsForBoard(boardRoot) {
 
   const fallbackBoardName = getBoardLabelFromPath(normalizedBoardRoot);
   try {
-    const [boardDisplayName, lists, boardSettings] = await Promise.all([
-      Promise.resolve(window.board.getBoardName(normalizedBoardRoot)).catch(() => fallbackBoardName),
-      window.board.listLists(normalizedBoardRoot),
-      typeof window.board.readBoardSettings === 'function'
-        ? window.board.readBoardSettings(normalizedBoardRoot).catch(() => ({}))
-        : Promise.resolve({}),
-    ]);
+    const snapshot = await readBoardSnapshotForRender(normalizedBoardRoot, {
+      includeBoardSettings: true,
+      includeTimestamps: false,
+      includeTaskItems: true,
+    });
+    const boardDisplayName = snapshot.boardName || fallbackBoardName;
+    const lists = snapshot.lists;
+    const boardSettings = snapshot.boardSettings || {};
     const boardSourceTheme = typeof getBoardTemporalSourceTheme === 'function'
       ? getBoardTemporalSourceTheme(boardSettings || {})
       : null;
@@ -1137,6 +1134,18 @@ function createPlannerEmptyState(message) {
   return emptyEl;
 }
 
+function getPlannerBucketCardCount(cardsByDate) {
+  if (!(cardsByDate instanceof Map)) {
+    return 0;
+  }
+
+  let count = 0;
+  for (const entries of cardsByDate.values()) {
+    count += Array.isArray(entries) ? entries.length : 0;
+  }
+  return count;
+}
+
 function renderPlannerCalendarView(container, cardEntries) {
   const monthCursor = getPlannerCalendarCursorDate();
   const cardsByDate = buildPlannerCalendarCardBuckets(cardEntries, monthCursor);
@@ -1145,6 +1154,10 @@ function renderPlannerCalendarView(container, cardEntries) {
   calendarEl.className = 'planner-view planner-calendar board-calendar';
   calendarEl.appendChild(createPlannerCalendarHeader(monthCursor));
   calendarEl.appendChild(createCalendarWeekdayHeader());
+  if (getPlannerBucketCardCount(cardsByDate) === 0) {
+    calendarEl.classList.add('has-empty-notice');
+    calendarEl.appendChild(createPlannerEmptyState('No dated cards are visible for this month. Add card or task start/due dates, or clear Planner filters.'));
+  }
 
   const grid = document.createElement('div');
   grid.className = 'board-calendar-grid';
@@ -1214,6 +1227,10 @@ function renderPlannerWeekView(container, cardEntries) {
   const weekEl = document.createElement('section');
   weekEl.className = 'planner-view planner-this-week board-this-week';
   weekEl.appendChild(createPlannerWeekHeader(weekStartDate));
+  if (getPlannerBucketCardCount(cardsByDate) === 0) {
+    weekEl.classList.add('has-empty-notice');
+    weekEl.appendChild(createPlannerEmptyState('No dated cards are visible this week. Add card or task start/due dates, or clear Planner filters.'));
+  }
 
   const grid = document.createElement('div');
   grid.className = 'board-this-week-grid';
@@ -1303,7 +1320,7 @@ function renderPlannerDayView(container, cardEntries) {
   const listEl = document.createElement('div');
   listEl.className = 'planner-list-view';
   if (placements.length === 0) {
-    listEl.appendChild(createPlannerEmptyState('No dated cards for this day.'));
+    listEl.appendChild(createPlannerEmptyState('No dated cards are visible for this day. Add card or task start/due dates, or clear Planner filters.'));
   } else {
     for (const placement of placements) {
       listEl.appendChild(createPlannerTemporalCard(placement, isoDate, 'planner-list-card'));
@@ -1354,7 +1371,7 @@ function renderPlannerAgendaView(container, cardEntries) {
   listEl.className = 'planner-agenda-list';
 
   if (placements.length === 0) {
-    listEl.appendChild(createPlannerEmptyState('No dated cards match this agenda.'));
+    listEl.appendChild(createPlannerEmptyState('No dated cards match this agenda. Add card or task start/due dates, or clear Planner filters.'));
   } else {
     const placementsByDate = new Map();
     for (const placement of placements) {
@@ -1536,10 +1553,8 @@ function renderPlannerViewControls() {
   if (filterButton) {
     const activeFilterParts = [];
     const activeDateFilter = getPlannerActiveDateFilter();
-    if (activeDateFilter === BOARD_DATE_FILTER_TODAY) {
-      activeFilterParts.push('Today');
-    } else if (activeDateFilter === BOARD_DATE_FILTER_OVERDUE) {
-      activeFilterParts.push('Overdue');
+    if (activeDateFilter) {
+      activeFilterParts.push(getBoardDateFilterLabel(activeDateFilter));
     }
 
     if (selectedBoards.length !== openBoards.length) {
@@ -1591,6 +1606,9 @@ function renderPlannerFilterPopover() {
     { value: BOARD_DATE_FILTER_NONE, label: 'All dated cards' },
     { value: BOARD_DATE_FILTER_TODAY, label: 'Today' },
     { value: BOARD_DATE_FILTER_OVERDUE, label: 'Overdue' },
+    { value: BOARD_DATE_FILTER_NEXT_7, label: 'Next 7 days' },
+    { value: BOARD_DATE_FILTER_NEXT_14, label: 'Next 14 days' },
+    { value: BOARD_DATE_FILTER_NEXT_30, label: 'Next 30 days' },
   ];
 
   for (const option of dateOptions) {
@@ -1865,20 +1883,16 @@ function togglePlannerFilterPopover() {
 }
 
 function syncPlannerAvailability() {
-  const railButton = document.getElementById('plannerRailButton');
   const hasOpenBoards = getPlannerOpenBoardRoots().length > 0;
-  if (railButton) {
-    railButton.disabled = !hasOpenBoards;
-    railButton.setAttribute('aria-hidden', hasOpenBoards ? 'false' : 'true');
-    railButton.setAttribute('title', `Open Planner (${getShortcutHintText('plannerToggle')})`);
-    railButton.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts('plannerToggle'));
-  }
 
   if (!hasOpenBoards && isPlannerOpen()) {
     closePlannerView({ restoreFocus: false });
   }
 
   renderPlannerViewControls();
+  if (typeof syncWorkspaceViewDockState === 'function') {
+    syncWorkspaceViewDockState();
+  }
 }
 
 async function openPlannerView(options = {}) {
@@ -1888,7 +1902,6 @@ async function openPlannerView(options = {}) {
 
   const state = getPlannerState();
   const overlay = document.getElementById('plannerOverlay');
-  const railButton = document.getElementById('plannerRailButton');
   if (!overlay) {
     return false;
   }
@@ -1919,6 +1932,7 @@ async function openPlannerView(options = {}) {
     applyPlannerScope(requestedScope === 'current' ? 'current' : 'all');
   }
   state.isOpen = true;
+  overlay.dataset.transitionDirection = String(options.transitionDirection || 'left');
   overlay.classList.remove('hidden', 'is-closing');
   overlay.setAttribute('aria-hidden', 'false');
   if (typeof overlay.offsetWidth === 'number') {
@@ -1926,19 +1940,18 @@ async function openPlannerView(options = {}) {
     void overlay.offsetWidth;
   }
   document.body.classList.add('planner-open');
-  if (railButton) {
-    railButton.setAttribute('aria-expanded', 'true');
-  }
 
   renderPlannerViewControls();
   await renderPlannerView();
+  if (typeof syncWorkspaceViewDockState === 'function') {
+    syncWorkspaceViewDockState('planner');
+  }
   return true;
 }
 
 function closePlannerView(options = {}) {
   const state = getPlannerState();
   const overlay = document.getElementById('plannerOverlay');
-  const railButton = document.getElementById('plannerRailButton');
   state.isOpen = false;
   document.body.classList.remove('planner-open');
   closePlannerFilterPopover();
@@ -1946,6 +1959,7 @@ function closePlannerView(options = {}) {
 
   if (overlay) {
     overlay.classList.add('is-closing');
+    overlay.dataset.transitionDirection = String(options.transitionDirection || 'left');
     overlay.setAttribute('aria-hidden', 'true');
     window.setTimeout(() => {
       if (!getPlannerState().isOpen) {
@@ -1955,11 +1969,16 @@ function closePlannerView(options = {}) {
     }, 240);
   }
 
-  if (railButton) {
-    railButton.setAttribute('aria-expanded', 'false');
-    if (options.restoreFocus !== false && typeof railButton.focus === 'function') {
-      railButton.focus();
+  if (options.restoreFocus !== false) {
+    const activeBoardView = typeof getActiveBoardView === 'function' ? getActiveBoardView() : 'kanban';
+    const dockButton = document.querySelector(`.workspace-view-dock-button[data-workspace-view="${activeBoardView}"]`);
+    if (dockButton && typeof dockButton.focus === 'function') {
+      dockButton.focus();
     }
+  }
+
+  if (typeof syncWorkspaceViewDockState === 'function') {
+    syncWorkspaceViewDockState();
   }
 }
 
@@ -2005,7 +2024,13 @@ function handlePlannerViewShortcut(event, options = {}) {
         return false;
       }
       event.preventDefault();
-      closePlannerView();
+      if (typeof switchWorkspaceView === 'function') {
+        switchWorkspaceView('kanban').catch((error) => {
+          console.error('Failed to switch from Planner to Kanban.', error);
+        });
+      } else {
+        closePlannerView();
+      }
       return true;
     case 'Digit2':
       nextViewId = PLANNER_VIEW_IDS.CALENDAR;
@@ -2041,33 +2066,13 @@ function initializePlannerControls() {
     return;
   }
 
-  const railButton = document.getElementById('plannerRailButton');
   const closeButton = document.getElementById('plannerCloseButton');
-  const closeRail = document.getElementById('plannerCloseRail');
   const filterButton = document.getElementById('plannerFilterButton');
   const filterPopover = document.getElementById('plannerFilterPopover');
   const searchInput = document.getElementById('plannerSearchInput');
 
-  if (railButton) {
-    railButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      togglePlannerView().catch((error) => {
-        console.error('Failed to toggle Planner.', error);
-      });
-    });
-  }
-
   if (closeButton) {
     closeButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      closePlannerView();
-    });
-  }
-
-  if (closeRail) {
-    closeRail.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
       closePlannerView();

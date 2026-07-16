@@ -106,7 +106,9 @@ function getStoredOpenBoards() {
 }
 
 function setStoredOpenBoards(openBoards) {
-    localStorage.setItem(OPEN_BOARDS_STORAGE_KEY, JSON.stringify(sanitizeOpenBoards(openBoards)));
+    const sanitizedOpenBoards = sanitizeOpenBoards(openBoards);
+    localStorage.setItem(OPEN_BOARDS_STORAGE_KEY, JSON.stringify(sanitizedOpenBoards));
+    syncOpenBoardsStateSnapshot();
 }
 
 function getStoredActiveBoard() {
@@ -117,6 +119,20 @@ function setStoredActiveBoard(boardPath) {
     const normalizedPath = normalizeBoardPath(boardPath);
     localStorage.setItem(ACTIVE_BOARD_STORAGE_KEY, normalizedPath);
     localStorage.setItem('boardPath', normalizedPath);
+    syncOpenBoardsStateSnapshot();
+}
+
+function syncOpenBoardsStateSnapshot() {
+    if (!window.board || typeof window.board.syncOpenBoardsState !== 'function') {
+        return;
+    }
+
+    window.board.syncOpenBoardsState({
+        openBoardPaths: getStoredOpenBoards(),
+        activeBoardPath: getStoredActiveBoard(),
+    }).catch((error) => {
+        console.warn('Unable to sync Signboard open board state.', error);
+    });
 }
 
 function ensureBoardInTabs(boardPath) {
