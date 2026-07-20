@@ -26,6 +26,7 @@ If you want structured tool access from an agent, see [MCP Server](../MCP_README
 - Obsidian integration, including boards stored inside vaults, Open With actions, generated Bases files, linked notes, missing-note handling, linked objects, dropped local-file linking, URL favicons, `signboard://` card/board links, and the optional Obsidian companion plugin
 - Raw web URLs in card bodies, opened from the editor through the inline open-link control or Cmd/Ctrl-click
 - Native text editing context menus in editable fields
+- Readable plain-text update changelogs in native dialogs across macOS, Windows, and Linux, plus Ubuntu `.deb` validation and actionable package-install recovery
 - Accessibility support for keyboard-operable cards/list actions, modal focus handling, live status announcements, reduced motion, and forced-colors mode
 - Keyboard result/menu navigation for board search, Planner search, Archive search, board tabs, list actions, label/filter popovers, and Settings sections
 - Keyboard shortcuts for Quick Add card creation across open boards, creating lists, switching and closing open boards, opening Planner views across all open boards or the current board, cycling colors, moving open cards, archiving, and opening Archive

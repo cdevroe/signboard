@@ -3,6 +3,11 @@
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
+const {
+  MIN_RELEASE_ARTIFACT_BYTES,
+  computeFileSha512,
+  inspectDebianPackageFile,
+} = require('../lib/releaseArtifactValidation');
 
 const repoRoot = path.resolve(__dirname, '..');
 const distDir = path.join(repoRoot, 'dist');
@@ -69,6 +74,7 @@ const curatedDownloads = [
 
 const errors = [];
 const warnings = [];
+const artifactDetailsCache = new Map();
 
 if (!fs.existsSync(distDir)) {
   fail(`dist directory not found: ${distDir}`);
@@ -174,6 +180,25 @@ function validateRequiredArtifacts() {
       continue;
     }
 
+    const artifactPath = path.join(distDir, artifact);
+    const artifactSize = fs.statSync(artifactPath).size;
+    if (artifactSize < MIN_RELEASE_ARTIFACT_BYTES) {
+      addIssue(
+        `Artifact is unexpectedly small (${artifactSize} bytes): dist/${artifact}`,
+        false
+      );
+    }
+
+    if (artifact.endsWith('.deb')) {
+      const validation = inspectDebianPackageFile(artifactPath);
+      if (!validation.valid) {
+        addIssue(
+          `Invalid Debian package dist/${artifact}: ${validation.errors.join(' ')}`,
+          false
+        );
+      }
+    }
+
     const platform = artifact.startsWith(`signboard_${version}_win`) ? 'win' : match[1];
     const arch = platform === 'win' ? (match[1] || '') : match[2];
     const extension = platform === 'win' ? match[2] : match[3];
@@ -246,6 +271,8 @@ function validateMetadataFiles() {
 
       if (!distEntrySet.has(url)) {
         addIssue(`Metadata references missing file "${url}" in ${metadataFile}`, allowPartial);
+      } else {
+        validateMetadataArtifactEntry(metadataFile, entry, url);
       }
 
       const match = url.startsWith(`signboard_${version}_win`)
@@ -269,6 +296,37 @@ function validateMetadataFiles() {
       addIssue(`Metadata "path" is not present in files[] for ${metadataFile}: ${primaryPath}`, false);
     }
   }
+}
+
+function validateMetadataArtifactEntry(metadataFile, entry, artifactName) {
+  const details = getArtifactDetails(artifactName);
+  const metadataSize = Number(entry?.size);
+  if (!Number.isFinite(metadataSize) || metadataSize <= 0) {
+    addIssue(`Metadata entry is missing a valid size for "${artifactName}" in ${metadataFile}`, false);
+  } else if (metadataSize !== details.size) {
+    addIssue(
+      `Metadata size mismatch for "${artifactName}" in ${metadataFile}. Expected ${details.size}, found ${metadataSize}.`,
+      false
+    );
+  }
+
+  const metadataSha512 = typeof entry?.sha512 === 'string' ? entry.sha512.trim() : '';
+  if (!metadataSha512) {
+    addIssue(`Metadata entry is missing sha512 for "${artifactName}" in ${metadataFile}`, false);
+  } else if (metadataSha512 !== details.sha512) {
+    addIssue(`Metadata sha512 mismatch for "${artifactName}" in ${metadataFile}.`, false);
+  }
+}
+
+function getArtifactDetails(artifactName) {
+  if (!artifactDetailsCache.has(artifactName)) {
+    const artifactPath = path.join(distDir, artifactName);
+    artifactDetailsCache.set(artifactName, {
+      size: fs.statSync(artifactPath).size,
+      sha512: computeFileSha512(artifactPath),
+    });
+  }
+  return artifactDetailsCache.get(artifactName);
 }
 
 function addIssue(message, asWarning) {

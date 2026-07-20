@@ -14,6 +14,7 @@ This guide covers the desktop app and the core workflow for managing a project i
 - [Planner](#planner)
 - [Archive and Restore](#archive-and-restore)
 - [Settings](#settings)
+- [Updates](#updates)
 - [Accessibility](#accessibility)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [A Few Practical Tips](#a-few-practical-tips)
@@ -427,6 +428,12 @@ The `Import` section can bring content into the current board from:
 - Tasks.md
 
 Imports copy data into Signboard and leave the original source files where they are.
+
+## Updates
+
+Signboard checks for updates automatically. You can also choose `Check for Updates...` from the Signboard app menu on macOS or the Help menu on Windows and Linux. The native update dialog converts the GitHub release body from HTML or Markdown into readable plain text and omits the release's download-link section. Use `View changelog` to open the complete release page.
+
+On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access. If the download is invalid or Ubuntu's package manager rejects it, your installed copy remains unchanged and the error dialog offers `Open Downloads` so you can download and install the latest package manually.
 
 ## Accessibility
 

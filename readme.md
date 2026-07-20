@@ -209,6 +209,8 @@ Example task checklist syntax:
 - You can manually check any time from `Check for Updates...`:
   - macOS: Signboard app menu
   - Windows/Linux: Help menu
+- Update dialogs convert GitHub release HTML or Markdown into readable plain text and omit the download-link section. Use `View changelog` for the complete release page.
+- On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access. Invalid downloads or package-manager failures leave the installed version unchanged and offer a shortcut to the release Downloads page.
 
 ---
 
