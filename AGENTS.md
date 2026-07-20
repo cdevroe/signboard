@@ -17,6 +17,8 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Mark body-level popovers that must remain interactive while a modal is active with `data-sb-modal-layer`, so the modal background inert handler does not disable them.
 - Keep right-click text editing context menu behavior in `main.js` in sync with editable renderer fields.
 - Keep native app menu actions and the Playwright native-menu regression aligned when changing menu behavior.
+- Keep native updater dialogs free of raw HTML/Markdown through `lib/updateReleaseNotes.js`; preserve HTML/entity normalization, link-target removal, `Downloads` section stripping, post-normalization truncation, the dev updater preview fixture, and `scripts/test-update-release-notes.js` together.
+- Keep Linux updater safety and release validation aligned across `lib/releaseArtifactValidation.js`, `lib/updateErrors.js`, `main.js`, `scripts/verify-release-assets.js`, and their focused tests; invalid `.deb` files must be rejected before privileged installation or release publication.
 - Defer DOM/layout mutations after macOS native menu or `<select>` popup interactions with `waitForNativeMenuTrackingToSettle()` before replacing, disabling, rerendering, or moving controls.
 - Keep card drag/drop clone and placeholder behavior in sync with `app/utilities/cardDragTilt.js` and `static/styles.css`.
 - Keep card/list drag/drop filesystem ordering on the main-process transactional helpers in `lib/cardOrdering.js`; do not move reorder loops back into renderer code.

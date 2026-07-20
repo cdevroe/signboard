@@ -41,6 +41,12 @@ const {
   normalizeOpenBoardsState,
 } = require('./lib/boardDiscovery');
 const { formatLocalIsoDate } = require('./shared/localDate');
+const { formatReleaseNotesForDialog } = require('./lib/updateReleaseNotes');
+const { inspectDebianPackageFile } = require('./lib/releaseArtifactValidation');
+const {
+  getInvalidLinuxPackagePresentation,
+  getUpdaterErrorPresentation,
+} = require('./lib/updateErrors');
 
 const GITHUB_OWNER = 'cdevroe';
 const GITHUB_REPO = 'signboard';
@@ -173,6 +179,8 @@ const updateState = {
   checkInProgress: false,
   activeCheckIsManual: false,
   downloadInProgress: false,
+  userInitiatedUpdate: false,
+  lastUpdateInfo: null,
   reminderByVersion: {},
   checkIntervalId: null,
 };
@@ -3363,74 +3371,48 @@ function getReleaseUrl(info) {
   return `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
 }
 
-function extractReleaseNotes(info) {
-  const releaseNotes = info?.releaseNotes;
-
-  if (typeof releaseNotes === 'string') {
-    return releaseNotes.trim();
-  }
-
-  if (Array.isArray(releaseNotes)) {
-    const notes = releaseNotes
-      .map((entry) => {
-        if (typeof entry === 'string') {
-          return entry.trim();
-        }
-        if (entry && typeof entry.note === 'string') {
-          const entryVersion = typeof entry.version === 'string' ? entry.version.trim() : '';
-          const heading = entryVersion ? `Version ${entryVersion}\n` : '';
-          return `${heading}${entry.note.trim()}`.trim();
-        }
-        return '';
-      })
-      .filter(Boolean);
-
-    return notes.join('\n\n');
-  }
-
-  return '';
-}
-
-function escapeRegExp(input) {
-  return String(input).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function stripReleaseNotesSection(notes, headingText) {
-  const source = typeof notes === 'string' ? notes.trim() : '';
-  const heading = String(headingText || '').trim();
-  if (!source || !heading) {
-    return source;
-  }
-
-  const sectionPattern = new RegExp(
-    `(?:^|\\n)##\\s+${escapeRegExp(heading)}\\s*\\n[\\s\\S]*?(?=\\n##\\s+|$)`,
-    'i'
-  );
-
-  return source
-    .replace(sectionPattern, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-function formatReleaseNotesForDialog(info) {
-  const notes = stripReleaseNotesSection(extractReleaseNotes(info), 'Downloads');
-
-  if (!notes) {
-    return 'No changelog details were provided in the release metadata.';
-  }
-
-  const maxChars = 1600;
-  if (notes.length <= maxChars) {
-    return notes;
-  }
-
-  return `${notes.slice(0, maxChars).trim()}\n\n...`;
-}
-
 async function openChangelog(info) {
   const url = getReleaseUrl(info);
   await shell.openExternal(url);
+}
+
+async function showUpdaterErrorDialog(presentation, info) {
+  const win = getMainWindow();
+  if (!win) {
+    return;
+  }
+
+  const offerDownloads = presentation?.offerDownloads === true;
+  const choice = await dialog.showMessageBox(win, {
+    type: 'error',
+    title: presentation?.title || 'Updater Error',
+    message: presentation?.message || 'Signboard encountered an updater error.',
+    detail: presentation?.detail || 'Unknown error',
+    buttons: offerDownloads ? ['Open Downloads', 'OK'] : ['OK'],
+    defaultId: 0,
+    cancelId: offerDownloads ? 1 : 0,
+    noLink: true,
+  });
+
+  if (offerDownloads && choice.response === 0) {
+    await openChangelog(info);
+  }
+}
+
+function inspectDownloadedLinuxPackage(info) {
+  const downloadedFile = typeof info?.downloadedFile === 'string' ? info.downloadedFile : '';
+  if (process.platform !== 'linux' || path.extname(downloadedFile).toLowerCase() !== '.deb') {
+    return null;
+  }
+
+  try {
+    return inspectDebianPackageFile(downloadedFile);
+  } catch (error) {
+    return {
+      valid: false,
+      errors: [String(error?.message || error || 'The downloaded package could not be read.')],
+    };
+  }
 }
 
 async function showUpdateAvailableDialog(info) {
@@ -3480,11 +3462,14 @@ async function showUpdateAvailableDialog(info) {
 
   try {
     updateState.downloadInProgress = true;
+    updateState.userInitiatedUpdate = true;
+    updateState.lastUpdateInfo = info;
     win.setProgressBar(2);
     await autoUpdater.downloadUpdate();
   } catch (error) {
     win.setProgressBar(-1);
     updateState.downloadInProgress = false;
+    updateState.userInitiatedUpdate = false;
     console.error('Failed to download update.', error);
     await dialog.showMessageBox(win, {
       type: 'error',
@@ -3522,6 +3507,7 @@ async function showUpdateReadyDialog(info) {
 
     if (choice.response === 1) {
       await remindLater(info?.version);
+      updateState.userInitiatedUpdate = false;
       return;
     }
 
@@ -3541,10 +3527,14 @@ async function showUpdatePreviewDialog(type) {
     version: '9.9.9',
     releaseName: 'v9.9.9',
     releaseNotes: [
-      '### What is new',
-      '- Added self-update support via GitHub Releases.',
-      '- Added release-note changelog links.',
-      '- Added remind-later and install-now choices.',
+      '<h2>What\'s New</h2>',
+      '<ul>',
+      '<li><strong>New:</strong> Added self-update support via GitHub Releases.</li>',
+      '<li>Added release-note changelog links &amp; readable native dialog text.</li>',
+      '<li>Added remind-later and install-now choices.</li>',
+      '</ul>',
+      '<h2>Downloads</h2>',
+      '<ul><li><a href="https://example.com/signboard">Download Signboard</a></li></ul>',
     ].join('\n'),
   };
 
@@ -3686,6 +3676,7 @@ function setupAutoUpdater() {
   autoUpdater.allowDowngrade = false;
 
   autoUpdater.on('update-available', async (info) => {
+    updateState.lastUpdateInfo = info;
     const manual = updateState.activeCheckIsManual;
     const version = info?.version;
 
@@ -3728,10 +3719,23 @@ function setupAutoUpdater() {
 
   autoUpdater.on('update-downloaded', async (info) => {
     updateState.downloadInProgress = false;
+    updateState.lastUpdateInfo = info;
     const win = getMainWindow();
     if (win) {
       win.setProgressBar(-1);
     }
+
+    const packageValidation = inspectDownloadedLinuxPackage(info);
+    if (packageValidation && !packageValidation.valid) {
+      updateState.userInitiatedUpdate = false;
+      console.error('Downloaded Linux update package is invalid.', packageValidation.errors);
+      await showUpdaterErrorDialog(
+        getInvalidLinuxPackagePresentation(packageValidation),
+        info
+      );
+      return;
+    }
+
     await showUpdateReadyDialog(info);
   });
 
@@ -3744,22 +3748,15 @@ function setupAutoUpdater() {
 
     console.error('Updater error.', error);
 
-    if (!updateState.activeCheckIsManual) {
+    if (!updateState.activeCheckIsManual && !updateState.userInitiatedUpdate) {
       return;
     }
 
-    if (!win) {
-      return;
-    }
-
-    await dialog.showMessageBox(win, {
-      type: 'error',
-      title: 'Updater Error',
-      message: 'Signboard encountered an updater error.',
-      detail: String(error?.message || error || 'Unknown error'),
-      buttons: ['OK'],
-      noLink: true,
-    });
+    updateState.userInitiatedUpdate = false;
+    await showUpdaterErrorDialog(
+      getUpdaterErrorPresentation(error),
+      updateState.lastUpdateInfo
+    );
   });
 
   // Check shortly after launch and then periodically while running.

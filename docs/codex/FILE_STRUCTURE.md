@@ -4,7 +4,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + last-known open-board state persistence for MCP/CLI discovery + filesystem watchers + system-resume forwarding for local-day refresh + opt-in localhost External Published Calendar server + native menu/accelerators (including board switcher/settings/theme shortcuts plus required-action validation/rebuild on focus) + optional Quick Add global shortcut registration + Smart Card Action/Ollama model-list IPC + renderer right-click text editing context menu with deferred native popup handling + archive browse/restore + top-of-list card move IPC + board duplication IPC + linked-object add/open/drop/status/recreate/relink IPC with URL favicon caching + Obsidian outbound/deep-link IPC and `signboard://` protocol dispatch for card and validated board opening. Board activation ensures a managed Obsidian Base when applicable without sweeping card Markdown; full metadata reconciliation remains on write/import/move/explicit Base flows. Also owns GitHub-release auto-update flow (`electron-updater`), including release-note formatting that strips a `## Downloads` section from in-app update dialogs.
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + last-known open-board state persistence for MCP/CLI discovery + filesystem watchers + system-resume forwarding for local-day refresh + opt-in localhost External Published Calendar server + native menu/accelerators (including board switcher/settings/theme shortcuts plus required-action validation/rebuild on focus) + optional Quick Add global shortcut registration + Smart Card Action/Ollama model-list IPC + renderer right-click text editing context menu with deferred native popup handling + archive browse/restore + top-of-list card move IPC + board duplication IPC + linked-object add/open/drop/status/recreate/relink IPC with URL favicon caching + Obsidian outbound/deep-link IPC and `signboard://` protocol dispatch for card and validated board opening. Board activation ensures a managed Obsidian Base when applicable without sweeping card Markdown; full metadata reconciliation remains on write/import/move/explicit Base flows. Also owns GitHub-release auto-update flow (`electron-updater`) and passes release bodies through the shared updater-note formatter before native dialogs.
 - `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
@@ -69,6 +69,9 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support, including `start` and `due` date normalization.
 - `lib/cardLifecycle.js` - Shared card lifecycle metadata helper for `createdAt`, compact `activity` trails, archive frontmatter state, and moved/restored transitions.
 - `lib/cardTimestamps.js` - Shared timestamp resolver for desktop reads, CLI card records/JSON output, and MCP card responses, preferring frontmatter/activity creation data and filesystem modification data.
+- `lib/updateReleaseNotes.js` - Pure GitHub release-note extraction and HTML/Markdown-to-plain-text normalization for native updater dialogs, including entity decoding, link/markup removal, Downloads-section stripping, and post-normalization truncation.
+- `lib/updateErrors.js` - Testable updater-error classification and native-dialog copy, including actionable Ubuntu package-manager failures and invalid-download recovery.
+- `lib/releaseArtifactValidation.js` - Debian/ar archive inspection, minimum release-artifact sizing, and SHA-512 helpers shared by runtime download checks and release validation.
 - `lib/cardOrdering.js` - Shared transactional ordering helpers used by main-process/MCP restore and move flows to insert a card at the top, reorder cards in a list, and reorder list directories while staging temp names and rolling back on failures.
 - `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
 - `lib/boardLabels.js` - Board-level label/theme/workflow/External Published Calendar inclusion settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
@@ -101,6 +104,9 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-board-views.js` - Kanban/Table/Planner rendering and filter helper assertions.
 - `scripts/test-card-timestamps.js` - Card timestamp normalization assertions for frontmatter, activity, and filesystem fallback behavior.
 - `scripts/test-local-date.js` - Shared local-date parsing/formatting and ordinary/spring-forward/fall-back rollover timing assertions.
+- `scripts/test-update-release-notes.js` - Windows-style GitHub HTML, Markdown, encoded markup, entity decoding, Downloads stripping, custom-tag/script removal, array metadata, fallback, and truncation coverage for updater dialog notes.
+- `scripts/test-update-errors.js` - Linux package-manager and generic updater error presentation assertions.
+- `scripts/test-release-artifact-validation.js` - Valid, malformed, incomplete, and file-backed Debian archive inspection assertions.
 - `scripts/test-archive.js` - Archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.
 - `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
 - `scripts/test-external-published-calendar.js` - External Published Calendar assertions for ICS generation, completed-list skipping, checked-task skipping, and board opt-out.
@@ -111,7 +117,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-task-list-parser.js` - Task checklist parser assertions (`completed/total` and task start/due date extraction).
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
-- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux plus curated public-download guidance.
+- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux, including artifact size, Debian structure, metadata size/SHA-512 integrity, and curated public-download guidance.
 - `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including board discovery, trusted-root config/resolution coverage, archive tool coverage, card task metadata assertions, and import-tool coverage.
 - `scripts/test-cli.js` - Node CLI smoke test covering board discovery, list/card/archive flows, duplicate/template card commands, section/note edits, dry-run previews, plus Trello/Obsidian imports.
 - `scripts/test-desktop-cli.js` - Packaged-shim-style Electron Node-mode CLI smoke test, including board creation and import command routing.

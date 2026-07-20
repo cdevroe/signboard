@@ -37,7 +37,8 @@ File: `main.js`
 - In unpackaged/dev mode, Help menu includes `Preview Update Available...` and `Preview Update Ready...` to test updater dialogs without downloading/installing.
 - Uses `electron-updater` against GitHub Releases for automatic and manual update checks.
 - Handles renderer freeze/crash resilience with an unresponsive recovery dialog and renderer crash auto-recreate.
-- Shows native update dialogs with release notes, changelog links, remind-later, and install/relaunch actions.
+- Shows native update dialogs with readable plain-text release notes, changelog links, remind-later, and install/relaunch actions. `lib/updateReleaseNotes.js` normalizes GitHub HTML or Markdown, decodes entities, removes markup/link targets and the Downloads section, then truncates the result for the native dialog.
+- Before invoking Ubuntu's privileged package installer, validates that a downloaded `.deb` contains the required Debian archive members. Invalid downloads and `pkexec`/`sudo` install failures leave the current app untouched, explain the recovery path, and offer to open the release Downloads page.
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` as a thin renderer bridge into main-process IPC.
 - Owns renderer right-click text editing context menus through the `webContents` `context-menu` event, covering editable fields such as the card title and OverType notes editor; context-menu popup creation is deferred one tick so AppKit can finish native menu tracking before window layout changes.
@@ -547,9 +548,12 @@ CLI overdue behavior:
 ### Packaging
 - Electron Builder config in `package.json` and `electron-builder.json`.
 - macOS notarization hook: `scripts/notarize.js` (env vars from `.env`).
-- Release validation script: `scripts/verify-release-assets.js` (`npm run release:verify`) checks cross-platform updater assets and metadata naming.
+- Release validation script: `scripts/verify-release-assets.js` (`npm run release:verify`) checks cross-platform updater assets, minimum sizes, Debian archive structure, metadata naming, metadata sizes, and SHA-512 integrity. A `.deb` that fails must be rebuilt in a Linux environment rather than published.
 - Standard public releases should promote macOS universal, a single Windows installer, and Linux `x64`/`ARM64` `AppImage` + `deb` downloads; use `docs/release-template.md` for the curated GitHub release body.
-- The in-app update dialog reads GitHub release notes and strips a `## Downloads` section before rendering, so curated download links can live in release bodies without polluting the changelog shown in-app.
+- The in-app update dialog reads GitHub release notes through `lib/updateReleaseNotes.js`, converts HTML or Markdown into readable plain text, decodes entities, removes link targets, strips the `## Downloads` section, and truncates only after normalization. The dev updater preview intentionally uses representative GitHub HTML.
+- Update release-note normalization tests: `npm run test:update-release-notes` (`scripts/test-update-release-notes.js`).
+- Updater error presentation tests: `npm run test:update-errors` (`scripts/test-update-errors.js`).
+- Debian release-artifact tests: `npm run test:release-artifacts` (`scripts/test-release-artifact-validation.js`).
 - End-to-end release prep: `npm run release:prepare` (build all + verify release assets).
 - MCP instructions for packaged and source installs: `MCP_README.md`.
 - Optional reusable agent skill for MCP workflows: `skills/signboard-mcp/SKILL.md`.

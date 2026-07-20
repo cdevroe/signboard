@@ -54,9 +54,10 @@ Start here before opening source files.
 - External Published Calendar feed collection/ICS generation lives in `lib/externalPublishedCalendar.js`; keep it aligned with Planner/date-filter completed-list and checked-task behavior.
 - Task-line start/due date controls in the editor are positioned from measured textarea line-start coordinates (not raw line index math) to stay aligned with wrapped content.
 - In dev/unpackaged builds, `Help` includes updater preview dialogs so update UI can be tested without publishing a release.
-- Release assets for updater compatibility are validated by `scripts/verify-release-assets.js` (`npm run release:verify`).
+- Release assets for updater compatibility are validated by `scripts/verify-release-assets.js` (`npm run release:verify`), including minimum artifact sizes, Debian archive structure, and metadata size/SHA-512 integrity. Never publish a Linux `.deb` that fails this validation; rebuild it in a Linux environment if cross-platform packaging produces an invalid archive.
 - Standard public releases now promote a curated download set: macOS universal, one Windows installer, and Linux `x64`/`ARM64` `AppImage` + `deb` packages. Use `docs/release-template.md` for the GitHub release body.
-- The in-app updater strips a `## Downloads` section from GitHub release notes before showing the "what's new" dialog, so curated download links can live in release bodies without cluttering update notes.
+- In-app update-note formatting lives in `lib/updateReleaseNotes.js`; it converts GitHub HTML or Markdown release bodies into readable plain text for native dialogs, decodes entities, removes markup/link targets, strips the `## Downloads` section, and truncates only after normalization. Keep the updater preview's HTML fixture and `scripts/test-update-release-notes.js` aligned.
+- Linux updater downloads are checked as structurally valid Debian packages before installation. Package-manager failures use `lib/updateErrors.js` to explain that the installed app is unchanged and offer the release Downloads page; keep `scripts/test-update-errors.js` and `scripts/test-release-artifact-validation.js` aligned.
 - Task parser coverage tests are in `scripts/test-task-list-parser.js` (`npm run test:task-list`).
 - Obsidian integration helper coverage is in `scripts/test-obsidian-integration.js` (`npm run test:obsidian-integration`).
 - Obsidian companion plugin helper coverage is in `scripts/test-obsidian-plugin.js` (`npm run test:obsidian-plugin`).

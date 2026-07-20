@@ -2,7 +2,7 @@
 
 Signboard's in-app updater reads the GitHub release notes/body into the "what's new" dialog.
 
-The updater strips a `## Downloads` section before rendering the in-app dialog, but the top of the release body should still be changelog-first.
+The updater converts GitHub HTML or Markdown into readable plain text and strips a `## Downloads` section before rendering the native in-app dialog, but the top of the release body should still be changelog-first.
 
 Use this structure:
 
@@ -27,6 +27,7 @@ Use this structure:
 - Keep the top section short and task-oriented so the updater dialog stays readable.
 - Put curated downloads after the changelog, not before it.
 - Upload all updater metadata and supporting artifacts required by `npm run release:verify`, even if they are not linked from the release body.
+- Do not upload Linux `.deb` files until `npm run release:verify` confirms their minimum size, required Debian archive members, and agreement with the updater metadata size/SHA-512 values. Rebuild invalid cross-platform output in a Linux environment.
 
 ## Example Skeleton
 
