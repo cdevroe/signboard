@@ -325,6 +325,48 @@ function setPlannerDayToToday() {
   return setPlannerDayCursorDate(new Date());
 }
 
+function reconcilePlannerDateCursors(previousDateValue, currentDateValue) {
+  const previousDay = createPlannerDayCursorDate(previousDateValue);
+  const currentDay = createPlannerDayCursorDate(currentDateValue);
+  if (Number.isNaN(previousDay.getTime()) || Number.isNaN(currentDay.getTime())) {
+    return {
+      calendarChanged: false,
+      weekChanged: false,
+      dayChanged: false,
+    };
+  }
+
+  const previousMonth = createMonthCursorDate(previousDay);
+  const currentMonth = createMonthCursorDate(currentDay);
+  const previousWeek = createWeekCursorDate(previousDay);
+  const currentWeek = createWeekCursorDate(currentDay);
+  const calendarCursor = getPlannerCalendarCursorDate();
+  const weekCursor = getPlannerWeekCursorDate();
+  const dayCursor = getPlannerDayCursorDate();
+  const calendarWasCurrent = calendarCursor.getTime() === previousMonth.getTime();
+  const weekWasCurrent = weekCursor.getTime() === previousWeek.getTime();
+  const dayWasCurrent = dayCursor.getTime() === previousDay.getTime();
+  const calendarChanged = calendarWasCurrent && calendarCursor.getTime() !== currentMonth.getTime();
+  const weekChanged = weekWasCurrent && weekCursor.getTime() !== currentWeek.getTime();
+  const dayChanged = dayWasCurrent && dayCursor.getTime() !== currentDay.getTime();
+
+  if (calendarChanged) {
+    setPlannerCalendarCursorDate(currentDay);
+  }
+  if (weekChanged) {
+    setPlannerWeekCursorDate(currentDay);
+  }
+  if (dayChanged) {
+    setPlannerDayCursorDate(currentDay);
+  }
+
+  return {
+    calendarChanged,
+    weekChanged,
+    dayChanged,
+  };
+}
+
 function setPlannerSearchQuery(value) {
   const state = getPlannerState();
   const normalized = normalizeSearchQuery(value);

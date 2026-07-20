@@ -268,4 +268,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('switch-board-view', listener);
     };
   },
+  onSystemResume: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = () => {
+      callback();
+    };
+
+    ipcRenderer.on('system-resume', listener);
+    return () => {
+      ipcRenderer.removeListener('system-resume', listener);
+    };
+  },
 });

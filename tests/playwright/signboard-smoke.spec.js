@@ -2327,6 +2327,71 @@ test('navigates and closes board tabs from the keyboard', async ({ electronApp, 
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem('openBoardPaths') || '[]').length)).toBe(2);
 });
 
+test('refreshes current Planner dates after a local day rollover without moving browsed dates', async ({ page }) => {
+  await openCurrentBoardPlannerView(page, '3', '.planner-this-week');
+
+  const trackedResult = await page.evaluate(async () => {
+    const currentDay = new Date();
+    currentDay.setHours(12, 0, 0, 0);
+    const previouslyObservedDay = new Date(
+      currentDay.getFullYear(),
+      currentDay.getMonth(),
+      currentDay.getDate() - 7,
+      12,
+      0,
+      0,
+      0,
+    );
+
+    localDayLastObservedIso = formatIsoLocalDate(previouslyObservedDay);
+    setPlannerWeekCursorDate(previouslyObservedDay);
+    const changed = await runLocalDayRolloverCheck(currentDay);
+    return {
+      changed,
+      currentWeek: formatIsoLocalDate(createWeekCursorDate(currentDay)),
+      renderedWeek: formatIsoLocalDate(getPlannerWeekCursorDate()),
+    };
+  });
+
+  expect(trackedResult.changed).toBe(true);
+  expect(trackedResult.renderedWeek).toBe(trackedResult.currentWeek);
+  await expect(page.locator('.planner-this-week .board-this-week-day.is-today')).toHaveCount(1);
+
+  const pinnedResult = await page.evaluate(async () => {
+    const currentDay = new Date();
+    currentDay.setHours(12, 0, 0, 0);
+    const previouslyObservedDay = new Date(
+      currentDay.getFullYear(),
+      currentDay.getMonth(),
+      currentDay.getDate() - 1,
+      12,
+      0,
+      0,
+      0,
+    );
+    const pinnedDay = new Date(
+      currentDay.getFullYear(),
+      currentDay.getMonth(),
+      currentDay.getDate() - 21,
+      12,
+      0,
+      0,
+      0,
+    );
+
+    localDayLastObservedIso = formatIsoLocalDate(previouslyObservedDay);
+    setPlannerWeekCursorDate(pinnedDay);
+    const expectedPinnedWeek = formatIsoLocalDate(getPlannerWeekCursorDate());
+    await runLocalDayRolloverCheck(currentDay);
+    return {
+      expectedPinnedWeek,
+      renderedWeek: formatIsoLocalDate(getPlannerWeekCursorDate()),
+    };
+  });
+
+  expect(pinnedResult.renderedWeek).toBe(pinnedResult.expectedPinnedWeek);
+});
+
 test('opens Planner across currently open boards', async ({ electronApp, boardRoot }) => {
   const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
   const todayIso = formatLocalIsoDate();

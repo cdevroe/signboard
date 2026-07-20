@@ -31,6 +31,7 @@ File: `main.js`
 - Builds a native app menu with board view, Settings, theme, and `Check for Updates...` actions, and validates/rebuilds it on focus if required Signboard actions are missing.
 - Registers the optional app-level Quick Add global shortcut with Electron `globalShortcut` while Signboard is running; the shortcut focuses the main window and opens the same renderer Quick Add card modal as `Cmd/Ctrl + N`.
 - Handles opt-in Smart Card Actions by reading app-level Ollama settings and action prompts, verifying/listing local models through Ollama `/api/tags`, and calling the configured Ollama `/api/chat` endpoint through `lib/aiTaskSuggestions.js` for title, summary, task-list, auto-label, smart-paste, due-date, attachment, custom, one-off Quick Smart Actions, and read-only Question the Card answers.
+- Supplies Smart Card Actions with the user's current local calendar date through `shared/localDate.js`, rather than deriving it from UTC.
 - Runs the opt-in External Published Calendar HTTP server on `127.0.0.1:<port>` while enabled, protected by a stable per-install token in the subscription URL.
 - Help menu includes `Copy MCP Config` to copy a ready-to-paste Signboard MCP JSON snippet.
 - In unpackaged/dev mode, Help menu includes `Preview Update Available...` and `Preview Update Ready...` to test updater dialogs without downloading/installing.
@@ -40,6 +41,7 @@ File: `main.js`
 - Persists remind-later per version in `update-preferences.json` under Electron `userData`.
 - Uses `preload.js` as a thin renderer bridge into main-process IPC.
 - Owns renderer right-click text editing context menus through the `webContents` `context-menu` event, covering editable fields such as the card title and OverType notes editor; context-menu popup creation is deferred one tick so AppKit can finish native menu tracking before window layout changes.
+- Forwards Electron `powerMonitor` system-resume events to the renderer so date-dependent UI can catch up after sleep.
 - Owns trusted board-root persistence, board path validation, and external board filesystem watchers.
 - Owns batched board snapshot reads through `lib/boardSnapshot.js`, returning list/card records plus optional timestamps, task metadata, board settings, and per-entry read errors for renderer Kanban/Table/Planner views.
 - Owns explicit board import operations for Trello, Obsidian, and Tasks.md; renderer code passes tokenized selections and the main process performs all external file reads and board writes.
@@ -62,7 +64,7 @@ File: `main.js`
 File: `preload.js`
 
 - Exposes `window.board`, `window.chooser`, and `window.electronAPI`.
-- `window.electronAPI` includes external-link opening, clipboard text copying, manual update checks, app settings reads/writes, Smart Card Actions, Ollama model inspection, Quick Add global shortcut status, one-time migration from legacy board-level tooltip/notification settings, and main-process-triggered renderer events such as workspace view switching and Quick Add.
+- `window.electronAPI` includes external-link opening, clipboard text copying, manual update checks, app settings reads/writes, Smart Card Actions, Ollama model inspection, Quick Add global shortcut status, one-time migration from legacy board-level tooltip/notification settings, and main-process-triggered renderer events such as workspace view switching, Quick Add, and system resume.
 - `window.electronAPI.onOpenSignboardCardLink(...)` lets `main.js` hand resolved `signboard://open-card` links to the renderer, which switches to the board and opens the normal card editor. `window.electronAPI.onOpenSignboardBoardLink(...)` switches to a board opened through `signboard://open-board`.
 - Proxies board operations to `main.js` over `ipcRenderer.invoke(...)`.
 - Does not use Node filesystem APIs directly.
@@ -147,6 +149,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - Initializes app settings, including one-time migration from the left-most open board's legacy settings values.
   - Initializes Planner controls for the bottom workspace dock, overlay, Planner search/filter popover, and Planner view tabs.
   - Runs an external-change sync loop that watches active board files, re-renders after external updates (for example MCP card moves), and refreshes an unchanged open card editor after external/MCP card edits.
+  - Runs a DST-safe local-day rollover timer and rechecks on focus, visibility, and system resume. A changed day refreshes Planner, active board date filters/styling and Table ages, open-editor date status, and due notifications without a renderer reload.
   - Calls directory chooser and `openBoard`.
 - `app/board/boardTabs.js`:
   - Manages board tabs (add/open/close/reorder + active tab persistence) with responsive overflow into an `N more` switcher entry.
@@ -196,6 +199,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - Hides cards from completed workflow lists by default while preserving their due-date metadata; the Planner filter menu can show completed dated cards when needed.
   - Opens Planner cards through the normal editor, switching the active board behind the overlay first when the card belongs to a different board.
   - Keeps Planner on the default Signboard palette for the active light/dark mode instead of inheriting the active board color scheme, while tinting card source pills from their source board color schemes.
+  - Advances Calendar/This Week/Day cursors after a local-day rollover only when they represented the previously current month/week/day, preserving deliberately browsed historical or future periods.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior, and labelled section/list semantics for assistive technology.
   - Enables card drag-and-drop reorder and cross-list move.
@@ -505,6 +509,11 @@ CLI overdue behavior:
 - `npm run test:due-notifications`
 - Script: `scripts/test-due-notifications.js`
 - Covers task due-date notification collection and card/task notification body formatting.
+
+### Local day rollover tests
+- `npm run test:local-date`
+- Script: `scripts/test-local-date.js`
+- Covers local ISO-date parsing/formatting and ordinary, spring-forward, and fall-back next-midnight timing. Planner cursor reconciliation is covered in `scripts/test-board-views.js`, and the end-to-end refresh/pinned-navigation path is covered in Playwright.
 
 ### App settings tests
 - `npm run test:app-settings`

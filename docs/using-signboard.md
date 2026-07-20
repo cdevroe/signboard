@@ -291,6 +291,8 @@ Planner hides cards from completed lists by default. Each board can auto-detect 
 
 Planner uses your light/dark mode but keeps the default Signboard color palette instead of inheriting the active board color scheme.
 
+You can leave Signboard running continuously. At local midnight—and again when the window becomes visible, receives focus, or the computer resumes from sleep—Signboard refreshes date filters, date colors, relative Table ages, Agenda labels, and Planner date views. Calendar, This Week, and Day advance when they were showing the previously current period; if you deliberately browsed to another month, week, or day, that date remains pinned.
+
 ### Planner shortcuts
 
 - `Cmd/Ctrl + Shift + P`: open or close Planner

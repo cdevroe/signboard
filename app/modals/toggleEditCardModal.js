@@ -13,6 +13,25 @@ function setEditorFrontmatter(frontmatter) {
     document.getElementById('cardEditorCardMetadata').value = JSON.stringify(frontmatter || {});
 }
 
+function refreshActiveCardEditorDateStatus() {
+    const modalEditCard = document.getElementById('modalEditCard');
+    const cardEditorSetDatesLink = document.getElementById('cardEditorSetDatesLink');
+    if (
+        !modalEditCard
+        || modalEditCard.classList.contains('hidden')
+        || modalEditCard.getAttribute('aria-hidden') === 'true'
+        || !cardEditorSetDatesLink
+    ) {
+        return false;
+    }
+
+    const frontmatter = getEditorFrontmatter();
+    const startValue = String(frontmatter.start || '').trim();
+    const dueValue = String(frontmatter.due || '').trim();
+    setDueDateVisualClass(cardEditorSetDatesLink, dueValue || startValue || '');
+    return true;
+}
+
 const TIMESTAMP_TOOLBAR_ICON = `
 <svg viewBox="0 0 18 18" aria-hidden="true" focusable="false">
   <circle cx="9" cy="9" r="7" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></circle>
