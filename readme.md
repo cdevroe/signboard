@@ -19,7 +19,7 @@ Signboard is free for personal use. If you are using Signboard for your work, it
 - 🏷 Custom labels per board
 - 🗓 Compact calendar controls for card and task list item start/due dates
 - 📋 Bottom view dock for Planner, Kanban, and Table, including card age columns, sorting, list filtering, and bulk actions in Table
-- 🗂 Planner workspace view for actionable dated work across open boards
+- 🗂 Planner workspace view for actionable dated work across open boards, with automatic local-day rollover while Signboard stays open
 - 📆 Optional local External Published Calendar feed for calendar app subscriptions
 - 🔮 Obsidian-friendly properties, Bases generation, linked objects, linked-object counts, and `signboard://` card links
 - 🎨 Board-colored source pills in Planner date views

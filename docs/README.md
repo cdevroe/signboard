@@ -20,7 +20,7 @@ If you want structured tool access from an agent, see [MCP Server](../MCP_README
 
 - Creating and organizing boards, lists, and cards
 - Drag-and-drop movement, including the empty insertion slot shown while dragging cards
-- Calendar-based start/due date ranges on Kanban cards and in the card editor, task lists, labels, linked-object counts, completed-list workflow settings, Kanban/Table board views, card age sorting and bulk actions in Table, Planner date views, and External Published Calendar
+- Calendar-based start/due date ranges on Kanban cards and in the card editor, task lists, labels, linked-object counts, completed-list workflow settings, Kanban/Table board views, card age sorting and bulk actions in Table, Planner date views with automatic local-day rollover, and External Published Calendar
 - Archiving and restoring cards and lists
 - Settings, including app-wide General/Notifications/Smart Actions panels, drag-reorderable local Ollama Smart Card Actions for generated titles/summaries/task lists/auto-labeling/smart paste/due dates/linked-object suggestions, one-off Quick Smart Actions, read-only card questions, and board-specific General, Labels, Appearance, Workflow, Obsidian, and Import panels, plus board rename/move/duplicate actions
 - Obsidian integration, including boards stored inside vaults, Open With actions, generated Bases files, linked notes, missing-note handling, linked objects, dropped local-file linking, URL favicons, `signboard://` card/board links, and the optional Obsidian companion plugin

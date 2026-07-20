@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker, nativeImage, screen } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, Notification, ShareMenu, shell, powerMonitor, powerSaveBlocker, nativeImage, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { createHash, randomUUID } = require('crypto');
 const fs = require('fs');
@@ -40,6 +40,7 @@ const {
   OPEN_BOARDS_STATE_FILE,
   normalizeOpenBoardsState,
 } = require('./lib/boardDiscovery');
+const { formatLocalIsoDate } = require('./shared/localDate');
 
 const GITHUB_OWNER = 'cdevroe';
 const GITHUB_REPO = 'signboard';
@@ -2589,6 +2590,15 @@ function getMainWindow() {
   return BrowserWindow.getAllWindows()[0] || null;
 }
 
+function notifyRendererOfSystemResume() {
+  const win = getMainWindow();
+  if (!win || win.isDestroyed() || win.webContents.isLoadingMainFrame()) {
+    return;
+  }
+
+  win.webContents.send('system-resume');
+}
+
 function showDockIcon() {
   if (process.platform === 'darwin' && app.dock && typeof app.dock.show === 'function') {
     app.dock.show();
@@ -3042,7 +3052,7 @@ async function suggestCardTasks(payload = {}) {
 
   try {
     const result = await suggestCardTasksWithOllama(settings.ai.ollama, payload, {
-      currentDate: new Date().toISOString().slice(0, 10),
+      currentDate: formatLocalIsoDate(),
     });
     return {
       ok: true,
@@ -3121,7 +3131,7 @@ async function runSmartCardAction(payload = {}) {
 
   try {
     const result = await runSmartCardActionWithOllama(settings.ai.ollama, actionToRun, cardContext, {
-      currentDate: new Date().toISOString().slice(0, 10),
+      currentDate: formatLocalIsoDate(),
       pasteText: typeof payloadSource.pasteText === 'string' ? payloadSource.pasteText : '',
     });
     return {
@@ -4936,6 +4946,7 @@ if (isCliMode) {
     await loadUpdatePreferences();
     await initializeAppRuntimeSettings();
     queueSignboardProtocolUrl(findSignboardProtocolUrlInArgs(process.argv));
+    powerMonitor.on('resume', notifyRendererOfSystemResume);
     createWindow();
     buildApplicationMenu();
     setupAutoUpdater();

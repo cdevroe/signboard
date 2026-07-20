@@ -25,18 +25,13 @@ let externalBoardRefreshPending = false;
 let externalBoardRenderTimeoutId = null;
 let externalBoardRenderInFlight = false;
 let dueCardNotificationIntervalId = null;
+let localDayRolloverTimerId = null;
+let localDayLastObservedIso = '';
+let unsubscribeSystemResume = null;
 let aboutSignboardInfoPromise = null;
 
 function formatLocalIsoDate(dateValue = new Date()) {
-    const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return SignboardLocalDate.formatLocalIsoDate(dateValue);
 }
 
 function getDueNotificationBoardRoots() {
@@ -166,6 +161,105 @@ function startDueCardNotificationSchedule() {
         if (dueCardNotificationIntervalId) {
             clearInterval(dueCardNotificationIntervalId);
             dueCardNotificationIntervalId = null;
+        }
+    }, { once: true });
+}
+
+function scheduleNextLocalDayRolloverCheck(dateValue = new Date()) {
+    if (localDayRolloverTimerId) {
+        clearTimeout(localDayRolloverTimerId);
+    }
+
+    const delay = SignboardLocalDate.getLocalDayRolloverDelay(dateValue);
+    localDayRolloverTimerId = window.setTimeout(() => {
+        localDayRolloverTimerId = null;
+        runLocalDayRolloverCheck().catch((error) => {
+            console.error('Local day rollover refresh failed.', error);
+        }).finally(() => {
+            scheduleNextLocalDayRolloverCheck();
+        });
+    }, delay);
+}
+
+async function runLocalDayRolloverCheck(dateValue = new Date()) {
+    const currentDayIso = formatLocalIsoDate(dateValue);
+    if (!currentDayIso) {
+        return false;
+    }
+
+    if (!localDayLastObservedIso) {
+        localDayLastObservedIso = currentDayIso;
+        return false;
+    }
+
+    if (currentDayIso === localDayLastObservedIso) {
+        return false;
+    }
+
+    const previousDay = SignboardLocalDate.parseLocalIsoDate(localDayLastObservedIso);
+    const currentDay = SignboardLocalDate.parseLocalIsoDate(currentDayIso);
+    localDayLastObservedIso = currentDayIso;
+
+    if (previousDay && currentDay && typeof reconcilePlannerDateCursors === 'function') {
+        reconcilePlannerDateCursors(previousDay, currentDay);
+    }
+
+    if (typeof refreshActiveCardEditorDateStatus === 'function') {
+        refreshActiveCardEditorDateStatus();
+    }
+
+    if (window.boardRoot) {
+        externalBoardRefreshPending = true;
+        scheduleExternalBoardRefresh();
+    }
+
+    const refreshTasks = [
+        runDueCardNotificationCheck().catch((error) => {
+            console.error('Due-card notification check after local day rollover failed.', error);
+        }),
+    ];
+    if (typeof isPlannerOpen === 'function' && isPlannerOpen() && typeof renderPlannerView === 'function') {
+        refreshTasks.push(renderPlannerView().catch((error) => {
+            console.error('Planner refresh after local day rollover failed.', error);
+        }));
+    }
+
+    await Promise.all(refreshTasks);
+    return true;
+}
+
+function checkLocalDayAndReschedule() {
+    runLocalDayRolloverCheck().catch((error) => {
+        console.error('Local day lifecycle check failed.', error);
+    }).finally(() => {
+        scheduleNextLocalDayRolloverCheck();
+    });
+}
+
+function startLocalDayRolloverSchedule() {
+    localDayLastObservedIso = formatLocalIsoDate(new Date());
+    scheduleNextLocalDayRolloverCheck();
+
+    window.addEventListener('focus', checkLocalDayAndReschedule);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            checkLocalDayAndReschedule();
+        }
+    });
+
+    if (window.electronAPI && typeof window.electronAPI.onSystemResume === 'function') {
+        unsubscribeSystemResume = window.electronAPI.onSystemResume(checkLocalDayAndReschedule);
+    }
+
+    window.addEventListener('beforeunload', () => {
+        if (localDayRolloverTimerId) {
+            clearTimeout(localDayRolloverTimerId);
+            localDayRolloverTimerId = null;
+        }
+        window.removeEventListener('focus', checkLocalDayAndReschedule);
+        if (typeof unsubscribeSystemResume === 'function') {
+            unsubscribeSystemResume();
+            unsubscribeSystemResume = null;
         }
     }, { once: true });
 }
@@ -1137,5 +1231,6 @@ async function init() {
 
     startExternalBoardSync();
     startDueCardNotificationSchedule();
+    startLocalDayRolloverSchedule();
 }
 init();
