@@ -57,6 +57,16 @@ function daysFromTodayIso(daysAhead) {
   return date.toISOString().slice(0, 10);
 }
 
+function assertSignboardMetadata(frontmatter, cardPath, expected = {}) {
+  const cardIdMatch = path.basename(cardPath).match(/-([A-Za-z0-9]{5})\.md$/);
+  assert.ok(cardIdMatch, `Expected card ID suffix in ${cardPath}`);
+  assert.strictEqual(frontmatter.signboard_id, cardIdMatch[1]);
+  assert.strictEqual(frontmatter.signboard_uri, `signboard://open-card?id=${cardIdMatch[1]}`);
+  assert.strictEqual(frontmatter.signboard_board, expected.boardName);
+  assert.strictEqual(frontmatter.signboard_list, expected.listName);
+  assert.strictEqual(frontmatter.status, expected.listName);
+}
+
 async function createFixtureBoard() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-cli-'));
   const boardRoot = path.join(root, 'Client Work');
@@ -292,6 +302,11 @@ async function main() {
     path.join(createdBoardRoot, '000-To-do-stock', '000-hello-stock.md')
   );
   assert.strictEqual(starterCard.frontmatter.title, '👋 Start Here');
+  assertSignboardMetadata(
+    starterCard.frontmatter,
+    path.join(createdBoardRoot, '000-To-do-stock', '000-hello-stock.md'),
+    { boardName: 'Created CLI Board', listName: 'To-do' },
+  );
   assert.ok(starterCard.body.includes('Quick Add'));
   assert.strictEqual(runCli(['use'], env).stdout.trim(), createdBoardRoot);
 
@@ -412,6 +427,23 @@ async function main() {
   assert.strictEqual(updatedOldestCards[0].title, 'Internal review');
   assert.strictEqual(updatedOldestCards[0].timestamps.updatedAt, '2026-01-20T12:00:00.000Z');
 
+  const editedLegacyCard = JSON.parse(
+    runCli([
+      'cards',
+      'edit',
+      '--card',
+      'ef789',
+      '--append-body',
+      'Reviewed from the CLI.',
+      '--json',
+    ], env).stdout
+  );
+  const editedLegacyCardFile = await cardFrontmatter.readCard(editedLegacyCard.filePath);
+  assertSignboardMetadata(editedLegacyCardFile.frontmatter, editedLegacyCard.filePath, {
+    boardName: 'Client Work',
+    listName: 'Doing',
+  });
+
   const overdueCards = JSON.parse(
     runCli([
       'cards',
@@ -516,6 +548,10 @@ async function main() {
   assert.ok(!duplicatePreview.labels.includes('template'));
   assert.ok(duplicatePreview.timestamps.createdAt);
   assert.strictEqual(duplicatePreview.timestamps.updatedAt, '');
+  assertSignboardMetadata(duplicatePreview.frontmatter, duplicatePreview.filePath, {
+    boardName: 'Client Work',
+    listName: 'Waiting',
+  });
 
   const waitingAfterDuplicatePreview = JSON.parse(runCli(['cards', 'Waiting', '--json'], env).stdout);
   assert.strictEqual(waitingAfterDuplicatePreview.length, 0);
@@ -548,6 +584,11 @@ async function main() {
   assert.strictEqual(duplicatedCard.taskSummary.total, 1);
   assert.ok(duplicatedCard.timestamps.createdAt);
   assert.ok(duplicatedCard.timestamps.updatedAt);
+  const duplicatedCardFile = await cardFrontmatter.readCard(duplicatedCard.filePath);
+  assertSignboardMetadata(duplicatedCardFile.frontmatter, duplicatedCard.filePath, {
+    boardName: 'Client Work',
+    listName: 'Waiting',
+  });
 
   const preparedBodyPath = path.join(fixture.root, 'prepared.md');
   const replacementNotesPath = path.join(fixture.root, 'replacement-notes.md');
@@ -588,6 +629,11 @@ async function main() {
   assert.ok(createdFromTemplate.body.includes('## Source'));
   assert.ok(createdFromTemplate.body.includes('Prepared notes placeholder.'));
   assert.ok(!createdFromTemplate.labels.includes('template'));
+  const createdFromTemplateFile = await cardFrontmatter.readCard(createdFromTemplate.filePath);
+  assertSignboardMetadata(createdFromTemplateFile.frontmatter, createdFromTemplate.filePath, {
+    boardName: 'Client Work',
+    listName: 'Waiting',
+  });
 
   const replacedSection = JSON.parse(
     runCli([
@@ -697,6 +743,11 @@ async function main() {
   assert.strictEqual(createdCard.start, '2026-03-18');
   assert.strictEqual(createdCard.due, '2026-03-20');
   assert.deepStrictEqual(createdCard.labels, ['client']);
+  const createdCardFile = await cardFrontmatter.readCard(createdCard.filePath);
+  assertSignboardMetadata(createdCardFile.frontmatter, createdCard.filePath, {
+    boardName: 'Client Work',
+    listName: 'Waiting',
+  });
 
   const editedCard = JSON.parse(
     runCli([
@@ -723,6 +774,11 @@ async function main() {
   assert.strictEqual(editedCard.due, null);
   assert.deepStrictEqual(editedCard.labels.sort(), ['client', 'urgent']);
   assert.ok(editedCard.body.includes('Escalated yesterday.'));
+  const movedCardFile = await cardFrontmatter.readCard(editedCard.filePath);
+  assertSignboardMetadata(movedCardFile.frontmatter, editedCard.filePath, {
+    boardName: 'Client Work',
+    listName: 'Doing',
+  });
 
   const readCard = JSON.parse(
     runCli([

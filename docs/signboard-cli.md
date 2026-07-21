@@ -484,7 +484,7 @@ All import commands support `--json`.
 
 ## Markdown and Date Conventions
 
-Cards are Markdown files with frontmatter. The CLI reads and writes that structure for you. So you don't need to worry about that unless you are supplying your own files.
+Cards are Markdown files with frontmatter. The CLI reads and writes that structure for you. CLI card creation, duplication, editing, note addition, and moves also maintain the flat Signboard/Obsidian properties used by managed Obsidian Bases. So you don't need to worry about that unless you are supplying your own files.
 
 ### Card start and due dates
 

@@ -123,6 +123,7 @@ Signboard includes a terminal CLI for direct board management without going thro
 - Use `signboard use /Path/to/Board` once to remember the active board for later commands
 - Use `signboard boards create /Path/to/NewBoard --use` to create and select a new board from the terminal
 - The installed `signboard` wrapper runs the bundled CLI in Electron's Node mode, avoiding desktop app startup for terminal commands.
+- CLI-created, duplicated, edited, and moved cards keep the same flat Signboard/Obsidian properties as cards written in the desktop app, so they remain visible in managed Obsidian Bases.
 
 Examples:
 

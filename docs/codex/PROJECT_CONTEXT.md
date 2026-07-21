@@ -448,8 +448,8 @@ Files: `lib/importers/*`
 
 ### CLI internals
 - `lib/boardDiscovery.js` owns shared known-board discovery for CLI and MCP, including desktop trusted/open state reads, board-looking folder detection, and bounded allowed-root scans.
-- `lib/boardCreation.js` owns shared default board scaffolding for MCP and CLI-created boards.
-- `lib/cliBoard.js` owns CLI list/card filesystem operations, including due filtering with `--due-source any|card|task`, `--task-status open|any`, `--start` card writes, card duplication/template creation, targeted Markdown section edits, timestamped notes, explicit label clearing, and card write dry-run payloads.
+- `lib/boardCreation.js` owns shared default board scaffolding for MCP and CLI-created boards and normalizes the starter card's flat Signboard/Obsidian metadata.
+- `lib/cliBoard.js` owns CLI list/card filesystem operations, including due filtering with `--due-source any|card|task`, `--task-status open|any`, `--start` card writes, card duplication/template creation, targeted Markdown section edits, timestamped notes, explicit label clearing, and card write dry-run payloads. CLI create, duplicate/template, edit, note, and move writes normalize flat Signboard/Obsidian metadata through `lib/obsidianIntegration.js`, using the destination list after a move.
 - `lib/taskList.js` exposes shared task parsing and start/due date helpers for CLI filtering and JSON metadata.
 - `lib/cliApp.js` owns shared command parsing/output used by both the Node shim and Electron executable, including board creation, archive listing/read/restore flows, card write previews, and path-based Trello/Obsidian/Tasks.md imports.
 - `lib/cliInstall.js` owns user-level CLI shim + shell profile installation, including the packaged-app Node-mode wrapper.
@@ -485,7 +485,7 @@ CLI overdue behavior:
 ### CLI smoke test
 - `npm run test:cli`
 - Script: `scripts/test-cli.js`
-- Covers list creation/rename, card create/edit/read/filter flows, duplicate/template card writes, section edits, timestamped notes, dry-run previews, archive list/read/restore flows, and Trello/Obsidian/Tasks.md imports.
+- Covers list creation/rename, card create/edit/read/filter flows, duplicate/template card writes, Signboard/Obsidian metadata normalization and legacy-card repair, section edits, timestamped notes, dry-run previews, archive list/read/restore flows, and Trello/Obsidian/Tasks.md imports.
 
 ### Archive tests
 - `node scripts/test-archive.js`
