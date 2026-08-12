@@ -60,6 +60,18 @@ For standard releases, Signboard intentionally promotes a smaller public downloa
 - Windows: single installer
 - Linux: separate `x64` and `ARM64` AppImage, deb, and Arch/Omarchy packages
 
+### Arch Linux (AUR)
+
+On Arch Linux and Arch-based distributions, Signboard is available on the [Arch User Repository](https://aur.archlinux.org/packages/signboard-appimage) as `signboard-appimage` for `x86_64` and `aarch64`. The package is maintained in the community [`missing-aur`](https://github.com/Cleboost/missing-aur) project and kept up to date with upstream releases.
+
+Install with your preferred AUR helper:
+
+```bash
+yay -S signboard-appimage
+# or
+paru -S signboard-appimage
+```
+
 ## Documentation
 
 - [Documentation hub](./docs/README.md)
