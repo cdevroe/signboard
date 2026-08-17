@@ -12,6 +12,8 @@ Signboard is a local-first board app that stores lists as folders and cards as M
 
 If you are using the desktop app, begin with [Using Signboard](./using-signboard.md).
 
+Arch Linux and Omarchy users can install the native `.pacman` release package with `sudo pacman -U ./signboard_VERSION_linux_x86_64.pacman`. It includes the launcher entry and icon and does not require FUSE.
+
 If you want to automate Signboard, script it, or drive it from an agent without MCP, go to [Signboard CLI](./signboard-cli.md).
 
 If you want structured tool access from an agent, see [MCP Server](../MCP_README.md).

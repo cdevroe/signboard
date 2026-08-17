@@ -613,6 +613,14 @@ async function createCardElement(cardPath, options = {}) {
   const cardEl = document.createElement('div');
   cardEl.className = 'card';
   cardEl.dataset.path = cardPath;
+  cardEl.updateSignboardPath = (nextCardPath) => {
+    const normalizedNextPath = String(nextCardPath || '').trim();
+    if (!normalizedNextPath) {
+      return;
+    }
+    cardPath = normalizedNextPath;
+    cardEl.dataset.path = normalizedNextPath;
+  };
   cardEl.setAttribute('role', 'listitem');
 
   const cardFrame = document.createElement('div');

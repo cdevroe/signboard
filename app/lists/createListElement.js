@@ -104,13 +104,29 @@ async function createListElement(name, listPath, cardNames, options = {}) {
               throw new Error('Card reorder is unavailable.');
             }
 
-            await window.board.reorderCardsInList(targetListPath, finalOrder);
+            const result = await window.board.reorderCardsInList(targetListPath, finalOrder);
+            const cardsBySourcePath = new Map(
+              [...evt.to.querySelectorAll('.card[data-path]')]
+                .map((card) => [card.dataset.path, card]),
+            );
+            for (const cardEntry of Array.isArray(result && result.cards) ? result.cards : []) {
+              const cardEl = cardsBySourcePath.get(cardEntry.sourcePath);
+              if (cardEl && cardEntry.cardPath) {
+                if (typeof cardEl.updateSignboardPath === 'function') {
+                  cardEl.updateSignboardPath(cardEntry.cardPath);
+                } else {
+                  cardEl.dataset.path = cardEntry.cardPath;
+                }
+              }
+            }
+            if (typeof acknowledgeLocalBoardFilesystemChanges === 'function') {
+              await acknowledgeLocalBoardFilesystemChanges();
+            }
           } catch (error) {
             console.error('Failed to reorder cards.', error);
             if (typeof announceSignboardStatus === 'function') {
               announceSignboardStatus('Card order could not be saved.');
             }
-          } finally {
             await renderBoard();
           }
       }

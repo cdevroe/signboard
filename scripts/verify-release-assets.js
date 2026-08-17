@@ -33,12 +33,14 @@ const requiredArtifacts = [
   `signboard_${version}_win.exe`,
   `signboard_${version}_linux_x86_64.AppImage`,
   `signboard_${version}_linux_amd64.deb`,
+  `signboard_${version}_linux_x86_64.pacman`,
   `signboard_${version}_linux_arm64.AppImage`,
   `signboard_${version}_linux_arm64.deb`,
+  `signboard_${version}_linux_arm64.pacman`,
 ];
 
 const artifactPattern = new RegExp(
-  `^signboard_${escapeForRegex(version)}_(mac|linux)_([A-Za-z0-9_]+)\\.(dmg|zip|exe|AppImage|deb|rpm)$`
+  `^signboard_${escapeForRegex(version)}_(mac|linux)_([A-Za-z0-9_]+)\\.(dmg|zip|exe|AppImage|deb|pacman|rpm)$`
 );
 
 const windowsArtifactPattern = new RegExp(
@@ -70,6 +72,8 @@ const curatedDownloads = [
   { label: 'Linux AppImage (ARM64)', file: `signboard_${version}_linux_arm64.AppImage` },
   { label: 'Linux deb (x64)', file: `signboard_${version}_linux_amd64.deb` },
   { label: 'Linux deb (ARM64)', file: `signboard_${version}_linux_arm64.deb` },
+  { label: 'Arch/Omarchy package (x64)', file: `signboard_${version}_linux_x86_64.pacman` },
+  { label: 'Arch/Omarchy package (ARM64)', file: `signboard_${version}_linux_arm64.pacman` },
 ];
 
 const errors = [];
@@ -374,7 +378,7 @@ function needsBlockmap(name) {
 }
 
 function isKnownExtension(extension) {
-  return ['dmg', 'zip', 'exe', 'AppImage', 'deb', 'rpm'].includes(extension);
+  return ['dmg', 'zip', 'exe', 'AppImage', 'deb', 'pacman', 'rpm'].includes(extension);
 }
 
 function escapeForRegex(input) {
