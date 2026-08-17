@@ -19,6 +19,8 @@ Use this structure:
 - Linux AppImage (ARM64)
 - Linux deb (x64)
 - Linux deb (ARM64)
+- Arch / Omarchy package (x64)
+- Arch / Omarchy package (ARM64)
 
 ## Notes
 
@@ -45,4 +47,6 @@ Use this structure:
 - Linux AppImage (ARM64)
 - Linux deb (x64)
 - Linux deb (ARM64)
+- Arch / Omarchy package (x64)
+- Arch / Omarchy package (ARM64)
 ```

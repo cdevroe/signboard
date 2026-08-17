@@ -770,6 +770,21 @@ function scheduleExternalBoardRefresh() {
     }, EXTERNAL_BOARD_RENDER_DEBOUNCE_MS);
 }
 
+async function acknowledgeLocalBoardFilesystemChanges() {
+    if (!window.board || typeof window.board.getBoardWatchToken !== 'function') {
+        return;
+    }
+
+    // fs.watch delivery trails the filesystem operation on some Linux filesystems.
+    // Yield once before sampling so our own transactional renames do not trigger a
+    // redundant full-board read on the next external-sync tick.
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    const latestToken = Number(await window.board.getBoardWatchToken());
+    if (Number.isFinite(latestToken) && latestToken > externalBoardWatchToken) {
+        externalBoardWatchToken = latestToken;
+    }
+}
+
 async function runExternalBoardRefresh() {
     if (!window.boardRoot) {
         externalBoardRefreshPending = false;

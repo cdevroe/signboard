@@ -20,6 +20,9 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Defer DOM/layout mutations after macOS native menu or `<select>` popup interactions with `waitForNativeMenuTrackingToSettle()` before replacing, disabling, rerendering, or moving controls.
 - Keep card drag/drop clone and placeholder behavior in sync with `app/utilities/cardDragTilt.js` and `static/styles.css`.
 - Keep card/list drag/drop filesystem ordering on the main-process transactional helpers in `lib/cardOrdering.js`; do not move reorder loops back into renderer code.
+- Preserve `lib/cardOrdering.js` unchanged-entry detection so transactional reorders do not rename unaffected files on slower disks.
+- Keep successful card drag/drop on the in-place returned-path update path; reserve full-board rerendering for reorder recovery so slower disks do not reread every card after each drop.
+- Keep native Arch/Omarchy `.pacman` packages in the standard Linux release matrix alongside AppImage and deb artifacts.
 - MCP allowed roots include both explicit MCP roots and desktop trusted board roots; keep root loading, `get_config`, `signboard_list_boards`, and board-name resolution tests aligned.
 - CLI and MCP board discovery/creation should stay aligned: `signboard boards list` and `signboard_list_boards` report the same known-board metadata shape where applicable, while `signboard boards create` and `signboard_create_board` scaffold the same default lists and starter card.
 - Quick board switching uses `Cmd/Ctrl + K`, searches all currently open boards, and should keep tab switching, overflow tab switching, and switcher switching on the same safe board-switch helper.

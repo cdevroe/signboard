@@ -27,6 +27,9 @@ Start here before opening source files.
 - Archive browsing and restore now run through `lib/archive.js` via `main.js` / `preload.js`; the renderer opens a dedicated Archive modal (`app/board/archiveBrowser.js`) instead of treating Archive as a board view.
 - Active-card adjacent-list moves use the main-process `moveCardToTop` IPC path backed by `lib/cardOrdering.js`, so renderer shortcuts do not perform multi-step filesystem renames directly.
 - Card and list drag/drop reorder use main-process `reorderCardsInList` / `reorderLists` IPC paths backed by transactional helpers in `lib/cardOrdering.js`; do not reintroduce renderer-side multi-rename loops.
+- Transactional reorder stages only entries whose numbered names change; preserve no-op and unchanged-entry rename avoidance for slow disks.
+- Successful card drag/drop updates returned card paths in place instead of rereading and rebuilding the whole board; keep `createCardElement().updateSignboardPath`, reorder responses, local watch-token acknowledgement, and error-only fallback rendering aligned.
+- Linux releases include native Arch/Omarchy `.pacman` packages alongside AppImage and deb artifacts so installation includes desktop integration without FUSE.
 - Board rendering supports Kanban by default plus a board-scoped Table view for scanning and bulk-managing cards; Calendar, This Week, Day, and Agenda dated workflows live in Planner.
 - Board render, Table, and Planner use the batched `readBoardSnapshot` IPC path plus the renderer adapter in `app/board/boardSnapshot.js` to avoid per-card IPC reads during normal view rendering.
 - Planner is managed in `app/board/plannerView.js`; it is the left-most workspace view in the bottom Planner/Kanban/Table dock, appears only when at least one board tab is open, defaults to all open boards, has a quick current-board scope toggle, and owns Calendar, This Week, Day, and Agenda views.

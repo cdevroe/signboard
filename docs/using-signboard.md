@@ -434,6 +434,10 @@ Status changes such as creating, moving, archiving, restoring, and switching vie
 
 Focus styling is keyboard-only where possible, including the card editor title and list names, so mouse users do not get a persistent editor outline while keyboard users still get a visible focus target.
 
+## Arch Linux and Omarchy installation
+
+Download the `.pacman` file for your architecture from the latest Signboard release, then run `sudo pacman -U ./signboard_VERSION_linux_x86_64.pacman` from the download directory. This native package installs the application, desktop launcher, and Signboard icon together and does not need FUSE. On ARM hardware, use the `linux_arm64.pacman` file. AppImage remains an alternative for other Linux distributions.
+
 ## Keyboard Shortcuts
 
 On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.

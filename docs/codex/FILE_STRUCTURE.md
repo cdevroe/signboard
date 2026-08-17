@@ -18,6 +18,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `.gitignore` - Ignores `node_modules`, `dist`, `.env`, etc.
 - `buildjs.sh` - Concatenate shared renderer schema and renderer modules into `app/signboard.js`.
 - `electron-builder.json` - Build targets/artifact settings.
+- Linux build targets include native Arch/Omarchy `.pacman` packages in addition to AppImage, deb, and optional rpm artifacts.
 - `LICENSE` - MIT license.
 - `obsidian-plugin/` - Optional desktop-only Obsidian companion plugin source (`manifest.json`, self-contained `main.js`, helper/tested conversion/link/delete-cleanup utilities, styles, and plugin README) for opening/copying Signboard links, attaching active notes, asking before removing links to deleted notes, creating Signboard boards from folders, and handling `obsidian://signboard?...`.
 - `skills/signboard-mcp/SKILL.md` - Optional agent skill instructions for safe/consistent Signboard MCP tool usage.
@@ -30,7 +31,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/taskList.js` - Task checklist parser, start/due marker helpers, all/open task date sets, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and incomplete task due markers, skipping completed workflow lists.
 - `app/utilities/accessibility.js` - Shared renderer accessibility helpers for modal focus restoration/trapping, background inert state, live status announcements, stable DOM IDs, reduced-motion checks, and deferring DOM mutations until native menu/select popup tracking settles on macOS.
-- `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, reduced-motion handling, and drag text-selection lock used by Kanban and temporal card drag/drop.
+- `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, frame-coalesced drag tilt, reduced-motion handling, and drag text-selection lock used by Kanban and temporal card drag/drop.
 - `app/utilities/cardTimestamps.js` - Renderer card timestamp formatting helpers for editor metadata and Table age columns.
 - `app/utilities/linkedObjects.js` - Shared renderer helpers for counting structured `linked_objects` and legacy `related` links, plus paperclip count badge creation for Kanban/Table.
 - `app/appSettings.js` - Renderer app-settings state, app-wide General/Notifications/Smart Actions controls, drag-reorderable accordion Smart Card Action prompt/target rows, tooltip/notification/Quick Add global shortcut/AI assistance/External Published Calendar persistence scheduling, and one-time migration from legacy board settings; shared defaults/normalizers come from `shared/appSettingsSchema.js`.
@@ -47,7 +48,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/cards/processAddNewCard.js` - New card creation flow, including open-board targeting and optional create-and-open behavior.
 - `app/cards/processAddNewList.js` - New list creation flow.
 - `app/lists/listActionsPopover.js` - List action popover rendering for adding cards/lists, moving lists left/right, archiving cards/lists, keyboard option navigation, shortcut hints, and status announcements.
-- `app/lists/createListElement.js` - List DOM rendering with labelled section/list semantics, sanitized rename, card DnD handling, and cross-list move lifecycle logging.
+- `app/lists/createListElement.js` - List DOM rendering with labelled section/list semantics, sanitized rename, card DnD handling, returned-path in-place updates, and cross-list move lifecycle logging.
 - `app/board/renderBoard.js` - Whole-board render using batched board snapshots, active Kanban/Table view dispatch, and Kanban list DnD handling through main-process transactional reorder.
 - `app/board/openBoard.js` - Board open/init logic and starter content.
 - `app/modals/closeAllModals.js` - Modal close logic + editor cleanup + conditional rerender + board interaction lock/unlock.
@@ -68,7 +69,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/cardFrontmatter.js` - Card parse/normalize/read/write/update with legacy support, including `start` and `due` date normalization.
 - `lib/cardLifecycle.js` - Shared card lifecycle metadata helper for `createdAt`, compact `activity` trails, archive frontmatter state, and moved/restored transitions.
 - `lib/cardTimestamps.js` - Shared timestamp resolver for desktop reads, CLI card records/JSON output, and MCP card responses, preferring frontmatter/activity creation data and filesystem modification data.
-- `lib/cardOrdering.js` - Shared transactional ordering helpers used by main-process/MCP restore and move flows to insert a card at the top, reorder cards in a list, and reorder list directories while staging temp names and rolling back on failures.
+- `lib/cardOrdering.js` - Shared transactional ordering helpers used by main-process/MCP restore and move flows to insert a card at the top, reorder cards in a list, and reorder list directories while staging only changed entries and rolling back on failures.
 - `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
 - `lib/boardLabels.js` - Board-level label/theme/workflow/External Published Calendar inclusion settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
 - `lib/boardDuplication.js` - Board folder duplication helper used by desktop Settings; copies board contents, assigns fresh copied-card IDs, refreshes copied Signboard metadata, rewrites internal `signboard://open-card` references, rewrites copied local linked-object paths, and resets copied managed Base state.

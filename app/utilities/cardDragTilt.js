@@ -3,6 +3,7 @@ const BOARD_CARD_DRAG_TILT_DEAD_ZONE_PX = 12;
 const BOARD_CARD_DRAG_TILT_DISTANCE_PX = 56;
 
 let activeBoardCardDragTiltState = null;
+let boardCardDragTiltAnimationFrameId = null;
 
 function clearBoardCardTextSelection() {
   if (typeof window === 'undefined' || typeof window.getSelection !== 'function') {
@@ -143,7 +144,32 @@ function updateBoardCardDragTilt(event) {
 }
 
 function handleBoardCardDragTiltPointerMove(event) {
-  updateBoardCardDragTilt(event);
+  if (!activeBoardCardDragTiltState) {
+    return;
+  }
+
+  const pointer = getBoardCardDragTiltPointer(event);
+  if (pointer) {
+    activeBoardCardDragTiltState.pendingPointer = pointer;
+  }
+
+  if (boardCardDragTiltAnimationFrameId !== null) {
+    return;
+  }
+
+  const requestFrame = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+    ? window.requestAnimationFrame.bind(window)
+    : (callback) => setTimeout(callback, 16);
+  boardCardDragTiltAnimationFrameId = requestFrame(() => {
+    boardCardDragTiltAnimationFrameId = null;
+    if (!activeBoardCardDragTiltState || !activeBoardCardDragTiltState.pendingPointer) {
+      return;
+    }
+
+    const pendingPointer = activeBoardCardDragTiltState.pendingPointer;
+    activeBoardCardDragTiltState.pendingPointer = null;
+    updateBoardCardDragTilt(pendingPointer);
+  });
 }
 
 function removeBoardCardDragTiltListeners() {
@@ -154,6 +180,15 @@ function removeBoardCardDragTiltListeners() {
   document.removeEventListener('mousemove', handleBoardCardDragTiltPointerMove);
   document.removeEventListener('touchmove', handleBoardCardDragTiltPointerMove);
   document.removeEventListener('pointermove', handleBoardCardDragTiltPointerMove);
+
+  if (boardCardDragTiltAnimationFrameId !== null) {
+    if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+      window.cancelAnimationFrame(boardCardDragTiltAnimationFrameId);
+    } else {
+      clearTimeout(boardCardDragTiltAnimationFrameId);
+    }
+    boardCardDragTiltAnimationFrameId = null;
+  }
 }
 
 function addBoardCardDragTiltListeners() {
@@ -184,6 +219,7 @@ function beginBoardCardDragTilt(evt) {
     item,
     startX: pointer ? pointer.clientX : null,
     lastPointer: pointer,
+    pendingPointer: null,
     targets: [],
   };
 

@@ -159,6 +159,33 @@ async function testReorderCardFilesAcrossLists() {
   }
 }
 
+async function testUnchangedCardOrderDoesNotRenameFiles() {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-card-reorder-unchanged-'));
+  const listPath = path.join(root, '000-To-do-stock');
+  const originalRename = fs.rename;
+
+  try {
+    await fs.mkdir(listPath, { recursive: true });
+    const firstPath = path.join(listPath, '000-first-card-aaaaa.md');
+    const secondPath = path.join(listPath, '001-second-card-bbbbb.md');
+    await fs.writeFile(firstPath, 'first', 'utf8');
+    await fs.writeFile(secondPath, 'second', 'utf8');
+
+    let renameCount = 0;
+    fs.rename = async (...args) => {
+      renameCount += 1;
+      return originalRename.call(fs, ...args);
+    };
+
+    const result = await reorderCardFilesInList(listPath, [firstPath, secondPath]);
+    assert.strictEqual(renameCount, 0);
+    assert.deepStrictEqual(result.map((entry) => entry.cardPath), [firstPath, secondPath]);
+  } finally {
+    fs.rename = originalRename;
+    await fs.rm(root, { recursive: true, force: true });
+  }
+}
+
 async function testReorderListDirectories() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-list-reorder-'));
 
@@ -195,6 +222,7 @@ async function run() {
   await testInsertCardFileAtTopRollback();
   await testReorderCardFilesInList();
   await testReorderCardFilesAcrossLists();
+  await testUnchangedCardOrderDoesNotRenameFiles();
   await testReorderListDirectories();
   console.log('Card ordering tests passed.');
 }
