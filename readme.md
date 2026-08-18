@@ -46,11 +46,19 @@ Signboard is free for personal use. If you are using Signboard for your work, it
    - `Download for Windows`
    - Linux packages grouped by package type with explicit `x64` and `ARM64` labels
 
+On Arch Linux or Omarchy, download the matching `.pacman` package and install it with:
+
+```bash
+sudo pacman -U ./signboard_VERSION_linux_x86_64.pacman
+```
+
+The package installs Signboard, its launcher entry, and its icon together. It does not require FUSE. Use the `arm64` package instead on an ARM machine. The AppImage remains available for other distributions.
+
 For standard releases, Signboard intentionally promotes a smaller public download set:
 
 - macOS: universal build
 - Windows: single installer
-- Linux: separate `x64` and `ARM64` packages
+- Linux: separate `x64` and `ARM64` AppImage, deb, and Arch/Omarchy packages
 
 ## Documentation
 
@@ -290,7 +298,7 @@ npm run dist:win:x64
 npm run dist:win:arm64
 ```
 
-### Linux (AppImage, deb)
+### Linux (AppImage, deb, Arch/Omarchy)
 
 ```bash
 # Specific Linux architecture
@@ -304,6 +312,11 @@ npm run dist:linux:all
 npm run dist:linux:rpm:x64
 npm run dist:linux:rpm:arm64
 npm run dist:linux:rpm:all
+
+# Optional: Arch/Omarchy-only builds
+npm run dist:linux:pacman:x64
+npm run dist:linux:pacman:arm64
+npm run dist:linux:pacman:all
 ```
 
 ### Build everything
@@ -315,7 +328,7 @@ npm run dist:all
 
 Notes:
 - `--publish never` is used for local builds so these commands package artifacts without attempting to publish releases.
-- Standard public downloads are: macOS universal, one Windows installer, and Linux `AppImage`/`deb` builds for `x64` and `ARM64`.
+- Standard public downloads are: macOS universal, one Windows installer, and Linux `AppImage`/`deb`/Arch packages for `x64` and `ARM64`.
 - The GitHub release body should be treated as the curated download surface. Link the public download set there instead of expecting users to interpret the raw asset list.
 - Copy `.env-sample` to `.env` and fill in your credentials before running signing/notarization builds.
 - macOS signing/notarization uses environment variables from `.env` (`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`).

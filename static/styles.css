@@ -2507,6 +2507,7 @@ body.board-empty main#board {
   border-color: color-mix(in oklab, var(--accent) 34%, var(--border));
   box-shadow: 0 12px 28px color-mix(in oklab, var(--shadow-card) 74%, transparent);
   transform: rotate(var(--card-drag-tilt, 0deg));
+  will-change: transform;
 }
 
 body.board-card-drag-active,

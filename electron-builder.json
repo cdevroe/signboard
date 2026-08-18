@@ -34,7 +34,7 @@
     "gatekeeperAssess": false
   },
   "linux": {
-    "target": ["AppImage", "deb", "rpm"],
+    "target": ["AppImage", "deb", "pacman", "rpm"],
     "category": "Utility",
     "icon": "build/icons"
   },

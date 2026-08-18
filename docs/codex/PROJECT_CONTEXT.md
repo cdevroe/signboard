@@ -547,6 +547,9 @@ CLI overdue behavior:
 
 ### Packaging
 - Electron Builder config in `package.json` and `electron-builder.json`.
+- Successful card drag/drop applies the main-process returned path mapping to existing card elements and acknowledges its own filesystem-watch events, avoiding an immediate whole-board disk reread; failures still rerender for recovery. Drag tilt DOM writes are frame-coalesced.
+- Transactional card/list ordering stages and renames only entries whose numbered paths actually change, including a zero-rename fast path for unchanged drops.
+- Standard Linux packaging includes AppImage, deb, and native Arch/Omarchy pacman artifacts for x64 and ARM64; the native package supplies desktop integration without requiring FUSE.
 - macOS notarization hook: `scripts/notarize.js` (env vars from `.env`).
 - Release validation script: `scripts/verify-release-assets.js` (`npm run release:verify`) checks cross-platform updater assets, minimum sizes, Debian archive structure, metadata naming, metadata sizes, and SHA-512 integrity. A `.deb` that fails must be rebuilt in a Linux environment rather than published.
 - Standard public releases should promote macOS universal, a single Windows installer, and Linux `x64`/`ARM64` `AppImage` + `deb` downloads; use `docs/release-template.md` for the curated GitHub release body.
