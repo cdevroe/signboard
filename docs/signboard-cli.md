@@ -449,7 +449,7 @@ signboard settings
 signboard settings --json
 ```
 
-This returns the board settings Markdown document, including labels, color scheme data, workflow settings for completed lists, and whether the board is included in External Published Calendar. App-wide tooltip, notification, Quick Add global shortcut, AI assistance, and External Published Calendar server preferences are desktop app settings, not board settings.
+This returns the board settings Markdown document, including labels, color scheme data, workflow settings for completed lists, and whether the board is included in External Published Calendar. App-wide appearance (including Omarchy theme following), tooltip, notification, Quick Add global shortcut, AI assistance, and External Published Calendar server preferences are desktop app settings, not board settings.
 
 Current CLI editing support is intentionally narrow.
 
