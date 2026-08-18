@@ -447,7 +447,7 @@ Focus styling is keyboard-only where possible, including the card editor title a
 
 ## Arch Linux and Omarchy installation
 
-Download the `.pacman` file for your architecture from the latest Signboard release, then run `sudo pacman -U ./signboard_VERSION_linux_x64.pacman` from the download directory. This native package installs the application, desktop launcher, `signboard://` URL handler, and Signboard icon together and does not need FUSE. On ARM hardware, use `linux_aarch64.pacman`. The community-maintained `signboard-appimage` package is also available from the AUR through `yay -S signboard-appimage` or `paru -S signboard-appimage`; AppImage remains an alternative for other distributions.
+Download the `.pacman` file for your architecture from the latest Signboard release, then run `sudo pacman -U ./signboard_VERSION_linux_x64.pacman` from the download directory. This native package installs the application, desktop launcher, `signboard://` URL handler, and Signboard icon together and does not need FUSE. On ARM hardware, use `linux_aarch64.pacman`. The community-maintained [`signboard-appimage` package](https://aur.archlinux.org/packages/signboard-appimage) is also available from the AUR through `yay -S signboard-appimage` or `paru -S signboard-appimage`; AppImage remains an alternative for other distributions.
 
 ## Keyboard Shortcuts
 

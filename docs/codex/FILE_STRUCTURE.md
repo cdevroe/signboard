@@ -101,7 +101,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-board-labels.js` - Node assertions for board label settings defaults/migration/filter logic.
 - `scripts/test-board-snapshot.js` - Node assertions for batched board snapshot list/card reads, task metadata, timestamps, board settings, and archive inclusion behavior.
 - `scripts/test-board-duplication.js` - Node assertions for board folder duplication, copied-card ID refresh, internal Signboard link rewrites, linked-object path rewrites, and copied managed Base reset behavior.
-- `scripts/test-app-settings.js` - Node assertions for app-wide settings persistence, including AI settings, and one-time board-settings migration.
+- `scripts/test-app-settings.js` - Node assertions for app-wide settings persistence, including appearance/Omarchy source and AI settings, and one-time board-settings migration.
 - `scripts/test-ai-task-suggestions.js` - Node assertions for Ollama model-list/chat request construction, Smart Card Action output parsing including label references, due dates, attachments, answers, and AI checklist suggestion cleanup without live network calls.
 - `scripts/test-board-card-metadata.js` - Board card metadata rendering assertions (compact start/due ranges, labels, task badge behavior).
 - `scripts/test-board-views.js` - Kanban/Table/Planner rendering and filter helper assertions.
@@ -111,7 +111,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-update-errors.js` - Linux package-manager and generic updater error presentation assertions.
 - `scripts/test-linux-package-installer.js` - Pacman query/install command assertions, including protection against `pacman -Sy` fallback.
 - `scripts/test-omarchy-theme.js` - Omarchy path, palette parsing, malformed input, platform no-op, and active-theme replacement assertions.
-- `scripts/test-release-artifact-validation.js` - Valid, malformed, incomplete, and file-backed Debian archive inspection assertions.
+- `scripts/test-release-artifact-validation.js` - Valid, malformed, incomplete, and file-backed Debian/Pacman archive inspection assertions.
 - `scripts/test-archive.js` - Archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.
 - `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
 - `scripts/test-external-published-calendar.js` - External Published Calendar assertions for ICS generation, completed-list skipping, checked-task skipping, and board opt-out.
@@ -122,8 +122,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-task-list-parser.js` - Task checklist parser assertions (`completed/total` and task start/due date extraction).
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
-- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux, including artifact size, Debian structure, metadata size/SHA-512 integrity, and curated public-download guidance.
-- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including board discovery, trusted-root config/resolution coverage, archive tool coverage, card task metadata assertions, and import-tool coverage.
+- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux, including artifact size, Debian/Pacman structure, packaged protocol registration, metadata size/SHA-512 integrity, and curated public-download guidance.
+- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including board discovery, trusted-root config/resolution coverage, archive tool coverage, card task metadata assertions, import-tool coverage, and MCP documentation inventory parity.
 - `scripts/test-cli.js` - Node CLI smoke test covering board discovery, list/card/archive flows, duplicate/template card commands, Signboard/Obsidian metadata normalization and legacy-card repair, section/note edits, dry-run previews, plus Trello/Obsidian imports.
 - `scripts/test-desktop-cli.js` - Packaged-shim-style Electron Node-mode CLI smoke test, including board creation and import command routing.
 

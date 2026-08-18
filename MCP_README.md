@@ -61,6 +61,7 @@ Typical executable locations:
 
 - macOS: `/Applications/Signboard.app/Contents/MacOS/Signboard`
 - Windows: `C:\Users\<you>\AppData\Local\Programs\Signboard\Signboard.exe`
+- Linux native package (including Arch/Omarchy): `/usr/bin/signboard`
 - Linux AppImage: wherever you saved the `signboard_*.AppImage` file
 
 Start MCP server mode by launching that executable with `--mcp-server`.
@@ -70,6 +71,8 @@ Print config JSON from packaged app:
 ```bash
 "/Applications/Signboard.app/Contents/MacOS/Signboard" --mcp-config
 ```
+
+With the native Linux package, the equivalent commands are `signboard --mcp-server` and `signboard --mcp-config`.
 
 ## In-app config shortcut
 
@@ -122,7 +125,7 @@ The server currently exposes these tools:
 `tools/list` advertises underscore tool names. Dotted `signboard.*` names are still accepted as legacy aliases for backward compatibility.
 
 Board-scoped tools take absolute `boardRoot` paths, `signboard_create_board` takes an absolute `parentRoot`, and all path inputs reject traversal.
-Board settings tools include labels, theme overrides, completed-list workflow settings, and board-level External Published Calendar inclusion. App tooltip, notification, Quick Add, AI assistance/Smart Card Action prompt, and External Published Calendar server preferences are desktop app settings.
+Board settings tools include labels, theme overrides, completed-list workflow settings, and board-level External Published Calendar inclusion. App appearance (including Omarchy theme following), tooltip, notification, Quick Add, AI assistance/Smart Card Action prompt, and External Published Calendar server preferences are desktop app settings.
 Import tools also take absolute external source paths, and those paths must resolve inside configured or trusted roots.
 
 ## Card Metadata in Card Tool Responses

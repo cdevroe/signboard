@@ -483,7 +483,7 @@ CLI overdue behavior:
 ### MCP smoke test
 - `npm run test:mcp`
 - Script: `scripts/test-mcp-server.js`
-- Asserts card tool outputs include `taskSummary` + task date metadata, verifies trusted/open board discovery, trusted-root config, and board-name resolution, verifies archive browse/read/restore tools, and covers Trello/Obsidian/Tasks.md import tools.
+- Asserts card tool outputs include `taskSummary` + task date metadata, verifies trusted/open board discovery, trusted-root config, and board-name resolution, verifies archive browse/read/restore tools, covers Trello/Obsidian/Tasks.md import tools, and requires every advertised tool to remain listed in both MCP documents.
 
 ### CLI smoke test
 - `npm run test:cli`
