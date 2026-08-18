@@ -351,11 +351,13 @@ Open `Settings` from the board menu or press `Cmd/Ctrl + ,`.
 
 The `App Settings` group controls settings that apply across Signboard:
 
-- `General`: tooltips and the optional global Quick Add shortcut while Signboard is open
+- `General`: tooltips, the optional global Quick Add shortcut while Signboard is open, and `Follow Omarchy theme` when Omarchy is detected
 - `Notifications`: daily due-date reminders and External Published Calendar publishing
 - `Smart Actions`: AI assistance through Ollama and Smart Card Actions
 
 If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due. The notification time field is shown only while reminders are enabled.
+
+On Omarchy, choose `Follow Omarchy theme` to use the active Omarchy palette. Signboard watches for atomic Omarchy theme replacements and updates while running. The option is hidden on other operating systems and Linux desktops, so their appearance is unchanged. Manually toggling light/dark mode returns to the Signboard theme, and a non-default board color scheme remains a deliberate per-board override.
 
 When AI assistance is enabled, Signboard checks the configured Ollama URL, shows whether it can connect, and loads the locally installed models from Ollama into a model dropdown. Use the refresh button next to the model picker after pulling a new model. When AI assistance is off, Smart Actions shows a setup state with an enable button. The card editor then shows a floating Smart Card Actions button with default actions for generating a new title, generating a summary, generating a task list, auto-labeling from the current board's existing labels, smart paste formatting, a one-off Quick Smart Action, and a read-only Question the Card action. Use the gear in the Smart Card Actions menu to open the Smart Actions settings panel directly. App Settings lets you drag actions to reorder them, expand an action with `Edit`, customize each built-in prompt, and add custom actions with a label, affected card data, and prompt. Custom actions can target Title, Labels, Content, Due Dates, or Attachments. Content suggestions are appended to the card instead of replacing existing notes. Quick Smart Action is reorderable in settings but does not store a prompt; choose its prompt and target when you run it from the card editor. Question the Card is reorderable in settings but does not store a prompt or show an affected-data selector; type a question when you run it, review the answer in the modal, and optionally ask a fresh follow-up without storing chat history or changing card data. New custom actions appear at the top of the actions list. For the generated task list action, change the number in the prompt when you want a different number of tasks. Suggestions are previewed before they replace the title, insert Markdown, set a due date, link suggested URL/app attachments, or apply labels. Auto-label only applies labels that already exist on the current board, preserves labels already assigned to the card, and skips duplicates. Attachment suggestions only link web URLs, app links, or `signboard://` links after confirmation; local file paths are not attached by AI. Card title, body, board/list context, start/due dates, current labels, available board labels, linked-object summaries, a compact markdown-file view of the card for questions, pasted smart-paste text, Quick Smart Action prompts, and Question the Card prompts are sent to the configured Ollama URL only when you use an action.
 
@@ -433,7 +435,7 @@ Imports copy data into Signboard and leave the original source files where they 
 
 Signboard checks for updates automatically. You can also choose `Check for Updates...` from the Signboard app menu on macOS or the Help menu on Windows and Linux. The native update dialog converts the GitHub release body from HTML or Markdown into readable plain text and omits the release's download-link section. Use `View changelog` to open the complete release page.
 
-On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access. If the download is invalid or Ubuntu's package manager rejects it, your installed copy remains unchanged and the error dialog offers `Open Downloads` so you can download and install the latest package manually.
+On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access. On Arch Linux and Omarchy, it recognizes the downloaded `.pacman`, validates it with `pacman -Qp`, and installs it with `pkexec pacman -U`. Signboard never performs a database-only `pacman -Sy` refresh. If validation or installation fails, your installed copy remains unchanged and the package-specific error dialog offers `Open Downloads`.
 
 ## Accessibility
 
@@ -445,7 +447,7 @@ Focus styling is keyboard-only where possible, including the card editor title a
 
 ## Arch Linux and Omarchy installation
 
-Download the `.pacman` file for your architecture from the latest Signboard release, then run `sudo pacman -U ./signboard_VERSION_linux_x86_64.pacman` from the download directory. This native package installs the application, desktop launcher, and Signboard icon together and does not need FUSE. On ARM hardware, use the `linux_arm64.pacman` file. AppImage remains an alternative for other Linux distributions.
+Download the `.pacman` file for your architecture from the latest Signboard release, then run `sudo pacman -U ./signboard_VERSION_linux_x64.pacman` from the download directory. This native package installs the application, desktop launcher, `signboard://` URL handler, and Signboard icon together and does not need FUSE. On ARM hardware, use `linux_aarch64.pacman`. The community-maintained `signboard-appimage` package is also available from the AUR through `yay -S signboard-appimage` or `paru -S signboard-appimage`; AppImage remains an alternative for other distributions.
 
 ## Keyboard Shortcuts
 

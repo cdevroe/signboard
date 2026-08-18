@@ -472,6 +472,15 @@
               </label>
             </div>
           </div>
+          <div id="boardSettingsAppearanceGroup" class="board-settings-group hidden" aria-hidden="true">
+            <label for="boardSettingsThemeSource">App theme</label>
+            <select id="boardSettingsThemeSource" aria-label="App theme">
+              <option value="signboard">Signboard</option>
+              <option value="omarchy">Follow Omarchy theme</option>
+            </select>
+            <p id="boardSettingsOmarchyThemeStatus" class="board-settings-status board-settings-status-inline" aria-live="polite">Omarchy was not detected.</p>
+            <p class="boardSettingsHint">Uses Omarchy’s active colors and follows theme changes. Non-default board color schemes remain unchanged.</p>
+          </div>
           <div class="board-settings-group">
             <label for="boardSettingsQuickAddShortcut">Global Quick Add shortcut</label>
             <div class="board-settings-inline-actions">

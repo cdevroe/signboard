@@ -9,6 +9,7 @@ if (!APP_SETTINGS_SCHEMA) {
 const DEFAULT_APP_NOTIFICATION_SETTINGS = APP_SETTINGS_SCHEMA.DEFAULT_NOTIFICATION_SETTINGS;
 const DEFAULT_APP_TOOLTIPS_ENABLED = APP_SETTINGS_SCHEMA.DEFAULT_TOOLTIPS_ENABLED;
 const DEFAULT_APP_QUICK_ADD_SETTINGS = APP_SETTINGS_SCHEMA.DEFAULT_QUICK_ADD_SETTINGS;
+const DEFAULT_APP_APPEARANCE_SETTINGS = APP_SETTINGS_SCHEMA.DEFAULT_APPEARANCE_SETTINGS;
 const DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS = APP_SETTINGS_SCHEMA.DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS;
 const APP_SMART_CARD_ACTION_LABEL_MAX_LENGTH = APP_SETTINGS_SCHEMA.SMART_CARD_ACTION_LABEL_MAX_LENGTH;
 const APP_SMART_CARD_ACTION_PROMPT_MAX_LENGTH = APP_SETTINGS_SCHEMA.SMART_CARD_ACTION_PROMPT_MAX_LENGTH;
@@ -20,6 +21,7 @@ const APP_SMART_CARD_ACTION_TARGET_LABELS = APP_SETTINGS_SCHEMA.SMART_CARD_ACTIO
 const DEFAULT_APP_AI_SETTINGS = APP_SETTINGS_SCHEMA.cloneDefaultAiSettings();
 const cloneDefaultAppSmartCardActions = APP_SETTINGS_SCHEMA.cloneDefaultSmartCardActions;
 const normalizeAppNotificationSettings = APP_SETTINGS_SCHEMA.normalizeNotificationSettings;
+const normalizeAppAppearanceSettings = APP_SETTINGS_SCHEMA.normalizeAppearanceSettings;
 const normalizeAppTooltipsEnabled = APP_SETTINGS_SCHEMA.normalizeTooltipsEnabled;
 const normalizeAppGlobalShortcutAccelerator = APP_SETTINGS_SCHEMA.normalizeGlobalShortcutAccelerator;
 const normalizeAppQuickAddSettings = APP_SETTINGS_SCHEMA.normalizeQuickAddSettings;
@@ -46,6 +48,14 @@ const DEFAULT_APP_OLLAMA_MODEL_STATUS = Object.freeze({
   models: Object.freeze([]),
   message: 'Not checked',
 });
+const DEFAULT_APP_OMARCHY_THEME_STATUS = Object.freeze({
+  detected: false,
+  available: false,
+  name: '',
+  mode: '',
+  palette: null,
+  message: 'Omarchy was not detected.',
+});
 
 function getAppSettingsState() {
   if (!window.__signboardAppSettingsState) {
@@ -54,6 +64,7 @@ function getAppSettingsState() {
       notificationSettings: { ...DEFAULT_APP_NOTIFICATION_SETTINGS },
       tooltipsEnabled: DEFAULT_APP_TOOLTIPS_ENABLED,
       quickAddSettings: { ...DEFAULT_APP_QUICK_ADD_SETTINGS },
+      appearanceSettings: { ...DEFAULT_APP_APPEARANCE_SETTINGS },
       externalPublishedCalendarSettings: { ...DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS },
       aiSettings: {
         ...DEFAULT_APP_AI_SETTINGS,
@@ -63,6 +74,7 @@ function getAppSettingsState() {
       externalPublishedCalendarStatus: { ...DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_STATUS },
       ollamaModelStatus: { ...DEFAULT_APP_OLLAMA_MODEL_STATUS, models: [] },
       ollamaModelStatusRequestId: 0,
+      omarchyThemeStatus: { ...DEFAULT_APP_OMARCHY_THEME_STATUS },
       globalShortcutStatus: {
         accelerator: '',
         registered: false,
@@ -162,6 +174,39 @@ function normalizeAppOllamaModelStatus(status) {
   };
 }
 
+function normalizeAppOmarchyThemeStatus(status) {
+  const source = status && typeof status === 'object' && !Array.isArray(status) ? status : {};
+  const paletteSource = source.palette && typeof source.palette === 'object' && !Array.isArray(source.palette)
+    ? source.palette
+    : null;
+  const palette = paletteSource
+    ? {
+      mode: paletteSource.mode === 'light' ? 'light' : 'dark',
+      boardBackground: String(paletteSource.boardBackground || ''),
+      surface: String(paletteSource.surface || ''),
+      text: String(paletteSource.text || ''),
+      muted: String(paletteSource.muted || ''),
+      border: String(paletteSource.border || ''),
+      accent: String(paletteSource.accent || ''),
+      accentText: String(paletteSource.accentText || ''),
+      selection: String(paletteSource.selection || ''),
+      shadow: String(paletteSource.shadow || ''),
+      shadowCard: String(paletteSource.shadowCard || ''),
+    }
+    : null;
+
+  return {
+    detected: source.detected === true,
+    available: source.available === true && Boolean(palette),
+    name: typeof source.name === 'string' ? source.name.trim() : '',
+    mode: source.mode === 'light' ? 'light' : (source.mode === 'dark' ? 'dark' : ''),
+    palette,
+    message: typeof source.message === 'string' && source.message.trim()
+      ? source.message.trim()
+      : DEFAULT_APP_OMARCHY_THEME_STATUS.message,
+  };
+}
+
 function getAppNotificationSettings() {
   return normalizeAppNotificationSettings(getAppSettingsState().notificationSettings);
 }
@@ -186,6 +231,14 @@ function setAppTooltipsEnabled(value) {
 
 function getAppQuickAddSettings() {
   return normalizeAppQuickAddSettings(getAppSettingsState().quickAddSettings);
+}
+
+function getAppAppearanceSettings() {
+  return normalizeAppAppearanceSettings(getAppSettingsState().appearanceSettings);
+}
+
+function setAppAppearanceSettings(appearanceSettings) {
+  getAppSettingsState().appearanceSettings = normalizeAppAppearanceSettings(appearanceSettings);
 }
 
 function setAppQuickAddSettings(quickAddSettings) {
@@ -238,6 +291,14 @@ function setAppOllamaModelStatus(status) {
   state.ollamaModelStatus = normalizeAppOllamaModelStatus(status);
 }
 
+function getAppOmarchyThemeStatus() {
+  return normalizeAppOmarchyThemeStatus(getAppSettingsState().omarchyThemeStatus);
+}
+
+function setAppOmarchyThemeStatus(status) {
+  getAppSettingsState().omarchyThemeStatus = normalizeAppOmarchyThemeStatus(status);
+}
+
 function resetAppOllamaModelStatus(message = DEFAULT_APP_OLLAMA_MODEL_STATUS.message) {
   setAppOllamaModelStatus({
     ...DEFAULT_APP_OLLAMA_MODEL_STATUS,
@@ -251,11 +312,16 @@ function applyAppSettings(settings) {
   setAppNotificationSettings(source.notifications || DEFAULT_APP_NOTIFICATION_SETTINGS);
   setAppTooltipsEnabled(source.tooltipsEnabled);
   setAppQuickAddSettings(source.quickAdd || DEFAULT_APP_QUICK_ADD_SETTINGS);
+  setAppAppearanceSettings(source.appearance || DEFAULT_APP_APPEARANCE_SETTINGS);
   setAppExternalPublishedCalendarSettings(source.externalPublishedCalendar || DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS);
   setAppAiSettings(source.ai || DEFAULT_APP_AI_SETTINGS);
   setAppGlobalShortcutStatus(source.globalShortcutStatus);
   setAppExternalPublishedCalendarStatus(source.externalPublishedCalendarStatus);
+  setAppOmarchyThemeStatus(source.omarchyThemeStatus);
   getAppSettingsState().settingsLoaded = true;
+  if (typeof applyConfiguredAppTheme === 'function') {
+    applyConfiguredAppTheme({ renderBoard: false });
+  }
 }
 
 async function loadAppSettings() {
@@ -265,6 +331,7 @@ async function loadAppSettings() {
       notifications: getAppNotificationSettings(),
       tooltipsEnabled: getAppTooltipsEnabled(),
       quickAdd: getAppQuickAddSettings(),
+      appearance: getAppAppearanceSettings(),
       externalPublishedCalendar: getAppExternalPublishedCalendarSettings(),
       ai: getAppAiSettings(),
       globalShortcutStatus: getAppGlobalShortcutStatus(),
@@ -324,6 +391,9 @@ async function migrateAppSettingsFromOpenBoards() {
 
 function renderAppSettingsControls() {
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
+  const appearanceGroup = document.getElementById('boardSettingsAppearanceGroup');
+  const themeSourceSelect = document.getElementById('boardSettingsThemeSource');
+  const omarchyThemeStatus = document.getElementById('boardSettingsOmarchyThemeStatus');
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
   const notificationsDetails = document.getElementById('boardSettingsNotificationsDetails');
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
@@ -347,6 +417,8 @@ function renderAppSettingsControls() {
   const aiAddActionButton = document.getElementById('btnAddAiSmartCardAction');
   const notifications = getAppNotificationSettings();
   const quickAdd = getAppQuickAddSettings();
+  const appearance = getAppAppearanceSettings();
+  const omarchyTheme = getAppOmarchyThemeStatus();
   const externalCalendar = getAppExternalPublishedCalendarSettings();
   const externalCalendarRuntime = getAppExternalPublishedCalendarStatus();
   const globalShortcutStatus = getAppGlobalShortcutStatus();
@@ -355,6 +427,29 @@ function renderAppSettingsControls() {
 
   if (tooltipsToggle) {
     tooltipsToggle.checked = getAppTooltipsEnabled();
+  }
+
+  const showAppearanceGroup = omarchyTheme.detected || appearance.themeSource === 'omarchy';
+  if (appearanceGroup) {
+    appearanceGroup.classList.toggle('hidden', !showAppearanceGroup);
+    appearanceGroup.setAttribute('aria-hidden', showAppearanceGroup ? 'false' : 'true');
+  }
+
+  if (themeSourceSelect) {
+    const omarchyOption = themeSourceSelect.querySelector('option[value="omarchy"]');
+    if (omarchyOption) {
+      omarchyOption.disabled = !omarchyTheme.available;
+      omarchyOption.textContent = omarchyTheme.name
+        ? `Follow Omarchy theme (${omarchyTheme.name})`
+        : 'Follow Omarchy theme';
+    }
+    themeSourceSelect.value = appearance.themeSource;
+  }
+
+  if (omarchyThemeStatus) {
+    omarchyThemeStatus.classList.remove('is-success', 'is-warning');
+    omarchyThemeStatus.textContent = omarchyTheme.message;
+    omarchyThemeStatus.classList.add(omarchyTheme.available ? 'is-success' : 'is-warning');
   }
 
   if (notificationsToggle) {
@@ -1094,6 +1189,7 @@ function persistAppSettings() {
         notifications: getAppNotificationSettings(),
         tooltipsEnabled: getAppTooltipsEnabled(),
         quickAdd: getAppQuickAddSettings(),
+        appearance: getAppAppearanceSettings(),
         externalPublishedCalendar: getAppExternalPublishedCalendarSettings(),
         ai: getAppAiSettings(),
       });
