@@ -254,6 +254,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('toggle-theme-mode', listener);
     };
   },
+  onOmarchyThemeChanged: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = (_event, status) => {
+      callback(status);
+    };
+
+    ipcRenderer.on('omarchy-theme-changed', listener);
+    return () => {
+      ipcRenderer.removeListener('omarchy-theme-changed', listener);
+    };
+  },
   onSwitchBoardView: (callback) => {
     if (typeof callback !== 'function') {
       return () => {};

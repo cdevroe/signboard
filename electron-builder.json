@@ -1,6 +1,12 @@
 {
   "appId": "com.cdevroe.signboard",
   "productName": "Signboard",
+  "protocols": [
+    {
+      "name": "Signboard",
+      "schemes": ["signboard"]
+    }
+  ],
   "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
   "files": [
     "app/**",

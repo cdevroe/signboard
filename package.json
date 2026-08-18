@@ -9,6 +9,12 @@
     "signboard": "./bin/signboard.js"
   },
   "build": {
+    "protocols": [
+      {
+        "name": "Signboard",
+        "schemes": ["signboard"]
+      }
+    ],
     "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
     "nsis": {
       "artifactName": "signboard_${version}_${os}.${ext}",
@@ -44,6 +50,8 @@
     "test:local-date": "node scripts/test-local-date.js",
     "test:update-release-notes": "node scripts/test-update-release-notes.js",
     "test:update-errors": "node scripts/test-update-errors.js",
+    "test:linux-package-installer": "node scripts/test-linux-package-installer.js",
+    "test:omarchy-theme": "node scripts/test-omarchy-theme.js",
     "test:release-artifacts": "node scripts/test-release-artifact-validation.js",
     "test:archive": "node scripts/test-archive.js",
     "test:obsidian-integration": "node scripts/test-obsidian-integration.js",

@@ -49,10 +49,10 @@ Signboard is free for personal use. If you are using Signboard for your work, it
 On Arch Linux or Omarchy, download the matching `.pacman` package and install it with:
 
 ```bash
-sudo pacman -U ./signboard_VERSION_linux_x86_64.pacman
+sudo pacman -U ./signboard_VERSION_linux_x64.pacman
 ```
 
-The package installs Signboard, its launcher entry, and its icon together. It does not require FUSE. Use the `arm64` package instead on an ARM machine. The AppImage remains available for other distributions.
+The package installs Signboard, its launcher entry, its `signboard://` URL handler, and its icon together. It does not require FUSE. Use the `linux_aarch64.pacman` package on an ARM machine. The AppImage remains available for other distributions.
 
 For standard releases, Signboard intentionally promotes a smaller public download set:
 
@@ -71,6 +71,8 @@ yay -S signboard-appimage
 # or
 paru -S signboard-appimage
 ```
+
+On Omarchy, open `Settings > General` and choose `Follow Omarchy theme` to use the active Omarchy palette and follow future theme changes. The choice appears only when Signboard detects Omarchy. Selecting a non-default board color scheme keeps that board's deliberate palette.
 
 ## Documentation
 

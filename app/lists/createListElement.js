@@ -55,7 +55,7 @@ async function createListElement(name, listPath, cardNames, options = {}) {
       anchorElement: actionsBtn,
       listPath,
       listDisplayName: listName.textContent,
-      cardCount: cardNames.length,
+      cardCount: cardsEl.querySelectorAll('.card').length,
     });
   });
   header.appendChild(listName);

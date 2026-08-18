@@ -7,6 +7,7 @@ const {
   MIN_RELEASE_ARTIFACT_BYTES,
   computeFileSha512,
   inspectDebianPackageFile,
+  inspectPacmanPackageFile,
 } = require('../lib/releaseArtifactValidation');
 
 const repoRoot = path.resolve(__dirname, '..');
@@ -33,10 +34,10 @@ const requiredArtifacts = [
   `signboard_${version}_win.exe`,
   `signboard_${version}_linux_x86_64.AppImage`,
   `signboard_${version}_linux_amd64.deb`,
-  `signboard_${version}_linux_x86_64.pacman`,
+  `signboard_${version}_linux_x64.pacman`,
   `signboard_${version}_linux_arm64.AppImage`,
   `signboard_${version}_linux_arm64.deb`,
-  `signboard_${version}_linux_arm64.pacman`,
+  `signboard_${version}_linux_aarch64.pacman`,
 ];
 
 const artifactPattern = new RegExp(
@@ -52,8 +53,11 @@ const metadataPlatformRules = {
   'latest-mac.yml': (url) => url.includes(`signboard_${version}_mac_universal`),
   'latest-linux.yml': (url) =>
     url.includes(`signboard_${version}_linux_`) &&
-    !url.includes(`signboard_${version}_linux_arm64`),
-  'latest-linux-arm64.yml': (url) => url.includes(`signboard_${version}_linux_arm64`),
+    !url.includes(`signboard_${version}_linux_arm64`) &&
+    !url.includes(`signboard_${version}_linux_aarch64`),
+  'latest-linux-arm64.yml': (url) =>
+    url.includes(`signboard_${version}_linux_arm64`) ||
+    url.includes(`signboard_${version}_linux_aarch64`),
 };
 
 const deprecatedPublicArtifacts = [
@@ -72,8 +76,8 @@ const curatedDownloads = [
   { label: 'Linux AppImage (ARM64)', file: `signboard_${version}_linux_arm64.AppImage` },
   { label: 'Linux deb (x64)', file: `signboard_${version}_linux_amd64.deb` },
   { label: 'Linux deb (ARM64)', file: `signboard_${version}_linux_arm64.deb` },
-  { label: 'Arch/Omarchy package (x64)', file: `signboard_${version}_linux_x86_64.pacman` },
-  { label: 'Arch/Omarchy package (ARM64)', file: `signboard_${version}_linux_arm64.pacman` },
+  { label: 'Arch/Omarchy package (x64)', file: `signboard_${version}_linux_x64.pacman` },
+  { label: 'Arch/Omarchy package (ARM64)', file: `signboard_${version}_linux_aarch64.pacman` },
 ];
 
 const errors = [];
@@ -88,6 +92,7 @@ const distEntries = fs.readdirSync(distDir);
 const distEntrySet = new Set(distEntries);
 
 validateArtifactNameTemplates();
+validateProtocolRegistration();
 validateDeprecatedPublicArtifacts();
 validateRequiredArtifacts();
 validateMetadataFiles();
@@ -158,6 +163,21 @@ function validateArtifactNameTemplates() {
   }
 }
 
+function validateProtocolRegistration() {
+  const configs = [
+    ['package.json build.protocols', packageJson.build?.protocols],
+    ['electron-builder.json protocols', electronBuilderConfig?.protocols],
+  ];
+  for (const [label, protocols] of configs) {
+    const hasSignboardProtocol = Array.isArray(protocols) && protocols.some((protocol) => (
+      protocol && Array.isArray(protocol.schemes) && protocol.schemes.includes('signboard')
+    ));
+    if (!hasSignboardProtocol) {
+      addIssue(`${label} must register the signboard URL scheme.`, false);
+    }
+  }
+}
+
 function validateDeprecatedPublicArtifacts() {
   for (const artifact of deprecatedPublicArtifacts) {
     if (distEntrySet.has(artifact)) {
@@ -198,6 +218,16 @@ function validateRequiredArtifacts() {
       if (!validation.valid) {
         addIssue(
           `Invalid Debian package dist/${artifact}: ${validation.errors.join(' ')}`,
+          false
+        );
+      }
+    }
+
+    if (artifact.endsWith('.pacman')) {
+      const validation = inspectPacmanPackageFile(artifactPath);
+      if (!validation.valid) {
+        addIssue(
+          `Invalid Pacman package dist/${artifact}: ${validation.errors.join(' ')}`,
           false
         );
       }
@@ -368,7 +398,7 @@ function isKnownArchForPlatform(platform, arch) {
     return arch === 'arm64' || arch === 'x64' || arch === 'universal';
   }
   if (platform === 'linux') {
-    return arch === 'x86_64' || arch === 'amd64' || arch === 'arm64';
+    return arch === 'x86_64' || arch === 'x64' || arch === 'amd64' || arch === 'arm64' || arch === 'aarch64';
   }
   return false;
 }
