@@ -4,12 +4,12 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Top level
 
-- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + last-known open-board state persistence for MCP/CLI discovery + filesystem watchers + system-resume forwarding for local-day refresh + opt-in localhost External Published Calendar server + native menu/accelerators + optional Quick Add global shortcut registration + Normal/Advanced Smart Card and Smart Board Action dispatch, selective validated board-change apply, Smart Action share/import/export, native Ollama/LM Studio/OpenAI/Gemini/Anthropic model-list IPC, and OS-backed cloud credential encryption/decryption + renderer right-click text editing context menu + archive browse/restore + card/list movement and board duplication IPC + linked-object and Obsidian integration. Also owns updater behavior and native release-note presentation.
+- `main.js` - Electron main process window + IPC handlers + trusted board-root/path validation + last-known open-board state persistence for MCP/CLI discovery + board and Omarchy theme filesystem watchers + system-resume forwarding for local-day refresh + opt-in localhost External Published Calendar server + native menu/accelerators + optional Quick Add global shortcut registration + Normal/Advanced Smart Card and Smart Board Action dispatch, selective validated board-change apply, Smart Action share/import/export, native Ollama/LM Studio/OpenAI/Gemini/Anthropic model-list IPC, and OS-backed cloud credential encryption/decryption + renderer context menus + archive/board/Obsidian/deep-link operations. Also owns GitHub-release auto-update flow, safe Debian/Pacman installation routing, and release-note formatting before native dialogs.
 - `CODEX.md` - Canonical Codex-specific repo instructions and maintenance rules.
 - `AGENTS.md` - Cross-tool compatibility entrypoint that points agents to `CODEX.md`.
 - `DESIGN.md` - Design.md-compatible default theme tokens and visual rationale for Signboard's UI.
 - `MCP_README.md` - Dedicated setup guide for Signboard MCP server mode (`--mcp-server`).
-- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and main-process-triggered renderer events, including Smart Card/Board Action run and apply, Smart Action share/import/export, AI provider model inspection, cloud credential operations, board switching/views/settings/Quick Add, archive, snapshot, duplication, Obsidian, linked-object, and transactional ordering calls.
+- `preload.js` - Thin renderer bridge (`window.board`, `window.chooser`, `window.electronAPI`) that forwards allowed operations to main-process IPC and main-process-triggered renderer events, including Smart Card/Board Action run and apply, Smart Action share/import/export, AI provider model inspection, cloud credential operations, board switching/views/settings/Quick Add/signboard-card-link/signboard-board-link/Omarchy-theme/system-resume events, clipboard text copy, archive browse/read/restore, board snapshot reads, board duplication, Obsidian actions, dropped-file path extraction for linked objects, and transactional card/list ordering calls.
 - `index.html` - App shell, header board tab strip/search/filter/Card controls, bottom Planner/Kanban/Table workspace dock, Planner overlay markup, fixed dismissible Sponsor pill, board-menu archive/switcher modal markup (including `#workspaceViewDock`, `#modalKeyboardShortcuts`, `#modalBoardSwitcher`, `#modalArchiveBrowser`, and `#modalObsidianVaultRequired`), and deferred script/style includes.
 - `readme.md` - Human-facing project README.
 - `docs/release-template.md` - Curated GitHub release-body template for public download links.
@@ -17,7 +17,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `package-lock.json` - NPM lockfile.
 - `.gitignore` - Ignores `node_modules`, `dist`, `.env`, etc.
 - `buildjs.sh` - Concatenate shared renderer schema and renderer modules into `app/signboard.js`.
-- `electron-builder.json` - Build targets/artifact settings.
+- `electron-builder.json` - Build targets/artifact settings, including packaged `signboard://` URL-scheme registration.
+- Linux build targets include native Arch/Omarchy `.pacman` packages in addition to AppImage, deb, and optional rpm artifacts.
 - `LICENSE` - MIT license.
 - `obsidian-plugin/` - Optional desktop-only Obsidian companion plugin source (`manifest.json`, self-contained `main.js`, helper/tested conversion/link/delete-cleanup utilities, styles, and plugin README) for opening/copying Signboard links, attaching active notes, asking before removing links to deleted notes, creating Signboard boards from folders, and handling `obsidian://signboard?...`.
 - `skills/signboard-mcp/SKILL.md` - Optional agent skill instructions for safe/consistent Signboard MCP tool usage.
@@ -30,7 +31,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/taskList.js` - Task checklist parser, start/due marker helpers, all/open task date sets, task-summary counters, and task progress badge creation.
 - `app/utilities/dueNotifications.js` - Due-notification collection + message formatting for card due dates and incomplete task due markers, skipping completed workflow lists.
 - `app/utilities/accessibility.js` - Shared renderer accessibility helpers for modal focus restoration/trapping, background inert state, live status announcements, stable DOM IDs, reduced-motion checks, and deferring DOM mutations until native menu/select popup tracking settles on macOS.
-- `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, drag tilt, reduced-motion handling, and drag text-selection lock used by Kanban and temporal card drag/drop.
+- `app/utilities/cardDragTilt.js` - Shared card Sortable fallback options, frame-coalesced drag tilt, reduced-motion handling, and drag text-selection lock used by Kanban and temporal card drag/drop.
 - `app/utilities/cardTimestamps.js` - Renderer card timestamp formatting helpers for editor metadata and Table age columns.
 - `app/utilities/linkedObjects.js` - Shared renderer helpers for counting structured `linked_objects` and legacy `related` links, plus paperclip count badge creation for Kanban/Table.
 - `app/appSettings.js` - Renderer app-settings state, app-wide General/Notifications/Smart Actions controls, independent Normal/Advanced provider/model editors, cloud-key UI, Card/Board action sub-tabs, drag-reorderable action rows, Board Action mode/capability editing, action import/export/share, app-setting persistence, and legacy migration; shared defaults/normalizers come from `shared/appSettingsSchema.js`.
@@ -48,7 +49,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/cards/processAddNewCard.js` - New card creation flow, including open-board targeting and optional create-and-open behavior.
 - `app/cards/processAddNewList.js` - New list creation flow.
 - `app/lists/listActionsPopover.js` - List action popover rendering for adding cards/lists, moving lists left/right, archiving cards/lists, keyboard option navigation, shortcut hints, and status announcements.
-- `app/lists/createListElement.js` - List DOM rendering with labelled section/list semantics, sanitized rename, card DnD handling, and cross-list move lifecycle logging.
+- `app/lists/createListElement.js` - List DOM rendering with labelled section/list semantics, sanitized rename, card DnD handling, returned-path in-place updates, and cross-list move lifecycle logging.
 - `app/board/renderBoard.js` - Whole-board render using batched board snapshots, active Kanban/Table view dispatch, and Kanban list DnD handling through main-process transactional reorder.
 - `app/board/openBoard.js` - Board open/init logic and starter content.
 - `app/modals/closeAllModals.js` - Modal close logic + editor cleanup + conditional rerender + board interaction lock/unlock.
@@ -58,12 +59,12 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, compact calendar-based card start/due metadata control, Created/Updated timestamp display, active-card top-of-list moves from the dropdown/directional controls, debounced + serialized saves, clean-editor reloads after external/MCP card edits, fresh duplicate lifecycle metadata, raw body URL detection/open controls, linked-object paperclip controls including inline URL/app-link entry, anchored Normal/Advanced Smart Card Action selection and previews for title/summary/task-list/auto-label/smart-paste/due-date/attachment/custom/Quick output and read-only Question the Card answers plus a Smart Actions settings shortcut, Obsidian rename reconciliation between `linked_objects` and `related` wikilinks, missing-note status rendering with recreate/relink/remove actions, drag/drop local-file linking, Open With/Obsidian actions, and one task-line calendar control for start/due dates aligned from measured line coordinates.
 - `app/listeners/window.js` - Keyboard shortcuts, menu/global-command listeners, Quick Add card modal wiring with board/list selection across open boards, workspace view switching, Planner toggle/view shortcut handling including all-open-board and current-board date-view scopes, Settings fallback handling, quick board switcher shortcut handling, color cycling, active-card move/archive shortcuts, active-editor closing for workspace-level shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, Obsidian-vault-required info modal controls, sponsorship modal triggers, external board-change auto-refresh sync, and the DST-safe local-day rollover lifecycle across midnight/focus/visibility/system-resume, including safe deferred board renders and open-editor date-status refreshes.
-- `app/ui/theme.js` - Theme toggle + OverType theme integration, including the theme shortcut hint/state in the board menu.
+- `app/ui/theme.js` - Theme toggle + OverType theme integration, including opt-in Omarchy runtime palette application, Planner variables, atomic replacement events, and manual-toggle opt-out.
 - `app/ui/tooltips.js` - Lightweight custom tooltip engine (event delegation + mutation observer) using existing element label attributes.
 
 ## Shared/library code
 
-- `shared/appSettingsSchema.js` - Pure app-settings defaults and normalizers shared by the main process and renderer bundle; the single source for Normal/Advanced profiles, provider defaults, built-in Smart Card and Smart Board Action definitions, targets/modes/capabilities, saved action order, and legacy migration.
+- `shared/appSettingsSchema.js` - Pure app-settings defaults and normalizers shared by the main process and renderer bundle; the single source for appearance source, Normal/Advanced profiles, provider defaults, built-in Smart Card and Smart Board Action definitions, targets/modes/capabilities, saved action order, and legacy migration.
 - `shared/localDate.js` - Main/renderer shared local calendar-date formatting, strict local ISO-date parsing, and DST-safe next-local-midnight delay helpers.
 - `lib/atomicFile.js` - Shared durable write helper that writes to a same-directory temp file, fsyncs, renames into place, and best-effort fsyncs the containing directory.
 - `lib/boardSnapshot.js` - Main-process batched board reader used by renderer Kanban/Table/Planner views; returns list/card records, opt-in timestamps/task metadata/board settings, and per-card/list read errors.
@@ -71,13 +72,15 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/cardLifecycle.js` - Shared card lifecycle metadata helper for `createdAt`, compact `activity` trails, archive frontmatter state, and moved/restored transitions.
 - `lib/cardTimestamps.js` - Shared timestamp resolver for desktop reads, CLI card records/JSON output, and MCP card responses, preferring frontmatter/activity creation data and filesystem modification data.
 - `lib/updateReleaseNotes.js` - Pure GitHub release-note extraction and HTML/Markdown-to-plain-text normalization for native updater dialogs, including entity decoding, link/markup removal, Downloads-section stripping, and post-normalization truncation.
-- `lib/updateErrors.js` - Testable updater-error classification and native-dialog copy, including actionable Ubuntu package-manager failures and invalid-download recovery.
-- `lib/releaseArtifactValidation.js` - Debian/ar archive inspection, minimum release-artifact sizing, and SHA-512 helpers shared by runtime download checks and release validation.
-- `lib/cardOrdering.js` - Shared transactional ordering helpers used by main-process/MCP restore and move flows to insert a card at the top, reorder cards in a list, and reorder list directories while staging temp names and rolling back on failures.
+- `lib/updateErrors.js` - Testable updater-error classification and native-dialog copy, including package-specific Ubuntu and Arch/Omarchy failures and invalid-download recovery.
+- `lib/linuxPackageInstaller.js` - Safe Arch package validation/installation helper using `pacman -Qp` then `pkexec pacman -U`, deliberately without `pacman -Sy` fallback.
+- `lib/omarchyTheme.js` - Canonical Omarchy active-theme path resolution, restricted TOML palette parsing, contrast-safe token derivation, and read status.
+- `lib/releaseArtifactValidation.js` - Debian/ar and Pacman archive recognition, minimum release-artifact sizing, and SHA-512 helpers shared by runtime download checks and release validation.
+- `lib/cardOrdering.js` - Shared transactional ordering helpers used by main-process/MCP restore and move flows to insert a card at the top, reorder cards in a list, and reorder list directories while staging only changed entries and rolling back on failures.
 - `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
 - `lib/boardLabels.js` - Board-level label/theme/workflow/External Published Calendar inclusion settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
 - `lib/boardDuplication.js` - Board folder duplication helper used by desktop Settings; copies board contents, assigns fresh copied-card IDs, refreshes copied Signboard metadata, rewrites internal `signboard://open-card` references, rewrites copied local linked-object paths, and resets copied managed Base state.
-- `lib/appSettings.js` - App-wide tooltip/notification/Quick Add global shortcut/AI assistance provider settings and External Published Calendar JSON persistence under Electron `userData`, delegating defaults and normalization to `shared/appSettingsSchema.js`.
+- `lib/appSettings.js` - App-wide tooltip/notification/appearance-source/Quick Add global shortcut/AI assistance provider settings and External Published Calendar JSON persistence under Electron `userData`, delegating defaults and normalization to `shared/appSettingsSchema.js`.
 - `lib/aiCredentials.js` - Separate cloud AI credential persistence under Electron `userData`; accepts only OpenAI, Gemini, and Anthropic keys and stores only values encrypted by Electron `safeStorage`.
 - `lib/aiTaskSuggestions.js` - Native Ollama, LM Studio, OpenAI, Gemini, and Anthropic model-list/generation adapters; action-specific structured-output schemas and timeout policy, including the longer Ollama Board Action limit; Smart Card Action parsing; and Smart Board Action structured result dispatch.
 - `lib/smartBoardActions.js` - Bounded board-context construction, prompt-injection guard instructions, Board Action JSON schema, action normalization, and capability-filtered report/card/change result parsing.
@@ -102,7 +105,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-board-labels.js` - Node assertions for board label settings defaults/migration/filter logic.
 - `scripts/test-board-snapshot.js` - Node assertions for batched board snapshot list/card reads, task metadata, timestamps, board settings, and archive inclusion behavior.
 - `scripts/test-board-duplication.js` - Node assertions for board folder duplication, copied-card ID refresh, internal Signboard link rewrites, linked-object path rewrites, and copied managed Base reset behavior.
-- `scripts/test-app-settings.js` - Node assertions for app-wide settings persistence, including AI settings, and one-time board-settings migration.
+- `scripts/test-app-settings.js` - Node assertions for app-wide settings persistence, including appearance/Omarchy source and AI settings, and one-time board-settings migration.
 - `scripts/test-ai-credentials.js` - Node assertions for encrypted cloud credential persistence, status reporting, removal, and provider validation.
 - `scripts/test-ai-task-suggestions.js` - Node assertions for native Ollama, LM Studio, OpenAI, Gemini, and Anthropic model-list/generation request construction, structured-output schemas, Smart Card Action output parsing including label references, due dates, attachments, answers, and AI checklist suggestion cleanup without live network calls.
 - `scripts/test-smart-board-actions.js` - Node assertions for bounded board context, untrusted-data prompting, action schemas, read-only results, and capability filtering.
@@ -113,7 +116,9 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-local-date.js` - Shared local-date parsing/formatting and ordinary/spring-forward/fall-back rollover timing assertions.
 - `scripts/test-update-release-notes.js` - Windows-style GitHub HTML, Markdown, encoded markup, entity decoding, Downloads stripping, custom-tag/script removal, array metadata, fallback, and truncation coverage for updater dialog notes.
 - `scripts/test-update-errors.js` - Linux package-manager and generic updater error presentation assertions.
-- `scripts/test-release-artifact-validation.js` - Valid, malformed, incomplete, and file-backed Debian archive inspection assertions.
+- `scripts/test-linux-package-installer.js` - Pacman query/install command assertions, including protection against `pacman -Sy` fallback.
+- `scripts/test-omarchy-theme.js` - Omarchy path, palette parsing, malformed input, platform no-op, and active-theme replacement assertions.
+- `scripts/test-release-artifact-validation.js` - Valid, malformed, incomplete, and file-backed Debian/Pacman archive inspection assertions.
 - `scripts/test-archive.js` - Archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.
 - `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
 - `scripts/test-external-published-calendar.js` - External Published Calendar assertions for ICS generation, completed-list skipping, checked-task skipping, and board opt-out.
@@ -124,8 +129,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-task-list-parser.js` - Task checklist parser assertions (`completed/total` and task start/due date extraction).
 - `scripts/migrate-legacy-cards.js` - Bulk migration to YAML frontmatter format.
 - `scripts/notarize.js` - electron-builder `afterSign` notarization hook.
-- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux, including artifact size, Debian structure, metadata size/SHA-512 integrity, and curated public-download guidance.
-- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including board discovery, trusted-root config/resolution coverage, archive tool coverage, card task metadata assertions, and import-tool coverage.
+- `scripts/verify-release-assets.js` - Release checklist validator for updater metadata/assets across macOS/Windows/Linux, including artifact size, Debian/Pacman structure, packaged protocol registration, metadata size/SHA-512 integrity, and curated public-download guidance.
+- `scripts/test-mcp-server.js` - MCP protocol smoke test across header + ndjson stdio transports, including board discovery, trusted-root config/resolution coverage, archive tool coverage, card task metadata assertions, import-tool coverage, and MCP documentation inventory parity.
 - `scripts/test-cli.js` - Node CLI smoke test covering board discovery, list/card/archive flows, duplicate/template card commands, Signboard/Obsidian metadata normalization and legacy-card repair, section/note edits, dry-run previews, plus Trello/Obsidian imports.
 - `scripts/test-desktop-cli.js` - Packaged-shim-style Electron Node-mode CLI smoke test, including board creation and import command routing.
 

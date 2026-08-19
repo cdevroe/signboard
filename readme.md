@@ -5,8 +5,8 @@ Signboard is a local-first desktop kanban app that stores your lists as director
 Signboard is free for personal use. If you are using Signboard for your work, it would be appreciated if you make the commercial-use sponsorship payment to support future development. See the app's "Sponsor" button.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](../../issues)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/cdevroe/signboard)](../../pulls)
+[![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](https://github.com/cdevroe/signboard/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/cdevroe/signboard)](https://github.com/cdevroe/signboard/pulls)
 [![Donate](https://img.shields.io/badge/Donate-388307)](https://cdevroe.com/donate)
 
 ---
@@ -40,17 +40,39 @@ Signboard is free for personal use. If you are using Signboard for your work, it
 
 ## Installation
 
-1. Go to the [Releases page](../../releases).
+1. Go to the [Releases page](https://github.com/cdevroe/signboard/releases).
 2. On the latest release, use the curated download links in the release body:
    - `Download for macOS (Universal)`
    - `Download for Windows`
    - Linux packages grouped by package type with explicit `x64` and `ARM64` labels
 
+On Arch Linux or Omarchy, download the matching `.pacman` package and install it with:
+
+```bash
+sudo pacman -U ./signboard_VERSION_linux_x64.pacman
+```
+
+The package installs Signboard, its launcher entry, its `signboard://` URL handler, and its icon together. It does not require FUSE. Use the `linux_aarch64.pacman` package on an ARM machine. The AppImage remains available for other distributions.
+
 For standard releases, Signboard intentionally promotes a smaller public download set:
 
 - macOS: universal build
 - Windows: single installer
-- Linux: separate `x64` and `ARM64` packages
+- Linux: separate `x64` and `ARM64` AppImage, deb, and Arch/Omarchy packages
+
+### Arch Linux (AUR)
+
+On Arch Linux and Arch-based distributions, Signboard is available on the [Arch User Repository](https://aur.archlinux.org/packages/signboard-appimage) as `signboard-appimage` for `x86_64` and `aarch64`. The package is maintained in the community [`missing-aur`](https://github.com/Cleboost/missing-aur) project and kept up to date with upstream releases.
+
+Install with your preferred AUR helper:
+
+```bash
+yay -S signboard-appimage
+# or
+paru -S signboard-appimage
+```
+
+On Omarchy, open `Settings > General` and choose `Follow Omarchy theme` to use the active Omarchy palette and follow future theme changes. The choice appears only when Signboard detects Omarchy. Selecting a non-default board color scheme keeps that board's deliberate palette.
 
 ## Documentation
 
@@ -211,7 +233,9 @@ Example task checklist syntax:
   - macOS: Signboard app menu
   - Windows/Linux: Help menu
 - Update dialogs convert GitHub release HTML or Markdown into readable plain text and omit the download-link section. Use `View changelog` for the complete release page.
-- On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access. Invalid downloads or package-manager failures leave the installed version unchanged and offer a shortcut to the release Downloads page.
+- On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access.
+- On Arch Linux and Omarchy, Signboard recognizes the downloaded `.pacman`, validates it with `pacman -Qp`, and installs it with `pkexec pacman -U`. It never runs a database-only `pacman -Sy` refresh.
+- Invalid downloads or package-manager failures leave the installed version unchanged and offer a shortcut to the release Downloads page.
 
 ---
 
@@ -292,7 +316,7 @@ npm run dist:win:x64
 npm run dist:win:arm64
 ```
 
-### Linux (AppImage, deb)
+### Linux (AppImage, deb, Arch/Omarchy)
 
 ```bash
 # Specific Linux architecture
@@ -306,6 +330,11 @@ npm run dist:linux:all
 npm run dist:linux:rpm:x64
 npm run dist:linux:rpm:arm64
 npm run dist:linux:rpm:all
+
+# Optional: Arch/Omarchy-only builds
+npm run dist:linux:pacman:x64
+npm run dist:linux:pacman:arm64
+npm run dist:linux:pacman:all
 ```
 
 ### Build everything
@@ -317,7 +346,7 @@ npm run dist:all
 
 Notes:
 - `--publish never` is used for local builds so these commands package artifacts without attempting to publish releases.
-- Standard public downloads are: macOS universal, one Windows installer, and Linux `AppImage`/`deb` builds for `x64` and `ARM64`.
+- Standard public downloads are: macOS universal, one Windows installer, and Linux `AppImage`/`deb`/Arch packages for `x64` and `ARM64`.
 - The GitHub release body should be treated as the curated download surface. Link the public download set there instead of expecting users to interpret the raw asset list.
 - Copy `.env-sample` to `.env` and fill in your credentials before running signing/notarization builds.
 - macOS signing/notarization uses environment variables from `.env` (`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`).
@@ -328,9 +357,9 @@ Notes:
 
 Contributions in all forms are welcome!  
 
-- **Report bugs**: Open an [Issue](../../issues).  
-- **Suggest features**: Open an [Issue](../../issues) with the `enhancement` label.  
-- **Submit fixes or features**: Fork the repo, make your changes, and open a [Pull Request](../../pulls).  
+- **Report bugs**: Open an [Issue](https://github.com/cdevroe/signboard/issues).
+- **Suggest features**: Open an [Issue](https://github.com/cdevroe/signboard/issues) with the `enhancement` label.
+- **Submit fixes or features**: Fork the repo, make your changes, and open a [Pull Request](https://github.com/cdevroe/signboard/pulls).
 
 ### Contribution Guidelines
 - Keep PRs focused: one change per PR makes reviews faster.

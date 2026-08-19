@@ -6,6 +6,8 @@ const {
   computeFileSha512,
   inspectDebianPackageBuffer,
   inspectDebianPackageFile,
+  inspectPacmanPackageBuffer,
+  inspectPacmanPackageFile,
   listArArchiveMembers,
 } = require('../lib/releaseArtifactValidation');
 
@@ -87,6 +89,25 @@ function run() {
   const malformed = inspectDebianPackageBuffer(Buffer.from('not a package'));
   assert.strictEqual(malformed.valid, false);
   assert.deepStrictEqual(malformed.errors, ['File is not an ar archive.']);
+
+  const zstdPacmanPrefix = Buffer.from([0x28, 0xb5, 0x2f, 0xfd, 0x00, 0x01]);
+  assert.deepStrictEqual(inspectPacmanPackageBuffer(zstdPacmanPrefix), {
+    valid: true,
+    errors: [],
+  });
+  assert.strictEqual(inspectPacmanPackageBuffer(Buffer.from('not a package')).valid, false);
+
+  const pacmanTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'signboard-pacman-validation-'));
+  const pacmanPath = path.join(pacmanTempDir, 'valid.pacman');
+  try {
+    fs.writeFileSync(pacmanPath, zstdPacmanPrefix);
+    assert.deepStrictEqual(inspectPacmanPackageFile(pacmanPath), {
+      valid: true,
+      errors: [],
+    });
+  } finally {
+    fs.rmSync(pacmanTempDir, { recursive: true, force: true });
+  }
 
   console.log('Release artifact validation tests passed.');
 }

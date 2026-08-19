@@ -69,6 +69,110 @@ function applyEditorThemeFromActiveMode() {
   OverType.setTheme(customOverTypeThemes.light);
 }
 
+const OMARCHY_THEME_STYLE_PROPERTIES = Object.freeze([
+  '--sb-omarchy-bg',
+  '--sb-omarchy-bg-card',
+  '--sb-omarchy-text',
+  '--sb-omarchy-muted',
+  '--sb-omarchy-border',
+  '--sb-omarchy-shadow',
+  '--sb-omarchy-shadow-card',
+  '--sb-omarchy-accent',
+  '--sb-omarchy-accent-contrast',
+]);
+
+function isFollowingOmarchyTheme() {
+  if (typeof getAppAppearanceSettings !== 'function' || typeof getAppOmarchyThemeStatus !== 'function') {
+    return false;
+  }
+  const appearance = getAppAppearanceSettings();
+  const status = getAppOmarchyThemeStatus();
+  return appearance.themeSource === 'omarchy' && status.available === true && Boolean(status.palette);
+}
+
+function setOmarchyThemeVariables(palette) {
+  const rootStyle = document.documentElement.style;
+  rootStyle.setProperty('--sb-omarchy-bg', palette.boardBackground);
+  rootStyle.setProperty('--sb-omarchy-bg-card', palette.surface);
+  rootStyle.setProperty('--sb-omarchy-text', palette.text);
+  rootStyle.setProperty('--sb-omarchy-muted', palette.muted);
+  rootStyle.setProperty('--sb-omarchy-border', palette.border);
+  rootStyle.setProperty('--sb-omarchy-shadow', palette.shadow);
+  rootStyle.setProperty('--sb-omarchy-shadow-card', palette.shadowCard);
+  rootStyle.setProperty('--sb-omarchy-accent', palette.accent);
+  rootStyle.setProperty('--sb-omarchy-accent-contrast', palette.accentText);
+}
+
+function clearOmarchyThemeVariables() {
+  const root = document.documentElement;
+  delete root.dataset.appThemeSource;
+  for (const propertyName of OMARCHY_THEME_STYLE_PROPERTIES) {
+    root.style.removeProperty(propertyName);
+  }
+}
+
+function restoreCurrentBoardThemeVariables() {
+  if (typeof getBoardColorScheme !== 'function') {
+    return;
+  }
+  const schemeId = getBoardColorScheme();
+  if (schemeId && typeof applyColorSchemeById === 'function') {
+    applyColorSchemeById(schemeId, { renderControls: false });
+    return;
+  }
+  if (typeof applyDerivedBoardThemes === 'function' && typeof getBoardThemeOverrides === 'function') {
+    applyDerivedBoardThemes(getBoardThemeOverrides(), { renderControls: false });
+  }
+}
+
+async function applyConfiguredAppTheme(options = {}) {
+  const root = document.documentElement;
+  const followingOmarchy = isFollowingOmarchyTheme();
+
+  if (followingOmarchy) {
+    const status = getAppOmarchyThemeStatus();
+    const palette = status.palette;
+    root.dataset.appThemeSource = 'omarchy';
+    root.dataset.theme = palette.mode === 'dark' ? 'dark' : '';
+    setOmarchyThemeVariables(palette);
+
+    const currentScheme = typeof getBoardColorScheme === 'function' ? getBoardColorScheme() : '';
+    if ((!currentScheme || currentScheme === 'default') && typeof applyThemePaletteVariables === 'function') {
+      applyThemePaletteVariables(palette.mode, palette);
+    }
+  } else {
+    clearOmarchyThemeVariables();
+    const savedThemeMode = localStorage.getItem('theme');
+    root.dataset.theme = savedThemeMode === 'dark' ? 'dark' : '';
+    restoreCurrentBoardThemeVariables();
+  }
+
+  if (typeof applyBoardThemeForCurrentBoard === 'function') {
+    applyBoardThemeForCurrentBoard();
+  }
+  applyEditorThemeFromActiveMode();
+  renderThemeToggleButtonState();
+
+  if (options.renderBoard !== false && window.boardRoot && typeof renderBoard === 'function') {
+    await renderBoard();
+  }
+}
+
+function stopFollowingOmarchyForManualThemeToggle() {
+  if (!isFollowingOmarchyTheme() || typeof setAppAppearanceSettings !== 'function') {
+    return;
+  }
+  setAppAppearanceSettings({ themeSource: 'signboard' });
+  clearOmarchyThemeVariables();
+  restoreCurrentBoardThemeVariables();
+  if (typeof scheduleAppSettingsSave === 'function') {
+    scheduleAppSettingsSave();
+  }
+  if (typeof renderAppSettingsControls === 'function') {
+    renderAppSettingsControls();
+  }
+}
+
 function renderThemeToggleButtonState() {
   const themeToggle = document.getElementById('themeToggle');
   if (!themeToggle) {
@@ -123,6 +227,7 @@ renderThemeToggleButtonState();
 
 if (themeToggle) {
   themeToggle.addEventListener('click', () => {
+    stopFollowingOmarchyForManualThemeToggle();
     const current = document.documentElement.dataset.theme;
     const newTheme = current === 'dark' ? '' : 'dark';
     document.documentElement.dataset.theme = newTheme;
@@ -150,5 +255,22 @@ if (themeToggle) {
     if (typeof applyBoardThemeForCurrentBoard === 'function') {
       applyBoardThemeForCurrentBoard();
     }
+  });
+}
+
+if (window.electronAPI && typeof window.electronAPI.onOmarchyThemeChanged === 'function') {
+  window.electronAPI.onOmarchyThemeChanged((status) => {
+    if (typeof setAppOmarchyThemeStatus === 'function') {
+      setAppOmarchyThemeStatus(status);
+    }
+    applyConfiguredAppTheme({ renderBoard: true })
+      .then(() => {
+        if (typeof renderAppSettingsControls === 'function') {
+          renderAppSettingsControls();
+        }
+      })
+      .catch((error) => {
+        console.error('Unable to apply the updated Omarchy theme.', error);
+      });
   });
 }

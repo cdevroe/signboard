@@ -1216,6 +1216,10 @@ function applyColorSchemeById(schemeId, options = {}) {
     setCustomOverTypeThemesFromBoardPalettes(state.themePalettes);
   }
 
+  // A board load or switch reapplies its stored palette. Restore the detected
+  // Omarchy palette immediately when this board uses Signboard's default theme.
+  applyBoardThemeForCurrentBoard();
+
   if (options.renderControls !== false) {
     renderBoardThemeSettingsControls();
   }
@@ -1283,6 +1287,8 @@ function applyDerivedBoardThemes(themeOverrides, options = {}) {
     setCustomOverTypeThemesFromBoardPalettes(state.themePalettes);
   }
 
+  applyBoardThemeForCurrentBoard();
+
   if (options.renderControls !== false) {
     renderBoardThemeSettingsControls();
   }
@@ -1291,13 +1297,31 @@ function applyDerivedBoardThemes(themeOverrides, options = {}) {
 function applyBoardThemeForCurrentBoard(themeMode) {
   const mode = themeMode || getBoardThemeMode();
   const palettes = getBoardThemePalettes();
-  const palette = palettes[mode];
+  let editorPalettes = palettes;
+  let palette = palettes[mode];
+  const colorScheme = getBoardColorScheme();
+  if (
+    (!colorScheme || colorScheme === 'default') &&
+    typeof isFollowingOmarchyTheme === 'function' &&
+    isFollowingOmarchyTheme() &&
+    typeof getAppOmarchyThemeStatus === 'function'
+  ) {
+    const omarchyPalette = getAppOmarchyThemeStatus().palette;
+    if (omarchyPalette && omarchyPalette.mode === mode) {
+      palette = omarchyPalette;
+      editorPalettes = {
+        ...palettes,
+        [mode]: { ...omarchyPalette },
+      };
+      applyThemePaletteVariables(mode, omarchyPalette);
+    }
+  }
   if (!palette) {
     return;
   }
 
   if (typeof setCustomOverTypeThemesFromBoardPalettes === 'function') {
-    setCustomOverTypeThemesFromBoardPalettes(palettes);
+    setCustomOverTypeThemesFromBoardPalettes(editorPalettes);
   }
 }
 
@@ -3486,6 +3510,7 @@ function initializeBoardLabelControls() {
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
   const tooltipsToggle = document.getElementById('boardSettingsTooltipsToggle');
+  const themeSourceSelect = document.getElementById('boardSettingsThemeSource');
   const quickAddShortcutInput = document.getElementById('boardSettingsQuickAddShortcut');
   const aiToggle = document.getElementById('boardSettingsAiToggle');
   const aiEnableButton = document.getElementById('btnEnableAiSmartActions');
@@ -3810,6 +3835,29 @@ function initializeBoardLabelControls() {
       setBoardTooltipsEnabled(Boolean(event.target.checked));
       renderAppSettingsControls();
       scheduleAppSettingsSave();
+    });
+  }
+
+  if (themeSourceSelect) {
+    themeSourceSelect.addEventListener('change', async (event) => {
+      const themeSource = event.target.value;
+      if (typeof setAppAppearanceSettings !== 'function') {
+        return;
+      }
+
+      setAppAppearanceSettings({ themeSource });
+      scheduleAppSettingsSave();
+
+      const shouldRender = typeof waitForNativeSelectChangeToSettle !== 'function' ||
+        await waitForNativeSelectChangeToSettle(themeSourceSelect, themeSource);
+      if (!shouldRender) {
+        return;
+      }
+
+      if (typeof applyConfiguredAppTheme === 'function') {
+        await applyConfiguredAppTheme({ renderBoard: true });
+      }
+      renderAppSettingsControls();
     });
   }
 

@@ -28,6 +28,7 @@ const {
 } = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
 const appSettings = require('./lib/appSettings');
+const omarchyTheme = require('./lib/omarchyTheme');
 const aiCredentials = require('./lib/aiCredentials');
 const {
   listAnthropicModels,
@@ -71,7 +72,8 @@ const {
 } = require('./lib/boardDiscovery');
 const { formatLocalIsoDate } = require('./shared/localDate');
 const { formatReleaseNotesForDialog } = require('./lib/updateReleaseNotes');
-const { inspectDebianPackageFile } = require('./lib/releaseArtifactValidation');
+const { inspectDebianPackageFile, inspectPacmanPackageFile } = require('./lib/releaseArtifactValidation');
+const { installPacmanPackage, isPacmanPackagePath } = require('./lib/linuxPackageInstaller');
 const {
   getInvalidLinuxPackagePresentation,
   getUpdaterErrorPresentation,
@@ -199,6 +201,17 @@ let externalPublishedCalendarStatus = {
   message: 'Disabled',
 };
 let pendingSignboardProtocolUrl = '';
+let omarchyThemeStatus = {
+  detected: false,
+  available: false,
+  name: '',
+  mode: '',
+  palette: null,
+  themeDirectory: '',
+  message: 'Omarchy was not detected.',
+};
+let omarchyThemeWatcher = null;
+let omarchyThemeRefreshTimer = null;
 
 function isMcpPowerSaveBlockerActive() {
   return Number.isInteger(mcpPowerSaveBlockerId) && powerSaveBlocker.isStarted(mcpPowerSaveBlockerId);
@@ -2816,7 +2829,79 @@ async function withRuntimeAppSettings(settings) {
     globalShortcutStatus: getQuickAddGlobalShortcutStatus(),
     externalPublishedCalendarStatus: getExternalPublishedCalendarStatus(),
     aiCredentialStatus: await getRuntimeAiCredentialStatus(),
+    omarchyThemeStatus: getPublicOmarchyThemeStatus(),
   };
+}
+
+function getPublicOmarchyThemeStatus() {
+  return {
+    detected: omarchyThemeStatus.detected === true,
+    available: omarchyThemeStatus.available === true,
+    name: String(omarchyThemeStatus.name || ''),
+    mode: String(omarchyThemeStatus.mode || ''),
+    palette: omarchyThemeStatus.palette ? { ...omarchyThemeStatus.palette } : null,
+    message: String(omarchyThemeStatus.message || ''),
+  };
+}
+
+function closeOmarchyThemeWatcher() {
+  if (omarchyThemeRefreshTimer) {
+    clearTimeout(omarchyThemeRefreshTimer);
+    omarchyThemeRefreshTimer = null;
+  }
+  closeWatcher(omarchyThemeWatcher);
+  omarchyThemeWatcher = null;
+}
+
+function scheduleOmarchyThemeRefresh() {
+  if (omarchyThemeRefreshTimer) {
+    clearTimeout(omarchyThemeRefreshTimer);
+  }
+  omarchyThemeRefreshTimer = setTimeout(() => {
+    omarchyThemeRefreshTimer = null;
+    refreshOmarchyThemeStatus({ notify: true, restartWatcher: true }).catch((error) => {
+      console.error('Unable to refresh the Omarchy theme.', error);
+    });
+  }, 120);
+}
+
+function startOmarchyThemeWatcher() {
+  closeOmarchyThemeWatcher();
+  const explicitThemeDirectory = String(process.env.SIGNBOARD_OMARCHY_THEME_DIR || '').trim();
+  if (process.platform !== 'linux' && !explicitThemeDirectory) {
+    return;
+  }
+
+  const themeDirectory = omarchyThemeStatus.themeDirectory ||
+    omarchyTheme.getDefaultOmarchyThemeDirectory();
+  const watchDirectory = path.dirname(themeDirectory);
+  omarchyThemeWatcher = attachDirectoryWatcher(watchDirectory, scheduleOmarchyThemeRefresh, {
+    onError: scheduleOmarchyThemeRefresh,
+  });
+}
+
+async function refreshOmarchyThemeStatus(options = {}) {
+  const previousPublicStatus = JSON.stringify(getPublicOmarchyThemeStatus());
+  omarchyThemeStatus = await omarchyTheme.readOmarchyTheme({
+    platform: process.platform,
+    themeDirectory: String(process.env.SIGNBOARD_OMARCHY_THEME_DIR || '').trim(),
+  });
+  const publicStatus = getPublicOmarchyThemeStatus();
+
+  if (options.restartWatcher === true || !omarchyThemeWatcher) {
+    startOmarchyThemeWatcher();
+  }
+
+  if (
+    options.notify === true &&
+    JSON.stringify(publicStatus) !== previousPublicStatus &&
+    mainWindow &&
+    !mainWindow.isDestroyed()
+  ) {
+    mainWindow.webContents.send('omarchy-theme-changed', publicStatus);
+  }
+
+  return publicStatus;
 }
 
 async function stopExternalPublishedCalendarServer() {
@@ -2994,6 +3079,7 @@ async function updateAppSettingsWithRuntimeStatus(partialSettings = {}) {
 }
 
 async function initializeAppRuntimeSettings() {
+  await refreshOmarchyThemeStatus({ notify: false, restartWatcher: true });
   const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
   const settings = await ensureExternalPublishedCalendarToken(rawSettings);
   applyQuickAddGlobalShortcut(settings);
@@ -3909,18 +3995,30 @@ async function showUpdaterErrorDialog(presentation, info) {
 
 function inspectDownloadedLinuxPackage(info) {
   const downloadedFile = typeof info?.downloadedFile === 'string' ? info.downloadedFile : '';
-  if (process.platform !== 'linux' || path.extname(downloadedFile).toLowerCase() !== '.deb') {
+  const extension = path.extname(downloadedFile).toLowerCase();
+  if (process.platform !== 'linux' || !['.deb', '.pacman'].includes(extension)) {
     return null;
   }
 
   try {
-    return inspectDebianPackageFile(downloadedFile);
+    const validation = extension === '.pacman'
+      ? inspectPacmanPackageFile(downloadedFile)
+      : inspectDebianPackageFile(downloadedFile);
+    return {
+      ...validation,
+      packageType: extension === '.pacman' ? 'pacman' : 'deb',
+    };
   } catch (error) {
     return {
       valid: false,
+      packageType: extension === '.pacman' ? 'pacman' : 'deb',
       errors: [String(error?.message || error || 'The downloaded package could not be read.')],
     };
   }
+}
+
+function getDownloadedLinuxPackageType(info) {
+  return isPacmanPackagePath(info?.downloadedFile) ? 'pacman' : 'deb';
 }
 
 async function showUpdateAvailableDialog(info) {
@@ -4020,6 +4118,21 @@ async function showUpdateReadyDialog(info) {
     }
 
     await clearReminder(info?.version);
+    if (process.platform === 'linux' && isPacmanPackagePath(info?.downloadedFile)) {
+      try {
+        installPacmanPackage(info.downloadedFile);
+        app.relaunch();
+        app.quit();
+      } catch (error) {
+        updateState.userInitiatedUpdate = false;
+        console.error('Failed to install the Arch Linux update.', error);
+        await showUpdaterErrorDialog(
+          getUpdaterErrorPresentation(error, process.platform, 'pacman'),
+          info,
+        );
+      }
+      return;
+    }
     autoUpdater.quitAndInstall();
     return;
   }
@@ -4238,7 +4351,7 @@ function setupAutoUpdater() {
       updateState.userInitiatedUpdate = false;
       console.error('Downloaded Linux update package is invalid.', packageValidation.errors);
       await showUpdaterErrorDialog(
-        getInvalidLinuxPackagePresentation(packageValidation),
+        getInvalidLinuxPackagePresentation(packageValidation, packageValidation.packageType),
         info
       );
       return;
@@ -4262,7 +4375,7 @@ function setupAutoUpdater() {
 
     updateState.userInitiatedUpdate = false;
     await showUpdaterErrorDialog(
-      getUpdaterErrorPresentation(error),
+      getUpdaterErrorPresentation(error, process.platform, getDownloadedLinuxPackageType(updateState.lastUpdateInfo)),
       updateState.lastUpdateInfo
     );
   });
@@ -5530,6 +5643,9 @@ app.on('browser-window-focus', () => {
   }
 
   ensureApplicationMenu();
+  refreshOmarchyThemeStatus({ notify: true, restartWatcher: !omarchyThemeWatcher }).catch((error) => {
+    console.error('Unable to refresh the Omarchy theme after focus.', error);
+  });
 });
 
 app.on('before-quit', () => {
@@ -5549,6 +5665,8 @@ app.on('before-quit', () => {
     externalPublishedCalendarServer.close();
     externalPublishedCalendarServer = null;
   }
+
+  closeOmarchyThemeWatcher();
 });
 
 app.on('will-quit', () => {

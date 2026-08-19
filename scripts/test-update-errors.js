@@ -17,6 +17,11 @@ function run() {
   assert(linuxPresentation.detail.includes('current Signboard installation has not been replaced'));
   assert.strictEqual(linuxPresentation.offerDownloads, true);
 
+  const pacmanPresentation = getUpdaterErrorPresentation(pkexecError, 'linux', 'pacman');
+  assert.strictEqual(pacmanPresentation.message, 'Arch Linux/Omarchy could not install the downloaded update.');
+  assert(pacmanPresentation.detail.includes('latest .pacman manually'));
+  assert(!pacmanPresentation.detail.includes('Ubuntu'));
+
   const canceledPresentation = getUpdaterErrorPresentation(
     new Error('Command pkexec exited with code 126'),
     'linux',
@@ -51,6 +56,12 @@ function run() {
   assert(invalidPackagePresentation.detail.includes('Missing debian-binary member.'));
   assert(invalidPackagePresentation.detail.includes('Open Downloads'));
   assert.strictEqual(invalidPackagePresentation.offerDownloads, true);
+
+  const invalidPacmanPresentation = getInvalidLinuxPackagePresentation({
+    errors: ['File is not a recognized Pacman package archive.'],
+  }, 'pacman');
+  assert(invalidPacmanPresentation.message.includes('Arch Linux/Omarchy'));
+  assert(invalidPacmanPresentation.detail.includes('latest .pacman manually'));
 
   console.log('Updater error tests passed.');
 }

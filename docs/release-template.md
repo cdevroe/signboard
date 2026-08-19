@@ -19,6 +19,8 @@ Use this structure:
 - Linux AppImage (ARM64)
 - Linux deb (x64)
 - Linux deb (ARM64)
+- Arch / Omarchy package (x64)
+- Arch / Omarchy package (ARM64)
 
 ## Notes
 
@@ -27,7 +29,7 @@ Use this structure:
 - Keep the top section short and task-oriented so the updater dialog stays readable.
 - Put curated downloads after the changelog, not before it.
 - Upload all updater metadata and supporting artifacts required by `npm run release:verify`, even if they are not linked from the release body.
-- Do not upload Linux `.deb` files until `npm run release:verify` confirms their minimum size, required Debian archive members, and agreement with the updater metadata size/SHA-512 values. Rebuild invalid cross-platform output in a Linux environment.
+- Do not upload Linux `.deb` or `.pacman` files until `npm run release:verify` confirms their expected names, minimum size, recognized package structure, and agreement with updater metadata size/SHA-512 values. Rebuild invalid cross-platform output in a Linux environment.
 
 ## Example Skeleton
 
@@ -46,4 +48,6 @@ Use this structure:
 - Linux AppImage (ARM64)
 - Linux deb (x64)
 - Linux deb (ARM64)
+- Arch / Omarchy package (x64)
+- Arch / Omarchy package (ARM64)
 ```

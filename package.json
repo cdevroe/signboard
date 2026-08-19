@@ -9,6 +9,12 @@
     "signboard": "./bin/signboard.js"
   },
   "build": {
+    "protocols": [
+      {
+        "name": "Signboard",
+        "schemes": ["signboard"]
+      }
+    ],
     "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
     "nsis": {
       "artifactName": "signboard_${version}_${os}.${ext}",
@@ -47,6 +53,8 @@
     "test:local-date": "node scripts/test-local-date.js",
     "test:update-release-notes": "node scripts/test-update-release-notes.js",
     "test:update-errors": "node scripts/test-update-errors.js",
+    "test:linux-package-installer": "node scripts/test-linux-package-installer.js",
+    "test:omarchy-theme": "node scripts/test-omarchy-theme.js",
     "test:release-artifacts": "node scripts/test-release-artifact-validation.js",
     "test:archive": "node scripts/test-archive.js",
     "test:obsidian-integration": "node scripts/test-obsidian-integration.js",
@@ -74,12 +82,15 @@
     "dist:winarm64": "npm run dist:win:arm64",
     "dist:winx64": "npm run dist:win:x64",
     "dist:linux": "npm run dist:linux:all",
-    "dist:linux:x64": "npm run build:js && electron-builder --linux AppImage deb --x64 --publish never",
-    "dist:linux:arm64": "npm run build:js && electron-builder --linux AppImage deb --arm64 --publish never",
+    "dist:linux:x64": "npm run build:js && electron-builder --linux AppImage deb pacman --x64 --publish never",
+    "dist:linux:arm64": "npm run build:js && electron-builder --linux AppImage deb pacman --arm64 --publish never",
     "dist:linux:all": "npm run dist:linux:x64 && npm run dist:linux:arm64",
     "dist:linux:rpm:x64": "npm run build:js && electron-builder --linux rpm --x64 --publish never",
     "dist:linux:rpm:arm64": "npm run build:js && electron-builder --linux rpm --arm64 --publish never",
     "dist:linux:rpm:all": "npm run build:js && electron-builder --linux rpm --x64 --arm64 --publish never",
+    "dist:linux:pacman:x64": "npm run build:js && electron-builder --linux pacman --x64 --publish never",
+    "dist:linux:pacman:arm64": "npm run build:js && electron-builder --linux pacman --arm64 --publish never",
+    "dist:linux:pacman:all": "npm run build:js && electron-builder --linux pacman --x64 --arm64 --publish never",
     "dist:all": "npm run dist:mac && npm run dist:win && npm run dist:linux",
     "release:verify": "node scripts/verify-release-assets.js",
     "release:verify:partial": "node scripts/verify-release-assets.js --allow-partial",

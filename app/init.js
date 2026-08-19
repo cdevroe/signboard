@@ -1,5 +1,8 @@
 const EXTERNAL_BOARD_SYNC_INTERVAL_MS = 500;
 const EXTERNAL_BOARD_RENDER_DEBOUNCE_MS = 150;
+const LOCAL_BOARD_WATCH_SETTLE_INTERVAL_MS = 30;
+const LOCAL_BOARD_WATCH_SETTLE_MAX_MS = 240;
+const LOCAL_BOARD_WATCH_STABLE_SAMPLES = 2;
 const DUE_NOTIFICATION_CHECK_INTERVAL_MS = 60 * 1000;
 const DUE_NOTIFICATION_LAST_RUN_DATE_KEY = 'dueCardsNotificationLastRunDate';
 const DEFAULT_DUE_NOTIFICATION_TIME = '09:00';
@@ -862,6 +865,40 @@ function scheduleExternalBoardRefresh() {
             console.error('Failed to refresh board after external file change.', error);
         });
     }, EXTERNAL_BOARD_RENDER_DEBOUNCE_MS);
+}
+
+async function acknowledgeLocalBoardFilesystemChanges() {
+    if (!window.board || typeof window.board.getBoardWatchToken !== 'function') {
+        return;
+    }
+
+    // fs.watch delivery can trail a completed rename transaction, especially on
+    // Linux. Wait for a short quiet period so delayed events from our own mutation
+    // are acknowledged without forcing a redundant full-board render.
+    const startedAt = Date.now();
+    let latestToken = externalBoardWatchToken;
+    let stableSamples = 0;
+
+    while (Date.now() - startedAt < LOCAL_BOARD_WATCH_SETTLE_MAX_MS) {
+        await new Promise((resolve) => window.setTimeout(resolve, LOCAL_BOARD_WATCH_SETTLE_INTERVAL_MS));
+        const sampledToken = Number(await window.board.getBoardWatchToken());
+        if (!Number.isFinite(sampledToken)) {
+            break;
+        }
+        if (sampledToken > latestToken) {
+            latestToken = sampledToken;
+            stableSamples = 0;
+            continue;
+        }
+        stableSamples += 1;
+        if (stableSamples >= LOCAL_BOARD_WATCH_STABLE_SAMPLES) {
+            break;
+        }
+    }
+
+    if (latestToken > externalBoardWatchToken) {
+        externalBoardWatchToken = latestToken;
+    }
 }
 
 async function runExternalBoardRefresh() {

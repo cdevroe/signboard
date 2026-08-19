@@ -598,7 +598,30 @@ const test = base.extend({
     }
   },
 
-  electronApp: async ({ userDataDir }, use) => {
+  omarchyThemeDir: async ({}, use) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-playwright-omarchy-'));
+    const themeDirectory = path.join(root, 'current', 'theme');
+    await fs.mkdir(themeDirectory, { recursive: true });
+    await fs.writeFile(path.join(themeDirectory, 'colors.toml'), [
+      'mode = "dark"',
+      'accent = "#7aa2f7"',
+      'background = "#1a1b26"',
+      'lighter_background = "#24283b"',
+      'foreground = "#c0caf5"',
+      'muted = "#565f89"',
+      'selection = "#33467c"',
+      '',
+    ].join('\n'), 'utf8');
+    await fs.writeFile(path.join(path.dirname(themeDirectory), 'theme.name'), 'Tokyo Night\n', 'utf8');
+
+    try {
+      await use(themeDirectory);
+    } finally {
+      await removePathWithRetries(root, { recursive: true, force: true });
+    }
+  },
+
+  electronApp: async ({ userDataDir, omarchyThemeDir }, use) => {
     const app = await electron.launch({
       executablePath: electronBinary,
       args: ['.'],
@@ -606,6 +629,7 @@ const test = base.extend({
       env: {
         ...process.env,
         SIGNBOARD_USER_DATA_DIR: userDataDir,
+        SIGNBOARD_OMARCHY_THEME_DIR: omarchyThemeDir,
         SIGNBOARD_TEST_DISABLE_EXTERNAL_OPEN: '1',
         SIGNBOARD_TEST_DISABLE_FAVICON_FETCH: '1',
         SIGNBOARD_TEST_ALLOW_DIRECT_LINKED_OBJECT_PATHS: '1',
@@ -1747,6 +1771,15 @@ test('drops cards into the lower area of an empty list column', async ({ page, b
     emptyListCards.map((fileName) => fs.rm(path.join(emptyListPath, fileName), { force: true }))
   );
   await seedBoardState(page, boardRoot);
+  await page.waitForTimeout(650);
+  await page.evaluate(() => {
+    const originalRenderBoard = window.renderBoard;
+    window.__postDropRenderCount = 0;
+    window.renderBoard = async (...args) => {
+      window.__postDropRenderCount += 1;
+      return originalRenderBoard(...args);
+    };
+  });
 
   const firstList = page.locator('.list').first();
   const emptyList = page.locator('.list').nth(1);
@@ -1816,6 +1849,14 @@ test('drops cards into the lower area of an empty list column', async ({ page, b
 
   await expect(emptyList.locator('.card').filter({ hasText: 'Plan release notes' })).toBeVisible();
   await expect(firstList.locator('.card').filter({ hasText: 'Plan release notes' })).toHaveCount(0);
+
+  await emptyList.locator('.list-actions-button').click();
+  await expect(page.locator('#listActionsPopover').getByRole('button', { name: 'Archive cards in this list' })).toBeEnabled();
+  await page.keyboard.press('Escape');
+
+  await page.waitForTimeout(800);
+  const postDropRenderCount = await page.evaluate(() => Number(window.__postDropRenderCount || 0));
+  expect(postDropRenderCount).toBe(0);
 });
 
 test('drops cards into the lower area of a short non-empty list column', async ({ page }) => {
@@ -2758,6 +2799,68 @@ test('opens settings from the renderer keyboard shortcut', async ({ page }) => {
   await page.locator('label[for="boardSettingsNotificationsToggle"]').click();
   await expect(notificationsDetails).toBeHidden();
   await expect(notificationsDetails).toHaveAttribute('aria-hidden', 'true');
+});
+
+test('follows detected Omarchy colors and theme replacements until manually overridden', async ({ page, omarchyThemeDir }) => {
+  await page.keyboard.press(getShortcut('Comma'));
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+
+  const appearanceGroup = page.locator('#boardSettingsAppearanceGroup');
+  const themeSource = page.locator('#boardSettingsThemeSource');
+  await expect(appearanceGroup).toBeVisible();
+  await expect(themeSource.locator('option[value="omarchy"]')).toContainText('Tokyo Night');
+  await themeSource.selectOption('omarchy');
+
+  await expect.poll(async () => page.evaluate(() => ({
+    source: document.documentElement.dataset.appThemeSource || '',
+    mode: document.documentElement.dataset.theme || '',
+    background: document.documentElement.style.getPropertyValue('--sb-omarchy-bg').trim(),
+  }))).toEqual({
+    source: 'omarchy',
+    mode: 'dark',
+    background: '#1a1b26',
+  });
+  await expect.poll(async () => page.evaluate(async () => (
+    await window.electronAPI.readAppSettings()
+  ).appearance.themeSource)).toBe('omarchy');
+
+  const currentDirectory = path.dirname(omarchyThemeDir);
+  const nextThemeDirectory = path.join(currentDirectory, 'next-theme');
+  const previousThemeDirectory = path.join(currentDirectory, 'previous-theme');
+  await fs.mkdir(nextThemeDirectory, { recursive: true });
+  await fs.writeFile(path.join(nextThemeDirectory, 'colors.toml'), [
+    'mode = "light"',
+    'accent = "#005faf"',
+    'background = "#f6f6f6"',
+    'lighter_background = "#ffffff"',
+    'foreground = "#202020"',
+    'muted = "#666666"',
+    '',
+  ].join('\n'), 'utf8');
+  await fs.rename(omarchyThemeDir, previousThemeDirectory);
+  await fs.rename(nextThemeDirectory, omarchyThemeDir);
+  await fs.writeFile(path.join(currentDirectory, 'theme.name'), 'Paper\n', 'utf8');
+  await removePathWithRetries(previousThemeDirectory, { recursive: true, force: true });
+
+  await expect.poll(async () => page.evaluate(() => ({
+    mode: document.documentElement.dataset.theme || '',
+    background: document.documentElement.style.getPropertyValue('--sb-omarchy-bg').trim(),
+  })), { timeout: 5000 }).toEqual({
+    mode: '',
+    background: '#f6f6f6',
+  });
+  await expect(themeSource.locator('option[value="omarchy"]')).toContainText('Paper');
+
+  await page.locator('#boardSettingsClose').click();
+  await openBoardMenu(page);
+  await page.locator('#themeToggle').click();
+  await expect.poll(async () => page.evaluate(async () => ({
+    source: document.documentElement.dataset.appThemeSource || '',
+    savedSource: (await window.electronAPI.readAppSettings()).appearance.themeSource,
+  }))).toEqual({
+    source: '',
+    savedSource: 'signboard',
+  });
 });
 
 test('opens Planner Agenda from an active editor view shortcut after closing the editor', async ({ page }) => {

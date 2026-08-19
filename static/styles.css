@@ -770,6 +770,18 @@ body:not(.board-empty) #boardTabs {
   --task-progress-complete-color: color-mix(in oklab, #4ade80 84%, var(--text));
 }
 
+:root[data-app-theme-source="omarchy"] .planner-overlay {
+  --bg: var(--sb-omarchy-bg);
+  --bg-card: var(--sb-omarchy-bg-card);
+  --text: var(--sb-omarchy-text);
+  --muted: var(--sb-omarchy-muted);
+  --border: var(--sb-omarchy-border);
+  --shadow: var(--sb-omarchy-shadow);
+  --shadow-card: var(--sb-omarchy-shadow-card);
+  --accent: var(--sb-omarchy-accent);
+  --accent-contrast: var(--sb-omarchy-accent-contrast);
+}
+
 .planner-overlay.hidden {
   display: block;
   visibility: hidden;
@@ -2520,6 +2532,7 @@ body.board-empty main#board {
   border-color: color-mix(in oklab, var(--accent) 34%, var(--border));
   box-shadow: 0 12px 28px color-mix(in oklab, var(--shadow-card) 74%, transparent);
   transform: rotate(var(--card-drag-tilt, 0deg));
+  will-change: transform;
 }
 
 body.board-card-drag-active,

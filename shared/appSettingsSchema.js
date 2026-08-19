@@ -234,6 +234,9 @@
   const DEFAULT_QUICK_ADD_SETTINGS = Object.freeze({
     globalShortcut: '',
   });
+  const DEFAULT_APPEARANCE_SETTINGS = Object.freeze({
+    themeSource: 'signboard',
+  });
   const DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS = Object.freeze({
     enabled: false,
     port: DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_PORT,
@@ -331,6 +334,13 @@
     const source = isObject(rawQuickAddSettings) ? rawQuickAddSettings : {};
     return {
       globalShortcut: normalizeGlobalShortcutAccelerator(source.globalShortcut),
+    };
+  }
+
+  function normalizeAppearanceSettings(rawAppearanceSettings) {
+    const source = isObject(rawAppearanceSettings) ? rawAppearanceSettings : {};
+    return {
+      themeSource: source.themeSource === 'omarchy' ? 'omarchy' : DEFAULT_APPEARANCE_SETTINGS.themeSource,
     };
   }
 
@@ -782,6 +792,7 @@
       notifications: normalizeNotificationSettings(source.notifications),
       tooltipsEnabled: normalizeTooltipsEnabled(source.tooltipsEnabled),
       quickAdd: normalizeQuickAddSettings(source.quickAdd),
+      appearance: normalizeAppearanceSettings(source.appearance),
       externalPublishedCalendar: normalizeExternalPublishedCalendarSettings(source.externalPublishedCalendar),
       ai: normalizeAiSettings(source.ai),
       migration: {
@@ -797,6 +808,7 @@
     APP_SETTINGS_VERSION,
     AI_PROFILE_IDS,
     AI_PROVIDER_IDS,
+    DEFAULT_APPEARANCE_SETTINGS,
     DEFAULT_AI_SETTINGS,
     DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_PORT,
     DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS,
@@ -830,6 +842,7 @@
     normalizeAiProviders,
     normalizeAiProvider,
     normalizeAiSettings,
+    normalizeAppearanceSettings,
     normalizeAppSettings,
     normalizeExternalPublishedCalendarPort,
     normalizeExternalPublishedCalendarSettings,

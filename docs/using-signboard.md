@@ -351,11 +351,13 @@ Open `Settings` from the board menu or press `Cmd/Ctrl + ,`.
 
 The `App Settings` group controls settings that apply across Signboard:
 
-- `General`: tooltips and the optional global Quick Add shortcut while Signboard is open
+- `General`: tooltips, the optional global Quick Add shortcut while Signboard is open, and `Follow Omarchy theme` when Omarchy is detected
 - `Notifications`: daily due-date reminders and External Published Calendar publishing
 - `Smart Actions`: AI assistance through Ollama, LM Studio, OpenAI, Gemini, or Anthropic, with separate Card and Board action tabs
 
 If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due. The notification time field is shown only while reminders are enabled.
+
+On Omarchy, choose `Follow Omarchy theme` to use the active Omarchy palette. Signboard watches for atomic Omarchy theme replacements and updates while running. The option is hidden on other operating systems and Linux desktops, so their appearance is unchanged. Manually toggling light/dark mode returns to the Signboard theme, and a non-default board color scheme remains a deliberate per-board override.
 
 When AI assistance is enabled, configure a Normal model and, optionally, an Advanced model for harder work. Each profile independently chooses Ollama, LM Studio, OpenAI, Gemini, or Anthropic, so either model may run locally or in the cloud. Ollama defaults to `http://127.0.0.1:11434`; LM Studio defaults to `http://127.0.0.1:1234` and requires its local server to be running. You may also enter an LM Studio URL ending in `/v1`; Signboard normalizes it to the server base URL. For OpenAI, Gemini, or Anthropic, save that service's API key and refresh the model list. Keys are stored separately using your operating system's secure credential encryption and are never written to app settings. Signboard shows whether it can connect and loads available models into each profile's model dropdown. Local provider URLs and cloud credentials are shared by both profiles, while provider and model choices are independent.
 
@@ -439,7 +441,7 @@ Imports copy data into Signboard and leave the original source files where they 
 
 Signboard checks for updates automatically. You can also choose `Check for Updates...` from the Signboard app menu on macOS or the Help menu on Windows and Linux. The native update dialog converts the GitHub release body from HTML or Markdown into readable plain text and omits the release's download-link section. Use `View changelog` to open the complete release page.
 
-On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access. If the download is invalid or Ubuntu's package manager rejects it, your installed copy remains unchanged and the error dialog offers `Open Downloads` so you can download and install the latest package manually.
+On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access. On Arch Linux and Omarchy, it recognizes the downloaded `.pacman`, validates it with `pacman -Qp`, and installs it with `pkexec pacman -U`. Signboard never performs a database-only `pacman -Sy` refresh. If validation or installation fails, your installed copy remains unchanged and the package-specific error dialog offers `Open Downloads`.
 
 ## Accessibility
 
@@ -448,6 +450,10 @@ Signboard keeps common board work available from the keyboard. Card titles are n
 Status changes such as creating, moving, archiving, restoring, and switching views are announced through a polite status region for screen readers. The app also respects reduced-motion and forced-colors preferences.
 
 Focus styling is keyboard-only where possible, including the card editor title and list names, so mouse users do not get a persistent editor outline while keyboard users still get a visible focus target.
+
+## Arch Linux and Omarchy installation
+
+Download the `.pacman` file for your architecture from the latest Signboard release, then run `sudo pacman -U ./signboard_VERSION_linux_x64.pacman` from the download directory. This native package installs the application, desktop launcher, `signboard://` URL handler, and Signboard icon together and does not need FUSE. On ARM hardware, use `linux_aarch64.pacman`. The community-maintained [`signboard-appimage` package](https://aur.archlinux.org/packages/signboard-appimage) is also available from the AUR through `yay -S signboard-appimage` or `paru -S signboard-appimage`; AppImage remains an alternative for other distributions.
 
 ## Keyboard Shortcuts
 
