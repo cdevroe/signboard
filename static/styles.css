@@ -2840,7 +2840,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   .card-date-popover,
   .label-popover,
   .board-table-bulk-toolbar,
-  .board-table-bulk-menu {
+  .board-table-bulk-menu,
+  .smart-board-action-card-reference {
     border: 1px solid CanvasText;
     box-shadow: none;
   }
@@ -5049,7 +5050,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(860px, calc(100vw - 36px));
   max-width: 860px;
-  height: min(760px, calc(100vh - 36px));
+  height: auto;
   max-height: min(760px, calc(100vh - 36px));
   transform: translate(-50%, -50%);
   overflow: hidden;
@@ -5057,8 +5058,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 .smart-board-action-result-modal.hidden { display: none !important; }
-.smart-board-action-result-body { display: grid; min-height: 0; gap: 14px; overflow-y: auto; overscroll-behavior: contain; padding: 12px 4px 16px 2px; }
-.smart-board-action-result-body.is-loading { place-items: center; }
+.smart-board-action-result-body { display: grid; min-height: 0; align-content: start; grid-auto-rows: max-content; gap: 14px; overflow-y: auto; overscroll-behavior: contain; padding: 12px 4px 16px 2px; }
+.smart-board-action-result-body.is-loading { min-height: min(280px, calc(100vh - 220px)); place-items: center; }
 .smart-board-action-result-body h3 { margin: 8px 0 -6px; font-size: var(--font-md); }
 
 .smart-board-action-loading {
@@ -5109,13 +5110,40 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .smart-board-action-card-references,
 .smart-board-action-changes { display: grid; gap: 8px; }
 
-.smart-board-action-card-references > div,
 .smart-board-action-changes > label {
   display: grid;
   gap: 3px;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
+}
+
+.smart-board-action-card-reference {
+  display: grid;
+  width: 100%;
+  gap: 8px;
+  padding: 12px 13px;
+  border: 1px solid color-mix(in oklab, var(--border) 92%, var(--bg-card));
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: 0 2px 10px var(--shadow-card);
+  box-sizing: border-box;
+  font: inherit;
+  text-align: left;
+}
+
+button.smart-board-action-card-reference {
+  cursor: pointer;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+
+button.smart-board-action-card-reference:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--border) 70%, var(--paynes-gray));
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: 0 6px 18px var(--shadow-card);
 }
 
 .smart-board-action-card-reference-heading {
@@ -5125,33 +5153,31 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   gap: 10px;
 }
 
-.smart-board-action-card-open {
+.smart-board-action-card-title {
   min-width: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  box-shadow: none;
-  font: inherit;
+  color: var(--text);
+  font-size: var(--font-sm);
   font-weight: 700;
-  text-align: left;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
-.smart-board-action-card-open:hover {
-  background: transparent;
-  color: color-mix(in oklab, var(--accent) 78%, var(--text));
+.smart-board-action-card-reference-meta {
+  flex: none;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
 }
 
-.smart-board-action-card-references span,
-.smart-board-action-card-references p,
+.smart-board-action-card-reference-meta,
+.smart-board-action-card-reference-reason,
 .smart-board-action-changes small { margin: 0; color: var(--muted); font-size: var(--font-xs); line-height: 1.35; }
+.smart-board-action-card-reference-reason { display: block; }
 .smart-board-action-changes > label { grid-template-columns: auto minmax(0, 1fr); align-items: start; cursor: pointer; }
 .smart-board-action-changes input { width: auto; margin-top: 3px; }
 .smart-board-action-changes label > span { display: grid; gap: 3px; }
-.smart-board-action-card-references .smart-board-action-card-id { color: color-mix(in oklab, var(--muted) 76%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+.smart-board-action-card-references .smart-board-action-card-id { color: color-mix(in oklab, var(--muted) 76%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; line-height: 1.3; }
 
 .smart-board-action-result-footer {
   display: flex;
@@ -5182,6 +5208,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 @media (prefers-reduced-motion: reduce) {
   .smart-board-action-loading-dots i { animation: none; opacity: .75; transform: none; }
+  button.smart-board-action-card-reference { transition: none; }
+  button.smart-board-action-card-reference:hover { transform: none; }
 }
 
 #labelFilterPopover {

@@ -3499,7 +3499,7 @@ test('runs Smart Board Actions, reviews card creation, and customizes board acti
     { name: 'board-model', model: 'board-model', details: { parameter_size: '8B' } },
   ]);
   try {
-    await page.setViewportSize({ width: 900, height: 520 });
+    await page.setViewportSize({ width: 900, height: 800 });
     await page.evaluate(async (ollamaUrl) => {
       const current = await window.electronAPI.readAppSettings();
       await window.electronAPI.updateAppSettings({
@@ -3531,7 +3531,14 @@ test('runs Smart Board Actions, reviews card creation, and customizes board acti
     const copyReport = page.locator('#smartBoardActionCopyReport');
     await expect(copyReport).toBeVisible();
     await expect(copyReport).toBeEnabled();
-    await expect(resultModal.getByRole('button', { name: 'Ship beta' })).toBeVisible();
+    const referencedCard = resultModal.getByRole('button', { name: 'Open Ship beta' });
+    await expect(referencedCard).toBeVisible();
+    await expect(referencedCard).toHaveClass(/smart-board-action-card-reference/);
+    await expect(referencedCard.locator('.smart-board-action-card-title')).toHaveCSS('text-decoration-line', 'none');
+    expect(await referencedCard.evaluate((card) => {
+      const title = card.querySelector('.smart-board-action-card-title');
+      return getComputedStyle(card).color === getComputedStyle(title).color;
+    })).toBe(true);
     await expect(resultModal.locator('.smart-board-action-card-id')).toContainText('stock');
     await expect.poll(async () => resultModal.evaluate((modal) => {
       const body = modal.querySelector('.smart-board-action-result-body');
@@ -3546,7 +3553,7 @@ test('runs Smart Board Actions, reviews card creation, and customizes board acti
     await expect(page.locator('#smartBoardActionResultStatus')).toContainText('Copied report');
     await expect(copyReport).toBeVisible();
     expect(fakeOllama.getLastChatRequest().format).toHaveProperty('required');
-    await resultModal.getByRole('button', { name: 'Ship beta' }).click();
+    await referencedCard.click();
     await expect(resultModal).toBeHidden();
     await expect(page.locator('#modalEditCard')).toBeVisible();
     await expect(page.locator('#cardEditorTitle')).toHaveText('Ship beta');
@@ -3558,6 +3565,10 @@ test('runs Smart Board Actions, reviews card creation, and customizes board acti
     await popover.getByRole('button', { name: 'Run' }).click();
     await expect(resultModal).toBeVisible();
     await expect(page.locator('.smart-board-action-changes')).toContainText('Prepare shared action demo');
+    await expect.poll(async () => resultModal.evaluate((modal) => ({
+      alignContent: getComputedStyle(modal.querySelector('.smart-board-action-result-body')).alignContent,
+      compact: modal.getBoundingClientRect().height < 500,
+    }))).toEqual({ alignContent: 'start', compact: true });
     await page.locator('#smartBoardActionApplyChanges').click();
     await expect(page.locator('#smartBoardActionResultStatus')).toContainText('Applied 1 change');
     await page.locator('#smartBoardActionResultDone').click();

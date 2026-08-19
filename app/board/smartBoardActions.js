@@ -244,41 +244,43 @@ function renderSmartBoardActionResult(result, action) {
     const list = document.createElement('div');
     list.className = 'smart-board-action-card-references';
     result.cards.forEach((card) => {
-      const item = document.createElement('div');
-      const heading = document.createElement('div');
-      heading.className = 'smart-board-action-card-reference-heading';
       const cardTitle = card.title || card.cardId;
-      if (card.cardPath && typeof toggleEditCardModal === 'function') {
-        const openButton = document.createElement('button');
-        openButton.type = 'button';
-        openButton.className = 'smart-board-action-card-open';
-        openButton.textContent = cardTitle;
-        openButton.title = `Open ${cardTitle}`;
-        openButton.addEventListener('click', async (event) => {
+      const canOpenCard = card.cardPath && typeof toggleEditCardModal === 'function';
+      const item = document.createElement(canOpenCard ? 'button' : 'div');
+      item.className = 'smart-board-action-card-reference';
+      if (canOpenCard) {
+        item.type = 'button';
+        item.title = `Open ${cardTitle}`;
+        item.setAttribute('aria-label', `Open ${cardTitle}`);
+        item.addEventListener('click', async (event) => {
           event.preventDefault();
-          event.stopPropagation();
           closeSmartBoardActionResultModal();
           await toggleEditCardModal(card.cardPath);
         });
-        heading.appendChild(openButton);
-      } else {
-        const title = document.createElement('strong');
-        title.textContent = cardTitle;
-        heading.appendChild(title);
       }
+      const heading = document.createElement('span');
+      heading.className = 'smart-board-action-card-reference-heading';
+      const title = document.createElement('strong');
+      title.className = 'smart-board-action-card-title';
+      title.textContent = cardTitle;
+      heading.appendChild(title);
       const metadata = document.createElement('span');
+      metadata.className = 'smart-board-action-card-reference-meta';
       metadata.textContent = `${card.list || 'Board'}${card.estimateMinutes ? ` · about ${card.estimateMinutes} min` : ''}`;
       heading.appendChild(metadata);
       item.appendChild(heading);
+      if (card.reason) {
+        const reason = document.createElement('span');
+        reason.className = 'smart-board-action-card-reference-reason';
+        reason.textContent = card.reason;
+        item.appendChild(reason);
+      }
       if (card.cardId) {
         const cardId = document.createElement('span');
         cardId.className = 'smart-board-action-card-id';
         cardId.textContent = `Card ID: ${card.cardId}`;
         item.appendChild(cardId);
       }
-      const reason = document.createElement('p');
-      reason.textContent = card.reason || '';
-      item.appendChild(reason);
       list.appendChild(item);
     });
     body.append(heading, list);
