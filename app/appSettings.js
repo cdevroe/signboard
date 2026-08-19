@@ -1553,12 +1553,52 @@ function getAppSmartActionForSharing(scope, actionId) {
   return actions.find((action) => action.id === actionId) || null;
 }
 
-async function shareAppSmartAction(scope, actionId) {
+function showAppSmartActionFeedback(message, tone = 'success') {
+  const feedback = document.getElementById('boardSettingsSmartActionFeedback');
+  if (!feedback) return;
+  feedback.textContent = String(message || '');
+  feedback.dataset.tone = tone;
+  feedback.hidden = !feedback.textContent;
+  const state = getAppSettingsState();
+  if (state.smartActionFeedbackTimer) clearTimeout(state.smartActionFeedbackTimer);
+  state.smartActionFeedbackTimer = feedback.textContent
+    ? setTimeout(() => {
+      feedback.hidden = true;
+      feedback.textContent = '';
+      state.smartActionFeedbackTimer = null;
+    }, 5000)
+    : null;
+}
+
+async function shareAppSmartAction(scope, actionId, triggerButton = null) {
   const action = getAppSmartActionForSharing(scope, actionId);
   if (!action || !action.prompt || !window.electronAPI || typeof window.electronAPI.copySmartActionShareLink !== 'function') return;
-  const result = await window.electronAPI.copySmartActionShareLink({ scope, action });
-  if (typeof announceSignboardStatus === 'function') {
-    announceSignboardStatus(result && result.ok ? `Copied share link for ${action.label}.` : (result && result.message ? result.message : 'Unable to share this action.'));
+  const originalText = triggerButton ? triggerButton.textContent : '';
+  if (triggerButton) {
+    triggerButton.disabled = true;
+    triggerButton.textContent = 'Copying…';
+  }
+  try {
+    const result = await window.electronAPI.copySmartActionShareLink({ scope, action });
+    const message = result && result.ok
+      ? `Copied share link for ${action.label}.`
+      : (result && result.message ? result.message : 'Unable to share this action.');
+    showAppSmartActionFeedback(message, result && result.ok ? 'success' : 'error');
+    if (triggerButton) triggerButton.textContent = result && result.ok ? 'Copied!' : 'Try again';
+    if (typeof announceSignboardStatus === 'function') announceSignboardStatus(message);
+  } catch (error) {
+    const message = error && error.message ? error.message : 'Unable to share this action.';
+    showAppSmartActionFeedback(message, 'error');
+    if (triggerButton) triggerButton.textContent = 'Try again';
+    if (typeof announceSignboardStatus === 'function') announceSignboardStatus(message);
+  } finally {
+    if (triggerButton) {
+      setTimeout(() => {
+        if (!triggerButton.isConnected) return;
+        triggerButton.disabled = false;
+        triggerButton.textContent = originalText || 'Share';
+      }, 1600);
+    }
   }
 }
 

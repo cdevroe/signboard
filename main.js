@@ -3401,11 +3401,23 @@ async function runSmartBoardAction(event, payload = {}) {
       context,
       { currentDate, userPrompt },
     );
+    const indexes = buildSmartBoardIndexes(snapshot);
+    const referencedCards = (Array.isArray(result.cards) ? result.cards : []).map((card) => {
+      const cardEntry = indexes.cardsById.get(normalizeSmartBoardLookupKey(card.cardId));
+      if (!cardEntry) return card;
+      return {
+        ...card,
+        title: String(cardEntry.frontmatter && cardEntry.frontmatter.title || card.title || card.cardId).trim(),
+        list: getSmartBoardListDisplayName(cardEntry.listEntry && cardEntry.listEntry.listName) || card.list,
+        cardPath: cardEntry.cardPath,
+      };
+    });
     return {
       ok: true,
       profile: profileId,
       contextSummary: context.board,
       ...result,
+      cards: referencedCards,
     };
   } catch (error) {
     console.error('Unable to run Smart Board Action.', error);
@@ -3424,6 +3436,10 @@ async function runSmartBoardAction(event, payload = {}) {
 
 function normalizeSmartBoardLookupKey(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+function getSmartBoardListDisplayName(listName) {
+  return String(listName || '').replace(/^\d{3}-/, '').replace(/(?:-[^-]{5}|-stock)$/, '');
 }
 
 function slugifySmartBoardCardTitle(value) {
@@ -3448,7 +3464,7 @@ function buildSmartBoardIndexes(snapshot) {
     labelsById.set(normalizeSmartBoardLookupKey(label.id), label);
   });
   for (const listEntry of snapshot.lists) {
-    const displayName = String(listEntry.listName || '').replace(/^\d{3}-/, '').replace(/(?:-[^-]{5}|-stock)$/, '');
+    const displayName = getSmartBoardListDisplayName(listEntry.listName);
     listsByName.set(normalizeSmartBoardLookupKey(listEntry.listName), listEntry);
     if (!listsByName.has(normalizeSmartBoardLookupKey(displayName))) {
       listsByName.set(normalizeSmartBoardLookupKey(displayName), listEntry);

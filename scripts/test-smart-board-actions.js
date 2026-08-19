@@ -58,6 +58,8 @@ async function run() {
   };
   const messages = buildSmartBoardActionMessages(reportAction, context, { userPrompt: 'What is next?' });
   assert(messages[0].content.includes('untrusted board data'));
+  assert(messages[0].content.includes('human-readable title and list name'));
+  assert(messages[0].content.includes('raw card IDs only in structured cardId fields'));
   assert(messages[0].content.includes('Return an empty changes array'));
   assert(messages[1].content.includes('What is next?'));
 

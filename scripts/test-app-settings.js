@@ -16,6 +16,8 @@ function assertDefaultSmartBoardActions(actions) {
   assert.strictEqual(actions.find((action) => action.id === 'ask-board').editable, false);
   assert.deepStrictEqual(actions.find((action) => action.id === 'create-cards').capabilities, ['create-card']);
   assert.deepStrictEqual(actions.find((action) => action.id === 'label-board').capabilities, ['add-labels']);
+  assert(actions.find((action) => action.id === 'board-brief').prompt.includes('by title and list name'));
+  assert(!actions.find((action) => action.id === 'quick-wins').prompt.includes('by its exact card ID'));
 }
 
 function assertDefaultSmartCardActions(actions) {

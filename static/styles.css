@@ -4379,6 +4379,24 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   display: none;
 }
 
+.board-settings-smart-action-feedback {
+  width: fit-content;
+  margin: 10px 0 -12px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 10%, var(--bg-card));
+  color: var(--text);
+  font-size: var(--font-xs);
+  font-weight: 650;
+}
+
+.board-settings-smart-action-feedback[hidden] { display: none; }
+.board-settings-smart-action-feedback[data-tone="error"] {
+  border-color: color-mix(in oklab, #dc2626 35%, var(--border));
+  background: color-mix(in oklab, #dc2626 9%, var(--bg-card));
+}
+
 .board-settings-smart-action-scope .board-settings-ai-actions-header {
   margin-top: 18px;
 }
@@ -5028,16 +5046,51 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   position: fixed;
   z-index: 12050;
   inset: 50% auto auto 50%;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(860px, calc(100vw - 36px));
   max-width: 860px;
+  height: min(760px, calc(100vh - 36px));
   max-height: min(760px, calc(100vh - 36px));
   transform: translate(-50%, -50%);
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .smart-board-action-result-modal.hidden { display: none !important; }
-.smart-board-action-result-body { display: grid; gap: 14px; max-height: calc(100vh - 210px); overflow: auto; padding: 8px 2px 14px; }
+.smart-board-action-result-body { display: grid; min-height: 0; gap: 14px; overflow-y: auto; overscroll-behavior: contain; padding: 12px 4px 16px 2px; }
+.smart-board-action-result-body.is-loading { place-items: center; }
 .smart-board-action-result-body h3 { margin: 8px 0 -6px; font-size: var(--font-md); }
+
+.smart-board-action-loading {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.smart-board-action-loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 18px;
+}
+
+.smart-board-action-loading-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: smart-board-action-dot-pulse 1.1s ease-in-out infinite;
+}
+
+.smart-board-action-loading-dots i:nth-child(2) { animation-delay: .14s; }
+.smart-board-action-loading-dots i:nth-child(3) { animation-delay: .28s; }
+
+@keyframes smart-board-action-dot-pulse {
+  0%, 60%, 100% { opacity: .3; transform: translateY(0) scale(.82); }
+  30% { opacity: 1; transform: translateY(-3px) scale(1); }
+}
 
 .smart-board-action-report {
   margin: 0;
@@ -5065,12 +5118,40 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   border-radius: var(--radius);
 }
 
+.smart-board-action-card-reference-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.smart-board-action-card-open {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  box-shadow: none;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.smart-board-action-card-open:hover {
+  background: transparent;
+  color: color-mix(in oklab, var(--accent) 78%, var(--text));
+}
+
 .smart-board-action-card-references span,
 .smart-board-action-card-references p,
 .smart-board-action-changes small { margin: 0; color: var(--muted); font-size: var(--font-xs); line-height: 1.35; }
 .smart-board-action-changes > label { grid-template-columns: auto minmax(0, 1fr); align-items: start; cursor: pointer; }
 .smart-board-action-changes input { width: auto; margin-top: 3px; }
 .smart-board-action-changes label > span { display: grid; gap: 3px; }
+.smart-board-action-card-references .smart-board-action-card-id { color: color-mix(in oklab, var(--muted) 76%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
 
 .smart-board-action-result-footer {
   display: flex;
@@ -5079,6 +5160,28 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   gap: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+@media (max-width: 620px), (max-height: 520px) {
+  .smart-board-action-result-modal {
+    width: calc(100vw - 20px);
+    height: calc(100vh - 20px);
+    max-height: calc(100vh - 20px);
+  }
+
+  .smart-board-action-result-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .smart-board-action-result-footer .board-settings-inline-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .smart-board-action-loading-dots i { animation: none; opacity: .75; transform: none; }
 }
 
 #labelFilterPopover {

@@ -163,7 +163,7 @@
         'Create a concise status brief for this board.',
         'Cover recent progress, overdue or approaching work, stalled or risky cards, and the three most useful next steps.',
         'Use the supplied activity timestamps and completed-list information for claims about completed work.',
-        'Reference relevant cards by their exact card IDs.',
+        'Refer to relevant cards by title and list name in the report, and place each exact card ID only in the structured card reference.',
         'Do not invent facts or imply that checked tasks have completion timestamps.',
       ].join('\n'),
       capabilities: Object.freeze([]),
@@ -178,7 +178,7 @@
         'Find up to six useful cards or incomplete tasks that appear achievable in about 15 minutes.',
         'Prefer concrete, unblocked work with a small visible scope.',
         'Treat time estimates as estimates and explain the evidence for each one.',
-        'Reference every recommendation by its exact card ID.',
+        'Name every recommended card in the report, and place its exact card ID only in the structured card reference.',
       ].join('\n'),
       capabilities: Object.freeze([]),
       builtIn: true,
@@ -635,6 +635,21 @@
     return (candidate || normalizedFallback).slice(0, SMART_BOARD_ACTION_PROMPT_MAX_LENGTH).trim();
   }
 
+  function upgradeLegacyBuiltInSmartBoardPrompt(actionId, prompt) {
+    const replacements = {
+      'board-brief': [
+        'Reference relevant cards by their exact card IDs.',
+        'Refer to relevant cards by title and list name in the report, and place each exact card ID only in the structured card reference.',
+      ],
+      'quick-wins': [
+        'Reference every recommendation by its exact card ID.',
+        'Name every recommended card in the report, and place its exact card ID only in the structured card reference.',
+      ],
+    };
+    const replacement = replacements[actionId];
+    return replacement ? String(prompt || '').replace(replacement[0], replacement[1]) : prompt;
+  }
+
   function normalizeSmartBoardActions(rawActions) {
     const sourceActions = Array.isArray(rawActions) ? rawActions : [];
     const defaultsById = new Map(DEFAULT_SMART_BOARD_ACTIONS.map((action) => [action.id, action]));
@@ -647,12 +662,13 @@
       const sourceId = normalizeSmartCardActionId(action.id);
       const defaultAction = defaultsById.get(sourceId);
       if (defaultAction && !seenIds.has(defaultAction.id)) {
-        const prompt = defaultAction.editable === false
+        const normalizedPrompt = defaultAction.editable === false
           ? defaultAction.prompt
           : normalizeSmartBoardActionPrompt(
             Object.prototype.hasOwnProperty.call(action, 'prompt') ? action.prompt : defaultAction.prompt,
             defaultAction.prompt,
           );
+        const prompt = upgradeLegacyBuiltInSmartBoardPrompt(defaultAction.id, normalizedPrompt);
         normalizedActions.push({
           ...defaultAction,
           description: defaultAction.description,

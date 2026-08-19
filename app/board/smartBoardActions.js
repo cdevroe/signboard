@@ -161,15 +161,29 @@ function openSmartBoardActionResultModal(action, statusText = 'Analyzing this bo
   if (!modal) return;
   document.getElementById('smartBoardActionResultTitle').textContent = action ? action.label : 'Smart Board Action';
   document.getElementById('smartBoardActionResultContext').textContent = '';
-  document.getElementById('smartBoardActionResultBody').innerHTML = '';
+  const body = document.getElementById('smartBoardActionResultBody');
+  body.innerHTML = '';
+  body.classList.add('is-loading');
+  const loading = document.createElement('div');
+  loading.className = 'smart-board-action-loading';
+  loading.setAttribute('role', 'status');
+  loading.setAttribute('aria-label', statusText);
+  const dots = document.createElement('span');
+  dots.className = 'smart-board-action-loading-dots';
+  dots.setAttribute('aria-hidden', 'true');
+  for (let index = 0; index < 3; index += 1) dots.appendChild(document.createElement('i'));
+  const label = document.createElement('span');
+  label.textContent = statusText;
+  loading.append(dots, label);
+  body.appendChild(loading);
   document.getElementById('smartBoardActionResultStatus').textContent = statusText;
   document.getElementById('smartBoardActionCopyReport').disabled = true;
   document.getElementById('smartBoardActionApplyChanges').hidden = true;
   if (typeof setAccessibleModalVisible === 'function') {
-    setAccessibleModalVisible(modal, true, { display: 'block', labelledBy: 'smartBoardActionResultTitle', initialFocus: '#smartBoardActionResultClose' });
+    setAccessibleModalVisible(modal, true, { display: 'grid', labelledBy: 'smartBoardActionResultTitle', initialFocus: '#smartBoardActionResultClose' });
   } else {
     modal.classList.remove('hidden');
-    modal.style.display = 'block';
+    modal.style.display = 'grid';
     modal.setAttribute('aria-hidden', 'false');
   }
   if (typeof setBoardInteractive === 'function') setBoardInteractive(false);
@@ -213,6 +227,7 @@ function renderSmartBoardActionResult(result, action) {
   const status = document.getElementById('smartBoardActionResultStatus');
   const copy = document.getElementById('smartBoardActionCopyReport');
   const apply = document.getElementById('smartBoardActionApplyChanges');
+  body.classList.remove('is-loading');
   body.innerHTML = '';
   const summary = result.contextSummary || {};
   context.textContent = `${summary.includedCardCount || 0} of ${summary.totalCardCount || 0} cards included${summary.omittedCardCount ? ` · ${summary.omittedCardCount} omitted by the context limit` : ''} · ${result.provider || ''} ${result.model || ''}`.trim();
@@ -230,10 +245,40 @@ function renderSmartBoardActionResult(result, action) {
     list.className = 'smart-board-action-card-references';
     result.cards.forEach((card) => {
       const item = document.createElement('div');
-      item.innerHTML = `<strong></strong><span></span><p></p>`;
-      item.querySelector('strong').textContent = card.title || card.cardId;
-      item.querySelector('span').textContent = `${card.list || 'Board'}${card.estimateMinutes ? ` · about ${card.estimateMinutes} min` : ''}`;
-      item.querySelector('p').textContent = card.reason || '';
+      const heading = document.createElement('div');
+      heading.className = 'smart-board-action-card-reference-heading';
+      const cardTitle = card.title || card.cardId;
+      if (card.cardPath && typeof toggleEditCardModal === 'function') {
+        const openButton = document.createElement('button');
+        openButton.type = 'button';
+        openButton.className = 'smart-board-action-card-open';
+        openButton.textContent = cardTitle;
+        openButton.title = `Open ${cardTitle}`;
+        openButton.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          closeSmartBoardActionResultModal();
+          await toggleEditCardModal(card.cardPath);
+        });
+        heading.appendChild(openButton);
+      } else {
+        const title = document.createElement('strong');
+        title.textContent = cardTitle;
+        heading.appendChild(title);
+      }
+      const metadata = document.createElement('span');
+      metadata.textContent = `${card.list || 'Board'}${card.estimateMinutes ? ` · about ${card.estimateMinutes} min` : ''}`;
+      heading.appendChild(metadata);
+      item.appendChild(heading);
+      if (card.cardId) {
+        const cardId = document.createElement('span');
+        cardId.className = 'smart-board-action-card-id';
+        cardId.textContent = `Card ID: ${card.cardId}`;
+        item.appendChild(cardId);
+      }
+      const reason = document.createElement('p');
+      reason.textContent = card.reason || '';
+      item.appendChild(reason);
       list.appendChild(item);
     });
     body.append(heading, list);
@@ -285,6 +330,7 @@ async function requestSmartBoardAction(action, prompt = '') {
   } catch (error) {
     const body = document.getElementById('smartBoardActionResultBody');
     const status = document.getElementById('smartBoardActionResultStatus');
+    body.classList.remove('is-loading');
     body.textContent = error && error.message ? error.message : 'Unable to run Smart Board Action.';
     status.textContent = 'No board files were changed.';
   }

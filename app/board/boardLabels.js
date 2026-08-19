@@ -3467,6 +3467,7 @@ function closeAllLabelPopovers() {
 }
 
 function initializeBoardLabelControls() {
+  const settingsModal = document.getElementById('modalBoardSettings');
   const filterButton = document.getElementById('labelFilterButton');
   const filterSummaryButton = document.getElementById('boardFilterSummaryButton');
   const filterPopover = document.getElementById('labelFilterPopover');
@@ -3507,6 +3508,12 @@ function initializeBoardLabelControls() {
   const importFromTasksMdButton = document.getElementById('btnImportBoardFromTasksMd');
 
   renderBoardSettingsActionState();
+
+  if (settingsModal) {
+    settingsModal.addEventListener('click', (event) => {
+      event.stopPropagation();
+    });
+  }
 
   if (filterButton) {
     filterButton.addEventListener('click', (event) => {
@@ -3913,7 +3920,7 @@ function initializeBoardLabelControls() {
       } else if (target.dataset.smartActionCommand === 'remove' && typeof removeAppSmartCardAction === 'function') {
         removeAppSmartCardAction(target.dataset.actionId);
       } else if (target.dataset.smartActionCommand === 'share' && typeof shareAppSmartAction === 'function') {
-        shareAppSmartAction('card', target.dataset.actionId);
+        shareAppSmartAction('card', target.dataset.actionId, target);
       } else if (target.dataset.smartActionCommand === 'export' && typeof exportAppSmartAction === 'function') {
         exportAppSmartAction('card', target.dataset.actionId);
       }
@@ -3964,12 +3971,13 @@ function initializeBoardLabelControls() {
         : event.target;
       if (!target || !target.dataset || !target.dataset.smartBoardActionCommand) return;
       event.preventDefault();
+      event.stopPropagation();
       const command = target.dataset.smartBoardActionCommand;
       const actionId = target.dataset.actionId;
       if (command === 'toggle-edit' && typeof toggleAppSmartBoardActionExpanded === 'function') toggleAppSmartBoardActionExpanded(actionId);
       else if (command === 'reset' && typeof resetAppSmartBoardActionPrompt === 'function') resetAppSmartBoardActionPrompt(actionId);
       else if (command === 'remove' && typeof removeAppSmartBoardAction === 'function') removeAppSmartBoardAction(actionId);
-      else if (command === 'share' && typeof shareAppSmartAction === 'function') shareAppSmartAction('board', actionId);
+      else if (command === 'share' && typeof shareAppSmartAction === 'function') shareAppSmartAction('board', actionId, target);
       else if (command === 'export' && typeof exportAppSmartAction === 'function') exportAppSmartAction('board', actionId);
     });
   }

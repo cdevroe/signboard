@@ -139,12 +139,20 @@ async function startFakeSmartBoardOllamaServer(models) {
             }],
           }
           : {
-            report: '## Board brief\n\nThe board has useful work ready to continue.',
-            cards: [],
+            report: `## Board brief\n\nThe board has useful work ready to continue.\n\n${Array.from({ length: 36 }, (_item, index) => `- Useful report detail ${index + 1}`).join('\n')}`,
+            cards: [{
+              cardId: 'stock',
+              title: 'Model-supplied card title',
+              list: 'Model-supplied list',
+              reason: 'This completed card provides useful release context.',
+              estimateMinutes: 10,
+            }],
             changes: [],
           };
-        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        response.end(JSON.stringify({ message: { content: JSON.stringify(content) }, done_reason: 'stop' }));
+        setTimeout(() => {
+          response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          response.end(JSON.stringify({ message: { content: JSON.stringify(content) }, done_reason: 'stop' }));
+        }, 120);
       });
       return;
     }
@@ -3491,6 +3499,7 @@ test('runs Smart Board Actions, reviews card creation, and customizes board acti
     { name: 'board-model', model: 'board-model', details: { parameter_size: '8B' } },
   ]);
   try {
+    await page.setViewportSize({ width: 900, height: 520 });
     await page.evaluate(async (ollamaUrl) => {
       const current = await window.electronAPI.readAppSettings();
       await window.electronAPI.updateAppSettings({
@@ -3515,12 +3524,33 @@ test('runs Smart Board Actions, reviews card creation, and customizes board acti
     await popover.getByRole('button', { name: /Board Brief/ }).click();
     const resultModal = page.locator('#modalSmartBoardActionResult');
     await expect(resultModal).toBeVisible();
+    await expect(resultModal.locator('.smart-board-action-loading-dots')).toBeVisible();
     await expect(resultModal.locator('.smart-board-action-report')).toContainText('Board brief');
     await expect(page.locator('#smartBoardActionResultContext')).toContainText('3 of 3 cards included');
     await expect(page.locator('#smartBoardActionApplyChanges')).toBeHidden();
+    const copyReport = page.locator('#smartBoardActionCopyReport');
+    await expect(copyReport).toBeVisible();
+    await expect(copyReport).toBeEnabled();
+    await expect(resultModal.getByRole('button', { name: 'Ship beta' })).toBeVisible();
+    await expect(resultModal.locator('.smart-board-action-card-id')).toContainText('stock');
+    await expect.poll(async () => resultModal.evaluate((modal) => {
+      const body = modal.querySelector('.smart-board-action-result-body');
+      const footer = modal.querySelector('.smart-board-action-result-footer');
+      const footerBounds = footer.getBoundingClientRect();
+      return {
+        bodyScrollable: body.scrollHeight > body.clientHeight,
+        footerVisible: footerBounds.bottom <= window.innerHeight && footerBounds.top >= 0,
+      };
+    })).toEqual({ bodyScrollable: true, footerVisible: true });
+    await copyReport.click();
+    await expect(page.locator('#smartBoardActionResultStatus')).toContainText('Copied report');
+    await expect(copyReport).toBeVisible();
     expect(fakeOllama.getLastChatRequest().format).toHaveProperty('required');
-    await page.locator('#smartBoardActionResultDone').click();
+    await resultModal.getByRole('button', { name: 'Ship beta' }).click();
     await expect(resultModal).toBeHidden();
+    await expect(page.locator('#modalEditCard')).toBeVisible();
+    await expect(page.locator('#cardEditorTitle')).toHaveText('Ship beta');
+    await page.locator('#cardEditorClose').click();
 
     await smartButton.click();
     await popover.getByRole('button', { name: /Create Cards/ }).click();
@@ -3540,6 +3570,14 @@ test('runs Smart Board Actions, reviews card creation, and customizes board acti
     const boardRows = page.locator('#boardSettingsAiBoardActionsList .board-settings-ai-action');
     await expect(boardRows).toHaveCount(defaultSmartBoardActionLabels.length);
     await expect(page.locator('#boardSettingsSmartActionsBoardPanel')).toBeVisible();
+    const boardBriefRow = boardRows.filter({ hasText: 'Board Brief' });
+    await boardBriefRow.getByRole('button', { name: 'Edit' }).click();
+    await expect(page.locator('#modalBoardSettings')).toBeVisible();
+    await expect(boardBriefRow.locator('.board-settings-ai-action-details')).toBeVisible();
+    await boardBriefRow.getByRole('button', { name: 'Share' }).click();
+    await expect(page.locator('#boardSettingsSmartActionFeedback')).toContainText('Copied share link for Board Brief');
+    await expect(boardBriefRow.getByRole('button', { name: 'Copied!' })).toBeVisible();
+    await expect(page.locator('#modalBoardSettings')).toBeVisible();
     await page.locator('#btnAddAiSmartBoardAction').click();
     await expect(boardRows.first()).toContainText('Custom board action 1');
     await boardRows.first().locator('select[data-smart-board-action-field="mode"]').selectOption('changes');
