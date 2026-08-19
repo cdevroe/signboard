@@ -3,9 +3,10 @@
   --sb-text: #0f172a;
   --sb-muted: #667085;
   --sb-border: #e6e8ec;
-  max-width: 760px;
-  margin: 40px auto;
-  padding: 28px;
+  box-sizing: border-box;
+  max-width: 680px;
+  margin: 28px auto;
+  padding: clamp(22px, 4vw, 32px);
   border: 1px solid var(--sb-border);
   border-radius: 18px;
   background: #fff;
@@ -13,6 +14,8 @@
   box-shadow: 0 18px 50px rgba(15, 23, 42, .08);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
+
+.signboard-action-share [hidden] { display: none !important; }
 
 .signboard-action-share__eyebrow {
   margin-bottom: 10px;
@@ -23,8 +26,8 @@
   text-transform: uppercase;
 }
 
-.signboard-action-share h1 { margin: 0 0 8px; font-size: clamp(28px, 5vw, 44px); line-height: 1.08; }
-.signboard-action-share p { color: var(--sb-muted); }
+.signboard-action-share h2 { margin: 0 0 10px; color: var(--sb-text); font-size: clamp(28px, 4vw, 38px); line-height: 1.1; letter-spacing: -.025em; }
+.signboard-action-share p { margin: 0; color: var(--sb-muted); line-height: 1.55; }
 .signboard-action-share__metadata { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0; }
 .signboard-action-share__metadata div { padding: 9px 12px; border: 1px solid var(--sb-border); border-radius: 999px; }
 .signboard-action-share__metadata dt { display: inline; color: var(--sb-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
@@ -32,18 +35,36 @@
 .signboard-action-share__prompt { margin: 20px 0; border: 1px solid var(--sb-border); border-radius: 12px; padding: 12px 14px; }
 .signboard-action-share__prompt summary { cursor: pointer; font-weight: 700; }
 .signboard-action-share__prompt pre { margin: 14px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.signboard-action-share__install { margin: 20px 0 0; padding: 18px; border: 1px solid var(--sb-border); border-radius: 12px; background: #fbfcfd; }
+.signboard-action-share__install h3 { margin: 0 0 10px; color: var(--sb-text); font-size: 17px; }
+.signboard-action-share__install ol { margin: 0; padding-left: 20px; color: var(--sb-muted); font-size: 14px; line-height: 1.55; }
+.signboard-action-share__install li + li { margin-top: 5px; }
 .signboard-action-share__notice { margin-top: 20px; padding: 12px; border-radius: 12px; background: #f7f8fa; color: var(--sb-muted); font-size: 13px; }
 .signboard-action-share__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
 .signboard-action-share__actions button,
 .signboard-action-share__actions a { min-height: 42px; padding: 10px 16px; border: 1px solid var(--sb-border); border-radius: 999px; background: #fff; color: var(--sb-text); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+.signboard-action-share__actions button:hover,
+.signboard-action-share__actions a:hover { border-color: #c8cdd5; transform: translateY(-1px); }
+.signboard-action-share__actions button:focus-visible,
+.signboard-action-share__actions a:focus-visible,
+.signboard-action-share__prompt summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--sb-accent) 30%, transparent); outline-offset: 2px; }
 .signboard-action-share__actions button:first-child { border-color: var(--sb-accent); background: var(--sb-accent); color: #fff; }
 .signboard-action-share__status { min-height: 1.4em; margin-bottom: 0; font-size: 13px; }
 
 @media (prefers-color-scheme: dark) {
   .signboard-action-share { --sb-accent: #6fcf97; --sb-text: #e8f0e5; --sb-muted: #a0b3a3; --sb-border: #1f2e17; background: #12200a; }
   .signboard-action-share__notice { background: #091102; }
+  .signboard-action-share__install { background: #0d1806; }
   .signboard-action-share__actions button,
   .signboard-action-share__actions a { background: #12200a; color: var(--sb-text); }
   .signboard-action-share__actions button:first-child { background: var(--sb-accent); color: #07130c; }
 }
 
+@media (max-width: 520px) {
+  .signboard-action-share { margin: 18px auto; border-radius: 14px; }
+  .signboard-action-share__metadata { align-items: stretch; flex-direction: column; }
+  .signboard-action-share__metadata div { border-radius: 10px; }
+  .signboard-action-share__actions { flex-direction: column; }
+  .signboard-action-share__actions button,
+  .signboard-action-share__actions a { box-sizing: border-box; width: 100%; text-align: center; }
+}

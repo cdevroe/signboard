@@ -131,7 +131,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Optional WordPress plugin (`wordpress-plugin/`)
 
-- `wordpress-plugin/signboard-smart-actions/` - Stateless `[signboard_smart_action_importer]` page plugin for `cdevroe.com/signboard/actions/`; browser JavaScript decodes shared actions from the URL fragment, previews their scope/prompt/capabilities, downloads `.signboard-action` files, and supports Web Share/copy without sending prompt contents to WordPress.
+- `wordpress-plugin/signboard-smart-actions/` - Stateless `[signboard_smart_action_importer]` page plugin for `cdevroe.com/signboard/smart-actions/`; browser JavaScript decodes shared actions from the URL fragment, previews their scope/prompt/capabilities, downloads `.signboard-action` files, and supports Web Share/copy without sending prompt contents to WordPress.
 
 ## Playwright tests (`tests/playwright/`)
 

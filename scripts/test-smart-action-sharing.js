@@ -24,7 +24,7 @@ function run() {
     capabilities: boardPackage.action.capabilities,
     prompt: boardPackage.action.prompt,
   });
-  assert(shareUrl.startsWith('https://cdevroe.com/signboard/actions/#signboard-action-v1:'));
+  assert(shareUrl.startsWith('https://cdevroe.com/signboard/smart-actions/#signboard-action-v1:'));
   const fragment = shareUrl.split('#')[1];
   const decoded = decodeSmartActionPackage(fragment);
   assert.deepStrictEqual(decoded, boardPackage);

@@ -76,6 +76,7 @@
     const behavior = root.querySelector('[data-signboard-action-behavior]');
     const promptWrap = root.querySelector('[data-signboard-action-prompt-wrap]');
     const prompt = root.querySelector('[data-signboard-action-prompt]');
+    const install = root.querySelector('[data-signboard-action-install]');
     const download = root.querySelector('[data-signboard-action-download]');
     const share = root.querySelector('[data-signboard-action-share-button]');
     const status = root.querySelector('[data-signboard-action-status]');
@@ -99,6 +100,7 @@
     prompt.textContent = actionPackage.action.prompt;
     metadata.hidden = false;
     promptWrap.hidden = false;
+    install.hidden = false;
     download.hidden = false;
     share.hidden = false;
 
