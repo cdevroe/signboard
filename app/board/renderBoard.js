@@ -4,6 +4,10 @@ function setBoardChromeState(hasOpenBoard) {
     body.classList.toggle('board-empty', !hasOpenBoard);
   }
 
+  if (typeof renderSmartBoardActionControls === 'function') {
+    renderSmartBoardActionControls();
+  }
+
   if (hasOpenBoard) {
     return;
   }

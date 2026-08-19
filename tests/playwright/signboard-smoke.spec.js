@@ -15,6 +15,9 @@ const shouldBringPlaywrightAppToFront = process.env.SIGNBOARD_PLAYWRIGHT_FOREGRO
 const defaultSmartCardActionLabels = appSettingsSchema
   .cloneDefaultSmartCardActions()
   .map((action) => action.label);
+const defaultSmartBoardActionLabels = appSettingsSchema
+  .cloneDefaultSmartBoardActions()
+  .map((action) => action.label);
 
 function normalizeBoardRoot(boardRoot) {
   const normalized = String(boardRoot || '').replace(/\\/g, '/').trim();
@@ -100,6 +103,63 @@ async function startFakeOllamaServer(models) {
   const address = server.address();
   return {
     url: `http://127.0.0.1:${address.port}`,
+    close: () => new Promise((resolve) => server.close(() => resolve())),
+  };
+}
+
+async function startFakeSmartBoardOllamaServer(models) {
+  let lastChatRequest = null;
+  const server = http.createServer((request, response) => {
+    if (request.method === 'GET' && request.url === '/api/tags') {
+      response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      response.end(JSON.stringify({ models }));
+      return;
+    }
+    if (request.method === 'POST' && request.url === '/api/chat') {
+      const chunks = [];
+      request.on('data', (chunk) => chunks.push(chunk));
+      request.on('end', () => {
+        lastChatRequest = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        const userMessage = lastChatRequest.messages.find((message) => message.role === 'user');
+        const isCreate = userMessage && userMessage.content.includes('Action: Create Cards');
+        const content = isCreate
+          ? {
+            report: 'One new card is ready for review.',
+            cards: [],
+            changes: [{
+              operation: 'create-card',
+              cardId: '',
+              title: 'Prepare shared action demo',
+              list: 'To-do',
+              body: '- [ ] Draft the example\n- [ ] Test the share link',
+              labels: [],
+              start: '',
+              due: '',
+              reason: 'The user explicitly requested a demonstration card.',
+            }],
+          }
+          : {
+            report: '## Board brief\n\nThe board has useful work ready to continue.',
+            cards: [],
+            changes: [],
+          };
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ message: { content: JSON.stringify(content) }, done_reason: 'stop' }));
+      });
+      return;
+    }
+    response.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+    response.end(JSON.stringify({ error: 'not found' }));
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    getLastChatRequest: () => lastChatRequest,
     close: () => new Promise((resolve) => server.close(() => resolve())),
   };
 }
@@ -3421,6 +3481,74 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
     await expect(page.locator('#modalBoardSettings')).toBeVisible();
     await expect(page.locator('#boardSettingsNavSmartActions')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('#boardSettingsPanelSmartActions')).toHaveClass(/is-active/);
+  } finally {
+    await fakeOllama.close();
+  }
+});
+
+test('runs Smart Board Actions, reviews card creation, and customizes board action permissions', async ({ page }) => {
+  const fakeOllama = await startFakeSmartBoardOllamaServer([
+    { name: 'board-model', model: 'board-model', details: { parameter_size: '8B' } },
+  ]);
+  try {
+    await page.evaluate(async (ollamaUrl) => {
+      const current = await window.electronAPI.readAppSettings();
+      await window.electronAPI.updateAppSettings({
+        ai: {
+          ...current.ai,
+          enabled: true,
+          normal: { provider: 'ollama', model: 'board-model' },
+          providers: { ...current.ai.providers, ollama: { url: ollamaUrl } },
+        },
+      });
+      await loadAppSettings();
+      renderSmartBoardActionControls();
+    }, fakeOllama.url);
+
+    const smartButton = page.locator('#smartBoardActionsButton');
+    await expect(smartButton).toBeVisible();
+    await smartButton.click();
+    const popover = page.locator('#smartBoardActionsPopover');
+    await expect(popover).toBeVisible();
+    for (const label of defaultSmartBoardActionLabels) await expect(popover).toContainText(label);
+
+    await popover.getByRole('button', { name: /Board Brief/ }).click();
+    const resultModal = page.locator('#modalSmartBoardActionResult');
+    await expect(resultModal).toBeVisible();
+    await expect(resultModal.locator('.smart-board-action-report')).toContainText('Board brief');
+    await expect(page.locator('#smartBoardActionResultContext')).toContainText('3 of 3 cards included');
+    await expect(page.locator('#smartBoardActionApplyChanges')).toBeHidden();
+    expect(fakeOllama.getLastChatRequest().format).toHaveProperty('required');
+    await page.locator('#smartBoardActionResultDone').click();
+    await expect(resultModal).toBeHidden();
+
+    await smartButton.click();
+    await popover.getByRole('button', { name: /Create Cards/ }).click();
+    await page.locator('#smartBoardActionPrompt').fill('Create a card that demonstrates shared actions.');
+    await popover.getByRole('button', { name: 'Run' }).click();
+    await expect(resultModal).toBeVisible();
+    await expect(page.locator('.smart-board-action-changes')).toContainText('Prepare shared action demo');
+    await page.locator('#smartBoardActionApplyChanges').click();
+    await expect(page.locator('#smartBoardActionResultStatus')).toContainText('Applied 1 change');
+    await page.locator('#smartBoardActionResultDone').click();
+    await expect(page.locator('.card-title-button', { hasText: 'Prepare shared action demo' })).toBeVisible();
+
+    await openBoardMenu(page);
+    await page.locator('#openBoardSettings').click();
+    await page.locator('#boardSettingsNavSmartActions').click();
+    await page.locator('#boardSettingsSmartActionsBoardTab').click();
+    const boardRows = page.locator('#boardSettingsAiBoardActionsList .board-settings-ai-action');
+    await expect(boardRows).toHaveCount(defaultSmartBoardActionLabels.length);
+    await expect(page.locator('#boardSettingsSmartActionsBoardPanel')).toBeVisible();
+    await page.locator('#btnAddAiSmartBoardAction').click();
+    await expect(boardRows.first()).toContainText('Custom board action 1');
+    await boardRows.first().locator('select[data-smart-board-action-field="mode"]').selectOption('changes');
+    await boardRows.first().locator('input[data-smart-board-action-capability="add-labels"]').check();
+    await expect.poll(async () => page.evaluate(async () => {
+      const settings = await window.electronAPI.readAppSettings();
+      const action = settings.ai.smartBoardActions.find((candidate) => candidate.label === 'Custom board action 1');
+      return action ? { mode: action.mode, capabilities: action.capabilities } : null;
+    })).toEqual({ mode: 'changes', capabilities: ['add-labels'] });
   } finally {
     await fakeOllama.close();
   }

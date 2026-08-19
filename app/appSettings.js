@@ -17,8 +17,18 @@ const DEFAULT_APP_SMART_CARD_ACTIONS = APP_SETTINGS_SCHEMA.DEFAULT_SMART_CARD_AC
 const DEFAULT_APP_SMART_CARD_ACTION_TARGET = APP_SETTINGS_SCHEMA.DEFAULT_SMART_CARD_ACTION_TARGET;
 const APP_SMART_CARD_ACTION_TARGETS = APP_SETTINGS_SCHEMA.SMART_CARD_ACTION_TARGETS;
 const APP_SMART_CARD_ACTION_TARGET_LABELS = APP_SETTINGS_SCHEMA.SMART_CARD_ACTION_TARGET_LABELS;
+const APP_SMART_BOARD_ACTION_LABEL_MAX_LENGTH = APP_SETTINGS_SCHEMA.SMART_BOARD_ACTION_LABEL_MAX_LENGTH;
+const APP_SMART_BOARD_ACTION_DESCRIPTION_MAX_LENGTH = APP_SETTINGS_SCHEMA.SMART_BOARD_ACTION_DESCRIPTION_MAX_LENGTH;
+const APP_SMART_BOARD_ACTION_PROMPT_MAX_LENGTH = APP_SETTINGS_SCHEMA.SMART_BOARD_ACTION_PROMPT_MAX_LENGTH;
+const APP_CUSTOM_SMART_BOARD_ACTION_LIMIT = APP_SETTINGS_SCHEMA.CUSTOM_SMART_BOARD_ACTION_LIMIT;
+const DEFAULT_APP_SMART_BOARD_ACTIONS = APP_SETTINGS_SCHEMA.DEFAULT_SMART_BOARD_ACTIONS;
+const APP_SMART_BOARD_ACTION_MODES = APP_SETTINGS_SCHEMA.SMART_BOARD_ACTION_MODES;
+const APP_SMART_BOARD_ACTION_MODE_LABELS = APP_SETTINGS_SCHEMA.SMART_BOARD_ACTION_MODE_LABELS;
+const APP_SMART_BOARD_ACTION_CAPABILITIES = APP_SETTINGS_SCHEMA.SMART_BOARD_ACTION_CAPABILITIES;
+const APP_SMART_BOARD_ACTION_CAPABILITY_LABELS = APP_SETTINGS_SCHEMA.SMART_BOARD_ACTION_CAPABILITY_LABELS;
 const DEFAULT_APP_AI_SETTINGS = APP_SETTINGS_SCHEMA.cloneDefaultAiSettings();
 const cloneDefaultAppSmartCardActions = APP_SETTINGS_SCHEMA.cloneDefaultSmartCardActions;
+const cloneDefaultAppSmartBoardActions = APP_SETTINGS_SCHEMA.cloneDefaultSmartBoardActions;
 const normalizeAppNotificationSettings = APP_SETTINGS_SCHEMA.normalizeNotificationSettings;
 const normalizeAppTooltipsEnabled = APP_SETTINGS_SCHEMA.normalizeTooltipsEnabled;
 const normalizeAppGlobalShortcutAccelerator = APP_SETTINGS_SCHEMA.normalizeGlobalShortcutAccelerator;
@@ -30,6 +40,9 @@ const normalizeAppSmartCardActionPrompt = APP_SETTINGS_SCHEMA.normalizeSmartCard
 const normalizeAppSmartCardActionId = APP_SETTINGS_SCHEMA.normalizeSmartCardActionId;
 const normalizeAppSmartCardActionTarget = APP_SETTINGS_SCHEMA.normalizeSmartCardActionTarget;
 const normalizeAppSmartCardActions = APP_SETTINGS_SCHEMA.normalizeSmartCardActions;
+const normalizeAppSmartBoardActionMode = APP_SETTINGS_SCHEMA.normalizeSmartBoardActionMode;
+const normalizeAppSmartBoardActionCapabilities = APP_SETTINGS_SCHEMA.normalizeSmartBoardActionCapabilities;
+const normalizeAppSmartBoardActions = APP_SETTINGS_SCHEMA.normalizeSmartBoardActions;
 const normalizeAppAiSettings = APP_SETTINGS_SCHEMA.normalizeAiSettings;
 const DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_STATUS = Object.freeze({
   enabled: false,
@@ -67,6 +80,7 @@ function getAppSettingsState() {
           anthropic: {},
         },
         smartCardActions: cloneDefaultAppSmartCardActions(),
+        smartBoardActions: cloneDefaultAppSmartBoardActions(),
       },
       aiCredentialStatus: { openai: false, gemini: false, anthropic: false },
       externalPublishedCalendarStatus: { ...DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_STATUS },
@@ -81,8 +95,11 @@ function getAppSettingsState() {
         message: '',
       },
       expandedSmartCardActionIds: new Set(),
+      expandedSmartBoardActionIds: new Set(),
+      activeSmartActionScope: 'card',
       pendingSmartCardActionFocusId: '',
       smartCardActionsSortable: null,
+      smartBoardActionsSortable: null,
       settingsSaveTimer: null,
       settingsSaveInFlight: Promise.resolve(),
     };
@@ -429,6 +446,12 @@ function renderAppSettingsControls() {
   const aiAdvancedProfile = document.getElementById('boardSettingsAiAdvancedProfile');
   const aiActionsList = document.getElementById('boardSettingsAiActionsList');
   const aiAddActionButton = document.getElementById('btnAddAiSmartCardAction');
+  const aiBoardActionsList = document.getElementById('boardSettingsAiBoardActionsList');
+  const aiAddBoardActionButton = document.getElementById('btnAddAiSmartBoardAction');
+  const cardScopeTab = document.getElementById('boardSettingsSmartActionsCardTab');
+  const boardScopeTab = document.getElementById('boardSettingsSmartActionsBoardTab');
+  const cardScopePanel = document.getElementById('boardSettingsSmartActionsCardPanel');
+  const boardScopePanel = document.getElementById('boardSettingsSmartActionsBoardPanel');
   const notifications = getAppNotificationSettings();
   const quickAdd = getAppQuickAddSettings();
   const externalCalendar = getAppExternalPublishedCalendarSettings();
@@ -523,6 +546,28 @@ function renderAppSettingsControls() {
     aiAddActionButton.disabled = !aiSettings.enabled;
   }
 
+  if (aiBoardActionsList) {
+    renderAppSmartBoardActionSettings(aiBoardActionsList, aiSettings.smartBoardActions);
+  }
+
+  if (aiAddBoardActionButton) {
+    aiAddBoardActionButton.disabled = !aiSettings.enabled;
+  }
+
+  const smartActionScope = getAppSettingsState().activeSmartActionScope === 'board' ? 'board' : 'card';
+  [[cardScopeTab, 'card'], [boardScopeTab, 'board']].forEach(([tab, scope]) => {
+    if (!tab) return;
+    const active = smartActionScope === scope;
+    tab.classList.toggle('is-active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
+  [[cardScopePanel, 'card'], [boardScopePanel, 'board']].forEach(([panel, scope]) => {
+    if (!panel) return;
+    const active = smartActionScope === scope;
+    panel.classList.toggle('hidden', !active);
+    panel.setAttribute('aria-hidden', String(!active));
+  });
+
   if (quickAddShortcutStatus) {
     const shortcut = quickAdd.globalShortcut;
     quickAddShortcutStatus.classList.remove('is-success', 'is-warning');
@@ -543,6 +588,14 @@ function renderAppSettingsControls() {
   if (typeof renderCardEditorSmartActionControls === 'function') {
     renderCardEditorSmartActionControls();
   }
+  if (typeof renderSmartBoardActionControls === 'function') {
+    renderSmartBoardActionControls();
+  }
+}
+
+function setAppSmartActionSettingsScope(scope) {
+  getAppSettingsState().activeSmartActionScope = scope === 'board' ? 'board' : 'card';
+  renderAppSettingsControls();
 }
 
 function renderAppAiProfileEditor(container, profileId, aiSettings = getAppAiSettings()) {
@@ -806,6 +859,22 @@ function renderAppSmartCardActionSettings(container, actions) {
 
     const headerActions = document.createElement('div');
     headerActions.className = 'board-settings-ai-action-header-actions';
+
+    if (action.prompt) {
+      const shareButton = document.createElement('button');
+      shareButton.type = 'button';
+      shareButton.dataset.smartActionCommand = 'share';
+      shareButton.dataset.actionId = action.id;
+      shareButton.textContent = 'Share';
+      headerActions.appendChild(shareButton);
+
+      const exportButton = document.createElement('button');
+      exportButton.type = 'button';
+      exportButton.dataset.smartActionCommand = 'export';
+      exportButton.dataset.actionId = action.id;
+      exportButton.textContent = 'Export';
+      headerActions.appendChild(exportButton);
+    }
 
     const dragHandle = document.createElement('button');
     dragHandle.type = 'button';
@@ -1206,6 +1275,358 @@ function addAppSmartCardAction() {
   getAppSettingsState().expandedSmartCardActionIds.add(newActionId);
   renderAppSettingsControls();
   scheduleAppSettingsSave();
+}
+
+function renderAppSmartBoardActionSettings(container, actions) {
+  if (!container) return;
+  const normalizedActions = normalizeAppSmartBoardActions(actions);
+  const expanded = getAppSettingsState().expandedSmartBoardActionIds;
+  destroyAppSmartBoardActionsSortable();
+  container.innerHTML = '';
+
+  normalizedActions.forEach((action) => {
+    const isExpanded = expanded.has(action.id);
+    const actionEl = document.createElement('div');
+    actionEl.className = 'board-settings-ai-action';
+    actionEl.classList.toggle('is-expanded', isExpanded);
+    actionEl.dataset.actionId = action.id;
+
+    const header = document.createElement('div');
+    header.className = 'board-settings-ai-action-header';
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'board-settings-ai-action-title-wrap';
+    const title = document.createElement('p');
+    title.className = 'board-settings-ai-action-title';
+    title.textContent = action.label;
+    const kind = document.createElement('p');
+    kind.className = 'board-settings-ai-action-kind';
+    const prefix = action.builtIn ? 'Built in' : 'Custom';
+    kind.textContent = `${prefix} - ${APP_SMART_BOARD_ACTION_MODE_LABELS[action.mode] || 'Read-only report'}`;
+    titleWrap.append(title, kind);
+    header.appendChild(titleWrap);
+
+    const headerActions = document.createElement('div');
+    headerActions.className = 'board-settings-ai-action-header-actions';
+    if (action.prompt) {
+      const shareButton = document.createElement('button');
+      shareButton.type = 'button';
+      shareButton.dataset.smartBoardActionCommand = 'share';
+      shareButton.dataset.actionId = action.id;
+      shareButton.textContent = 'Share';
+      headerActions.appendChild(shareButton);
+      const exportButton = document.createElement('button');
+      exportButton.type = 'button';
+      exportButton.dataset.smartBoardActionCommand = 'export';
+      exportButton.dataset.actionId = action.id;
+      exportButton.textContent = 'Export';
+      headerActions.appendChild(exportButton);
+    }
+    const dragHandle = document.createElement('button');
+    dragHandle.type = 'button';
+    dragHandle.className = 'board-settings-ai-action-drag-handle';
+    dragHandle.dataset.smartBoardActionDragHandle = 'true';
+    dragHandle.dataset.actionId = action.id;
+    dragHandle.title = 'Drag to reorder action';
+    dragHandle.setAttribute('aria-label', `Reorder ${action.label}`);
+    dragHandle.innerHTML = getAppSmartCardActionDragHandleMarkup();
+    dragHandle.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+      event.preventDefault();
+      moveAppSmartBoardAction(action.id, event.key === 'ArrowUp' ? 'up' : 'down');
+    });
+    headerActions.appendChild(dragHandle);
+
+    const canEdit = action.editable !== false;
+    if (canEdit) {
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.dataset.smartBoardActionCommand = 'toggle-edit';
+      editButton.dataset.actionId = action.id;
+      editButton.setAttribute('aria-expanded', String(isExpanded));
+      editButton.textContent = isExpanded ? 'Done' : 'Edit';
+      headerActions.appendChild(editButton);
+      if (action.builtIn) {
+        const resetButton = document.createElement('button');
+        resetButton.type = 'button';
+        resetButton.dataset.smartBoardActionCommand = 'reset';
+        resetButton.dataset.actionId = action.id;
+        resetButton.textContent = 'Reset';
+        headerActions.appendChild(resetButton);
+      }
+    }
+    if (!action.builtIn) {
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.dataset.smartBoardActionCommand = 'remove';
+      removeButton.dataset.actionId = action.id;
+      removeButton.textContent = 'Remove';
+      headerActions.appendChild(removeButton);
+    }
+    header.appendChild(headerActions);
+    actionEl.appendChild(header);
+
+    if (action.description) {
+      const description = document.createElement('p');
+      description.className = 'board-settings-ai-action-description';
+      description.textContent = action.description;
+      actionEl.appendChild(description);
+    }
+
+    if (canEdit) {
+      const details = document.createElement('div');
+      details.className = 'board-settings-ai-action-details';
+      details.hidden = !isExpanded;
+      details.setAttribute('aria-hidden', String(!isExpanded));
+      if (!action.builtIn) {
+        details.appendChild(createAppSmartBoardActionField('Name', 'text', action.label, action.id, 'label', APP_SMART_BOARD_ACTION_LABEL_MAX_LENGTH));
+        details.appendChild(createAppSmartBoardActionField('Description', 'text', action.description, action.id, 'description', APP_SMART_BOARD_ACTION_DESCRIPTION_MAX_LENGTH));
+        const modeLabel = document.createElement('label');
+        modeLabel.textContent = 'Mode';
+        const modeSelect = document.createElement('select');
+        modeSelect.dataset.smartBoardActionField = 'mode';
+        modeSelect.dataset.actionId = action.id;
+        APP_SMART_BOARD_ACTION_MODES.forEach((mode) => {
+          const option = document.createElement('option');
+          option.value = mode;
+          option.textContent = APP_SMART_BOARD_ACTION_MODE_LABELS[mode];
+          option.selected = action.mode === mode;
+          modeSelect.appendChild(option);
+        });
+        details.append(modeLabel, modeSelect);
+      }
+
+      if (!action.builtIn && action.mode === 'changes') {
+        const capabilities = document.createElement('fieldset');
+        capabilities.className = 'board-settings-ai-capabilities';
+        const legend = document.createElement('legend');
+        legend.textContent = 'Can propose';
+        capabilities.appendChild(legend);
+        APP_SMART_BOARD_ACTION_CAPABILITIES.forEach((capability) => {
+          const label = document.createElement('label');
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = action.capabilities.includes(capability);
+          checkbox.dataset.smartBoardActionCapability = capability;
+          checkbox.dataset.actionId = action.id;
+          label.append(checkbox, document.createTextNode(APP_SMART_BOARD_ACTION_CAPABILITY_LABELS[capability] || capability));
+          capabilities.appendChild(label);
+        });
+        details.appendChild(capabilities);
+      }
+
+      const promptLabel = document.createElement('label');
+      promptLabel.textContent = action.builtIn ? 'Prompt' : 'Custom action prompt';
+      const prompt = document.createElement('textarea');
+      prompt.value = action.prompt;
+      prompt.rows = 6;
+      prompt.maxLength = APP_SMART_BOARD_ACTION_PROMPT_MAX_LENGTH;
+      prompt.dataset.smartBoardActionField = 'prompt';
+      prompt.dataset.actionId = action.id;
+      details.append(promptLabel, prompt);
+      actionEl.appendChild(details);
+    }
+    container.appendChild(actionEl);
+  });
+  initializeAppSmartBoardActionsSortable(container);
+}
+
+function createAppSmartBoardActionField(labelText, type, value, actionId, field, maxLength) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'board-settings-ai-action-field';
+  const label = document.createElement('label');
+  label.textContent = labelText;
+  const input = document.createElement('input');
+  input.type = type;
+  input.value = value || '';
+  input.maxLength = maxLength;
+  input.dataset.smartBoardActionField = field;
+  input.dataset.actionId = actionId;
+  wrapper.append(label, input);
+  return wrapper;
+}
+
+function destroyAppSmartBoardActionsSortable() {
+  const state = getAppSettingsState();
+  if (!state.smartBoardActionsSortable) return;
+  state.smartBoardActionsSortable.destroy();
+  state.smartBoardActionsSortable = null;
+}
+
+function initializeAppSmartBoardActionsSortable(container) {
+  if (!container || typeof Sortable !== 'function' || container.children.length < 2) return;
+  getAppSettingsState().smartBoardActionsSortable = new Sortable(container, {
+    animation: (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) ? 0 : 150,
+    draggable: '.board-settings-ai-action[data-action-id]',
+    handle: '.board-settings-ai-action-drag-handle',
+    ghostClass: 'board-settings-ai-action--ghost',
+    onEnd: () => reorderAppSmartBoardActions([...container.querySelectorAll('.board-settings-ai-action[data-action-id]')].map((el) => el.dataset.actionId)),
+  });
+}
+
+function reorderAppSmartBoardActions(actionIds) {
+  const settings = getAppAiSettings();
+  const byId = new Map(settings.smartBoardActions.map((action) => [action.id, action]));
+  const next = [];
+  (Array.isArray(actionIds) ? actionIds : []).forEach((id) => {
+    if (!byId.has(id)) return;
+    next.push(byId.get(id));
+    byId.delete(id);
+  });
+  byId.forEach((action) => next.push(action));
+  setAppAiSettings({ ...settings, smartBoardActions: next });
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+}
+
+function updateAppSmartBoardAction(actionId, partialAction) {
+  const settings = getAppAiSettings();
+  const actions = settings.smartBoardActions.map((action) => action.id === actionId ? { ...action, ...partialAction } : action);
+  setAppAiSettings({ ...settings, smartBoardActions: actions });
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+}
+
+function updateAppSmartBoardActionCapability(actionId, capability, enabled) {
+  const action = getAppAiSettings().smartBoardActions.find((candidate) => candidate.id === actionId);
+  if (!action) return;
+  const next = new Set(action.capabilities);
+  if (enabled) next.add(capability); else next.delete(capability);
+  updateAppSmartBoardAction(actionId, { capabilities: [...next] });
+}
+
+function toggleAppSmartBoardActionExpanded(actionId) {
+  const expanded = getAppSettingsState().expandedSmartBoardActionIds;
+  if (expanded.has(actionId)) expanded.delete(actionId); else expanded.add(actionId);
+  renderAppSettingsControls();
+}
+
+function moveAppSmartBoardAction(actionId, direction) {
+  const settings = getAppAiSettings();
+  const actions = [...settings.smartBoardActions];
+  const index = actions.findIndex((action) => action.id === actionId);
+  const nextIndex = index + (direction === 'up' ? -1 : 1);
+  if (index < 0 || nextIndex < 0 || nextIndex >= actions.length) return;
+  const [action] = actions.splice(index, 1);
+  actions.splice(nextIndex, 0, action);
+  setAppAiSettings({ ...settings, smartBoardActions: actions });
+  getAppSettingsState().expandedSmartBoardActionIds.add(actionId);
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+}
+
+function resetAppSmartBoardActionPrompt(actionId) {
+  const defaultAction = DEFAULT_APP_SMART_BOARD_ACTIONS.find((action) => action.id === actionId);
+  if (defaultAction) updateAppSmartBoardAction(actionId, { prompt: defaultAction.prompt });
+}
+
+function removeAppSmartBoardAction(actionId) {
+  const settings = getAppAiSettings();
+  setAppAiSettings({ ...settings, smartBoardActions: settings.smartBoardActions.filter((action) => action.id !== actionId || action.builtIn) });
+  getAppSettingsState().expandedSmartBoardActionIds.delete(actionId);
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+}
+
+function addAppSmartBoardAction() {
+  const settings = getAppAiSettings();
+  const count = settings.smartBoardActions.filter((action) => !action.builtIn).length;
+  if (count >= APP_CUSTOM_SMART_BOARD_ACTION_LIMIT) return;
+  const id = `custom-board-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const action = {
+    id,
+    mode: 'report',
+    label: `Custom board action ${count + 1}`,
+    description: 'A reusable read-only report for the current board.',
+    prompt: 'Analyze the current board and return a concise, factual Markdown report with relevant card references.',
+    capabilities: [],
+    builtIn: false,
+  };
+  setAppAiSettings({ ...settings, smartBoardActions: [action, ...settings.smartBoardActions] });
+  getAppSettingsState().expandedSmartBoardActionIds.add(id);
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+}
+
+function getAppSmartActionForSharing(scope, actionId) {
+  const settings = getAppAiSettings();
+  const actions = scope === 'board' ? settings.smartBoardActions : settings.smartCardActions;
+  return actions.find((action) => action.id === actionId) || null;
+}
+
+async function shareAppSmartAction(scope, actionId) {
+  const action = getAppSmartActionForSharing(scope, actionId);
+  if (!action || !action.prompt || !window.electronAPI || typeof window.electronAPI.copySmartActionShareLink !== 'function') return;
+  const result = await window.electronAPI.copySmartActionShareLink({ scope, action });
+  if (typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus(result && result.ok ? `Copied share link for ${action.label}.` : (result && result.message ? result.message : 'Unable to share this action.'));
+  }
+}
+
+async function exportAppSmartAction(scope, actionId) {
+  const action = getAppSmartActionForSharing(scope, actionId);
+  if (!action || !action.prompt || !window.electronAPI || typeof window.electronAPI.exportSmartActionFile !== 'function') return;
+  const result = await window.electronAPI.exportSmartActionFile({ scope, action });
+  if (result && result.ok && typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus(`Exported ${action.label}.`);
+  }
+}
+
+function installImportedAppSmartAction(actionPackage) {
+  const source = actionPackage && typeof actionPackage === 'object' ? actionPackage : {};
+  const action = source.action && typeof source.action === 'object' ? source.action : null;
+  if (!action) return false;
+  const settings = getAppAiSettings();
+  if (source.scope === 'board') {
+    const id = `imported-board-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const imported = {
+      id,
+      mode: normalizeAppSmartBoardActionMode(action.mode),
+      label: action.name,
+      description: action.description || 'Imported Smart Board Action.',
+      prompt: action.prompt,
+      capabilities: normalizeAppSmartBoardActionCapabilities(action.capabilities, action.mode),
+      builtIn: false,
+    };
+    setAppAiSettings({ ...settings, smartBoardActions: [imported, ...settings.smartBoardActions] });
+    getAppSettingsState().expandedSmartBoardActionIds.add(id);
+    getAppSettingsState().activeSmartActionScope = 'board';
+  } else {
+    const id = `imported-card-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const imported = {
+      id,
+      type: 'custom',
+      target: normalizeAppSmartCardActionTarget(action.target),
+      label: action.name,
+      prompt: action.prompt,
+      builtIn: false,
+    };
+    setAppAiSettings({ ...settings, smartCardActions: [imported, ...settings.smartCardActions] });
+    getAppSettingsState().expandedSmartCardActionIds.add(id);
+    getAppSettingsState().activeSmartActionScope = 'card';
+  }
+  renderAppSettingsControls();
+  scheduleAppSettingsSave();
+  return true;
+}
+
+async function importAppSmartAction() {
+  if (!window.electronAPI || typeof window.electronAPI.importSmartActionFile !== 'function') return;
+  const result = await window.electronAPI.importSmartActionFile();
+  if (!result || !result.ok || !result.package) {
+    if (result && !result.canceled && result.message && typeof announceSignboardStatus === 'function') announceSignboardStatus(result.message);
+    return;
+  }
+  const actionPackage = result.package;
+  const action = actionPackage.action;
+  const capabilityText = actionPackage.scope === 'board'
+    ? (action.mode === 'changes' ? `Can propose: ${(action.capabilities || []).join(', ') || 'no changes'}` : 'Read-only report')
+    : `Affects: ${action.target}`;
+  const promptPreview = String(action.prompt || '').slice(0, 700);
+  const confirmed = window.confirm(`Import ${action.name}?\n\nScope: ${actionPackage.scope}\n${capabilityText}\n\nPrompt:\n${promptPreview}${String(action.prompt || '').length > promptPreview.length ? '…' : ''}`);
+  if (!confirmed) return;
+  if (installImportedAppSmartAction(actionPackage) && typeof announceSignboardStatus === 'function') {
+    announceSignboardStatus(`Imported ${action.name}.`);
+  }
 }
 
 function getAppAiModelOptionLabel(model) {

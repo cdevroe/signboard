@@ -26,6 +26,10 @@
             <i data-feather="plus"></i>
             <span>Card</span>
           </button>
+          <button id="smartBoardActionsButton" type="button" title="Smart Board Actions" aria-label="Smart Board Actions" aria-expanded="false" hidden>
+            <i data-feather="zap"></i>
+            <span>Smart</span>
+          </button>
           <button id="boardFilterSummaryButton" class="board-filter-summary-button hidden" type="button" aria-hidden="true"></button>
           <div class="board-toolbar-group">
             <button id="labelFilterButton" title="Filter cards" aria-label="Filter cards">
@@ -84,6 +88,7 @@
   </main>
 
   <div id="labelFilterPopover" class="label-popover hidden" aria-hidden="true"></div>
+  <div id="smartBoardActionsPopover" class="label-popover smart-board-actions-popover hidden" aria-hidden="true"></div>
 
   <div id="boardMenuPopover" class="label-popover hidden" aria-hidden="true">
     <button id="openBoardSettings" class="board-menu-action" type="button" title="Open settings" aria-label="Open settings">
@@ -437,6 +442,25 @@
     <!-- <p class="commercial-license-signoff">Thanks for your support.<br>Colin</p> -->
   </div>
 
+  <div id="modalSmartBoardActionResult" class="modal smart-board-action-result-modal hidden" role="dialog" aria-modal="true" aria-labelledby="smartBoardActionResultTitle" aria-hidden="true">
+    <div class="boardSettingsHeader">
+      <div>
+        <h2 id="smartBoardActionResultTitle">Smart Board Action</h2>
+        <p id="smartBoardActionResultContext" class="boardSettingsHint"></p>
+      </div>
+      <button type="button" id="smartBoardActionResultClose" class="board-settings-close-button" title="Close Smart Board Action result" aria-label="Close Smart Board Action result"><i data-feather="x"></i></button>
+    </div>
+    <div id="smartBoardActionResultBody" class="smart-board-action-result-body"></div>
+    <div class="smart-board-action-result-footer">
+      <span id="smartBoardActionResultStatus" class="board-settings-status" aria-live="polite"></span>
+      <div class="board-settings-inline-actions">
+        <button id="smartBoardActionCopyReport" type="button">Copy Report</button>
+        <button id="smartBoardActionApplyChanges" type="button" class="primary" hidden>Apply Selected</button>
+        <button id="smartBoardActionResultDone" type="button">Done</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modalBoardSettings" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="boardSettingsTitle" aria-hidden="true">
     <div class="boardSettingsHeader">
       <h2 id="boardSettingsTitle">Settings</h2>
@@ -553,15 +577,37 @@
           <div id="boardSettingsAiDetails" class="board-settings-group hidden" aria-hidden="true">
             <div id="boardSettingsAiNormalProfile" class="board-settings-ai-profile" data-ai-profile="normal"></div>
             <div id="boardSettingsAiAdvancedProfile" class="board-settings-ai-profile" data-ai-profile="advanced"></div>
-            <div class="board-settings-ai-actions-header">
-              <div>
-                <p class="boardSettingsHint boardSettingsHintTight">Smart Card Actions</p>
-                <p class="boardSettingsHint">Customize the prompts used by card editor AI actions.</p>
-              </div>
-              <button id="btnAddAiSmartCardAction" type="button" title="Add Smart Card Action">Add Action</button>
+            <div class="board-settings-smart-action-tabs" role="tablist" aria-label="Smart Action scope">
+              <button id="boardSettingsSmartActionsCardTab" type="button" role="tab" aria-selected="true" aria-controls="boardSettingsSmartActionsCardPanel" data-smart-action-scope="card" class="is-active">Card Actions</button>
+              <button id="boardSettingsSmartActionsBoardTab" type="button" role="tab" aria-selected="false" aria-controls="boardSettingsSmartActionsBoardPanel" data-smart-action-scope="board">Board Actions</button>
             </div>
-            <div id="boardSettingsAiActionsList" class="board-settings-ai-actions-list"></div>
-            <p id="boardSettingsAiPrivacyHint" class="boardSettingsHint">Card content is sent only to the selected model provider when you use an AI action. Cloud API keys are encrypted with your operating system's secure storage.</p>
+            <section id="boardSettingsSmartActionsCardPanel" class="board-settings-smart-action-scope" role="tabpanel" aria-labelledby="boardSettingsSmartActionsCardTab">
+              <div class="board-settings-ai-actions-header">
+                <div>
+                  <p class="boardSettingsHint boardSettingsHintTight">Smart Card Actions</p>
+                  <p class="boardSettingsHint">Customize the prompts used by card editor AI actions.</p>
+                </div>
+                <div class="board-settings-inline-actions">
+                  <button id="btnImportAiSmartCardAction" type="button" title="Import Smart Card Action">Import</button>
+                  <button id="btnAddAiSmartCardAction" type="button" title="Add Smart Card Action">Add Action</button>
+                </div>
+              </div>
+              <div id="boardSettingsAiActionsList" class="board-settings-ai-actions-list"></div>
+            </section>
+            <section id="boardSettingsSmartActionsBoardPanel" class="board-settings-smart-action-scope hidden" role="tabpanel" aria-labelledby="boardSettingsSmartActionsBoardTab" aria-hidden="true">
+              <div class="board-settings-ai-actions-header">
+                <div>
+                  <p class="boardSettingsHint boardSettingsHintTight">Smart Board Actions</p>
+                  <p class="boardSettingsHint">Build read-only reports or permission-bounded change plans for the current board.</p>
+                </div>
+                <div class="board-settings-inline-actions">
+                  <button id="btnImportAiSmartBoardAction" type="button" title="Import Smart Board Action">Import</button>
+                  <button id="btnAddAiSmartBoardAction" type="button" title="Add Smart Board Action">Add Action</button>
+                </div>
+              </div>
+              <div id="boardSettingsAiBoardActionsList" class="board-settings-ai-actions-list"></div>
+            </section>
+            <p id="boardSettingsAiPrivacyHint" class="boardSettingsHint">Content is sent only to the selected model provider when you run a Smart Action. Board Actions may send content from many cards; the review screen reports how many were included. Cloud API keys are encrypted with your operating system's secure storage.</p>
           </div>
         </section>
 

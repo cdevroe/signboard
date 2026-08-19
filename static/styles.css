@@ -467,7 +467,8 @@ body.board-empty .workspace-view-dock {
   flex-wrap: wrap;
 }
 
-#quickAddHeaderButton {
+#quickAddHeaderButton,
+#smartBoardActionsButton {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -482,14 +483,26 @@ body.board-empty .workspace-view-dock {
 }
 
 #quickAddHeaderButton:hover,
-#quickAddHeaderButton:focus-visible {
+#quickAddHeaderButton:focus-visible,
+#smartBoardActionsButton:hover,
+#smartBoardActionsButton:focus-visible {
   background: color-mix(in oklab, var(--accent) 16%, var(--bg-card));
   border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
 }
 
-#quickAddHeaderButton svg {
+#quickAddHeaderButton svg,
+#smartBoardActionsButton svg {
   width: 15px;
   height: 15px;
+}
+
+#smartBoardActionsButton {
+  border-color: color-mix(in oklab, var(--accent) 20%, var(--border));
+  background: var(--bg-card);
+}
+
+#smartBoardActionsButton[hidden] {
+  display: none;
 }
 
 .board-filter-summary-button {
@@ -4332,8 +4345,42 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 #boardSettingsAiDetails .board-settings-ai-actions-header,
-#boardSettingsAiDetails .board-settings-ai-actions-list {
+#boardSettingsAiDetails .board-settings-ai-actions-list,
+#boardSettingsAiDetails .board-settings-smart-action-tabs,
+#boardSettingsAiDetails .board-settings-smart-action-scope {
   grid-column: 1 / -1;
+}
+
+.board-settings-smart-action-tabs {
+  display: inline-flex;
+  width: fit-content;
+  gap: 3px;
+  margin-top: 32px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg) 70%, var(--bg-card));
+}
+
+.board-settings-smart-action-tabs button {
+  min-height: 32px;
+  padding: 6px 13px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.board-settings-smart-action-tabs button.is-active {
+  color: var(--accent-contrast);
+  background: var(--accent);
+}
+
+.board-settings-smart-action-scope.hidden {
+  display: none;
+}
+
+.board-settings-smart-action-scope .board-settings-ai-actions-header {
+  margin-top: 18px;
 }
 
 .board-settings-disabled-state {
@@ -4428,6 +4475,13 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   line-height: 1.2;
 }
 
+.board-settings-ai-action-description {
+  margin: -3px 0 0;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.35;
+}
+
 .board-settings-ai-action-header-actions {
   display: flex;
   align-items: center;
@@ -4438,6 +4492,39 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .board-settings-ai-action-details {
   display: grid;
   gap: 7px;
+}
+
+.board-settings-ai-action-field {
+  display: grid;
+  gap: 6px;
+}
+
+.board-settings-ai-capabilities {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 12px;
+  margin: 3px 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.board-settings-ai-capabilities legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  font-weight: 700;
+}
+
+.board-settings-ai-capabilities label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--font-sm);
+}
+
+.board-settings-ai-capabilities input {
+  width: auto;
 }
 
 .board-settings-ai-action-details[hidden] {
@@ -4843,6 +4930,155 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   background: var(--bg-card);
   box-shadow: 0 12px 30px var(--shadow-card);
   padding: 8px;
+}
+
+.smart-board-actions-popover {
+  position: fixed;
+  display: grid;
+  gap: 9px;
+  max-height: min(620px, calc(100vh - 90px));
+  overflow: auto;
+  padding: 10px;
+}
+
+.smart-board-actions-popover.hidden { display: none; }
+
+.smart-board-actions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.smart-board-actions-header p { margin: 0; font-size: var(--font-sm); font-weight: 700; }
+
+.smart-board-actions-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.smart-board-actions-profile {
+  display: flex;
+  gap: 3px;
+  width: fit-content;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.smart-board-actions-profile button {
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-size: var(--font-xs);
+}
+
+.smart-board-actions-profile button.is-active {
+  background: color-mix(in oklab, var(--accent) 14%, var(--bg-card));
+  color: color-mix(in oklab, var(--accent) 80%, var(--text));
+}
+
+.smart-board-actions-menu { display: grid; gap: 4px; }
+
+.smart-board-action-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 9px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+}
+
+.smart-board-action-menu-item:hover,
+.smart-board-action-menu-item:focus-visible { background: color-mix(in oklab, var(--bg-card) 86%, var(--border)); }
+.smart-board-action-menu-item > span:first-child { display: grid; gap: 2px; }
+.smart-board-action-menu-item strong { color: var(--text); font-size: var(--font-sm); }
+.smart-board-action-menu-item small { color: var(--muted); font-size: var(--font-xs); line-height: 1.3; }
+
+.smart-board-action-mode {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--border) 55%, var(--bg-card));
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.smart-board-action-mode.is-changes {
+  color: color-mix(in oklab, var(--accent) 80%, var(--text));
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-card));
+}
+
+.smart-board-actions-popover textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.smart-board-actions-prompt-controls { display: flex; justify-content: flex-end; gap: 8px; }
+
+.smart-board-action-result-modal {
+  position: fixed;
+  z-index: 12050;
+  inset: 50% auto auto 50%;
+  width: min(860px, calc(100vw - 36px));
+  max-width: 860px;
+  max-height: min(760px, calc(100vh - 36px));
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+}
+
+.smart-board-action-result-modal.hidden { display: none !important; }
+.smart-board-action-result-body { display: grid; gap: 14px; max-height: calc(100vh - 210px); overflow: auto; padding: 8px 2px 14px; }
+.smart-board-action-result-body h3 { margin: 8px 0 -6px; font-size: var(--font-md); }
+
+.smart-board-action-report {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 94%, var(--border));
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.smart-board-action-card-references,
+.smart-board-action-changes { display: grid; gap: 8px; }
+
+.smart-board-action-card-references > div,
+.smart-board-action-changes > label {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.smart-board-action-card-references span,
+.smart-board-action-card-references p,
+.smart-board-action-changes small { margin: 0; color: var(--muted); font-size: var(--font-xs); line-height: 1.35; }
+.smart-board-action-changes > label { grid-template-columns: auto minmax(0, 1fr); align-items: start; cursor: pointer; }
+.smart-board-action-changes input { width: auto; margin-top: 3px; }
+.smart-board-action-changes label > span { display: grid; gap: 3px; }
+
+.smart-board-action-result-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 #labelFilterPopover {
@@ -6284,6 +6520,7 @@ select:disabled {
     min-height: 42px;
   }
   #quickAddHeaderButton span,
+  #smartBoardActionsButton span,
   .sponsor-signboard-button span:not(.sponsor-signboard-dismiss) {
     display: none;
   }

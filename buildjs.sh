@@ -18,6 +18,7 @@ cat \
   app/board/boardLabels.js \
   app/board/boardSearch.js \
   app/board/boardSnapshot.js \
+  app/board/smartBoardActions.js \
   app/board/boardViews.js \
   app/board/tableView.js \
   app/board/plannerView.js \

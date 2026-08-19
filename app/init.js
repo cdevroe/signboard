@@ -1091,6 +1091,9 @@ async function init() {
         initializeCommercialLicenseControls();
         initializeBoardLabelControls();
         initializeBoardSearchControls();
+        if (typeof initializeSmartBoardActionControls === 'function') {
+            initializeSmartBoardActionControls();
+        }
         initializeBoardViewControls();
         initializePlannerControls();
         initializeArchiveBrowserControls();

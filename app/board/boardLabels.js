@@ -3490,6 +3490,11 @@ function initializeBoardLabelControls() {
   const aiEnableButton = document.getElementById('btnEnableAiSmartActions');
   const aiActionsList = document.getElementById('boardSettingsAiActionsList');
   const aiAddActionButton = document.getElementById('btnAddAiSmartCardAction');
+  const aiImportActionButton = document.getElementById('btnImportAiSmartCardAction');
+  const aiBoardActionsList = document.getElementById('boardSettingsAiBoardActionsList');
+  const aiAddBoardActionButton = document.getElementById('btnAddAiSmartBoardAction');
+  const aiImportBoardActionButton = document.getElementById('btnImportAiSmartBoardAction');
+  const smartActionScopeTabs = document.querySelectorAll('[data-smart-action-scope]');
   const externalCalendarToggle = document.getElementById('boardSettingsExternalCalendarToggle');
   const externalCalendarPortInput = document.getElementById('boardSettingsExternalCalendarPort');
   const externalCalendarCopyButton = document.getElementById('btnCopyExternalCalendarUrl');
@@ -3907,6 +3912,10 @@ function initializeBoardLabelControls() {
         resetAppSmartCardActionPrompt(target.dataset.actionId);
       } else if (target.dataset.smartActionCommand === 'remove' && typeof removeAppSmartCardAction === 'function') {
         removeAppSmartCardAction(target.dataset.actionId);
+      } else if (target.dataset.smartActionCommand === 'share' && typeof shareAppSmartAction === 'function') {
+        shareAppSmartAction('card', target.dataset.actionId);
+      } else if (target.dataset.smartActionCommand === 'export' && typeof exportAppSmartAction === 'function') {
+        exportAppSmartAction('card', target.dataset.actionId);
       }
     });
   }
@@ -3918,6 +3927,64 @@ function initializeBoardLabelControls() {
       if (typeof addAppSmartCardAction === 'function') {
         addAppSmartCardAction();
       }
+    });
+  }
+
+  if (aiImportActionButton) {
+    aiImportActionButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      if (typeof importAppSmartAction === 'function') importAppSmartAction();
+    });
+  }
+
+  smartActionScopeTabs.forEach((tab) => {
+    tab.addEventListener('click', (event) => {
+      event.preventDefault();
+      if (typeof setAppSmartActionSettingsScope === 'function') {
+        setAppSmartActionSettingsScope(tab.dataset.smartActionScope);
+      }
+    });
+  });
+
+  if (aiBoardActionsList) {
+    aiBoardActionsList.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target || !target.dataset || !target.dataset.actionId) return;
+      if (target.dataset.smartBoardActionField && typeof updateAppSmartBoardAction === 'function') {
+        updateAppSmartBoardAction(target.dataset.actionId, {
+          [target.dataset.smartBoardActionField]: target.value,
+        });
+      } else if (target.dataset.smartBoardActionCapability && typeof updateAppSmartBoardActionCapability === 'function') {
+        updateAppSmartBoardActionCapability(target.dataset.actionId, target.dataset.smartBoardActionCapability, target.checked);
+      }
+    });
+    aiBoardActionsList.addEventListener('click', (event) => {
+      const target = event.target && typeof event.target.closest === 'function'
+        ? event.target.closest('[data-smart-board-action-command][data-action-id]')
+        : event.target;
+      if (!target || !target.dataset || !target.dataset.smartBoardActionCommand) return;
+      event.preventDefault();
+      const command = target.dataset.smartBoardActionCommand;
+      const actionId = target.dataset.actionId;
+      if (command === 'toggle-edit' && typeof toggleAppSmartBoardActionExpanded === 'function') toggleAppSmartBoardActionExpanded(actionId);
+      else if (command === 'reset' && typeof resetAppSmartBoardActionPrompt === 'function') resetAppSmartBoardActionPrompt(actionId);
+      else if (command === 'remove' && typeof removeAppSmartBoardAction === 'function') removeAppSmartBoardAction(actionId);
+      else if (command === 'share' && typeof shareAppSmartAction === 'function') shareAppSmartAction('board', actionId);
+      else if (command === 'export' && typeof exportAppSmartAction === 'function') exportAppSmartAction('board', actionId);
+    });
+  }
+
+  if (aiAddBoardActionButton) {
+    aiAddBoardActionButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      if (typeof addAppSmartBoardAction === 'function') addAppSmartBoardAction();
+    });
+  }
+
+  if (aiImportBoardActionButton) {
+    aiImportBoardActionButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      if (typeof importAppSmartAction === 'function') importAppSmartAction();
     });
   }
 

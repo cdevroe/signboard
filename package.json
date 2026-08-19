@@ -35,6 +35,8 @@
     "test:app-settings": "node scripts/test-app-settings.js",
     "test:ai-credentials": "node scripts/test-ai-credentials.js",
     "test:ai-task-suggestions": "node scripts/test-ai-task-suggestions.js",
+    "test:smart-board-actions": "node scripts/test-smart-board-actions.js",
+    "test:smart-action-sharing": "node scripts/test-smart-action-sharing.js",
     "test:mcp": "node scripts/test-mcp-server.js",
     "test:board-card-metadata": "node scripts/test-board-card-metadata.js",
     "test:board-views": "node scripts/test-board-views.js",

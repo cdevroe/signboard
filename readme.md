@@ -27,7 +27,7 @@ Signboard is free for personal use. If you are using Signboard for your work, it
 - ✅ Progress counters on cards
 - 🔎 Live search
 - 🗄️ Linked files and URLs on cards
-- ✨ Optional Smart Card Actions through Ollama, LM Studio, OpenAI, Gemini, or Anthropic, with independently configured Normal and Advanced models for titles, summaries, task lists, auto-labeling, smart paste, due dates, linked objects, one-off quick prompts, read-only card questions, and drag-reorderable custom actions
+- ✨ Optional Smart Card and Smart Board Actions through Ollama, LM Studio, OpenAI, Gemini, or Anthropic, with independently configured Normal and Advanced models, board reports and reviewed change proposals, drag-reorderable custom actions, and portable action sharing
 - 🧲 Drag-and-drop card movement
 - ⚡ Unlimited open boards with overflow tabs and a quick switcher
 - 🧬 Board duplication from Settings with fresh copied-card IDs
@@ -233,6 +233,8 @@ npm run test:board-snapshot
 npm run test:board-duplication
 npm run test:app-settings
 npm run test:ai-task-suggestions
+npm run test:smart-board-actions
+npm run test:smart-action-sharing
 npm run test:board-card-metadata
 npm run test:due-notifications
 npm run test:task-list

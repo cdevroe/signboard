@@ -40,12 +40,24 @@ const {
   runSmartCardActionWithLmStudio,
   runSmartCardActionWithOpenAi,
   runSmartCardActionWithOllama,
+  runSmartBoardActionWithAnthropic,
+  runSmartBoardActionWithGemini,
+  runSmartBoardActionWithLmStudio,
+  runSmartBoardActionWithOpenAi,
+  runSmartBoardActionWithOllama,
   suggestCardTasksWithAnthropic,
   suggestCardTasksWithGemini,
   suggestCardTasksWithLmStudio,
   suggestCardTasksWithOpenAi,
   suggestCardTasksWithOllama,
 } = require('./lib/aiTaskSuggestions');
+const { buildSmartBoardContext, normalizeSmartBoardActionResult } = require('./lib/smartBoardActions');
+const {
+  buildSmartActionShareUrl,
+  createSmartActionPackage,
+  getSmartActionFileName,
+  normalizeSmartActionPackage,
+} = require('./lib/smartActionSharing');
 const { buildExternalPublishedCalendarFeed } = require('./lib/externalPublishedCalendar');
 const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
 const { duplicateBoard } = require('./lib/boardDuplication');
@@ -3033,6 +3045,10 @@ function getAiTaskSuggestionErrorMessage(error, provider = 'ollama') {
     return 'The model did not return a usable Smart Card Action result.';
   }
 
+  if (code === 'AI_EMPTY_BOARD_ACTION_RESULT') {
+    return 'The model did not return a usable Smart Board Action result.';
+  }
+
   if (code === 'AI_ACTION_PROMPT_MISSING') {
     return 'This Smart Card Action needs a prompt in App Settings.';
   }
@@ -3218,6 +3234,17 @@ async function dispatchSmartCardAction(provider, providerSettings, action, conte
   return handlers[provider](providerSettings, action, context, options);
 }
 
+async function dispatchSmartBoardAction(provider, providerSettings, action, context, options) {
+  const handlers = {
+    ollama: runSmartBoardActionWithOllama,
+    'lm-studio': runSmartBoardActionWithLmStudio,
+    openai: runSmartBoardActionWithOpenAi,
+    gemini: runSmartBoardActionWithGemini,
+    anthropic: runSmartBoardActionWithAnthropic,
+  };
+  return handlers[provider](providerSettings, action, context, options);
+}
+
 async function suggestCardTasks(payload = {}) {
   const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
   const settings = appSettings.normalizeAppSettings(rawSettings);
@@ -3335,6 +3362,292 @@ async function runSmartCardAction(payload = {}) {
         : settings.ai.normal.provider),
       ...(debugDetails ? { debug: debugDetails } : {}),
     };
+  }
+}
+
+async function runSmartBoardAction(event, payload = {}) {
+  const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
+  const settings = appSettings.normalizeAppSettings(rawSettings);
+  if (!settings.ai.enabled) {
+    return { ok: false, error: 'AI_DISABLED', message: 'AI assistance is disabled in App Settings.' };
+  }
+
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const actionId = String(source.actionId || '').trim();
+  const action = settings.ai.smartBoardActions.find((candidate) => candidate.id === actionId);
+  if (!action) {
+    return { ok: false, error: 'AI_ACTION_MISSING', message: 'Smart Board Action is unavailable.' };
+  }
+  const userPrompt = String(source.prompt || '').replace(/\r\n?/g, '\n').trim();
+  if ((action.oneOff || !action.prompt) && !userPrompt) {
+    return { ok: false, error: 'AI_ACTION_PROMPT_MISSING', message: `Enter a request for ${action.label}.` };
+  }
+
+  try {
+    const boardRoot = requireActiveBoardRootForSender(event.sender);
+    const snapshot = await readBoardSnapshot(boardRoot, {
+      includeBoardSettings: true,
+      includeTimestamps: true,
+      includeTaskItems: true,
+    });
+    const currentDate = formatLocalIsoDate();
+    const context = buildSmartBoardContext(snapshot, { currentDate });
+    const { profileId, profile } = getAiProfile(settings, source.profile);
+    const providerConfig = await getAiProviderRequestSettings(settings, profile);
+    const result = await dispatchSmartBoardAction(
+      providerConfig.provider,
+      providerConfig.settings,
+      action,
+      context,
+      { currentDate, userPrompt },
+    );
+    return {
+      ok: true,
+      profile: profileId,
+      contextSummary: context.board,
+      ...result,
+    };
+  } catch (error) {
+    console.error('Unable to run Smart Board Action.', error);
+    logAiTaskSuggestionDebugDetails(error);
+    const debugDetails = getAiTaskSuggestionDebugDetails(error);
+    return {
+      ok: false,
+      error: error && error.code ? String(error.code) : 'AI_SMART_BOARD_ACTION_FAILED',
+      message: getAiTaskSuggestionErrorMessage(error, source.profile === 'advanced'
+        ? settings.ai.advanced.provider
+        : settings.ai.normal.provider),
+      ...(debugDetails ? { debug: debugDetails } : {}),
+    };
+  }
+}
+
+function normalizeSmartBoardLookupKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function slugifySmartBoardCardTitle(value) {
+  const slug = String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 42);
+  return slug || 'untitled';
+}
+
+function buildSmartBoardIndexes(snapshot) {
+  const cardsById = new Map();
+  const listsByName = new Map();
+  const settings = boardLabels.normalizeBoardSettings(snapshot.boardSettings);
+  const labelsByName = new Map();
+  const labelsById = new Map();
+  settings.labels.forEach((label) => {
+    labelsByName.set(normalizeSmartBoardLookupKey(label.name), label);
+    labelsById.set(normalizeSmartBoardLookupKey(label.id), label);
+  });
+  for (const listEntry of snapshot.lists) {
+    const displayName = String(listEntry.listName || '').replace(/^\d{3}-/, '').replace(/(?:-[^-]{5}|-stock)$/, '');
+    listsByName.set(normalizeSmartBoardLookupKey(listEntry.listName), listEntry);
+    if (!listsByName.has(normalizeSmartBoardLookupKey(displayName))) {
+      listsByName.set(normalizeSmartBoardLookupKey(displayName), listEntry);
+    }
+    for (const cardEntry of listEntry.cards) {
+      const cardId = obsidianIntegration.getSignboardCardId(cardEntry.cardPath, cardEntry.frontmatter);
+      if (cardId) cardsById.set(normalizeSmartBoardLookupKey(cardId), { ...cardEntry, listEntry });
+    }
+  }
+  return { cardsById, labelsByName, labelsById, listsByName, settings };
+}
+
+async function createSmartBoardCard(boardRoot, listEntry, change) {
+  const entries = await fsPromises.readdir(listEntry.listPath, { withFileTypes: true });
+  const cardNumbers = entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+    .map((entry) => Number.parseInt(entry.name.match(/^(\d+)-/)?.[1], 10))
+    .filter(Number.isInteger);
+  const nextNumber = cardNumbers.length > 0 ? Math.max(...cardNumbers) + 1 : 0;
+  const title = String(change.title || '').trim() || 'Untitled';
+  const fileName = `${String(nextNumber).padStart(3, '0')}-${slugifySmartBoardCardTitle(title)}-${randomUUID().replace(/-/g, '').slice(0, 5)}.md`;
+  const cardPath = path.join(listEntry.listPath, fileName);
+  const frontmatter = obsidianIntegration.normalizeSignboardCardFrontmatter({
+    boardRoot,
+    cardPath,
+    frontmatter: prepareNewCardFrontmatter({
+      title,
+      ...(change.start ? { start: change.start } : {}),
+      ...(change.due ? { due: change.due } : {}),
+      ...(change.labelIds.length > 0 ? { labels: change.labelIds } : {}),
+    }),
+  });
+  await cardFrontmatter.writeCard(cardPath, { frontmatter, body: change.body || '' });
+  return { cardPath, cardId: obsidianIntegration.getSignboardCardId(cardPath, frontmatter), title };
+}
+
+async function moveSmartBoardCardToList(boardRoot, sourcePath, targetListPath) {
+  const sourceListPath = path.dirname(sourcePath);
+  const movedCardFile = await insertCardFileAtTop(targetListPath, sourcePath, path.basename(sourcePath));
+  const movedCardPath = path.join(targetListPath, movedCardFile);
+  if (sourceListPath !== targetListPath) {
+    await recordCardListMove(boardRoot, movedCardPath, sourceListPath, targetListPath);
+  }
+  await refreshCardSignboardMetadata(boardRoot, movedCardPath);
+  return movedCardPath;
+}
+
+async function applySmartBoardActionChanges(event, payload = {}) {
+  const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
+  const settings = appSettings.normalizeAppSettings(rawSettings);
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const action = settings.ai.smartBoardActions.find((candidate) => candidate.id === String(source.actionId || '').trim());
+  if (!action || action.mode !== 'changes') {
+    return { ok: false, message: 'This Smart Board Action cannot apply changes.' };
+  }
+  const normalizedResult = normalizeSmartBoardActionResult({
+    report: '',
+    cards: [],
+    changes: Array.isArray(source.changes) ? source.changes : [],
+  }, action);
+  if (!normalizedResult || normalizedResult.changes.length === 0) {
+    return { ok: false, message: 'No valid selected changes were supplied.' };
+  }
+
+  const boardRoot = requireActiveBoardRootForSender(event.sender);
+  const snapshot = await readBoardSnapshot(boardRoot, { includeBoardSettings: true, includeTimestamps: true, includeTaskItems: false });
+  const indexes = buildSmartBoardIndexes(snapshot);
+  const priorities = { 'create-card': 0, 'update-title': 1, 'append-content': 1, 'add-labels': 1, 'set-dates': 1, 'move-card': 2, 'archive-card': 3 };
+  const changes = normalizedResult.changes.slice().sort((left, right) => priorities[left.operation] - priorities[right.operation]);
+  const results = [];
+
+  for (const change of changes) {
+    try {
+      const listEntry = change.list ? indexes.listsByName.get(normalizeSmartBoardLookupKey(change.list)) : null;
+      const labelIds = change.labels.map((labelValue) => {
+        const key = normalizeSmartBoardLookupKey(labelValue);
+        const label = indexes.labelsById.get(key) || indexes.labelsByName.get(key);
+        return label ? label.id : '';
+      }).filter(Boolean);
+
+      if (change.operation === 'create-card') {
+        if (!listEntry || !change.title) throw new Error('Choose an existing list and a non-empty title.');
+        const created = await createSmartBoardCard(boardRoot, listEntry, { ...change, labelIds });
+        results.push({ ok: true, operation: change.operation, cardId: created.cardId, title: created.title });
+        continue;
+      }
+
+      const cardEntry = indexes.cardsById.get(normalizeSmartBoardLookupKey(change.cardId));
+      if (!cardEntry) throw new Error('The referenced card no longer exists on this board.');
+      const cardPath = cardEntry.cardPath;
+
+      if (change.operation === 'move-card') {
+        if (!listEntry) throw new Error('The proposed destination list no longer exists.');
+        const movedCardPath = await moveSmartBoardCardToList(boardRoot, cardPath, listEntry.listPath);
+        cardEntry.cardPath = movedCardPath;
+        cardEntry.listEntry = listEntry;
+      } else if (change.operation === 'archive-card') {
+        await archiveCard(boardRoot, cardPath);
+        indexes.cardsById.delete(normalizeSmartBoardLookupKey(change.cardId));
+      } else {
+        const card = await cardFrontmatter.readCard(cardPath);
+        const nextFrontmatter = { ...card.frontmatter };
+        let nextBody = card.body;
+        if (change.operation === 'update-title') {
+          if (!change.title) throw new Error('The proposed title is empty.');
+          nextFrontmatter.title = change.title;
+        } else if (change.operation === 'append-content') {
+          if (!change.body) throw new Error('The proposed content is empty.');
+          nextBody = `${String(card.body || '').trimEnd()}${String(card.body || '').trim() ? '\n\n' : ''}${change.body}\n`;
+        } else if (change.operation === 'add-labels') {
+          if (labelIds.length === 0) throw new Error('None of the proposed labels exist on this board.');
+          nextFrontmatter.labels = [...new Set([...(Array.isArray(nextFrontmatter.labels) ? nextFrontmatter.labels : []), ...labelIds])];
+        } else if (change.operation === 'set-dates') {
+          if (!change.start && !change.due) throw new Error('No valid proposed dates were supplied.');
+          if (change.start) nextFrontmatter.start = change.start;
+          if (change.due) nextFrontmatter.due = change.due;
+        }
+        await cardFrontmatter.writeCard(cardPath, {
+          frontmatter: normalizeCardFrontmatterForBoardPath(event.sender, cardPath, nextFrontmatter),
+          body: nextBody,
+        });
+      }
+      results.push({ ok: true, operation: change.operation, cardId: change.cardId, title: change.title || cardEntry.frontmatter.title });
+    } catch (error) {
+      results.push({
+        ok: false,
+        operation: change.operation,
+        cardId: change.cardId,
+        title: change.title,
+        message: error && error.message ? String(error.message) : 'Unable to apply this change.',
+      });
+    }
+  }
+
+  if (results.some((result) => result.ok)) {
+    await autoSyncManagedObsidianBaseForBoard(boardRoot);
+  }
+  return {
+    ok: results.some((result) => result.ok),
+    applied: results.filter((result) => result.ok).length,
+    failed: results.filter((result) => !result.ok).length,
+    results,
+  };
+}
+
+function getSmartActionPackageFromPayload(payload = {}) {
+  const source = payload && typeof payload === 'object' ? payload : {};
+  return normalizeSmartActionPackage(source.package)
+    || normalizeSmartActionPackage(createSmartActionPackage(source.scope, source.action));
+}
+
+async function copySmartActionShareLink(payload = {}) {
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const actionPackage = getSmartActionPackageFromPayload(source);
+  if (!actionPackage) return { ok: false, message: 'This action needs a name and prompt before it can be shared.' };
+  const shareUrl = buildSmartActionShareUrl(actionPackage.scope, {
+    label: actionPackage.action.name,
+    description: actionPackage.action.description,
+    mode: actionPackage.action.mode,
+    capabilities: actionPackage.action.capabilities,
+    target: actionPackage.action.target,
+    prompt: actionPackage.action.prompt,
+  });
+  if (!shareUrl) return { ok: false, message: 'This action needs a prompt before it can be shared.' };
+  clipboard.writeText(shareUrl);
+  return { ok: true, shareUrl, package: actionPackage };
+}
+
+async function exportSmartActionFile(event, payload = {}) {
+  const actionPackage = getSmartActionPackageFromPayload(payload);
+  if (!actionPackage) return { ok: false, message: 'This action needs a name and prompt before it can be exported.' };
+  const window = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showSaveDialog(window || undefined, {
+    title: 'Export Smart Action',
+    defaultPath: path.join(app.getPath('downloads'), getSmartActionFileName(actionPackage)),
+    filters: [{ name: 'Signboard Smart Action', extensions: ['signboard-action'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  await fsPromises.writeFile(result.filePath, `${JSON.stringify(actionPackage, null, 2)}\n`, { encoding: 'utf8', flag: 'w' });
+  return { ok: true, filePath: result.filePath, package: actionPackage };
+}
+
+async function importSmartActionFile(event) {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(window || undefined, {
+    title: 'Import Smart Action',
+    properties: ['openFile'],
+    filters: [{ name: 'Signboard Smart Action', extensions: ['signboard-action', 'json'] }],
+  });
+  if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true };
+  const filePath = result.filePaths[0];
+  const stats = await fsPromises.stat(filePath);
+  if (!stats.isFile() || stats.size > 128 * 1024) return { ok: false, message: 'The selected Smart Action file is too large.' };
+  try {
+    const actionPackage = normalizeSmartActionPackage(JSON.parse(await fsPromises.readFile(filePath, 'utf8')));
+    if (!actionPackage) return { ok: false, message: 'The selected file is not a supported Smart Action.' };
+    return { ok: true, filePath, package: actionPackage };
+  } catch {
+    return { ok: false, message: 'The selected Smart Action file is not valid JSON.' };
   }
 }
 
@@ -5024,6 +5337,26 @@ ipcMain.handle('suggest-card-tasks', async (_event, payload = {}) => (
 
 ipcMain.handle('run-smart-card-action', async (_event, payload = {}) => (
   runSmartCardAction(payload)
+));
+
+ipcMain.handle('run-smart-board-action', async (event, payload = {}) => (
+  runSmartBoardAction(event, payload)
+));
+
+ipcMain.handle('apply-smart-board-action-changes', async (event, payload = {}) => (
+  applySmartBoardActionChanges(event, payload)
+));
+
+ipcMain.handle('copy-smart-action-share-link', async (_event, payload = {}) => (
+  copySmartActionShareLink(payload)
+));
+
+ipcMain.handle('export-smart-action-file', async (event, payload = {}) => (
+  exportSmartActionFile(event, payload)
+));
+
+ipcMain.handle('import-smart-action-file', async (event) => (
+  importSmartActionFile(event)
 ));
 
 ipcMain.handle('inspect-ollama', async (_event, payload = {}) => (

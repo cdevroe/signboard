@@ -148,6 +148,7 @@ async function closeAllModals(e, options = {}){
     const modalObsidianVaultRequired = document.getElementById('modalObsidianVaultRequired');
     const modalAboutSignboard = document.getElementById('modalAboutSignboard');
     const modalCommercialLicense = document.getElementById('modalCommercialLicense');
+    const modalSmartBoardActionResult = document.getElementById('modalSmartBoardActionResult');
     const editModalWasOpen = isVisibleModal(modalEditCard);
     const boardSettingsWasOpen = modalBoardSettings && modalBoardSettings.style.display === 'block';
 
@@ -169,6 +170,9 @@ async function closeAllModals(e, options = {}){
     if (closeAllRequest && typeof closeCardEditorSmartActionsPopover === 'function') {
         closeCardEditorSmartActionsPopover();
     }
+    if (closeAllRequest && typeof closeSmartBoardActionsPopover === 'function') {
+        closeSmartBoardActionsPopover();
+    }
 
     if ( closeAllRequest ) {
         if ( isVisibleModal(modalAddCard) ) {
@@ -189,6 +193,10 @@ async function closeAllModals(e, options = {}){
         }
         if ( isVisibleModal(modalAddList) ) {
             hideModalElement(modalAddList);
+            setBoardInteractive(true);
+        }
+        if ( isVisibleModal(modalSmartBoardActionResult) ) {
+            hideModalElement(modalSmartBoardActionResult);
             setBoardInteractive(true);
         }
         if ( modalBoardSettings && modalBoardSettings.style.display === 'block' ) {

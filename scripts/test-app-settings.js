@@ -182,6 +182,44 @@ async function run() {
       builtIn: false,
     });
 
+    const boardActionsUpdated = await updateAppSettings(tmpDir, {
+      ai: {
+        ...updated.ai,
+        smartBoardActions: [
+          {
+            id: 'board-brief',
+            prompt: 'Write a very short board brief.',
+          },
+          {
+            id: 'custom-board-report',
+            mode: 'report',
+            label: ' Client update ',
+            description: ' Summarize client-facing progress. ',
+            prompt: ' Summarize completed work and next steps. ',
+            capabilities: ['archive-card'],
+          },
+          {
+            id: 'custom-board-cleanup',
+            mode: 'changes',
+            label: ' Cleanup ',
+            prompt: ' Propose label and archive changes. ',
+            capabilities: ['add-labels', 'archive-card', 'not-supported'],
+          },
+        ],
+      },
+    });
+    assert.strictEqual(boardActionsUpdated.ai.smartBoardActions[0].prompt, 'Write a very short board brief.');
+    assert.deepStrictEqual(boardActionsUpdated.ai.smartBoardActions[1], {
+      id: 'custom-board-report',
+      mode: 'report',
+      label: 'Client update',
+      description: 'Summarize client-facing progress.',
+      prompt: 'Summarize completed work and next steps.',
+      capabilities: [],
+      builtIn: false,
+    });
+    assert.deepStrictEqual(boardActionsUpdated.ai.smartBoardActions[2].capabilities, ['add-labels', 'archive-card']);
+
     const lmStudioUpdated = await updateAppSettings(tmpDir, {
       ai: {
         enabled: true,
