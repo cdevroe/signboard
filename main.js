@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, Notification, ShareMenu, shell, powerMonitor, powerSaveBlocker, nativeImage, screen } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, Notification, ShareMenu, shell, powerMonitor, powerSaveBlocker, nativeImage, safeStorage, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { createHash, randomUUID } = require('crypto');
 const fs = require('fs');
@@ -28,7 +28,24 @@ const {
 } = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
 const appSettings = require('./lib/appSettings');
-const { listOllamaModels, runSmartCardActionWithOllama, suggestCardTasksWithOllama } = require('./lib/aiTaskSuggestions');
+const aiCredentials = require('./lib/aiCredentials');
+const {
+  listAnthropicModels,
+  listGeminiModels,
+  listLmStudioModels,
+  listOpenAiModels,
+  listOllamaModels,
+  runSmartCardActionWithAnthropic,
+  runSmartCardActionWithGemini,
+  runSmartCardActionWithLmStudio,
+  runSmartCardActionWithOpenAi,
+  runSmartCardActionWithOllama,
+  suggestCardTasksWithAnthropic,
+  suggestCardTasksWithGemini,
+  suggestCardTasksWithLmStudio,
+  suggestCardTasksWithOpenAi,
+  suggestCardTasksWithOllama,
+} = require('./lib/aiTaskSuggestions');
 const { buildExternalPublishedCalendarFeed } = require('./lib/externalPublishedCalendar');
 const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
 const { duplicateBoard } = require('./lib/boardDuplication');
@@ -2746,11 +2763,47 @@ function getExternalPublishedCalendarStatus() {
   };
 }
 
-function withRuntimeAppSettings(settings) {
+async function encryptAiCredential(value) {
+  const available = typeof safeStorage.isAsyncEncryptionAvailable === 'function'
+    ? await safeStorage.isAsyncEncryptionAvailable()
+    : safeStorage.isEncryptionAvailable();
+  const insecureLinuxBackend = process.platform === 'linux' &&
+    typeof safeStorage.getSelectedStorageBackend === 'function' &&
+    safeStorage.getSelectedStorageBackend() === 'basic_text';
+  if (!available || insecureLinuxBackend) {
+    throw new Error('Secure credential storage is unavailable on this computer.');
+  }
+  const encryptedResult = typeof safeStorage.encryptStringAsync === 'function'
+    ? await safeStorage.encryptStringAsync(String(value || ''))
+    : safeStorage.encryptString(String(value || ''));
+  const encrypted = encryptedResult && encryptedResult.result
+    ? encryptedResult.result
+    : encryptedResult;
+  return Buffer.from(encrypted).toString('base64');
+}
+
+async function decryptAiCredential(value) {
+  const encrypted = Buffer.from(String(value || ''), 'base64');
+  if (typeof safeStorage.decryptStringAsync === 'function') {
+    const decrypted = await safeStorage.decryptStringAsync(encrypted);
+    if (typeof decrypted === 'string') {
+      return decrypted;
+    }
+    return decrypted && typeof decrypted.result === 'string' ? decrypted.result : '';
+  }
+  return safeStorage.decryptString(encrypted);
+}
+
+async function getRuntimeAiCredentialStatus() {
+  return aiCredentials.getAiCredentialStatus(app.getPath('userData'));
+}
+
+async function withRuntimeAppSettings(settings) {
   return {
     ...settings,
     globalShortcutStatus: getQuickAddGlobalShortcutStatus(),
     externalPublishedCalendarStatus: getExternalPublishedCalendarStatus(),
+    aiCredentialStatus: await getRuntimeAiCredentialStatus(),
   };
 }
 
@@ -2917,7 +2970,7 @@ async function ensureExternalPublishedCalendarToken(settings = {}) {
 async function readAppSettingsWithRuntimeStatus() {
   const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
   const settings = await ensureExternalPublishedCalendarToken(rawSettings);
-  return withRuntimeAppSettings(settings);
+  return await withRuntimeAppSettings(settings);
 }
 
 async function updateAppSettingsWithRuntimeStatus(partialSettings = {}) {
@@ -2925,7 +2978,7 @@ async function updateAppSettingsWithRuntimeStatus(partialSettings = {}) {
   const settings = await ensureExternalPublishedCalendarToken(rawSettings);
   applyQuickAddGlobalShortcut(settings);
   await applyExternalPublishedCalendarSettings(settings);
-  return withRuntimeAppSettings(settings);
+  return await withRuntimeAppSettings(settings);
 }
 
 async function initializeAppRuntimeSettings() {
@@ -2935,19 +2988,41 @@ async function initializeAppRuntimeSettings() {
   await applyExternalPublishedCalendarSettings(settings);
 }
 
-function getAiTaskSuggestionErrorMessage(error) {
+function getAiProviderLabel(provider) {
+  return {
+    ollama: 'Ollama',
+    'lm-studio': 'LM Studio',
+    openai: 'OpenAI',
+    gemini: 'Gemini',
+    anthropic: 'Anthropic',
+  }[provider] || 'AI provider';
+}
+
+function getAiTaskSuggestionErrorMessage(error, provider = 'ollama') {
   const code = error && error.code ? String(error.code) : '';
+  const providerLabel = getAiProviderLabel(provider);
+  const isCloudProvider = ['openai', 'gemini', 'anthropic'].includes(provider);
 
   if (code === 'AI_CONNECTION_FAILED') {
-    return 'Unable to reach Ollama. Check the Ollama URL and make sure Ollama is running.';
+    return isCloudProvider
+      ? `Unable to reach ${providerLabel}. Check your internet connection.`
+      : `Unable to reach ${providerLabel}. Check the URL and make sure ${providerLabel} is running.`;
   }
 
   if (code === 'AI_REQUEST_TIMEOUT') {
-    return 'Ollama took too long to respond.';
+    return `${providerLabel} took too long to respond.`;
   }
 
   if (code === 'AI_MODEL_MISSING') {
-    return 'Choose an Ollama model in App Settings.';
+    return `Choose a ${providerLabel} model in App Settings.`;
+  }
+
+  if (code === 'AI_API_KEY_MISSING') {
+    return `Add a ${providerLabel} API key in App Settings.`;
+  }
+
+  if (code === 'AI_API_KEY_INVALID') {
+    return `${providerLabel} rejected the saved API key. Replace it in App Settings.`;
   }
 
   if (code === 'AI_EMPTY_SUGGESTIONS') {
@@ -3013,7 +3088,7 @@ async function inspectOllama(payload = {}) {
   const payloadSource = payload && typeof payload === 'object' ? payload : {};
   const url = Object.prototype.hasOwnProperty.call(payloadSource, 'url')
     ? payloadSource.url
-    : settings.ai.ollama.url;
+    : settings.ai.providers.ollama.url;
 
   try {
     const result = await listOllamaModels({ url });
@@ -3038,6 +3113,111 @@ async function inspectOllama(payload = {}) {
   }
 }
 
+async function inspectAiProvider(payload = {}) {
+  const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
+  const settings = appSettings.normalizeAppSettings(rawSettings);
+  const payloadSource = payload && typeof payload === 'object' ? payload : {};
+  const profileId = payloadSource.profile === 'advanced' ? 'advanced' : 'normal';
+  const profile = settings.ai[profileId];
+  const provider = normalizeAiProviderId(payloadSource.provider || profile.provider);
+  const providerSettingsKey = appSettings.getAiProviderSettingsKey(provider);
+  const providerSettings = settings.ai.providers[providerSettingsKey] || {};
+  const url = Object.prototype.hasOwnProperty.call(payloadSource, 'url')
+    ? payloadSource.url
+    : providerSettings.url;
+  const providerLabel = getAiProviderLabel(provider);
+
+  try {
+    const apiKey = aiCredentials.normalizeCloudAiProvider(provider)
+      ? await aiCredentials.getAiCredential(app.getPath('userData'), provider, { decrypt: decryptAiCredential })
+      : '';
+    const inspectors = {
+      ollama: () => listOllamaModels({ url }),
+      'lm-studio': () => listLmStudioModels({ url }),
+      openai: () => listOpenAiModels({ apiKey }),
+      gemini: () => listGeminiModels({ apiKey }),
+      anthropic: () => listAnthropicModels({ apiKey }),
+    };
+    const result = await inspectors[provider]();
+    const modelCount = result.models.length;
+    return {
+      ok: true,
+      provider,
+      profile: profileId,
+      url: result.url,
+      models: result.models,
+      message: modelCount === 1
+        ? 'Connected. Found 1 model.'
+        : `Connected. Found ${modelCount} models.`,
+    };
+  } catch (error) {
+    console.error(`Unable to inspect ${providerLabel}.`, error);
+    return {
+      ok: false,
+      provider,
+      profile: profileId,
+      error: error && error.code ? String(error.code) : 'AI_PROVIDER_INSPECTION_FAILED',
+      url: typeof url === 'string' ? url : '',
+      models: [],
+      message: getAiTaskSuggestionErrorMessage(error, provider),
+    };
+  }
+}
+
+function normalizeAiProviderId(provider) {
+  return appSettings.normalizeAiProvider(provider);
+}
+
+function getAiProfile(settings, profileValue) {
+  const profileId = profileValue === 'advanced' ? 'advanced' : 'normal';
+  const profile = settings.ai[profileId];
+  if (profileId === 'advanced' && !profile.enabled) {
+    const error = new Error('Configure and enable an Advanced model in App Settings.');
+    error.code = 'AI_PROFILE_UNAVAILABLE';
+    throw error;
+  }
+  return { profileId, profile };
+}
+
+async function getAiProviderRequestSettings(settings, profile) {
+  const provider = normalizeAiProviderId(profile.provider);
+  const providerSettingsKey = appSettings.getAiProviderSettingsKey(provider);
+  const storedSettings = settings.ai.providers[providerSettingsKey] || {};
+  const apiKey = aiCredentials.normalizeCloudAiProvider(provider)
+    ? await aiCredentials.getAiCredential(app.getPath('userData'), provider, { decrypt: decryptAiCredential })
+    : '';
+  return {
+    provider,
+    settings: {
+      ...storedSettings,
+      model: profile.model,
+      ...(apiKey ? { apiKey } : {}),
+    },
+  };
+}
+
+async function dispatchAiTaskSuggestion(provider, providerSettings, payload, options) {
+  const handlers = {
+    ollama: suggestCardTasksWithOllama,
+    'lm-studio': suggestCardTasksWithLmStudio,
+    openai: suggestCardTasksWithOpenAi,
+    gemini: suggestCardTasksWithGemini,
+    anthropic: suggestCardTasksWithAnthropic,
+  };
+  return handlers[provider](providerSettings, payload, options);
+}
+
+async function dispatchSmartCardAction(provider, providerSettings, action, context, options) {
+  const handlers = {
+    ollama: runSmartCardActionWithOllama,
+    'lm-studio': runSmartCardActionWithLmStudio,
+    openai: runSmartCardActionWithOpenAi,
+    gemini: runSmartCardActionWithGemini,
+    anthropic: runSmartCardActionWithAnthropic,
+  };
+  return handlers[provider](providerSettings, action, context, options);
+}
+
 async function suggestCardTasks(payload = {}) {
   const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
   const settings = appSettings.normalizeAppSettings(rawSettings);
@@ -3050,20 +3230,15 @@ async function suggestCardTasks(payload = {}) {
     };
   }
 
-  if (settings.ai.provider !== 'ollama') {
-    return {
-      ok: false,
-      error: 'AI_PROVIDER_UNSUPPORTED',
-      message: 'Only Ollama AI assistance is currently supported.',
-    };
-  }
-
   try {
-    const result = await suggestCardTasksWithOllama(settings.ai.ollama, payload, {
+    const { profileId, profile } = getAiProfile(settings, payload && payload.profile);
+    const providerConfig = await getAiProviderRequestSettings(settings, profile);
+    const result = await dispatchAiTaskSuggestion(providerConfig.provider, providerConfig.settings, payload, {
       currentDate: formatLocalIsoDate(),
     });
     return {
       ok: true,
+      profile: profileId,
       ...result,
     };
   } catch (error) {
@@ -3073,7 +3248,7 @@ async function suggestCardTasks(payload = {}) {
     return {
       ok: false,
       error: error && error.code ? String(error.code) : 'AI_TASK_SUGGESTION_FAILED',
-      message: getAiTaskSuggestionErrorMessage(error),
+      message: getAiTaskSuggestionErrorMessage(error, settings.ai.normal.provider),
       ...(debugDetails ? { debug: debugDetails } : {}),
     };
   }
@@ -3088,14 +3263,6 @@ async function runSmartCardAction(payload = {}) {
       ok: false,
       error: 'AI_DISABLED',
       message: 'AI assistance is disabled in App Settings.',
-    };
-  }
-
-  if (settings.ai.provider !== 'ollama') {
-    return {
-      ok: false,
-      error: 'AI_PROVIDER_UNSUPPORTED',
-      message: 'Only Ollama AI assistance is currently supported.',
     };
   }
 
@@ -3138,12 +3305,22 @@ async function runSmartCardAction(payload = {}) {
     : payloadSource;
 
   try {
-    const result = await runSmartCardActionWithOllama(settings.ai.ollama, actionToRun, cardContext, {
+    const { profileId, profile } = getAiProfile(settings, payloadSource.profile);
+    const providerConfig = await getAiProviderRequestSettings(settings, profile);
+    const actionOptions = {
       currentDate: formatLocalIsoDate(),
       pasteText: typeof payloadSource.pasteText === 'string' ? payloadSource.pasteText : '',
-    });
+    };
+    const result = await dispatchSmartCardAction(
+      providerConfig.provider,
+      providerConfig.settings,
+      actionToRun,
+      cardContext,
+      actionOptions,
+    );
     return {
       ok: true,
+      profile: profileId,
       ...result,
     };
   } catch (error) {
@@ -3153,7 +3330,9 @@ async function runSmartCardAction(payload = {}) {
     return {
       ok: false,
       error: error && error.code ? String(error.code) : 'AI_SMART_CARD_ACTION_FAILED',
-      message: getAiTaskSuggestionErrorMessage(error),
+      message: getAiTaskSuggestionErrorMessage(error, payloadSource.profile === 'advanced'
+        ? settings.ai.advanced.provider
+        : settings.ai.normal.provider),
       ...(debugDetails ? { debug: debugDetails } : {}),
     };
   }
@@ -4851,6 +5030,41 @@ ipcMain.handle('inspect-ollama', async (_event, payload = {}) => (
   inspectOllama(payload)
 ));
 
+ipcMain.handle('inspect-ai-provider', async (_event, payload = {}) => (
+  inspectAiProvider(payload)
+));
+
+ipcMain.handle('set-ai-credential', async (_event, payload = {}) => {
+  const provider = aiCredentials.normalizeCloudAiProvider(payload && payload.provider);
+  if (!provider) {
+    return { ok: false, message: 'Choose a supported cloud AI provider.' };
+  }
+  try {
+    const status = await aiCredentials.setAiCredential(
+      app.getPath('userData'),
+      provider,
+      payload && payload.apiKey,
+      { encrypt: encryptAiCredential },
+    );
+    return { ok: true, status };
+  } catch (error) {
+    return { ok: false, message: error && error.message ? String(error.message) : 'Unable to save the API key.' };
+  }
+});
+
+ipcMain.handle('clear-ai-credential', async (_event, providerValue) => {
+  const provider = aiCredentials.normalizeCloudAiProvider(providerValue);
+  if (!provider) {
+    return { ok: false, message: 'Choose a supported cloud AI provider.' };
+  }
+  try {
+    const status = await aiCredentials.clearAiCredential(app.getPath('userData'), provider);
+    return { ok: true, status };
+  } catch (error) {
+    return { ok: false, message: error && error.message ? String(error.message) : 'Unable to remove the API key.' };
+  }
+});
+
 ipcMain.handle('copy-text-to-clipboard', async (_event, text = '') => {
   clipboard.writeText(String(text || ''));
   return { ok: true };
@@ -4868,7 +5082,7 @@ ipcMain.handle('migrate-app-settings-from-board', async (event, boardRoot) => {
   await boardLabels.readBoardSettings(normalizedBoardRoot, { ensureFile: true });
   return {
     ...migrationResult,
-    settings: withRuntimeAppSettings(migrationResult.settings),
+    settings: await withRuntimeAppSettings(migrationResult.settings),
   };
 });
 

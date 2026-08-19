@@ -104,6 +104,34 @@ async function startFakeOllamaServer(models) {
   };
 }
 
+async function startFakeLmStudioServer(models) {
+  const server = http.createServer((request, response) => {
+    if (request.method === 'GET' && request.url === '/v1/models') {
+      response.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+      });
+      response.end(JSON.stringify({ object: 'list', data: models }));
+      return;
+    }
+
+    response.writeHead(404, {
+      'Content-Type': 'application/json; charset=utf-8',
+    });
+    response.end(JSON.stringify({ error: 'not found' }));
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+
+  const address = server.address();
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    close: () => new Promise((resolve) => server.close(() => resolve())),
+  };
+}
+
 async function openCurrentBoardPlannerView(page, shortcut, viewSelector) {
   await page.keyboard.press(getShortcut(shortcut));
   await expect(page.locator('#plannerOverlay')).toBeVisible();
@@ -3220,10 +3248,18 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
         ai: {
           ...current.ai,
           enabled: false,
-          ollama: {
-            ...current.ai.ollama,
-            url: ollamaUrl,
+          normal: {
+            provider: 'ollama',
             model: 'llama3.2',
+          },
+          advanced: {
+            enabled: true,
+            provider: 'ollama',
+            model: 'llama3.2:latest',
+          },
+          providers: {
+            ...current.ai.providers,
+            ollama: { url: ollamaUrl },
           },
         },
       });
@@ -3240,10 +3276,10 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
 
     const aiToggle = page.locator('#boardSettingsAiToggle');
     const aiDetails = page.locator('#boardSettingsAiDetails');
-    const aiUrlInput = page.locator('#boardSettingsAiOllamaUrl');
-    const aiModelSelect = page.locator('#boardSettingsAiOllamaModel');
-    const aiRefreshButton = page.locator('#btnRefreshAiOllamaModels');
-    const aiStatus = page.locator('#boardSettingsAiOllamaStatus');
+    const aiUrlInput = page.locator('#boardSettingsAiNormalUrl');
+    const aiModelSelect = page.locator('#boardSettingsAiNormalModel');
+    const aiRefreshButton = page.locator('#boardSettingsAiNormalProfile button[aria-label="Refresh Ollama models"]');
+    const aiStatus = page.locator('#boardSettingsAiNormalStatus');
 
     await expect(aiToggle).not.toBeChecked();
     await expect(aiDetails).toBeHidden();
@@ -3268,18 +3304,24 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
         const settings = await window.electronAPI.readAppSettings();
         return {
           enabled: settings.ai.enabled,
-          provider: settings.ai.provider,
-          ollama: settings.ai.ollama,
+          normal: settings.ai.normal,
+          advanced: settings.ai.advanced,
+          ollama: settings.ai.providers.ollama,
           actionLabels: settings.ai.smartCardActions.map((action) => action.label),
         };
       });
     }).toEqual({
       enabled: true,
-      provider: 'ollama',
-      ollama: {
-        url: fakeOllama.url,
+      normal: {
+        provider: 'ollama',
         model: 'qwen2.5:7b',
       },
+      advanced: {
+        enabled: true,
+        provider: 'ollama',
+        model: 'llama3.2:latest',
+      },
+      ollama: { url: fakeOllama.url },
       actionLabels: defaultSmartCardActionLabels,
     });
 
@@ -3324,10 +3366,13 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
     await openFirstCardInEditor(page);
     const aiButton = page.locator('#cardEditorSmartActionsButton');
     await expect(aiButton).toBeVisible();
-    await expect(aiButton).toHaveAttribute('aria-label', 'Smart Card Actions with qwen2.5:7b');
+    await expect(aiButton).toHaveAttribute('aria-label', 'Smart Card Actions with Normal model: qwen2.5:7b');
     await aiButton.click();
     const smartActionsPopover = page.locator('#cardEditorSmartActionsPopover');
     await expect(smartActionsPopover).toBeVisible();
+    await expect(smartActionsPopover.getByRole('button', { name: 'Advanced' })).toBeVisible();
+    await smartActionsPopover.getByRole('button', { name: 'Advanced' }).click();
+    await expect(aiButton).toHaveAttribute('aria-label', 'Smart Card Actions with Advanced model: llama3.2:latest');
     await expect.poll(async () => {
       return await page.evaluate(() => {
         const modal = document.getElementById('modalEditCard');
@@ -3381,6 +3426,78 @@ test('persists AI assistance settings and shows the card editor Smart Card Actio
   }
 });
 
+test('selects LM Studio and loads its OpenAI-compatible model list', async ({ page }) => {
+  const fakeLmStudio = await startFakeLmStudioServer([
+    { id: 'lmstudio-community/Qwen3-4B-GGUF', object: 'model', owned_by: 'lmstudio-community' },
+    { id: 'openai/gpt-oss-20b', object: 'model', owned_by: 'openai' },
+  ]);
+
+  try {
+    await page.evaluate(async (lmStudioUrl) => {
+      const current = await window.electronAPI.readAppSettings();
+      await window.electronAPI.updateAppSettings({
+        ai: {
+          ...current.ai,
+          enabled: false,
+          normal: {
+            provider: 'lm-studio',
+            model: '',
+          },
+          providers: {
+            ...current.ai.providers,
+            lmStudio: { url: lmStudioUrl },
+          },
+        },
+      });
+      if (typeof loadAppSettings === 'function') {
+        await loadAppSettings();
+      }
+    }, fakeLmStudio.url);
+
+    await openBoardMenu(page);
+    await page.locator('#openBoardSettings').click();
+    await page.locator('#boardSettingsNavSmartActions').click();
+
+    const aiToggle = page.locator('#boardSettingsAiToggle');
+    const providerSelect = page.locator('#boardSettingsAiNormalProvider');
+    const urlInput = page.locator('#boardSettingsAiNormalUrl');
+    const modelSelect = page.locator('#boardSettingsAiNormalModel');
+    const status = page.locator('#boardSettingsAiNormalStatus');
+
+    await expect(providerSelect).toHaveValue('lm-studio');
+    await page.locator('label[for="boardSettingsAiToggle"]').click();
+    await expect(aiToggle).toBeChecked();
+    await expect(urlInput).toHaveValue(fakeLmStudio.url);
+    await expect(status).toContainText(/Connected/);
+    await expect(modelSelect).toContainText('lmstudio-community/Qwen3-4B-GGUF');
+    await expect(modelSelect).toContainText('openai/gpt-oss-20b');
+
+    await expect.poll(async () => {
+      return await page.evaluate(async () => {
+        const settings = await window.electronAPI.readAppSettings();
+        return {
+          provider: settings.ai.normal.provider,
+          url: settings.ai.providers.lmStudio.url,
+          model: settings.ai.normal.model,
+        };
+      });
+    }).toEqual({
+      provider: 'lm-studio',
+      url: fakeLmStudio.url,
+      model: 'lmstudio-community/Qwen3-4B-GGUF',
+    });
+
+    await page.locator('#boardSettingsClose').click();
+    await openFirstCardInEditor(page);
+    await expect(page.locator('#cardEditorSmartActionsButton')).toHaveAttribute(
+      'aria-label',
+      'Smart Card Actions with Normal model: lmstudio-community/Qwen3-4B-GGUF',
+    );
+  } finally {
+    await fakeLmStudio.close();
+  }
+});
+
 test('inserts generated Smart Card Action summaries at the top of the card body', async ({ page }) => {
   await openFirstCardInEditor(page);
 
@@ -3410,8 +3527,9 @@ test('anchors Smart Card Action results and refreshes generated task controls', 
       ai: {
         ...current.ai,
         enabled: true,
-        ollama: {
-          ...current.ai.ollama,
+        normal: {
+          ...current.ai.normal,
+          provider: 'ollama',
           model: 'llama3.2',
         },
         smartCardActions: current.ai.smartCardActions,

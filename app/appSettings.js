@@ -38,7 +38,7 @@ const DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_STATUS = Object.freeze({
   url: '',
   message: 'Disabled',
 });
-const DEFAULT_APP_OLLAMA_MODEL_STATUS = Object.freeze({
+const DEFAULT_APP_AI_MODEL_STATUS = Object.freeze({
   checked: false,
   checking: false,
   ok: false,
@@ -57,12 +57,24 @@ function getAppSettingsState() {
       externalPublishedCalendarSettings: { ...DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS },
       aiSettings: {
         ...DEFAULT_APP_AI_SETTINGS,
-        ollama: { ...DEFAULT_APP_AI_SETTINGS.ollama },
+        normal: { ...DEFAULT_APP_AI_SETTINGS.normal },
+        advanced: { ...DEFAULT_APP_AI_SETTINGS.advanced },
+        providers: {
+          ollama: { ...DEFAULT_APP_AI_SETTINGS.providers.ollama },
+          lmStudio: { ...DEFAULT_APP_AI_SETTINGS.providers.lmStudio },
+          openai: {},
+          gemini: {},
+          anthropic: {},
+        },
         smartCardActions: cloneDefaultAppSmartCardActions(),
       },
+      aiCredentialStatus: { openai: false, gemini: false, anthropic: false },
       externalPublishedCalendarStatus: { ...DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_STATUS },
-      ollamaModelStatus: { ...DEFAULT_APP_OLLAMA_MODEL_STATUS, models: [] },
-      ollamaModelStatusRequestId: 0,
+      aiModelStatuses: {
+        normal: { ...DEFAULT_APP_AI_MODEL_STATUS, models: [] },
+        advanced: { ...DEFAULT_APP_AI_MODEL_STATUS, models: [] },
+      },
+      aiModelStatusRequestIds: { normal: 0, advanced: 0 },
       globalShortcutStatus: {
         accelerator: '',
         registered: false,
@@ -105,7 +117,7 @@ function normalizeAppExternalPublishedCalendarStatus(status) {
   };
 }
 
-function normalizeAppOllamaModelEntry(model) {
+function normalizeAppAiModelEntry(model) {
   const source = model && typeof model === 'object' && !Array.isArray(model)
     ? model
     : {};
@@ -128,13 +140,13 @@ function normalizeAppOllamaModelEntry(model) {
   };
 }
 
-function normalizeAppOllamaModels(models) {
+function normalizeAppAiModels(models) {
   const sourceModels = Array.isArray(models) ? models : [];
   const seen = new Set();
   const normalizedModels = [];
 
   for (const model of sourceModels) {
-    const normalized = normalizeAppOllamaModelEntry(model);
+    const normalized = normalizeAppAiModelEntry(model);
     if (!normalized || seen.has(normalized.name)) {
       continue;
     }
@@ -145,7 +157,7 @@ function normalizeAppOllamaModels(models) {
   return normalizedModels.sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function normalizeAppOllamaModelStatus(status) {
+function normalizeAppAiModelStatus(status) {
   const source = status && typeof status === 'object' && !Array.isArray(status)
     ? status
     : {};
@@ -155,10 +167,10 @@ function normalizeAppOllamaModelStatus(status) {
     checking: source.checking === true,
     ok: source.ok === true,
     url: typeof source.url === 'string' ? source.url.trim() : '',
-    models: normalizeAppOllamaModels(source.models),
+    models: normalizeAppAiModels(source.models),
     message: typeof source.message === 'string' && source.message.trim()
       ? source.message.trim()
-      : DEFAULT_APP_OLLAMA_MODEL_STATUS.message,
+      : DEFAULT_APP_AI_MODEL_STATUS.message,
   };
 }
 
@@ -211,6 +223,50 @@ function setAppAiSettings(aiSettings) {
   state.aiSettings = normalizeAppAiSettings(aiSettings);
 }
 
+function getAppAiProviderLabel(provider) {
+  return {
+    ollama: 'Ollama',
+    'lm-studio': 'LM Studio',
+    openai: 'OpenAI',
+    gemini: 'Gemini',
+    anthropic: 'Anthropic',
+  }[provider] || 'AI provider';
+}
+
+function getAppAiProviderConfig(aiSettings = getAppAiSettings(), profileId = 'normal') {
+  const settings = normalizeAppAiSettings(aiSettings);
+  const normalizedProfileId = profileId === 'advanced' ? 'advanced' : 'normal';
+  const profile = settings[normalizedProfileId];
+  const provider = profile.provider;
+  const key = APP_SETTINGS_SCHEMA.getAiProviderSettingsKey(provider);
+  return {
+    id: provider,
+    key,
+    label: getAppAiProviderLabel(provider),
+    profileId: normalizedProfileId,
+    profile,
+    settings: settings.providers[key] || {},
+    isCloud: ['openai', 'gemini', 'anthropic'].includes(provider),
+  };
+}
+
+function normalizeAppAiCredentialStatus(status) {
+  const source = status && typeof status === 'object' && !Array.isArray(status) ? status : {};
+  return {
+    openai: source.openai === true,
+    gemini: source.gemini === true,
+    anthropic: source.anthropic === true,
+  };
+}
+
+function getAppAiCredentialStatus() {
+  return normalizeAppAiCredentialStatus(getAppSettingsState().aiCredentialStatus);
+}
+
+function setAppAiCredentialStatus(status) {
+  getAppSettingsState().aiCredentialStatus = normalizeAppAiCredentialStatus(status);
+}
+
 function getAppGlobalShortcutStatus() {
   return normalizeAppGlobalShortcutStatus(getAppSettingsState().globalShortcutStatus);
 }
@@ -229,21 +285,50 @@ function setAppExternalPublishedCalendarStatus(status) {
   state.externalPublishedCalendarStatus = normalizeAppExternalPublishedCalendarStatus(status);
 }
 
-function getAppOllamaModelStatus() {
-  return normalizeAppOllamaModelStatus(getAppSettingsState().ollamaModelStatus);
+function getAppAiModelStatus(profileId = 'normal') {
+  const id = profileId === 'advanced' ? 'advanced' : 'normal';
+  return normalizeAppAiModelStatus(getAppSettingsState().aiModelStatuses[id]);
 }
 
-function setAppOllamaModelStatus(status) {
+function setAppAiModelStatus(profileId, status) {
+  const id = profileId === 'advanced' ? 'advanced' : 'normal';
   const state = getAppSettingsState();
-  state.ollamaModelStatus = normalizeAppOllamaModelStatus(status);
+  state.aiModelStatuses[id] = normalizeAppAiModelStatus(status);
 }
 
-function resetAppOllamaModelStatus(message = DEFAULT_APP_OLLAMA_MODEL_STATUS.message) {
-  setAppOllamaModelStatus({
-    ...DEFAULT_APP_OLLAMA_MODEL_STATUS,
+function resetAppAiModelStatus(profileId = 'normal', message = DEFAULT_APP_AI_MODEL_STATUS.message) {
+  const id = profileId === 'advanced' ? 'advanced' : 'normal';
+  const state = getAppSettingsState();
+  state.aiModelStatusRequestIds[id] += 1;
+  setAppAiModelStatus(id, {
+    ...DEFAULT_APP_AI_MODEL_STATUS,
     models: [],
     message,
   });
+}
+
+function resetAppAiProviderModelStatuses(provider, message = DEFAULT_APP_AI_MODEL_STATUS.message) {
+  const settings = getAppAiSettings();
+  for (const profileId of ['normal', 'advanced']) {
+    if (settings[profileId].provider === provider) {
+      resetAppAiModelStatus(profileId, message);
+    }
+  }
+}
+
+function refreshAppAiProfilesUsingProvider(provider) {
+  const settings = getAppAiSettings();
+  if (!settings.enabled) {
+    return;
+  }
+  for (const profileId of ['normal', 'advanced']) {
+    if (
+      settings[profileId].provider === provider &&
+      (profileId !== 'advanced' || settings.advanced.enabled)
+    ) {
+      refreshAppAiModels(profileId);
+    }
+  }
 }
 
 function applyAppSettings(settings) {
@@ -253,6 +338,7 @@ function applyAppSettings(settings) {
   setAppQuickAddSettings(source.quickAdd || DEFAULT_APP_QUICK_ADD_SETTINGS);
   setAppExternalPublishedCalendarSettings(source.externalPublishedCalendar || DEFAULT_APP_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS);
   setAppAiSettings(source.ai || DEFAULT_APP_AI_SETTINGS);
+  setAppAiCredentialStatus(source.aiCredentialStatus);
   setAppGlobalShortcutStatus(source.globalShortcutStatus);
   setAppExternalPublishedCalendarStatus(source.externalPublishedCalendarStatus);
   getAppSettingsState().settingsLoaded = true;
@@ -276,7 +362,7 @@ async function loadAppSettings() {
   applyAppSettings(settings);
   renderAppSettingsControls();
   if (getAppAiSettings().enabled) {
-    refreshAppAiOllamaModels();
+    refreshConfiguredAppAiModels();
   }
   return settings;
 }
@@ -310,7 +396,7 @@ async function migrateAppSettingsFromOpenBoards() {
         applyAppSettings(migratedSettings);
         renderAppSettingsControls();
         if (getAppAiSettings().enabled) {
-          refreshAppAiOllamaModels();
+          refreshConfiguredAppAiModels();
         }
         return;
       }
@@ -339,10 +425,8 @@ function renderAppSettingsControls() {
   const aiToggle = document.getElementById('boardSettingsAiToggle');
   const aiDisabledState = document.getElementById('boardSettingsAiDisabledState');
   const aiDetails = document.getElementById('boardSettingsAiDetails');
-  const aiOllamaUrlInput = document.getElementById('boardSettingsAiOllamaUrl');
-  const aiOllamaModelSelect = document.getElementById('boardSettingsAiOllamaModel');
-  const aiOllamaRefreshButton = document.getElementById('btnRefreshAiOllamaModels');
-  const aiOllamaStatus = document.getElementById('boardSettingsAiOllamaStatus');
+  const aiNormalProfile = document.getElementById('boardSettingsAiNormalProfile');
+  const aiAdvancedProfile = document.getElementById('boardSettingsAiAdvancedProfile');
   const aiActionsList = document.getElementById('boardSettingsAiActionsList');
   const aiAddActionButton = document.getElementById('btnAddAiSmartCardAction');
   const notifications = getAppNotificationSettings();
@@ -351,7 +435,6 @@ function renderAppSettingsControls() {
   const externalCalendarRuntime = getAppExternalPublishedCalendarStatus();
   const globalShortcutStatus = getAppGlobalShortcutStatus();
   const aiSettings = getAppAiSettings();
-  const ollamaModelStatus = getAppOllamaModelStatus();
 
   if (tooltipsToggle) {
     tooltipsToggle.checked = getAppTooltipsEnabled();
@@ -429,36 +512,8 @@ function renderAppSettingsControls() {
     aiDisabledState.setAttribute('aria-hidden', aiSettings.enabled ? 'true' : 'false');
   }
 
-  if (aiOllamaUrlInput) {
-    aiOllamaUrlInput.value = aiSettings.ollama.url;
-  }
-
-  if (aiOllamaModelSelect) {
-    renderAppOllamaModelSelect(aiOllamaModelSelect, aiSettings, ollamaModelStatus);
-  }
-
-  if (aiOllamaRefreshButton) {
-    aiOllamaRefreshButton.disabled = !aiSettings.enabled || ollamaModelStatus.checking;
-  }
-
-  if (aiOllamaStatus) {
-    aiOllamaStatus.classList.remove('is-success', 'is-warning');
-    if (!aiSettings.enabled) {
-      aiOllamaStatus.textContent = 'Disabled';
-    } else if (ollamaModelStatus.checking) {
-      aiOllamaStatus.textContent = 'Checking...';
-    } else if (ollamaModelStatus.checked && ollamaModelStatus.ok) {
-      aiOllamaStatus.textContent = ollamaModelStatus.models.length > 0
-        ? ollamaModelStatus.message
-        : 'Connected. No models found.';
-      aiOllamaStatus.classList.add(ollamaModelStatus.models.length > 0 ? 'is-success' : 'is-warning');
-    } else if (ollamaModelStatus.checked) {
-      aiOllamaStatus.textContent = ollamaModelStatus.message || 'Not running';
-      aiOllamaStatus.classList.add('is-warning');
-    } else {
-      aiOllamaStatus.textContent = 'Not checked';
-    }
-  }
+  renderAppAiProfileEditor(aiNormalProfile, 'normal', aiSettings);
+  renderAppAiProfileEditor(aiAdvancedProfile, 'advanced', aiSettings);
 
   if (aiActionsList) {
     renderAppSmartCardActionSettings(aiActionsList, aiSettings.smartCardActions);
@@ -488,6 +543,231 @@ function renderAppSettingsControls() {
   if (typeof renderCardEditorSmartActionControls === 'function') {
     renderCardEditorSmartActionControls();
   }
+}
+
+function renderAppAiProfileEditor(container, profileId, aiSettings = getAppAiSettings()) {
+  if (!container) {
+    return;
+  }
+  const settings = normalizeAppAiSettings(aiSettings);
+  const isAdvanced = profileId === 'advanced';
+  const profile = settings[profileId];
+  const providerConfig = getAppAiProviderConfig(settings, profileId);
+  const modelStatus = getAppAiModelStatus(profileId);
+  const credentialStatus = getAppAiCredentialStatus();
+  const profileEnabled = settings.enabled && (!isAdvanced || profile.enabled);
+  const idPrefix = `boardSettingsAi${isAdvanced ? 'Advanced' : 'Normal'}`;
+  container.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'board-settings-ai-profile-header';
+  const headingWrap = document.createElement('div');
+  const heading = document.createElement('h4');
+  heading.textContent = isAdvanced ? 'Advanced model' : 'Normal model';
+  const hint = document.createElement('p');
+  hint.className = 'boardSettingsHint';
+  hint.textContent = isAdvanced
+    ? 'Optional model for harder work. It can run locally or in the cloud.'
+    : 'The default model used by Smart Card Actions.';
+  headingWrap.append(heading, hint);
+  header.appendChild(headingWrap);
+  if (isAdvanced) {
+    const switchLabel = document.createElement('label');
+    switchLabel.className = 'board-settings-switch';
+    switchLabel.title = 'Enable Advanced model';
+    const toggle = document.createElement('input');
+    toggle.id = `${idPrefix}Enabled`;
+    toggle.type = 'checkbox';
+    toggle.role = 'switch';
+    toggle.checked = profile.enabled;
+    toggle.setAttribute('aria-label', 'Enable Advanced model');
+    const track = document.createElement('span');
+    track.className = 'board-settings-switch-track';
+    track.setAttribute('aria-hidden', 'true');
+    switchLabel.append(toggle, track);
+    header.appendChild(switchLabel);
+    toggle.addEventListener('change', () => {
+      const current = getAppAiSettings();
+      setAppAiSettings({
+        ...current,
+        advanced: { ...current.advanced, enabled: toggle.checked },
+      });
+      resetAppAiModelStatus('advanced', toggle.checked ? 'Not checked' : 'Disabled');
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+      if (toggle.checked) {
+        refreshAppAiModels('advanced');
+      }
+    });
+  }
+  container.appendChild(header);
+
+  const fields = document.createElement('div');
+  fields.className = 'board-settings-ai-profile-fields';
+  fields.classList.toggle('is-disabled', !profileEnabled);
+
+  const providerLabel = document.createElement('label');
+  providerLabel.setAttribute('for', `${idPrefix}Provider`);
+  providerLabel.textContent = 'Provider';
+  const providerSelect = document.createElement('select');
+  providerSelect.id = `${idPrefix}Provider`;
+  providerSelect.disabled = !profileEnabled;
+  for (const provider of APP_SETTINGS_SCHEMA.AI_PROVIDER_IDS) {
+    const option = document.createElement('option');
+    option.value = provider;
+    option.textContent = getAppAiProviderLabel(provider);
+    providerSelect.appendChild(option);
+  }
+  providerSelect.value = providerConfig.id;
+  fields.append(providerLabel, providerSelect);
+
+  providerSelect.addEventListener('change', async () => {
+    const selectedProvider = providerSelect.value;
+    const current = getAppAiSettings();
+    setAppAiSettings({
+      ...current,
+      [profileId]: { ...current[profileId], provider: selectedProvider, model: '' },
+    });
+    resetAppAiModelStatus(profileId, 'Not checked');
+    scheduleAppSettingsSave();
+    const shouldRender = typeof waitForNativeSelectChangeToSettle !== 'function' ||
+      await waitForNativeSelectChangeToSettle(providerSelect, selectedProvider);
+    if (shouldRender) {
+      renderAppSettingsControls();
+      refreshAppAiModels(profileId);
+    }
+  });
+
+  if (!providerConfig.isCloud) {
+    const urlLabel = document.createElement('label');
+    urlLabel.setAttribute('for', `${idPrefix}Url`);
+    urlLabel.textContent = `${providerConfig.label} URL`;
+    const urlInput = document.createElement('input');
+    urlInput.id = `${idPrefix}Url`;
+    urlInput.type = 'url';
+    urlInput.value = providerConfig.settings.url || '';
+    urlInput.placeholder = providerConfig.id === 'lm-studio' ? 'http://127.0.0.1:1234' : 'http://127.0.0.1:11434';
+    urlInput.spellcheck = false;
+    urlInput.autocomplete = 'off';
+    urlInput.disabled = !profileEnabled;
+    fields.append(urlLabel, urlInput);
+    urlInput.addEventListener('change', () => {
+      const current = getAppAiSettings();
+      setAppAiSettings({
+        ...current,
+        providers: {
+          ...current.providers,
+          [providerConfig.key]: { ...current.providers[providerConfig.key], url: urlInput.value },
+        },
+      });
+      resetAppAiProviderModelStatuses(providerConfig.id, 'Not checked');
+      renderAppSettingsControls();
+      scheduleAppSettingsSave();
+      refreshAppAiProfilesUsingProvider(providerConfig.id);
+    });
+  } else {
+    const keyLabel = document.createElement('label');
+    keyLabel.setAttribute('for', `${idPrefix}ApiKey`);
+    keyLabel.textContent = `${providerConfig.label} API key`;
+    const keyRow = document.createElement('div');
+    keyRow.className = 'board-settings-inline-actions board-settings-ai-key-actions';
+    const keyInput = document.createElement('input');
+    keyInput.id = `${idPrefix}ApiKey`;
+    keyInput.type = 'password';
+    keyInput.placeholder = credentialStatus[providerConfig.id] ? 'Saved securely' : 'Paste API key';
+    keyInput.autocomplete = 'new-password';
+    keyInput.spellcheck = false;
+    keyInput.disabled = !profileEnabled;
+    const saveKey = document.createElement('button');
+    saveKey.type = 'button';
+    saveKey.textContent = credentialStatus[providerConfig.id] ? 'Replace' : 'Save Key';
+    saveKey.disabled = !profileEnabled;
+    const clearKey = document.createElement('button');
+    clearKey.type = 'button';
+    clearKey.textContent = 'Remove';
+    clearKey.disabled = !profileEnabled || !credentialStatus[providerConfig.id];
+    keyRow.append(keyInput, saveKey, clearKey);
+    fields.append(keyLabel, keyRow);
+    saveKey.addEventListener('click', async () => {
+      const apiKey = String(keyInput.value || '').trim();
+      if (!apiKey || !window.electronAPI || typeof window.electronAPI.setAiCredential !== 'function') {
+        keyInput.focus();
+        return;
+      }
+      saveKey.disabled = true;
+      const result = await window.electronAPI.setAiCredential({ provider: providerConfig.id, apiKey });
+      keyInput.value = '';
+      if (result && result.ok) {
+        setAppAiCredentialStatus(result.status);
+        resetAppAiProviderModelStatuses(providerConfig.id, 'Not checked');
+        renderAppSettingsControls();
+        refreshAppAiProfilesUsingProvider(providerConfig.id);
+      } else {
+        setAppAiModelStatus(profileId, {
+          checked: true,
+          ok: false,
+          message: result && result.message ? result.message : 'Unable to save API key.',
+        });
+        renderAppSettingsControls();
+      }
+    });
+    clearKey.addEventListener('click', async () => {
+      if (!window.electronAPI || typeof window.electronAPI.clearAiCredential !== 'function') return;
+      const result = await window.electronAPI.clearAiCredential(providerConfig.id);
+      if (result && result.ok) {
+        setAppAiCredentialStatus(result.status);
+        resetAppAiProviderModelStatuses(providerConfig.id, 'API key required');
+        renderAppSettingsControls();
+      }
+    });
+  }
+
+  const modelLabel = document.createElement('label');
+  modelLabel.setAttribute('for', `${idPrefix}Model`);
+  modelLabel.textContent = `${providerConfig.label} model`;
+  const modelRow = document.createElement('div');
+  modelRow.className = 'board-settings-inline-actions board-settings-ai-model-actions';
+  const modelSelect = document.createElement('select');
+  modelSelect.id = `${idPrefix}Model`;
+  modelSelect.setAttribute('aria-label', `${isAdvanced ? 'Advanced' : 'Normal'} ${providerConfig.label} model`);
+  renderAppAiModelSelect(modelSelect, settings, modelStatus, profileId);
+  const refreshButton = document.createElement('button');
+  refreshButton.type = 'button';
+  refreshButton.title = `Refresh ${providerConfig.label} models`;
+  refreshButton.setAttribute('aria-label', refreshButton.title);
+  refreshButton.disabled = !profileEnabled || modelStatus.checking || (providerConfig.isCloud && !credentialStatus[providerConfig.id]);
+  refreshButton.innerHTML = window.feather && window.feather.icons && window.feather.icons['refresh-cw']
+    ? window.feather.icons['refresh-cw'].toSvg()
+    : 'Refresh';
+  const status = document.createElement('span');
+  status.id = `${idPrefix}Status`;
+  status.className = 'board-settings-status';
+  if (!profileEnabled) status.textContent = 'Disabled';
+  else if (modelStatus.checking) status.textContent = 'Checking...';
+  else if (modelStatus.checked && modelStatus.ok) {
+    status.textContent = modelStatus.models.length > 0 ? modelStatus.message : 'Connected. No models found.';
+    status.classList.add(modelStatus.models.length > 0 ? 'is-success' : 'is-warning');
+  } else if (modelStatus.checked) {
+    status.textContent = modelStatus.message || 'Not available';
+    status.classList.add('is-warning');
+  } else status.textContent = providerConfig.isCloud && !credentialStatus[providerConfig.id] ? 'API key required' : 'Not checked';
+  modelRow.append(modelSelect, refreshButton, status);
+  fields.append(modelLabel, modelRow);
+  modelSelect.addEventListener('change', async () => {
+    const model = modelSelect.value;
+    const current = getAppAiSettings();
+    setAppAiSettings({ ...current, [profileId]: { ...current[profileId], model } });
+    scheduleAppSettingsSave();
+    const shouldRender = typeof waitForNativeSelectChangeToSettle !== 'function' ||
+      await waitForNativeSelectChangeToSettle(modelSelect, model);
+    if (shouldRender) renderAppSettingsControls();
+  });
+  refreshButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    refreshAppAiModels(profileId);
+  });
+  container.appendChild(fields);
 }
 
 function renderAppSmartCardActionSettings(container, actions) {
@@ -928,7 +1208,7 @@ function addAppSmartCardAction() {
   scheduleAppSettingsSave();
 }
 
-function getAppOllamaModelOptionLabel(model) {
+function getAppAiModelOptionLabel(model) {
   const source = model && typeof model === 'object' && !Array.isArray(model)
     ? model
     : {};
@@ -944,14 +1224,15 @@ function getAppOllamaModelOptionLabel(model) {
   return parameterSize ? `${name} (${parameterSize})` : name;
 }
 
-function renderAppOllamaModelSelect(select, aiSettings, ollamaModelStatus) {
+function renderAppAiModelSelect(select, aiSettings, aiModelStatus, profileId = 'normal') {
   if (!select) {
     return;
   }
 
   const settings = normalizeAppAiSettings(aiSettings);
-  const status = normalizeAppOllamaModelStatus(ollamaModelStatus);
-  const selectedModel = settings.ollama.model;
+  const status = normalizeAppAiModelStatus(aiModelStatus);
+  const providerConfig = getAppAiProviderConfig(settings, profileId);
+  const selectedModel = providerConfig.profile.model;
   const models = status.ok ? status.models : [];
   const seen = new Set();
 
@@ -981,7 +1262,7 @@ function renderAppOllamaModelSelect(select, aiSettings, ollamaModelStatus) {
   }
 
   for (const model of models) {
-    appendOption(model.name, getAppOllamaModelOptionLabel(model));
+    appendOption(model.name, getAppAiModelOptionLabel(model));
   }
 
   if (seen.size === 0) {
@@ -994,79 +1275,108 @@ function renderAppOllamaModelSelect(select, aiSettings, ollamaModelStatus) {
   select.value = seen.has(selectedModel)
     ? selectedModel
     : (select.options.length > 0 ? select.options[0].value : '');
-  select.disabled = !settings.enabled || status.checking || select.options.length === 0;
+  select.disabled = !settings.enabled ||
+    (profileId === 'advanced' && !settings.advanced.enabled) ||
+    status.checking ||
+    select.options.length === 0;
 }
 
-async function refreshAppAiOllamaModels() {
+async function refreshAppAiModels(profileId = 'normal') {
+  const normalizedProfileId = profileId === 'advanced' ? 'advanced' : 'normal';
   const state = getAppSettingsState();
   const settings = getAppAiSettings();
+  const providerConfig = getAppAiProviderConfig(settings, normalizedProfileId);
 
-  if (!settings.enabled) {
-    resetAppOllamaModelStatus('Disabled');
+  if (!settings.enabled || (normalizedProfileId === 'advanced' && !settings.advanced.enabled)) {
+    resetAppAiModelStatus(normalizedProfileId, 'Disabled');
     renderAppSettingsControls();
     return;
   }
 
-  if (!window.electronAPI || typeof window.electronAPI.inspectOllama !== 'function') {
-    setAppOllamaModelStatus({
+  if (!window.electronAPI || typeof window.electronAPI.inspectAiProvider !== 'function') {
+    setAppAiModelStatus(normalizedProfileId, {
       checked: true,
       checking: false,
       ok: false,
-      url: settings.ollama.url,
+      url: providerConfig.settings.url,
       models: [],
-      message: 'Ollama inspection is unavailable.',
+      message: `${providerConfig.label} inspection is unavailable.`,
     });
     renderAppSettingsControls();
     return;
   }
 
-  const requestId = state.ollamaModelStatusRequestId + 1;
-  state.ollamaModelStatusRequestId = requestId;
-  setAppOllamaModelStatus({
+  const requestId = state.aiModelStatusRequestIds[normalizedProfileId] + 1;
+  state.aiModelStatusRequestIds[normalizedProfileId] = requestId;
+  setAppAiModelStatus(normalizedProfileId, {
     checked: false,
     checking: true,
     ok: false,
-    url: settings.ollama.url,
-    models: getAppOllamaModelStatus().models,
+    url: providerConfig.settings.url,
+    models: getAppAiModelStatus(normalizedProfileId).models,
     message: 'Checking...',
   });
   renderAppSettingsControls();
 
   let result = null;
   try {
-    result = await window.electronAPI.inspectOllama({
-      url: settings.ollama.url,
+    result = await window.electronAPI.inspectAiProvider({
+      provider: providerConfig.id,
+      profile: normalizedProfileId,
+      url: providerConfig.settings.url,
     });
   } catch (error) {
-    console.error('Unable to inspect Ollama.', error);
+    console.error(`Unable to inspect ${providerConfig.label}.`, error);
   }
 
-  if (state.ollamaModelStatusRequestId !== requestId) {
+  if (state.aiModelStatusRequestIds[normalizedProfileId] !== requestId) {
     return;
   }
 
   if (!result || result.ok !== true) {
-    setAppOllamaModelStatus({
+    setAppAiModelStatus(normalizedProfileId, {
       checked: true,
       checking: false,
       ok: false,
-      url: settings.ollama.url,
+      url: providerConfig.settings.url,
       models: [],
-      message: result && result.message ? result.message : 'Unable to reach Ollama.',
+      message: result && result.message ? result.message : `Unable to reach ${providerConfig.label}.`,
     });
     renderAppSettingsControls();
     return;
   }
 
-  setAppOllamaModelStatus({
+  const firstModel = Array.isArray(result.models) && result.models.length > 0
+    ? String(result.models[0].name || result.models[0].model || '').trim()
+    : '';
+  if (!providerConfig.profile.model && firstModel) {
+    setAppAiSettings({
+      ...settings,
+      [normalizedProfileId]: {
+        ...settings[normalizedProfileId],
+        model: firstModel,
+      },
+    });
+    scheduleAppSettingsSave();
+  }
+
+  setAppAiModelStatus(normalizedProfileId, {
     checked: true,
     checking: false,
     ok: true,
-    url: result.url || settings.ollama.url,
+    url: result.url || providerConfig.settings.url,
     models: result.models,
     message: result.message || 'Connected.',
   });
   renderAppSettingsControls();
+}
+
+function refreshConfiguredAppAiModels() {
+  const settings = getAppAiSettings();
+  refreshAppAiModels('normal');
+  if (settings.advanced.enabled) {
+    refreshAppAiModels('advanced');
+  }
 }
 
 function scheduleAppSettingsSave() {

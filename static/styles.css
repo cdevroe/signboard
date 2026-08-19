@@ -4271,6 +4271,62 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   grid-column: 1 / -1;
 }
 
+.board-settings-ai-profile {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg-card) 96%, var(--border));
+}
+
+.board-settings-ai-profile + .board-settings-ai-profile {
+  margin-top: 4px;
+}
+
+.board-settings-ai-profile-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.board-settings-ai-profile-header h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-md);
+}
+
+.board-settings-ai-profile-header .boardSettingsHint {
+  margin: 3px 0 0;
+}
+
+.board-settings-ai-profile-fields {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.board-settings-ai-profile-fields.is-disabled {
+  opacity: .65;
+}
+
+.board-settings-ai-key-actions input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.board-settings-ai-key-actions button,
+.board-settings-ai-model-actions button {
+  flex: 0 0 auto;
+}
+
+.board-settings-ai-model-actions .board-settings-status {
+  max-width: 210px;
+}
+
 #boardSettingsAiDetails .board-settings-ai-model-actions {
   min-width: 0;
 }
@@ -4761,6 +4817,14 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   .board-settings-inline-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .board-settings-ai-profile-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .board-settings-ai-model-actions .board-settings-status {
+    max-width: none;
   }
 }
 
@@ -5354,6 +5418,32 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 .card-editor-smart-actions-menu {
   display: grid;
   gap: 4px;
+}
+.card-editor-smart-actions-profile-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: color-mix(in oklab, var(--bg) 72%, var(--border));
+}
+.card-editor-smart-actions-profile-button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  font-size: var(--font-xs);
+  font-weight: 700;
+}
+.card-editor-smart-actions-profile-button.is-active {
+  border-color: var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: 0 1px 3px var(--shadow-card);
 }
 .card-editor-smart-action-button {
   width: 100%;

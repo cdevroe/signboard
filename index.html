@@ -535,7 +535,7 @@
             <div class="board-settings-toggle-row">
               <div>
                 <p class="boardSettingsHint boardSettingsHintTight">AI assistance</p>
-                <p class="boardSettingsHint">Use Ollama for local Smart Card Actions in the card editor.</p>
+                <p class="boardSettingsHint">Configure a Normal model and an optional Advanced model using a local or cloud provider.</p>
               </div>
               <label class="board-settings-switch" for="boardSettingsAiToggle" title="Enable AI assistance">
                 <input id="boardSettingsAiToggle" type="checkbox" role="switch" aria-label="Enable AI assistance">
@@ -545,20 +545,14 @@
             <div id="boardSettingsAiDisabledState" class="board-settings-disabled-state">
               <div>
                 <p class="boardSettingsHint boardSettingsHintTight">Smart Actions are off</p>
-                <p class="boardSettingsHint">Enable them to choose an Ollama model and customize card actions.</p>
+                <p class="boardSettingsHint">Enable them to choose AI providers and customize card actions.</p>
               </div>
               <button id="btnEnableAiSmartActions" type="button">Enable Smart Actions</button>
             </div>
           </div>
           <div id="boardSettingsAiDetails" class="board-settings-group hidden" aria-hidden="true">
-            <label for="boardSettingsAiOllamaUrl">Ollama URL</label>
-            <input id="boardSettingsAiOllamaUrl" type="url" value="http://127.0.0.1:11434" placeholder="http://127.0.0.1:11434" spellcheck="false" autocomplete="off">
-            <label for="boardSettingsAiOllamaModel">Ollama model</label>
-            <div class="board-settings-inline-actions board-settings-ai-model-actions">
-              <select id="boardSettingsAiOllamaModel" aria-label="Ollama model"></select>
-              <button id="btnRefreshAiOllamaModels" type="button" title="Refresh Ollama models" aria-label="Refresh Ollama models"><i data-feather="refresh-cw"></i></button>
-              <span id="boardSettingsAiOllamaStatus" class="board-settings-status">Not checked</span>
-            </div>
+            <div id="boardSettingsAiNormalProfile" class="board-settings-ai-profile" data-ai-profile="normal"></div>
+            <div id="boardSettingsAiAdvancedProfile" class="board-settings-ai-profile" data-ai-profile="advanced"></div>
             <div class="board-settings-ai-actions-header">
               <div>
                 <p class="boardSettingsHint boardSettingsHintTight">Smart Card Actions</p>
@@ -567,7 +561,7 @@
               <button id="btnAddAiSmartCardAction" type="button" title="Add Smart Card Action">Add Action</button>
             </div>
             <div id="boardSettingsAiActionsList" class="board-settings-ai-actions-list"></div>
-            <p class="boardSettingsHint">Card content is sent to this Ollama URL only when you use an AI action.</p>
+            <p id="boardSettingsAiPrivacyHint" class="boardSettingsHint">Card content is sent only to the selected model provider when you use an AI action. Cloud API keys are encrypted with your operating system's secure storage.</p>
           </div>
         </section>
 

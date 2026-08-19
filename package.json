@@ -33,6 +33,7 @@
     "test:board-snapshot": "node scripts/test-board-snapshot.js",
     "test:board-duplication": "node scripts/test-board-duplication.js",
     "test:app-settings": "node scripts/test-app-settings.js",
+    "test:ai-credentials": "node scripts/test-ai-credentials.js",
     "test:ai-task-suggestions": "node scripts/test-ai-task-suggestions.js",
     "test:mcp": "node scripts/test-mcp-server.js",
     "test:board-card-metadata": "node scripts/test-board-card-metadata.js",

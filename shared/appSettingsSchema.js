@@ -8,10 +8,13 @@
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createAppSettingsSchema() {
   const APP_SETTINGS_FILE_NAME = 'app-settings.json';
-  const APP_SETTINGS_VERSION = 6;
+  const APP_SETTINGS_VERSION = 9;
   const DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_PORT = 48273;
   const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
   const DEFAULT_OLLAMA_MODEL = 'llama3.2';
+  const DEFAULT_LM_STUDIO_URL = 'http://127.0.0.1:1234';
+  const AI_PROVIDER_IDS = Object.freeze(['ollama', 'lm-studio', 'openai', 'gemini', 'anthropic']);
+  const AI_PROFILE_IDS = Object.freeze(['normal', 'advanced']);
   const SMART_CARD_ACTION_LABEL_MAX_LENGTH = 80;
   const SMART_CARD_ACTION_PROMPT_MAX_LENGTH = 6000;
   const CUSTOM_SMART_CARD_ACTION_LIMIT = 12;
@@ -23,6 +26,33 @@
     content: 'Content',
     due: 'Due Dates',
     attachments: 'Attachments',
+  });
+  const SMART_BOARD_ACTION_LABEL_MAX_LENGTH = 80;
+  const SMART_BOARD_ACTION_DESCRIPTION_MAX_LENGTH = 240;
+  const SMART_BOARD_ACTION_PROMPT_MAX_LENGTH = 8000;
+  const CUSTOM_SMART_BOARD_ACTION_LIMIT = 12;
+  const SMART_BOARD_ACTION_MODES = Object.freeze(['report', 'changes']);
+  const SMART_BOARD_ACTION_MODE_LABELS = Object.freeze({
+    report: 'Read-only report',
+    changes: 'Propose changes',
+  });
+  const SMART_BOARD_ACTION_CAPABILITIES = Object.freeze([
+    'create-card',
+    'update-title',
+    'append-content',
+    'add-labels',
+    'set-dates',
+    'move-card',
+    'archive-card',
+  ]);
+  const SMART_BOARD_ACTION_CAPABILITY_LABELS = Object.freeze({
+    'create-card': 'Create cards',
+    'update-title': 'Rename cards',
+    'append-content': 'Append content',
+    'add-labels': 'Add labels',
+    'set-dates': 'Set dates',
+    'move-card': 'Move cards',
+    'archive-card': 'Archive cards',
   });
   const GLOBAL_SHORTCUT_MAX_LENGTH = 80;
   const DEFAULT_SMART_CARD_ACTIONS = Object.freeze([
@@ -112,6 +142,90 @@
       editable: false,
     }),
   ]);
+  const DEFAULT_SMART_BOARD_ACTIONS = Object.freeze([
+    Object.freeze({
+      id: 'ask-board',
+      mode: 'report',
+      label: 'Ask the Board',
+      description: 'Ask a one-off question about the current board.',
+      prompt: '',
+      capabilities: Object.freeze([]),
+      builtIn: true,
+      editable: false,
+      oneOff: true,
+    }),
+    Object.freeze({
+      id: 'board-brief',
+      mode: 'report',
+      label: 'Board Brief',
+      description: 'Summarize progress, risks, dates, and useful next steps.',
+      prompt: [
+        'Create a concise status brief for this board.',
+        'Cover recent progress, overdue or approaching work, stalled or risky cards, and the three most useful next steps.',
+        'Use the supplied activity timestamps and completed-list information for claims about completed work.',
+        'Reference relevant cards by their exact card IDs.',
+        'Do not invent facts or imply that checked tasks have completion timestamps.',
+      ].join('\n'),
+      capabilities: Object.freeze([]),
+      builtIn: true,
+    }),
+    Object.freeze({
+      id: 'quick-wins',
+      mode: 'report',
+      label: 'Find Quick Wins',
+      description: 'Find small, useful pieces of work that may fit into about 15 minutes.',
+      prompt: [
+        'Find up to six useful cards or incomplete tasks that appear achievable in about 15 minutes.',
+        'Prefer concrete, unblocked work with a small visible scope.',
+        'Treat time estimates as estimates and explain the evidence for each one.',
+        'Reference every recommendation by its exact card ID.',
+      ].join('\n'),
+      capabilities: Object.freeze([]),
+      builtIn: true,
+    }),
+    Object.freeze({
+      id: 'create-cards',
+      mode: 'changes',
+      label: 'Create Cards',
+      description: 'Turn a goal or notes into proposed cards on the current board.',
+      prompt: [
+        'Turn the user request into a small set of useful new cards for this board.',
+        'Use existing lists and labels only.',
+        'Make titles concise and actionable, preserve supplied facts, and include useful Markdown notes or checklists when supported.',
+        'Do not create duplicates of existing cards.',
+      ].join('\n'),
+      capabilities: Object.freeze(['create-card']),
+      builtIn: true,
+      oneOff: true,
+    }),
+    Object.freeze({
+      id: 'clean-up-board',
+      mode: 'changes',
+      label: 'Clean Up Board',
+      description: 'Propose focused improvements to unclear or poorly organized cards.',
+      prompt: [
+        'Review the board for vague titles, missing useful context, obviously missing existing labels or dates, misplaced cards, stale work, and likely duplicates.',
+        'Propose only high-confidence, reversible improvements.',
+        'Do not merge or delete cards. Use archive proposals only for cards that are clearly obsolete or exact duplicates and explain why.',
+        'Keep appended content short and factual.',
+      ].join('\n'),
+      capabilities: Object.freeze(['update-title', 'append-content', 'add-labels', 'set-dates', 'move-card', 'archive-card']),
+      builtIn: true,
+    }),
+    Object.freeze({
+      id: 'label-board',
+      mode: 'changes',
+      label: 'Label Board',
+      description: 'Suggest existing labels for cards that would benefit from them.',
+      prompt: [
+        'Suggest existing board labels for cards that are unlabeled or clearly missing a relevant label.',
+        'Only add labels that already exist on this board.',
+        'Do not remove labels, invent labels, or label a card when no existing label clearly fits.',
+      ].join('\n'),
+      capabilities: Object.freeze(['add-labels']),
+      builtIn: true,
+    }),
+  ]);
   const DEFAULT_NOTIFICATION_SETTINGS = Object.freeze({
     enabled: false,
     time: '09:00',
@@ -127,12 +241,24 @@
   });
   const DEFAULT_AI_SETTINGS = Object.freeze({
     enabled: false,
-    provider: 'ollama',
-    ollama: Object.freeze({
-      url: DEFAULT_OLLAMA_URL,
+    normal: Object.freeze({
+      provider: 'ollama',
       model: DEFAULT_OLLAMA_MODEL,
     }),
+    advanced: Object.freeze({
+      enabled: false,
+      provider: 'ollama',
+      model: '',
+    }),
+    providers: Object.freeze({
+      ollama: Object.freeze({ url: DEFAULT_OLLAMA_URL }),
+      lmStudio: Object.freeze({ url: DEFAULT_LM_STUDIO_URL }),
+      openai: Object.freeze({}),
+      gemini: Object.freeze({}),
+      anthropic: Object.freeze({}),
+    }),
     smartCardActions: DEFAULT_SMART_CARD_ACTIONS,
+    smartBoardActions: DEFAULT_SMART_BOARD_ACTIONS,
   });
 
   function isObject(value) {
@@ -146,9 +272,25 @@
   function cloneDefaultAiSettings() {
     return {
       ...DEFAULT_AI_SETTINGS,
-      ollama: { ...DEFAULT_AI_SETTINGS.ollama },
+      normal: { ...DEFAULT_AI_SETTINGS.normal },
+      advanced: { ...DEFAULT_AI_SETTINGS.advanced },
+      providers: {
+        ollama: { ...DEFAULT_AI_SETTINGS.providers.ollama },
+        lmStudio: { ...DEFAULT_AI_SETTINGS.providers.lmStudio },
+        openai: {},
+        gemini: {},
+        anthropic: {},
+      },
       smartCardActions: cloneDefaultSmartCardActions(),
+      smartBoardActions: cloneDefaultSmartBoardActions(),
     };
+  }
+
+  function cloneDefaultSmartBoardActions() {
+    return DEFAULT_SMART_BOARD_ACTIONS.map((action) => ({
+      ...action,
+      capabilities: [...action.capabilities],
+    }));
   }
 
   function normalizeNotificationTime(value) {
@@ -220,13 +362,29 @@
   }
 
   function normalizeAiProvider(value) {
-    return value === 'ollama' ? 'ollama' : DEFAULT_AI_SETTINGS.provider;
+    const candidate = String(value || '').trim().toLowerCase();
+    return AI_PROVIDER_IDS.includes(candidate)
+      ? candidate
+      : DEFAULT_AI_SETTINGS.normal.provider;
+  }
+
+  function getAiProviderSettingsKey(provider) {
+    return normalizeAiProvider(provider) === 'lm-studio' ? 'lmStudio' : normalizeAiProvider(provider);
+  }
+
+  function normalizeAiModel(value, fallback = '') {
+    const candidate = String(value || '').trim();
+    if (!candidate || candidate.length > 240 || /[\x00-\x1F]/.test(candidate)) {
+      return String(fallback || '').trim();
+    }
+
+    return candidate;
   }
 
   function normalizeOllamaUrl(value) {
     let candidate = String(value || '').trim();
     if (!candidate) {
-      candidate = DEFAULT_AI_SETTINGS.ollama.url;
+      candidate = DEFAULT_OLLAMA_URL;
     }
 
     if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)) {
@@ -236,7 +394,7 @@
     try {
       const parsed = new URL(candidate);
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        return DEFAULT_AI_SETTINGS.ollama.url;
+        return DEFAULT_OLLAMA_URL;
       }
 
       parsed.username = '';
@@ -249,14 +407,56 @@
         : '';
       return `${parsed.origin}${basePath}`;
     } catch {
-      return DEFAULT_AI_SETTINGS.ollama.url;
+      return DEFAULT_OLLAMA_URL;
     }
   }
 
   function normalizeOllamaModel(value) {
     const candidate = String(value || '').trim();
     if (!candidate || candidate.length > 120 || /[\s\x00-\x1F]/.test(candidate)) {
-      return DEFAULT_AI_SETTINGS.ollama.model;
+      return DEFAULT_OLLAMA_MODEL;
+    }
+
+    return candidate;
+  }
+
+  function normalizeLmStudioUrl(value) {
+    let candidate = String(value || '').trim();
+    if (!candidate) {
+      candidate = DEFAULT_LM_STUDIO_URL;
+    }
+
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)) {
+      candidate = `http://${candidate}`;
+    }
+
+    try {
+      const parsed = new URL(candidate);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return DEFAULT_LM_STUDIO_URL;
+      }
+
+      parsed.username = '';
+      parsed.password = '';
+      parsed.search = '';
+      parsed.hash = '';
+
+      let basePath = parsed.pathname && parsed.pathname !== '/'
+        ? parsed.pathname.replace(/\/+$/, '')
+        : '';
+      if (basePath.toLowerCase() === '/v1') {
+        basePath = '';
+      }
+      return `${parsed.origin}${basePath}`;
+    } catch {
+      return DEFAULT_LM_STUDIO_URL;
+    }
+  }
+
+  function normalizeLmStudioModel(value) {
+    const candidate = String(value || '').trim();
+    if (!candidate || candidate.length > 240 || /[\x00-\x1F]/.test(candidate)) {
+      return '';
     }
 
     return candidate;
@@ -404,21 +604,156 @@
     return normalizedActions;
   }
 
+  function normalizeSmartBoardActionMode(value, fallback = 'report') {
+    const candidate = String(value || '').trim().toLowerCase();
+    return SMART_BOARD_ACTION_MODES.includes(candidate)
+      ? candidate
+      : (SMART_BOARD_ACTION_MODES.includes(fallback) ? fallback : 'report');
+  }
+
+  function normalizeSmartBoardActionCapabilities(value, mode = 'report') {
+    if (normalizeSmartBoardActionMode(mode) !== 'changes') {
+      return [];
+    }
+
+    const source = Array.isArray(value) ? value : [];
+    const seen = new Set();
+    return source
+      .map((capability) => String(capability || '').trim().toLowerCase())
+      .filter((capability) => SMART_BOARD_ACTION_CAPABILITIES.includes(capability) && !seen.has(capability) && seen.add(capability));
+  }
+
+  function normalizeSmartBoardActionDescription(value, fallback = '') {
+    const candidate = String(value || '').replace(/\s+/g, ' ').trim();
+    const normalizedFallback = String(fallback || '').replace(/\s+/g, ' ').trim();
+    return (candidate || normalizedFallback).slice(0, SMART_BOARD_ACTION_DESCRIPTION_MAX_LENGTH).trim();
+  }
+
+  function normalizeSmartBoardActionPrompt(value, fallback = '') {
+    const candidate = String(value || '').replace(/\r\n?/g, '\n').trim();
+    const normalizedFallback = String(fallback || '').replace(/\r\n?/g, '\n').trim();
+    return (candidate || normalizedFallback).slice(0, SMART_BOARD_ACTION_PROMPT_MAX_LENGTH).trim();
+  }
+
+  function normalizeSmartBoardActions(rawActions) {
+    const sourceActions = Array.isArray(rawActions) ? rawActions : [];
+    const defaultsById = new Map(DEFAULT_SMART_BOARD_ACTIONS.map((action) => [action.id, action]));
+    const normalizedActions = [];
+    const seenIds = new Set();
+    let customCount = 0;
+
+    for (const action of sourceActions) {
+      if (!isObject(action)) continue;
+      const sourceId = normalizeSmartCardActionId(action.id);
+      const defaultAction = defaultsById.get(sourceId);
+      if (defaultAction && !seenIds.has(defaultAction.id)) {
+        const prompt = defaultAction.editable === false
+          ? defaultAction.prompt
+          : normalizeSmartBoardActionPrompt(
+            Object.prototype.hasOwnProperty.call(action, 'prompt') ? action.prompt : defaultAction.prompt,
+            defaultAction.prompt,
+          );
+        normalizedActions.push({
+          ...defaultAction,
+          description: defaultAction.description,
+          prompt,
+          capabilities: [...defaultAction.capabilities],
+          builtIn: true,
+        });
+        seenIds.add(defaultAction.id);
+        continue;
+      }
+
+      if (action.builtIn === true) continue;
+      const label = normalizeSmartCardActionLabel(action.label);
+      const description = normalizeSmartBoardActionDescription(action.description);
+      const prompt = normalizeSmartBoardActionPrompt(action.prompt);
+      if (!label || !prompt) continue;
+
+      const mode = normalizeSmartBoardActionMode(action.mode);
+      const fallbackId = `custom-board-${customCount + 1}`;
+      let id = normalizeSmartCardActionId(action.id, fallbackId);
+      if (DEFAULT_SMART_BOARD_ACTIONS.some((candidate) => candidate.id === id)) id = fallbackId;
+      while (seenIds.has(id)) id = `custom-board-${customCount + 1}-${seenIds.size + 1}`;
+      normalizedActions.push({
+        id,
+        mode,
+        label,
+        description,
+        prompt,
+        capabilities: normalizeSmartBoardActionCapabilities(action.capabilities, mode),
+        builtIn: false,
+      });
+      seenIds.add(id);
+      customCount += 1;
+      if (customCount >= CUSTOM_SMART_BOARD_ACTION_LIMIT) break;
+    }
+
+    for (const action of DEFAULT_SMART_BOARD_ACTIONS) {
+      if (seenIds.has(action.id)) continue;
+      normalizedActions.push({ ...action, capabilities: [...action.capabilities] });
+      seenIds.add(action.id);
+    }
+    return normalizedActions;
+  }
+
   function normalizeOllamaSettings(rawOllamaSettings) {
     const source = isObject(rawOllamaSettings) ? rawOllamaSettings : {};
     return {
       url: normalizeOllamaUrl(source.url),
-      model: normalizeOllamaModel(source.model),
+    };
+  }
+
+  function normalizeLmStudioSettings(rawLmStudioSettings) {
+    const source = isObject(rawLmStudioSettings) ? rawLmStudioSettings : {};
+    return {
+      url: normalizeLmStudioUrl(source.url),
+    };
+  }
+
+  function normalizeAiProfile(rawProfile, defaults = DEFAULT_AI_SETTINGS.normal, options = {}) {
+    const source = isObject(rawProfile) ? rawProfile : {};
+    const fallback = isObject(defaults) ? defaults : DEFAULT_AI_SETTINGS.normal;
+    const modelFallback = Object.prototype.hasOwnProperty.call(source, 'model') ? '' : fallback.model;
+    return {
+      ...(options.allowDisabled ? { enabled: source.enabled === true } : {}),
+      provider: normalizeAiProvider(source.provider || fallback.provider),
+      model: normalizeAiModel(source.model, modelFallback),
+    };
+  }
+
+  function normalizeAiProviders(rawProviders, legacySource = {}) {
+    const source = isObject(rawProviders) ? rawProviders : {};
+    const legacy = isObject(legacySource) ? legacySource : {};
+    return {
+      ollama: normalizeOllamaSettings(source.ollama || legacy.ollama),
+      lmStudio: normalizeLmStudioSettings(source.lmStudio || legacy.lmStudio),
+      openai: {},
+      gemini: {},
+      anthropic: {},
     };
   }
 
   function normalizeAiSettings(rawAiSettings) {
     const source = isObject(rawAiSettings) ? rawAiSettings : {};
+    const legacyProvider = normalizeAiProvider(source.provider);
+    const legacyProviderKey = getAiProviderSettingsKey(legacyProvider);
+    const legacyProviderSettings = isObject(source[legacyProviderKey]) ? source[legacyProviderKey] : {};
+    const normalSource = isObject(source.normal)
+      ? source.normal
+      : {
+        provider: legacyProvider,
+        ...(Object.prototype.hasOwnProperty.call(legacyProviderSettings, 'model')
+          ? { model: legacyProviderSettings.model }
+          : {}),
+      };
     return {
       enabled: source.enabled === true,
-      provider: normalizeAiProvider(source.provider),
-      ollama: normalizeOllamaSettings(source.ollama),
+      normal: normalizeAiProfile(normalSource, DEFAULT_AI_SETTINGS.normal),
+      advanced: normalizeAiProfile(source.advanced, DEFAULT_AI_SETTINGS.advanced, { allowDisabled: true }),
+      providers: normalizeAiProviders(source.providers, source),
       smartCardActions: normalizeSmartCardActions(source.smartCardActions || source.cardActions),
+      smartBoardActions: normalizeSmartBoardActions(source.smartBoardActions || source.boardActions),
     };
   }
 
@@ -444,23 +779,39 @@
   return {
     APP_SETTINGS_FILE_NAME,
     APP_SETTINGS_VERSION,
+    AI_PROFILE_IDS,
+    AI_PROVIDER_IDS,
     DEFAULT_AI_SETTINGS,
     DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_PORT,
     DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS,
     DEFAULT_NOTIFICATION_SETTINGS,
     DEFAULT_QUICK_ADD_SETTINGS,
     DEFAULT_SMART_CARD_ACTIONS,
+    DEFAULT_SMART_BOARD_ACTIONS,
     DEFAULT_SMART_CARD_ACTION_TARGET,
     DEFAULT_TOOLTIPS_ENABLED,
     CUSTOM_SMART_CARD_ACTION_LIMIT,
+    CUSTOM_SMART_BOARD_ACTION_LIMIT,
     GLOBAL_SHORTCUT_MAX_LENGTH,
     SMART_CARD_ACTION_LABEL_MAX_LENGTH,
     SMART_CARD_ACTION_PROMPT_MAX_LENGTH,
     SMART_CARD_ACTION_TARGETS,
     SMART_CARD_ACTION_TARGET_LABELS,
+    SMART_BOARD_ACTION_LABEL_MAX_LENGTH,
+    SMART_BOARD_ACTION_DESCRIPTION_MAX_LENGTH,
+    SMART_BOARD_ACTION_PROMPT_MAX_LENGTH,
+    SMART_BOARD_ACTION_MODES,
+    SMART_BOARD_ACTION_MODE_LABELS,
+    SMART_BOARD_ACTION_CAPABILITIES,
+    SMART_BOARD_ACTION_CAPABILITY_LABELS,
     cloneDefaultAiSettings,
     cloneDefaultSmartCardActions,
+    cloneDefaultSmartBoardActions,
     isObject,
+    getAiProviderSettingsKey,
+    normalizeAiModel,
+    normalizeAiProfile,
+    normalizeAiProviders,
     normalizeAiProvider,
     normalizeAiSettings,
     normalizeAppSettings,
@@ -470,6 +821,9 @@
     normalizeGlobalShortcutAccelerator,
     normalizeNotificationSettings,
     normalizeNotificationTime,
+    normalizeLmStudioModel,
+    normalizeLmStudioSettings,
+    normalizeLmStudioUrl,
     normalizeOllamaModel,
     normalizeOllamaSettings,
     normalizeOllamaUrl,
@@ -479,6 +833,11 @@
     normalizeSmartCardActionPrompt,
     normalizeSmartCardActionTarget,
     normalizeSmartCardActions,
+    normalizeSmartBoardActionMode,
+    normalizeSmartBoardActionCapabilities,
+    normalizeSmartBoardActionDescription,
+    normalizeSmartBoardActionPrompt,
+    normalizeSmartBoardActions,
     normalizeTooltipsEnabled,
   };
 });

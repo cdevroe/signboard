@@ -195,6 +195,7 @@ let isApplyingExternalEditorRefresh = false;
 let cardEditorDropDepth = 0;
 let cardEditorBodyUrlControlsTeardown = null;
 let cardEditorSmartActionsRequestId = 0;
+let cardEditorSmartActionsProfile = 'normal';
 const CARD_EDITOR_GENERATED_SUMMARY_MARKER = '---\nEnd generated summary';
 const CARD_EDITOR_BODY_URL_PATTERN = /(?:https?:\/\/|www\.)[^\s<>"'`]+/gi;
 
@@ -3338,13 +3339,50 @@ function getCardEditorAiSettings() {
 
     return {
         enabled: false,
-        provider: 'ollama',
-        ollama: {
-            url: 'http://127.0.0.1:11434',
+        normal: {
+            provider: 'ollama',
             model: 'llama3.2',
+        },
+        advanced: {
+            enabled: false,
+            provider: 'ollama',
+            model: '',
+        },
+        providers: {
+            ollama: { url: 'http://127.0.0.1:11434' },
+            lmStudio: { url: 'http://127.0.0.1:1234' },
+            openai: {},
+            gemini: {},
+            anthropic: {},
         },
         smartCardActions: [],
     };
+}
+
+function getCardEditorAiProviderLabel(provider) {
+    return {
+        ollama: 'Ollama',
+        'lm-studio': 'LM Studio',
+        openai: 'OpenAI',
+        gemini: 'Gemini',
+        anthropic: 'Anthropic',
+    }[String(provider || '')] || 'AI provider';
+}
+
+function isCardEditorAdvancedAiAvailable(aiSettings = getCardEditorAiSettings()) {
+    return Boolean(
+        aiSettings &&
+        aiSettings.advanced &&
+        aiSettings.advanced.enabled &&
+        String(aiSettings.advanced.model || '').trim()
+    );
+}
+
+function normalizeCardEditorSmartActionsProfile(aiSettings = getCardEditorAiSettings()) {
+    if (cardEditorSmartActionsProfile === 'advanced' && !isCardEditorAdvancedAiAvailable(aiSettings)) {
+        cardEditorSmartActionsProfile = 'normal';
+    }
+    return cardEditorSmartActionsProfile;
 }
 
 function getCardEditorSmartActions() {
@@ -3414,11 +3452,12 @@ function renderCardEditorSmartActionControls() {
         return;
     }
 
-    const model = aiSettings.ollama && aiSettings.ollama.model
-        ? aiSettings.ollama.model
-        : 'Ollama';
-    button.title = `Smart Card Actions with ${model}`;
-    button.setAttribute('aria-label', `Smart Card Actions with ${model}`);
+    const profileId = normalizeCardEditorSmartActionsProfile(aiSettings);
+    const profile = aiSettings[profileId] || aiSettings.normal || {};
+    const providerLabel = getCardEditorAiProviderLabel(profile.provider);
+    const model = String(profile.model || '').trim() || providerLabel;
+    button.title = `Smart Card Actions with ${profileId === 'advanced' ? 'Advanced' : 'Normal'} model: ${model}`;
+    button.setAttribute('aria-label', button.title);
 }
 
 function getActiveEditorAiLabelNames() {
@@ -3946,6 +3985,35 @@ function renderCardEditorSmartActionsMenu(popover) {
 
     popover.appendChild(createCardEditorSmartActionsMenuHeader());
 
+    const aiSettings = getCardEditorAiSettings();
+    if (isCardEditorAdvancedAiAvailable(aiSettings)) {
+        const profileId = normalizeCardEditorSmartActionsProfile(aiSettings);
+        const profilePicker = document.createElement('div');
+        profilePicker.className = 'card-editor-smart-actions-profile-picker';
+        profilePicker.setAttribute('role', 'group');
+        profilePicker.setAttribute('aria-label', 'Smart Action model');
+        for (const candidate of ['normal', 'advanced']) {
+            const profile = aiSettings[candidate] || {};
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'card-editor-smart-actions-profile-button';
+            button.classList.toggle('is-active', profileId === candidate);
+            button.setAttribute('aria-pressed', String(profileId === candidate));
+            button.setAttribute('aria-label', `Use ${candidate === 'advanced' ? 'Advanced' : 'Normal'} model`);
+            button.title = `${getCardEditorAiProviderLabel(profile.provider)} · ${profile.model || 'No model selected'}`;
+            button.textContent = candidate === 'advanced' ? 'Advanced' : 'Normal';
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                cardEditorSmartActionsProfile = candidate;
+                renderCardEditorSmartActionControls();
+                renderCardEditorSmartActionsMenu(popover);
+            });
+            profilePicker.appendChild(button);
+        }
+        popover.appendChild(profilePicker);
+    }
+
     const menu = document.createElement('div');
     menu.className = 'card-editor-smart-actions-menu';
     for (const action of getCardEditorSmartActions()) {
@@ -4412,6 +4480,12 @@ async function requestCardEditorSmartAction(popover, action, options = {}) {
         return;
     }
 
+    const requestOptions = {
+        ...options,
+        profile: options.profile === 'advanced'
+            ? 'advanced'
+            : normalizeCardEditorSmartActionsProfile(),
+    };
     const requestId = cardEditorSmartActionsRequestId + 1;
     cardEditorSmartActionsRequestId = requestId;
     renderCardEditorSmartActionLoading(popover, action);
@@ -4423,6 +4497,7 @@ async function requestCardEditorSmartAction(popover, action, options = {}) {
             pasteText: typeof options.pasteText === 'string' ? options.pasteText : '',
             prompt: typeof options.prompt === 'string' ? options.prompt : '',
             target: typeof options.target === 'string' ? options.target : '',
+            profile: requestOptions.profile,
         });
         if (requestId !== cardEditorSmartActionsRequestId || !popover.isConnected || popover.classList.contains('hidden')) {
             return;
@@ -4432,17 +4507,17 @@ async function requestCardEditorSmartAction(popover, action, options = {}) {
             if (result && result.debug) {
                 console.error('Smart Card Action debug details:', result.debug);
             }
-            renderCardEditorSmartActionError(popover, result && result.message ? result.message : 'Unable to run Smart Card Action.', action, options);
+            renderCardEditorSmartActionError(popover, result && result.message ? result.message : 'Unable to run Smart Card Action.', action, requestOptions);
             return;
         }
 
-        renderCardEditorSmartActionResult(popover, action, result, options);
+        renderCardEditorSmartActionResult(popover, action, result, requestOptions);
     } catch (error) {
         if (requestId !== cardEditorSmartActionsRequestId || !popover.isConnected || popover.classList.contains('hidden')) {
             return;
         }
         console.error('Unable to run Smart Card Action.', error);
-        renderCardEditorSmartActionError(popover, 'Unable to run Smart Card Action.', action, options);
+        renderCardEditorSmartActionError(popover, 'Unable to run Smart Card Action.', action, requestOptions);
     }
 }
 

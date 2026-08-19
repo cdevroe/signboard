@@ -3488,9 +3488,6 @@ function initializeBoardLabelControls() {
   const quickAddShortcutInput = document.getElementById('boardSettingsQuickAddShortcut');
   const aiToggle = document.getElementById('boardSettingsAiToggle');
   const aiEnableButton = document.getElementById('btnEnableAiSmartActions');
-  const aiOllamaUrlInput = document.getElementById('boardSettingsAiOllamaUrl');
-  const aiOllamaModelSelect = document.getElementById('boardSettingsAiOllamaModel');
-  const aiOllamaRefreshButton = document.getElementById('btnRefreshAiOllamaModels');
   const aiActionsList = document.getElementById('boardSettingsAiActionsList');
   const aiAddActionButton = document.getElementById('btnAddAiSmartCardAction');
   const externalCalendarToggle = document.getElementById('boardSettingsExternalCalendarToggle');
@@ -3852,10 +3849,11 @@ function initializeBoardLabelControls() {
       });
       renderAppSettingsControls();
       scheduleAppSettingsSave();
-      if (event.target.checked && typeof refreshAppAiOllamaModels === 'function') {
-        refreshAppAiOllamaModels();
-      } else if (!event.target.checked && typeof resetAppOllamaModelStatus === 'function') {
-        resetAppOllamaModelStatus('Disabled');
+      if (event.target.checked && typeof refreshConfiguredAppAiModels === 'function') {
+        refreshConfiguredAppAiModels();
+      } else if (!event.target.checked && typeof resetAppAiModelStatus === 'function') {
+        resetAppAiModelStatus('normal', 'Disabled');
+        resetAppAiModelStatus('advanced', 'Disabled');
         renderAppSettingsControls();
       }
     });
@@ -3868,84 +3866,6 @@ function initializeBoardLabelControls() {
       if (aiToggle) {
         aiToggle.checked = true;
         aiToggle.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-  }
-
-  if (aiOllamaUrlInput) {
-    aiOllamaUrlInput.addEventListener('change', (event) => {
-      if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
-        return;
-      }
-
-      const currentSettings = getAppAiSettings();
-      setAppAiSettings({
-        ...currentSettings,
-        ollama: {
-          ...currentSettings.ollama,
-          url: event.target.value,
-        },
-      });
-      if (typeof resetAppOllamaModelStatus === 'function') {
-        resetAppOllamaModelStatus('Not checked');
-      }
-      renderAppSettingsControls();
-      scheduleAppSettingsSave();
-      if (getAppAiSettings().enabled && typeof refreshAppAiOllamaModels === 'function') {
-        refreshAppAiOllamaModels();
-      }
-    });
-
-    aiOllamaUrlInput.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter') {
-        return;
-      }
-
-      event.preventDefault();
-      aiOllamaUrlInput.blur();
-    });
-  }
-
-  if (aiOllamaModelSelect) {
-    aiOllamaModelSelect.addEventListener('change', async (event) => {
-      const selectedModel = event.target.value;
-      if (typeof getAppAiSettings !== 'function' || typeof setAppAiSettings !== 'function') {
-        return;
-      }
-
-      const currentSettings = getAppAiSettings();
-      setAppAiSettings({
-        ...currentSettings,
-        ollama: {
-          ...currentSettings.ollama,
-          model: selectedModel,
-        },
-      });
-
-      const shouldRender = typeof waitForNativeSelectChangeToSettle !== 'function' ||
-        await waitForNativeSelectChangeToSettle(aiOllamaModelSelect, selectedModel);
-      scheduleAppSettingsSave();
-      if (shouldRender) {
-        renderAppSettingsControls();
-      }
-    });
-
-    aiOllamaModelSelect.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter') {
-        return;
-      }
-
-      event.preventDefault();
-      aiOllamaModelSelect.blur();
-    });
-  }
-
-  if (aiOllamaRefreshButton) {
-    aiOllamaRefreshButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof refreshAppAiOllamaModels === 'function') {
-        refreshAppAiOllamaModels();
       }
     });
   }

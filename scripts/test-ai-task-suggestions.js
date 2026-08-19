@@ -7,6 +7,11 @@ const {
   DEFAULT_TITLE_NUM_PREDICT,
   buildOllamaChatUrl,
   buildOllamaTagsUrl,
+  buildLmStudioChatUrl,
+  buildLmStudioModelsUrl,
+  buildOpenAiChatUrl,
+  buildGeminiGenerateUrl,
+  buildAnthropicMessagesUrl,
   extractExistingChecklistItems,
   extractSuggestedAnswerFromContent,
   extractSuggestedAttachmentsFromContent,
@@ -16,18 +21,33 @@ const {
   extractSuggestedTasksFromContent,
   extractSuggestedTitleFromContent,
   listOllamaModels,
+  listLmStudioModels,
+  listOpenAiModels,
+  listGeminiModels,
+  listAnthropicModels,
+  normalizeLmStudioBaseUrl,
+  normalizeLmStudioModelList,
+  normalizeCloudModelList,
   normalizeOllamaBaseUrl,
   normalizeOllamaModelList,
   normalizeSmartCardActionTarget,
   normalizeSuggestedTaskItems,
   runSmartCardActionWithOllama,
+  runSmartCardActionWithLmStudio,
   suggestCardTasksWithOllama,
+  suggestCardTasksWithLmStudio,
+  suggestCardTasksWithOpenAi,
+  suggestCardTasksWithGemini,
+  suggestCardTasksWithAnthropic,
 } = require('../lib/aiTaskSuggestions');
 
 async function run() {
   assert.strictEqual(normalizeOllamaBaseUrl('localhost:11434/'), 'http://localhost:11434');
   assert.strictEqual(buildOllamaChatUrl('http://127.0.0.1:11434'), 'http://127.0.0.1:11434/api/chat');
   assert.strictEqual(buildOllamaTagsUrl('http://127.0.0.1:11434'), 'http://127.0.0.1:11434/api/tags');
+  assert.strictEqual(normalizeLmStudioBaseUrl('localhost:1234/v1/'), 'http://localhost:1234');
+  assert.strictEqual(buildLmStudioChatUrl('http://127.0.0.1:1234'), 'http://127.0.0.1:1234/v1/chat/completions');
+  assert.strictEqual(buildLmStudioModelsUrl('http://127.0.0.1:1234/v1'), 'http://127.0.0.1:1234/v1/models');
 
   assert.deepStrictEqual(normalizeOllamaModelList([
     { name: 'llama3.2:latest', size: 123 },
@@ -38,6 +58,119 @@ async function run() {
     'llama3.2:latest',
     'qwen2.5:7b',
   ]);
+
+  assert.deepStrictEqual(normalizeLmStudioModelList([
+    { id: 'lmstudio-community/Qwen3-4B-GGUF', owned_by: 'lmstudio-community' },
+    { id: 'openai/gpt-oss-20b' },
+    { id: 'openai/gpt-oss-20b' },
+    {},
+  ]).map((model) => model.name), [
+    'lmstudio-community/Qwen3-4B-GGUF',
+    'openai/gpt-oss-20b',
+  ]);
+
+  assert.deepStrictEqual(normalizeCloudModelList([
+    { id: 'gpt-test-chat' },
+    { id: 'text-embedding-test' },
+    { id: 'gpt-test-chat' },
+  ], 'openai').map((model) => model.name), ['gpt-test-chat']);
+  assert.deepStrictEqual(normalizeCloudModelList([
+    { name: 'models/gemini-test', supportedGenerationMethods: ['generateContent'] },
+    { name: 'models/embedding-test', supportedGenerationMethods: ['embedContent'] },
+  ], 'gemini').map((model) => model.name), ['gemini-test']);
+
+  const cloudModelListCases = [
+    {
+      list: listOpenAiModels,
+      apiKey: 'openai-key',
+      response: { data: [{ id: 'gpt-test-chat' }] },
+      expectedModel: 'gpt-test-chat',
+      expectedHeader: ['Authorization', 'Bearer openai-key'],
+    },
+    {
+      list: listGeminiModels,
+      apiKey: 'gemini-key',
+      response: { models: [{ name: 'models/gemini-test', supportedGenerationMethods: ['generateContent'] }] },
+      expectedModel: 'gemini-test',
+      expectedHeader: ['x-goog-api-key', 'gemini-key'],
+    },
+    {
+      list: listAnthropicModels,
+      apiKey: 'anthropic-key',
+      response: { data: [{ id: 'claude-test' }] },
+      expectedModel: 'claude-test',
+      expectedHeader: ['x-api-key', 'anthropic-key'],
+    },
+  ];
+  for (const testCase of cloudModelListCases) {
+    let request = null;
+    const listed = await testCase.list({ apiKey: testCase.apiKey }, {
+      fetchImpl: async (url, options) => {
+        request = { url, options };
+        return { ok: true, status: 200, json: async () => testCase.response };
+      },
+    });
+    assert.strictEqual(listed.models[0].name, testCase.expectedModel);
+    assert.strictEqual(request.options.headers[testCase.expectedHeader[0]], testCase.expectedHeader[1]);
+  }
+
+  const cloudSuggestionCases = [
+    {
+      provider: 'openai',
+      suggest: suggestCardTasksWithOpenAi,
+      settings: { apiKey: 'openai-key', model: 'gpt-test-chat' },
+      endpoint: buildOpenAiChatUrl(),
+      response: { choices: [{ message: { content: '{"tasks":["Draft brief"]}' }, finish_reason: 'stop' }] },
+      assertRequest(body, headers) {
+        assert.strictEqual(headers.Authorization, 'Bearer openai-key');
+        assert.strictEqual(body.response_format.type, 'json_schema');
+        assert.strictEqual(body.store, false);
+      },
+    },
+    {
+      provider: 'gemini',
+      suggest: suggestCardTasksWithGemini,
+      settings: { apiKey: 'gemini-key', model: 'gemini-test' },
+      endpoint: buildGeminiGenerateUrl('gemini-test'),
+      response: { candidates: [{ content: { parts: [{ text: '{"tasks":["Draft brief"]}' }] }, finishReason: 'STOP' }] },
+      assertRequest(body, headers) {
+        assert.strictEqual(headers['x-goog-api-key'], 'gemini-key');
+        assert.strictEqual(body.generationConfig.responseMimeType, 'application/json');
+        assert.strictEqual(body.generationConfig.responseSchema.type, 'object');
+      },
+    },
+    {
+      provider: 'anthropic',
+      suggest: suggestCardTasksWithAnthropic,
+      settings: { apiKey: 'anthropic-key', model: 'claude-test' },
+      endpoint: buildAnthropicMessagesUrl(),
+      response: { content: [{ type: 'text', text: '{"tasks":["Draft brief"]}' }], stop_reason: 'end_turn' },
+      assertRequest(body, headers) {
+        assert.strictEqual(headers['x-api-key'], 'anthropic-key');
+        assert.strictEqual(headers['anthropic-version'], '2023-06-01');
+        assert.strictEqual(body.output_config.format.type, 'json_schema');
+      },
+    },
+  ];
+  for (const testCase of cloudSuggestionCases) {
+    let captured = null;
+    const suggestion = await testCase.suggest(testCase.settings, { title: 'Launch project' }, {
+      currentDate: '2026-08-18',
+      fetchImpl: async (url, options) => {
+        captured = { url, options };
+        return { ok: true, status: 200, json: async () => testCase.response };
+      },
+    });
+    assert.strictEqual(captured.url, testCase.endpoint);
+    testCase.assertRequest(JSON.parse(captured.options.body), captured.options.headers);
+    assert.deepStrictEqual(suggestion.tasks, ['Draft brief']);
+    assert.strictEqual(suggestion.provider, testCase.provider);
+  }
+
+  await assert.rejects(
+    suggestCardTasksWithOpenAi({ model: 'gpt-test-chat' }, { title: 'No key' }),
+    (error) => error && error.code === 'AI_API_KEY_MISSING',
+  );
 
   assert.deepStrictEqual(normalizeSuggestedTaskItems([
     '- [ ] Confirm venue',
@@ -535,6 +668,107 @@ Here are useful tasks:
     'llama3.2:latest',
     'qwen2.5:7b',
   ]);
+
+  let capturedLmStudioModelsRequest = null;
+  const lmStudioModelList = await listLmStudioModels({
+    url: 'http://127.0.0.1:1234',
+  }, {
+    fetchImpl: async (url, request) => {
+      capturedLmStudioModelsRequest = { url, request };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          object: 'list',
+          data: [
+            { id: 'lmstudio-community/Qwen3-4B-GGUF', owned_by: 'lmstudio-community' },
+            { id: 'openai/gpt-oss-20b' },
+          ],
+        }),
+      };
+    },
+  });
+  assert.strictEqual(capturedLmStudioModelsRequest.url, 'http://127.0.0.1:1234/v1/models');
+  assert.strictEqual(capturedLmStudioModelsRequest.request.method, 'GET');
+  assert.deepStrictEqual(lmStudioModelList.models.map((model) => model.name), [
+    'lmstudio-community/Qwen3-4B-GGUF',
+    'openai/gpt-oss-20b',
+  ]);
+
+  let capturedLmStudioTaskRequest = null;
+  const lmStudioTaskResult = await suggestCardTasksWithLmStudio({
+    url: 'http://127.0.0.1:1234',
+    model: 'lmstudio-community/Qwen3-4B-GGUF',
+    taskCount: 4,
+  }, {
+    title: 'Prepare launch',
+    body: '- [ ] Confirm date',
+  }, {
+    currentDate: '2026-08-10',
+    fetchImpl: async (url, request) => {
+      capturedLmStudioTaskRequest = { url, request };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: JSON.stringify({ tasks: ['Draft announcement', 'Confirm reviewers'] }),
+            },
+          }],
+        }),
+      };
+    },
+  });
+  const lmStudioTaskBody = JSON.parse(capturedLmStudioTaskRequest.request.body);
+  assert.strictEqual(capturedLmStudioTaskRequest.url, 'http://127.0.0.1:1234/v1/chat/completions');
+  assert.strictEqual(lmStudioTaskBody.model, 'lmstudio-community/Qwen3-4B-GGUF');
+  assert.strictEqual(lmStudioTaskBody.stream, false);
+  assert.strictEqual(lmStudioTaskBody.max_tokens, DEFAULT_TASK_NUM_PREDICT);
+  assert.strictEqual(lmStudioTaskBody.response_format.type, 'json_schema');
+  assert.strictEqual(lmStudioTaskBody.response_format.json_schema.schema.properties.tasks.minItems, 1);
+  assert.deepStrictEqual(lmStudioTaskResult.tasks, ['Draft announcement', 'Confirm reviewers']);
+  assert.strictEqual(lmStudioTaskResult.provider, 'lm-studio');
+
+  let capturedLmStudioActionRequest = null;
+  const lmStudioActionResult = await runSmartCardActionWithLmStudio({
+    url: 'http://127.0.0.1:1234/v1',
+    model: 'openai/gpt-oss-20b',
+  }, {
+    id: 'generate-title',
+    type: 'title',
+    label: 'Generate new title',
+    prompt: 'Improve the title.',
+    builtIn: true,
+  }, {
+    title: 'stuff',
+    body: 'Prepare release notes for next week.',
+  }, {
+    fetchImpl: async (url, request) => {
+      capturedLmStudioActionRequest = { url, request };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: JSON.stringify({ title: 'Prepare next week\'s release notes' }),
+            },
+          }],
+        }),
+      };
+    },
+  });
+  const lmStudioActionBody = JSON.parse(capturedLmStudioActionRequest.request.body);
+  assert.strictEqual(capturedLmStudioActionRequest.url, 'http://127.0.0.1:1234/v1/chat/completions');
+  assert.strictEqual(lmStudioActionBody.max_tokens, DEFAULT_TITLE_NUM_PREDICT);
+  assert.deepStrictEqual(lmStudioActionBody.response_format.json_schema.schema.required, ['title']);
+  assert.strictEqual(lmStudioActionResult.title, "Prepare next week's release notes");
+  assert.strictEqual(lmStudioActionResult.provider, 'lm-studio');
 
   console.log('AI task suggestion tests passed.');
 }

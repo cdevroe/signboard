@@ -27,7 +27,7 @@ Signboard is free for personal use. If you are using Signboard for your work, it
 - ✅ Progress counters on cards
 - 🔎 Live search
 - 🗄️ Linked files and URLs on cards
-- ✨ Optional local Ollama Smart Card Actions for titles, summaries, task lists, auto-labeling, smart paste, due dates, linked objects, one-off quick prompts, read-only card questions, and drag-reorderable custom actions
+- ✨ Optional Smart Card Actions through Ollama, LM Studio, OpenAI, Gemini, or Anthropic, with independently configured Normal and Advanced models for titles, summaries, task lists, auto-labeling, smart paste, due dates, linked objects, one-off quick prompts, read-only card questions, and drag-reorderable custom actions
 - 🧲 Drag-and-drop card movement
 - ⚡ Unlimited open boards with overflow tabs and a quick switcher
 - 🧬 Board duplication from Settings with fresh copied-card IDs
