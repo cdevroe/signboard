@@ -152,7 +152,7 @@ async function startFakeSmartBoardOllamaServer(models) {
         setTimeout(() => {
           response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
           response.end(JSON.stringify({ message: { content: JSON.stringify(content) }, done_reason: 'stop' }));
-        }, 120);
+        }, isCreate ? 120 : 500);
       });
       return;
     }
@@ -3525,6 +3525,22 @@ test('runs Smart Board Actions, reviews card creation, and customizes board acti
     const resultModal = page.locator('#modalSmartBoardActionResult');
     await expect(resultModal).toBeVisible();
     await expect(resultModal.locator('.smart-board-action-loading-dots')).toBeVisible();
+    await expect(page.locator('#smartBoardActionResultStatus')).toHaveClass(/sr-only/);
+    const loadingLayout = await resultModal.locator('.smart-board-action-result-body').evaluate((body) => {
+      const loading = body.querySelector('.smart-board-action-loading');
+      const bodyBounds = body.getBoundingClientRect();
+      const loadingBounds = loading.getBoundingClientRect();
+      return {
+        alignContent: getComputedStyle(body).alignContent,
+        bodyHeight: bodyBounds.height,
+        loadingHeight: loadingBounds.height,
+        verticalOffset: Math.abs(
+          (bodyBounds.top + bodyBounds.height / 2) - (loadingBounds.top + loadingBounds.height / 2),
+        ),
+      };
+    });
+    expect(loadingLayout.alignContent).toBe('center');
+    expect(loadingLayout.verticalOffset).toBeLessThan(2);
     await expect(resultModal.locator('.smart-board-action-report')).toContainText('Board brief');
     await expect(page.locator('#smartBoardActionResultContext')).toContainText('3 of 3 cards included');
     await expect(page.locator('#smartBoardActionApplyChanges')).toBeHidden();

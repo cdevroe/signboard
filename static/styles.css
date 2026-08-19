@@ -5059,7 +5059,7 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 .smart-board-action-result-modal.hidden { display: none !important; }
 .smart-board-action-result-body { display: grid; min-height: 0; align-content: start; grid-auto-rows: max-content; gap: 14px; overflow-y: auto; overscroll-behavior: contain; padding: 12px 4px 16px 2px; }
-.smart-board-action-result-body.is-loading { min-height: min(280px, calc(100vh - 220px)); place-items: center; }
+.smart-board-action-result-body.is-loading { min-height: min(280px, calc(100vh - 220px)); place-content: center; padding-bottom: 12px; }
 .smart-board-action-result-body h3 { margin: 8px 0 -6px; font-size: var(--font-md); }
 
 .smart-board-action-loading {
@@ -5182,7 +5182,7 @@ button.smart-board-action-card-reference:hover {
 .smart-board-action-result-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border);

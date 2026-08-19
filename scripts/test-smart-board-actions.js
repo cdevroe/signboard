@@ -5,7 +5,11 @@ const {
   getSmartBoardActionJsonSchema,
   normalizeSmartBoardActionResult,
 } = require('../lib/smartBoardActions');
-const { runSmartBoardActionWithOllama } = require('../lib/aiTaskSuggestions');
+const {
+  DEFAULT_OLLAMA_TIMEOUT_MS,
+  DEFAULT_SMART_BOARD_OLLAMA_TIMEOUT_MS,
+  runSmartBoardActionWithOllama,
+} = require('../lib/aiTaskSuggestions');
 
 async function run() {
   const snapshot = {
@@ -120,6 +124,8 @@ async function run() {
   assert.strictEqual(providerResult.cards[0].cardId, 'Ab123');
   assert.strictEqual(requestBody.format.type, 'object');
   assert(requestBody.messages[0].content.includes('untrusted board data'));
+  assert.strictEqual(DEFAULT_OLLAMA_TIMEOUT_MS, 45000);
+  assert.strictEqual(DEFAULT_SMART_BOARD_OLLAMA_TIMEOUT_MS, 300000);
 
   console.log('Smart Board Action tests passed.');
 }
