@@ -502,7 +502,30 @@ const test = base.extend({
     }
   },
 
-  electronApp: async ({ userDataDir }, use) => {
+  omarchyThemeDir: async ({}, use) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-playwright-omarchy-'));
+    const themeDirectory = path.join(root, 'current', 'theme');
+    await fs.mkdir(themeDirectory, { recursive: true });
+    await fs.writeFile(path.join(themeDirectory, 'colors.toml'), [
+      'mode = "dark"',
+      'accent = "#7aa2f7"',
+      'background = "#1a1b26"',
+      'lighter_background = "#24283b"',
+      'foreground = "#c0caf5"',
+      'muted = "#565f89"',
+      'selection = "#33467c"',
+      '',
+    ].join('\n'), 'utf8');
+    await fs.writeFile(path.join(path.dirname(themeDirectory), 'theme.name'), 'Tokyo Night\n', 'utf8');
+
+    try {
+      await use(themeDirectory);
+    } finally {
+      await removePathWithRetries(root, { recursive: true, force: true });
+    }
+  },
+
+  electronApp: async ({ userDataDir, omarchyThemeDir }, use) => {
     const app = await electron.launch({
       executablePath: electronBinary,
       args: ['.'],
@@ -510,6 +533,7 @@ const test = base.extend({
       env: {
         ...process.env,
         SIGNBOARD_USER_DATA_DIR: userDataDir,
+        SIGNBOARD_OMARCHY_THEME_DIR: omarchyThemeDir,
         SIGNBOARD_TEST_DISABLE_EXTERNAL_OPEN: '1',
         SIGNBOARD_TEST_DISABLE_FAVICON_FETCH: '1',
         SIGNBOARD_TEST_ALLOW_DIRECT_LINKED_OBJECT_PATHS: '1',
@@ -1651,6 +1675,15 @@ test('drops cards into the lower area of an empty list column', async ({ page, b
     emptyListCards.map((fileName) => fs.rm(path.join(emptyListPath, fileName), { force: true }))
   );
   await seedBoardState(page, boardRoot);
+  await page.waitForTimeout(650);
+  await page.evaluate(() => {
+    const originalRenderBoard = window.renderBoard;
+    window.__postDropRenderCount = 0;
+    window.renderBoard = async (...args) => {
+      window.__postDropRenderCount += 1;
+      return originalRenderBoard(...args);
+    };
+  });
 
   const firstList = page.locator('.list').first();
   const emptyList = page.locator('.list').nth(1);
@@ -1720,6 +1753,14 @@ test('drops cards into the lower area of an empty list column', async ({ page, b
 
   await expect(emptyList.locator('.card').filter({ hasText: 'Plan release notes' })).toBeVisible();
   await expect(firstList.locator('.card').filter({ hasText: 'Plan release notes' })).toHaveCount(0);
+
+  await emptyList.locator('.list-actions-button').click();
+  await expect(page.locator('#listActionsPopover').getByRole('button', { name: 'Archive cards in this list' })).toBeEnabled();
+  await page.keyboard.press('Escape');
+
+  await page.waitForTimeout(800);
+  const postDropRenderCount = await page.evaluate(() => Number(window.__postDropRenderCount || 0));
+  expect(postDropRenderCount).toBe(0);
 });
 
 test('drops cards into the lower area of a short non-empty list column', async ({ page }) => {
@@ -1787,6 +1828,7 @@ test('opens the list actions popover and routes Add new card through the existin
   await expect(page.locator('#listActionsPopover')).toBeVisible();
   await expect(page.locator('#listActionsPopover')).toContainText('Add new card');
   await expect(page.locator('#listActionsPopover')).toContainText('Add new list');
+  await expect(page.locator('#listActionsPopover')).toContainText('Order cards by due date');
   await expect(page.locator('#listActionsPopover')).toContainText('Archive cards in this list');
   await expect(page.locator('#listActionsPopover')).toContainText('Archive this list');
 
@@ -2076,6 +2118,69 @@ test('adds a new list to the right of the invoking list from the list actions po
   }).toMatch(/^001-Review-[A-Za-z0-9]{5}$/);
 });
 
+test('orders cards in a list by due date as a one-time action', async ({ page, boardRoot }) => {
+  const listPath = path.join(boardRoot, '000-To-do-stock');
+  await cardFrontmatter.writeCard(path.join(listPath, '001-later-card-aaaaa.md'), {
+    frontmatter: {
+      title: 'Later dated card',
+      due: '2026-05-10',
+    },
+    body: '',
+  });
+  await cardFrontmatter.writeCard(path.join(listPath, '002-task-due-bbbbb.md'), {
+    frontmatter: {
+      title: 'Earlier task-dated card',
+    },
+    body: '- [ ] (due: 2026-04-01) Finish the dated task',
+  });
+  await cardFrontmatter.writeCard(path.join(listPath, '003-undated-ccccc.md'), {
+    frontmatter: {
+      title: 'Second undated card',
+    },
+    body: '',
+  });
+
+  await page.evaluate(async () => {
+    await renderBoard();
+    window.__lastDueOrderConfirmMessage = '';
+    window.confirm = (message) => {
+      window.__lastDueOrderConfirmMessage = String(message || '');
+      return true;
+    };
+  });
+
+  const firstList = page.locator('.list').first();
+  await expect(firstList.locator('.card')).toHaveCount(4);
+  await firstList.locator('.list-actions-button').click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Order cards by due date' }).click();
+
+  await expect.poll(async () => {
+    return await page.evaluate(() => window.__lastDueOrderConfirmMessage);
+  }).toBe('Order every card in "To-do" by due date?\n\nCards will be ordered from earliest to latest. Cards without due dates will be placed last. This can\'t be undone.');
+  await expect(page.locator('#listActionsPopover')).toBeHidden();
+  await expect(firstList.locator('.card h3')).toHaveText([
+    'Earlier task-dated card',
+    'Later dated card',
+    'Plan release notes',
+    'Second undated card',
+  ]);
+
+  await expect.poll(async () => {
+    const cardFiles = (await fs.readdir(listPath))
+      .filter((entry) => entry.endsWith('.md'))
+      .sort();
+    return await Promise.all(cardFiles.map(async (cardFile) => {
+      const card = await cardFrontmatter.readCard(path.join(listPath, cardFile));
+      return card.frontmatter.title;
+    }));
+  }).toEqual([
+    'Earlier task-dated card',
+    'Later dated card',
+    'Plan release notes',
+    'Second undated card',
+  ]);
+});
+
 test('archives all cards in a list from the list actions popover', async ({ page, boardRoot }) => {
   await page.evaluate(() => {
     window.__lastArchiveConfirmMessage = '';
@@ -2325,6 +2430,71 @@ test('navigates and closes board tabs from the keyboard', async ({ electronApp, 
   await page.keyboard.press('Backspace');
   await expect(page.locator('#boardTabs')).not.toContainText('Ideas Board');
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem('openBoardPaths') || '[]').length)).toBe(2);
+});
+
+test('refreshes current Planner dates after a local day rollover without moving browsed dates', async ({ page }) => {
+  await openCurrentBoardPlannerView(page, '3', '.planner-this-week');
+
+  const trackedResult = await page.evaluate(async () => {
+    const currentDay = new Date();
+    currentDay.setHours(12, 0, 0, 0);
+    const previouslyObservedDay = new Date(
+      currentDay.getFullYear(),
+      currentDay.getMonth(),
+      currentDay.getDate() - 7,
+      12,
+      0,
+      0,
+      0,
+    );
+
+    localDayLastObservedIso = formatIsoLocalDate(previouslyObservedDay);
+    setPlannerWeekCursorDate(previouslyObservedDay);
+    const changed = await runLocalDayRolloverCheck(currentDay);
+    return {
+      changed,
+      currentWeek: formatIsoLocalDate(createWeekCursorDate(currentDay)),
+      renderedWeek: formatIsoLocalDate(getPlannerWeekCursorDate()),
+    };
+  });
+
+  expect(trackedResult.changed).toBe(true);
+  expect(trackedResult.renderedWeek).toBe(trackedResult.currentWeek);
+  await expect(page.locator('.planner-this-week .board-this-week-day.is-today')).toHaveCount(1);
+
+  const pinnedResult = await page.evaluate(async () => {
+    const currentDay = new Date();
+    currentDay.setHours(12, 0, 0, 0);
+    const previouslyObservedDay = new Date(
+      currentDay.getFullYear(),
+      currentDay.getMonth(),
+      currentDay.getDate() - 1,
+      12,
+      0,
+      0,
+      0,
+    );
+    const pinnedDay = new Date(
+      currentDay.getFullYear(),
+      currentDay.getMonth(),
+      currentDay.getDate() - 21,
+      12,
+      0,
+      0,
+      0,
+    );
+
+    localDayLastObservedIso = formatIsoLocalDate(previouslyObservedDay);
+    setPlannerWeekCursorDate(pinnedDay);
+    const expectedPinnedWeek = formatIsoLocalDate(getPlannerWeekCursorDate());
+    await runLocalDayRolloverCheck(currentDay);
+    return {
+      expectedPinnedWeek,
+      renderedWeek: formatIsoLocalDate(getPlannerWeekCursorDate()),
+    };
+  });
+
+  expect(pinnedResult.renderedWeek).toBe(pinnedResult.expectedPinnedWeek);
 });
 
 test('opens Planner across currently open boards', async ({ electronApp, boardRoot }) => {
@@ -2597,6 +2767,68 @@ test('opens settings from the renderer keyboard shortcut', async ({ page }) => {
   await page.locator('label[for="boardSettingsNotificationsToggle"]').click();
   await expect(notificationsDetails).toBeHidden();
   await expect(notificationsDetails).toHaveAttribute('aria-hidden', 'true');
+});
+
+test('follows detected Omarchy colors and theme replacements until manually overridden', async ({ page, omarchyThemeDir }) => {
+  await page.keyboard.press(getShortcut('Comma'));
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+
+  const appearanceGroup = page.locator('#boardSettingsAppearanceGroup');
+  const themeSource = page.locator('#boardSettingsThemeSource');
+  await expect(appearanceGroup).toBeVisible();
+  await expect(themeSource.locator('option[value="omarchy"]')).toContainText('Tokyo Night');
+  await themeSource.selectOption('omarchy');
+
+  await expect.poll(async () => page.evaluate(() => ({
+    source: document.documentElement.dataset.appThemeSource || '',
+    mode: document.documentElement.dataset.theme || '',
+    background: document.documentElement.style.getPropertyValue('--sb-omarchy-bg').trim(),
+  }))).toEqual({
+    source: 'omarchy',
+    mode: 'dark',
+    background: '#1a1b26',
+  });
+  await expect.poll(async () => page.evaluate(async () => (
+    await window.electronAPI.readAppSettings()
+  ).appearance.themeSource)).toBe('omarchy');
+
+  const currentDirectory = path.dirname(omarchyThemeDir);
+  const nextThemeDirectory = path.join(currentDirectory, 'next-theme');
+  const previousThemeDirectory = path.join(currentDirectory, 'previous-theme');
+  await fs.mkdir(nextThemeDirectory, { recursive: true });
+  await fs.writeFile(path.join(nextThemeDirectory, 'colors.toml'), [
+    'mode = "light"',
+    'accent = "#005faf"',
+    'background = "#f6f6f6"',
+    'lighter_background = "#ffffff"',
+    'foreground = "#202020"',
+    'muted = "#666666"',
+    '',
+  ].join('\n'), 'utf8');
+  await fs.rename(omarchyThemeDir, previousThemeDirectory);
+  await fs.rename(nextThemeDirectory, omarchyThemeDir);
+  await fs.writeFile(path.join(currentDirectory, 'theme.name'), 'Paper\n', 'utf8');
+  await removePathWithRetries(previousThemeDirectory, { recursive: true, force: true });
+
+  await expect.poll(async () => page.evaluate(() => ({
+    mode: document.documentElement.dataset.theme || '',
+    background: document.documentElement.style.getPropertyValue('--sb-omarchy-bg').trim(),
+  })), { timeout: 5000 }).toEqual({
+    mode: '',
+    background: '#f6f6f6',
+  });
+  await expect(themeSource.locator('option[value="omarchy"]')).toContainText('Paper');
+
+  await page.locator('#boardSettingsClose').click();
+  await openBoardMenu(page);
+  await page.locator('#themeToggle').click();
+  await expect.poll(async () => page.evaluate(async () => ({
+    source: document.documentElement.dataset.appThemeSource || '',
+    savedSource: (await window.electronAPI.readAppSettings()).appearance.themeSource,
+  }))).toEqual({
+    source: '',
+    savedSource: 'signboard',
+  });
 });
 
 test('opens Planner Agenda from an active editor view shortcut after closing the editor', async ({ page }) => {

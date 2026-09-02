@@ -1,6 +1,12 @@
 {
   "appId": "com.cdevroe.signboard",
   "productName": "Signboard",
+  "protocols": [
+    {
+      "name": "Signboard",
+      "schemes": ["signboard"]
+    }
+  ],
   "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
   "files": [
     "app/**",
@@ -34,7 +40,7 @@
     "gatekeeperAssess": false
   },
   "linux": {
-    "target": ["AppImage", "deb", "rpm"],
+    "target": ["AppImage", "deb", "pacman", "rpm"],
     "category": "Utility",
     "icon": "build/icons"
   },

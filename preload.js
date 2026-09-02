@@ -105,6 +105,7 @@ contextBridge.exposeInMainWorld('board', {
     invokeBoard('recordCardListMove', cardPath, fromListPath, toListPath),
   reorderCardsInList: async (listPath, orderedCardPaths) =>
     invokeBoard('reorderCardsInList', listPath, orderedCardPaths),
+  orderCardsByDueDate: async (listPath) => invokeBoard('orderCardsByDueDate', listPath),
   reorderLists: async (orderedListPaths) => invokeBoard('reorderLists', orderedListPaths),
   moveCardToTop: async (cardPath, targetListPath) => invokeBoard('moveCardToTop', cardPath, targetListPath),
   moveCard: async (src, dst) => invokeBoard('moveCard', src, dst),
@@ -254,6 +255,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('toggle-theme-mode', listener);
     };
   },
+  onOmarchyThemeChanged: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = (_event, status) => {
+      callback(status);
+    };
+
+    ipcRenderer.on('omarchy-theme-changed', listener);
+    return () => {
+      ipcRenderer.removeListener('omarchy-theme-changed', listener);
+    };
+  },
   onSwitchBoardView: (callback) => {
     if (typeof callback !== 'function') {
       return () => {};
@@ -266,6 +281,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('switch-board-view', listener);
     return () => {
       ipcRenderer.removeListener('switch-board-view', listener);
+    };
+  },
+  onSystemResume: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    const listener = () => {
+      callback();
+    };
+
+    ipcRenderer.on('system-resume', listener);
+    return () => {
+      ipcRenderer.removeListener('system-resume', listener);
     };
   },
 });

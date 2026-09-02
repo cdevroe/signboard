@@ -4,6 +4,7 @@
 # Concatenate in the required order
 cat \
   shared/appSettingsSchema.js \
+  shared/localDate.js \
   app/utilities/santizeFileName.js \
   app/utilities/timestampListItem.js \
   app/utilities/dueDateStatus.js \

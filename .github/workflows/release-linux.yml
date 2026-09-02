@@ -1,0 +1,57 @@
+name: Build Linux release artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "release/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Linux ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+            metadata: latest-linux.yml
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            metadata: latest-linux-arm64.yml
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Linux packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libarchive-tools
+
+      - name: Build Linux packages
+        run: npm run dist:linux:${{ matrix.arch }}
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: signboard-linux-${{ matrix.arch }}
+          if-no-files-found: error
+          path: |
+            dist/signboard_*_linux_*.AppImage
+            dist/signboard_*_linux_*.deb
+            dist/signboard_*_linux_*.pacman
+            dist/${{ matrix.metadata }}

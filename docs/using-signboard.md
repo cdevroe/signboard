@@ -14,6 +14,7 @@ This guide covers the desktop app and the core workflow for managing a project i
 - [Planner](#planner)
 - [Archive and Restore](#archive-and-restore)
 - [Settings](#settings)
+- [Updates](#updates)
 - [Accessibility](#accessibility)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [A Few Practical Tips](#a-few-practical-tips)
@@ -73,6 +74,12 @@ Under the hood, Signboard updates the folder name while preserving its ordering 
 Lists can be reordered visually in the board. Since list order is stored in the folder naming scheme, Signboard updates the underlying directory names.
 
 You can also open a list's actions menu and choose `Move list left` or `Move list right`.
+
+### Order a list by due date
+
+Open a list's actions menu and choose `Order cards by due date`. After you confirm, Signboard performs a one-time reorder from earliest to latest. A card's main due date is used first; if it has no main due date, its earliest incomplete task due date is used. Cards with the same due date keep their existing relative order, and cards without due dates stay in their existing relative order at the end.
+
+This changes the list's saved card order and has no automatic undo. Afterward, you can continue dragging cards into any manual order you prefer.
 
 ### Archive a list
 
@@ -150,7 +157,7 @@ The same paperclip menu can link local files, folders, web URLs, app deep links,
 
 Linked objects appear in the card editor as removable chips. Click the object name to open it, or click its remove control to unlink it from the card without deleting the underlying file, folder, or note. If a linked Obsidian note cannot be found, Signboard keeps the link, marks the chip as missing, and offers controls to recreate the note, relink it to another Markdown note, or remove the link. Cards with linked objects also show a small paperclip count in Kanban and Table views.
 
-New or edited cards include flat Obsidian-friendly properties such as `title`, `signboard_id`, `signboard_board`, `signboard_list`, `status`, `signboard_uri`, and `related`, plus structured `linked_objects` when the card has linked files, folders, URLs, app links, or Obsidian notes. When a board is inside a vault, Signboard automatically creates `Signboard Board.base` for Obsidian Bases and keeps it current while it is still Signboard-managed. If you customize the Base in Obsidian, Signboard leaves it alone until you choose `Settings > Obsidian > Generate Base` again.
+New or edited cards include flat Obsidian-friendly properties such as `title`, `signboard_id`, `signboard_board`, `signboard_list`, `status`, `signboard_uri`, and `related`, plus structured `linked_objects` when the card has linked files, folders, URLs, app links, or Obsidian notes. The CLI maintains these properties when it creates, duplicates, edits, adds notes to, or moves cards, so those cards remain visible in the board's managed Obsidian Base. When a board is inside a vault, Signboard automatically creates `Signboard Board.base` for Obsidian Bases and keeps it current while it is still Signboard-managed. If you customize the Base in Obsidian, Signboard leaves it alone until you choose `Settings > Obsidian > Generate Base` again.
 
 Signboard also includes an optional desktop-only Obsidian companion plugin in `obsidian-plugin/`. Copy or symlink that folder into your vault as `.obsidian/plugins/signboard-companion` and enable it from Obsidian's Community plugins settings. The plugin can open and copy Signboard links, attach the active Obsidian note to a Signboard card, open cards by `obsidian://signboard?cardId=...`, and add a folder context-menu action named `Create Signboard`. That action asks first, then adds board metadata/list folders, treats existing child folders as lists, moves top-level Markdown notes into a To-do list, and opens the board in Signboard. When you delete an Obsidian note that is linked from Signboard cards, the plugin asks before removing those linked objects from the cards.
 
@@ -291,6 +298,8 @@ Planner hides cards from completed lists by default. Each board can auto-detect 
 
 Planner uses your light/dark mode but keeps the default Signboard color palette instead of inheriting the active board color scheme.
 
+You can leave Signboard running continuously. At local midnight—and again when the window becomes visible, receives focus, or the computer resumes from sleep—Signboard refreshes date filters, date colors, relative Table ages, Agenda labels, and Planner date views. Calendar, This Week, and Day advance when they were showing the previously current period; if you deliberately browsed to another month, week, or day, that date remains pinned.
+
 ### Planner shortcuts
 
 - `Cmd/Ctrl + Shift + P`: open or close Planner
@@ -348,11 +357,13 @@ Open `Settings` from the board menu or press `Cmd/Ctrl + ,`.
 
 The `App Settings` group controls settings that apply across Signboard:
 
-- `General`: tooltips and the optional global Quick Add shortcut while Signboard is open
+- `General`: tooltips, the optional global Quick Add shortcut while Signboard is open, and `Follow Omarchy theme` when Omarchy is detected
 - `Notifications`: daily due-date reminders and External Published Calendar publishing
 - `Smart Actions`: AI assistance through Ollama and Smart Card Actions
 
 If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due. The notification time field is shown only while reminders are enabled.
+
+On Omarchy, choose `Follow Omarchy theme` to use the active Omarchy palette. Signboard watches for atomic Omarchy theme replacements and updates while running. The option is hidden on other operating systems and Linux desktops, so their appearance is unchanged. Manually toggling light/dark mode returns to the Signboard theme, and a non-default board color scheme remains a deliberate per-board override.
 
 When AI assistance is enabled, Signboard checks the configured Ollama URL, shows whether it can connect, and loads the locally installed models from Ollama into a model dropdown. Use the refresh button next to the model picker after pulling a new model. When AI assistance is off, Smart Actions shows a setup state with an enable button. The card editor then shows a floating Smart Card Actions button with default actions for generating a new title, generating a summary, generating a task list, auto-labeling from the current board's existing labels, smart paste formatting, a one-off Quick Smart Action, and a read-only Question the Card action. Use the gear in the Smart Card Actions menu to open the Smart Actions settings panel directly. App Settings lets you drag actions to reorder them, expand an action with `Edit`, customize each built-in prompt, and add custom actions with a label, affected card data, and prompt. Custom actions can target Title, Labels, Content, Due Dates, or Attachments. Content suggestions are appended to the card instead of replacing existing notes. Quick Smart Action is reorderable in settings but does not store a prompt; choose its prompt and target when you run it from the card editor. Question the Card is reorderable in settings but does not store a prompt or show an affected-data selector; type a question when you run it, review the answer in the modal, and optionally ask a fresh follow-up without storing chat history or changing card data. New custom actions appear at the top of the actions list. For the generated task list action, change the number in the prompt when you want a different number of tasks. Suggestions are previewed before they replace the title, insert Markdown, set a due date, link suggested URL/app attachments, or apply labels. Auto-label only applies labels that already exist on the current board, preserves labels already assigned to the card, and skips duplicates. Attachment suggestions only link web URLs, app links, or `signboard://` links after confirmation; local file paths are not attached by AI. Card title, body, board/list context, start/due dates, current labels, available board labels, linked-object summaries, a compact markdown-file view of the card for questions, pasted smart-paste text, Quick Smart Action prompts, and Question the Card prompts are sent to the configured Ollama URL only when you use an action.
 
@@ -426,6 +437,12 @@ The `Import` section can bring content into the current board from:
 
 Imports copy data into Signboard and leave the original source files where they are.
 
+## Updates
+
+Signboard checks for updates automatically. You can also choose `Check for Updates...` from the Signboard app menu on macOS or the Help menu on Windows and Linux. The native update dialog converts the GitHub release body from HTML or Markdown into readable plain text and omits the release's download-link section. Use `View changelog` to open the complete release page.
+
+On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access. On Arch Linux and Omarchy, it recognizes the downloaded `.pacman`, validates it with `pacman -Qp`, and installs it with `pkexec pacman -U`. Signboard never performs a database-only `pacman -Sy` refresh. If validation or installation fails, your installed copy remains unchanged and the package-specific error dialog offers `Open Downloads`.
+
 ## Accessibility
 
 Signboard keeps common board work available from the keyboard. Card titles are native buttons, list titles are editable textboxes, list actions are native buttons, and modals move focus into the active dialog and restore focus when closed.
@@ -433,6 +450,10 @@ Signboard keeps common board work available from the keyboard. Card titles are n
 Status changes such as creating, moving, archiving, restoring, and switching views are announced through a polite status region for screen readers. The app also respects reduced-motion and forced-colors preferences.
 
 Focus styling is keyboard-only where possible, including the card editor title and list names, so mouse users do not get a persistent editor outline while keyboard users still get a visible focus target.
+
+## Arch Linux and Omarchy installation
+
+Download the `.pacman` file for your architecture from the latest Signboard release, then run `sudo pacman -U ./signboard_VERSION_linux_x64.pacman` from the download directory. This native package installs the application, desktop launcher, `signboard://` URL handler, and Signboard icon together and does not need FUSE. On ARM hardware, use `linux_aarch64.pacman`. The community-maintained [`signboard-appimage` package](https://aur.archlinux.org/packages/signboard-appimage) is also available from the AUR through `yay -S signboard-appimage` or `paru -S signboard-appimage`; AppImage remains an alternative for other distributions.
 
 ## Keyboard Shortcuts
 

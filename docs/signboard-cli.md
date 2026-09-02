@@ -449,7 +449,7 @@ signboard settings
 signboard settings --json
 ```
 
-This returns the board settings Markdown document, including labels, color scheme data, workflow settings for completed lists, and whether the board is included in External Published Calendar. App-wide tooltip, notification, Quick Add global shortcut, AI assistance, and External Published Calendar server preferences are desktop app settings, not board settings.
+This returns the board settings Markdown document, including labels, color scheme data, workflow settings for completed lists, and whether the board is included in External Published Calendar. App-wide appearance (including Omarchy theme following), tooltip, notification, Quick Add global shortcut, AI assistance, and External Published Calendar server preferences are desktop app settings, not board settings.
 
 Current CLI editing support is intentionally narrow.
 
@@ -484,7 +484,7 @@ All import commands support `--json`.
 
 ## Markdown and Date Conventions
 
-Cards are Markdown files with frontmatter. The CLI reads and writes that structure for you. So you don't need to worry about that unless you are supplying your own files.
+Cards are Markdown files with frontmatter. The CLI reads and writes that structure for you. CLI card creation, duplication, editing, note addition, and moves also maintain the flat Signboard/Obsidian properties used by managed Obsidian Bases. So you don't need to worry about that unless you are supplying your own files.
 
 ### Card start and due dates
 

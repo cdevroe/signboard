@@ -636,6 +636,7 @@ async function run() {
   context.renderListActionsPopover();
   assert(listActionsPopover.textContent.includes('Ctrl+N'), 'expected add-card shortcut hint in list actions popover');
   assert(listActionsPopover.textContent.includes('Ctrl+Shift+N'), 'expected add-list shortcut hint in list actions popover');
+  assert(listActionsPopover.textContent.includes('Order cards by due date'), 'expected due-date ordering action in list actions popover');
 
   context.setBoardLabels(Array.from({ length: 11 }, (_, index) => createLabel(index + 1)));
   filterState.filterIds = ['label-1'];
@@ -922,6 +923,60 @@ async function run() {
   const plannerState = context.getPlannerState();
   plannerState.searchTokens = [];
   plannerState.dateFilter = '';
+
+  context.setPlannerCalendarCursorDate(new context.Date(2026, 2, 10));
+  context.setPlannerWeekCursorDate(new context.Date(2026, 2, 10));
+  context.setPlannerDayCursorDate(new context.Date(2026, 2, 10));
+  assert.deepStrictEqual(
+    toPlain(context.reconcilePlannerDateCursors(
+      new context.Date(2026, 2, 10),
+      new context.Date(2026, 2, 16),
+    )),
+    { calendarChanged: false, weekChanged: true, dayChanged: true },
+    'expected tracked Planner cursors to follow the local day into a new week',
+  );
+  assert.strictEqual(
+    context.formatIsoLocalDate(context.getPlannerWeekCursorDate()),
+    '2026-03-16',
+    'expected This Week to advance to the new current week',
+  );
+  assert.strictEqual(
+    context.formatIsoLocalDate(context.getPlannerDayCursorDate()),
+    '2026-03-16',
+    'expected Day to advance to the new current day',
+  );
+
+  context.setPlannerCalendarCursorDate(new context.Date(2026, 2, 31));
+  context.setPlannerWeekCursorDate(new context.Date(2026, 2, 31));
+  context.setPlannerDayCursorDate(new context.Date(2026, 2, 31));
+  assert.deepStrictEqual(
+    toPlain(context.reconcilePlannerDateCursors(
+      new context.Date(2026, 2, 31),
+      new context.Date(2026, 3, 6),
+    )),
+    { calendarChanged: true, weekChanged: true, dayChanged: true },
+    'expected tracked Planner cursors to follow month and week boundaries after a long sleep',
+  );
+  assert.strictEqual(
+    context.formatIsoLocalDate(context.getPlannerCalendarCursorDate()),
+    '2026-04-01',
+    'expected Calendar to advance to the new current month',
+  );
+
+  context.setPlannerCalendarCursorDate(new context.Date(2026, 0, 1));
+  context.setPlannerWeekCursorDate(new context.Date(2026, 1, 2));
+  context.setPlannerDayCursorDate(new context.Date(2026, 1, 3));
+  assert.deepStrictEqual(
+    toPlain(context.reconcilePlannerDateCursors(
+      new context.Date(2026, 2, 10),
+      new context.Date(2026, 3, 6),
+    )),
+    { calendarChanged: false, weekChanged: false, dayChanged: false },
+    'expected deliberately browsed Planner dates to remain pinned across a local day rollover',
+  );
+  assert.strictEqual(context.formatIsoLocalDate(context.getPlannerCalendarCursorDate()), '2026-01-01');
+  assert.strictEqual(context.formatIsoLocalDate(context.getPlannerWeekCursorDate()), '2026-02-02');
+  assert.strictEqual(context.formatIsoLocalDate(context.getPlannerDayCursorDate()), '2026-02-03');
 
   const plannerEntries = [
     {

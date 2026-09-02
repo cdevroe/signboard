@@ -3,6 +3,12 @@
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
+const {
+  MIN_RELEASE_ARTIFACT_BYTES,
+  computeFileSha512,
+  inspectDebianPackageFile,
+  inspectPacmanPackageFile,
+} = require('../lib/releaseArtifactValidation');
 
 const repoRoot = path.resolve(__dirname, '..');
 const distDir = path.join(repoRoot, 'dist');
@@ -28,12 +34,14 @@ const requiredArtifacts = [
   `signboard_${version}_win.exe`,
   `signboard_${version}_linux_x86_64.AppImage`,
   `signboard_${version}_linux_amd64.deb`,
+  `signboard_${version}_linux_x64.pacman`,
   `signboard_${version}_linux_arm64.AppImage`,
   `signboard_${version}_linux_arm64.deb`,
+  `signboard_${version}_linux_aarch64.pacman`,
 ];
 
 const artifactPattern = new RegExp(
-  `^signboard_${escapeForRegex(version)}_(mac|linux)_([A-Za-z0-9_]+)\\.(dmg|zip|exe|AppImage|deb|rpm)$`
+  `^signboard_${escapeForRegex(version)}_(mac|linux)_([A-Za-z0-9_]+)\\.(dmg|zip|exe|AppImage|deb|pacman|rpm)$`
 );
 
 const windowsArtifactPattern = new RegExp(
@@ -45,8 +53,11 @@ const metadataPlatformRules = {
   'latest-mac.yml': (url) => url.includes(`signboard_${version}_mac_universal`),
   'latest-linux.yml': (url) =>
     url.includes(`signboard_${version}_linux_`) &&
-    !url.includes(`signboard_${version}_linux_arm64`),
-  'latest-linux-arm64.yml': (url) => url.includes(`signboard_${version}_linux_arm64`),
+    !url.includes(`signboard_${version}_linux_arm64`) &&
+    !url.includes(`signboard_${version}_linux_aarch64`),
+  'latest-linux-arm64.yml': (url) =>
+    url.includes(`signboard_${version}_linux_arm64`) ||
+    url.includes(`signboard_${version}_linux_aarch64`),
 };
 
 const deprecatedPublicArtifacts = [
@@ -65,10 +76,13 @@ const curatedDownloads = [
   { label: 'Linux AppImage (ARM64)', file: `signboard_${version}_linux_arm64.AppImage` },
   { label: 'Linux deb (x64)', file: `signboard_${version}_linux_amd64.deb` },
   { label: 'Linux deb (ARM64)', file: `signboard_${version}_linux_arm64.deb` },
+  { label: 'Arch/Omarchy package (x64)', file: `signboard_${version}_linux_x64.pacman` },
+  { label: 'Arch/Omarchy package (ARM64)', file: `signboard_${version}_linux_aarch64.pacman` },
 ];
 
 const errors = [];
 const warnings = [];
+const artifactDetailsCache = new Map();
 
 if (!fs.existsSync(distDir)) {
   fail(`dist directory not found: ${distDir}`);
@@ -78,6 +92,8 @@ const distEntries = fs.readdirSync(distDir);
 const distEntrySet = new Set(distEntries);
 
 validateArtifactNameTemplates();
+validateBuildScriptsUseCanonicalConfiguration();
+validateProtocolRegistration();
 validateDeprecatedPublicArtifacts();
 validateRequiredArtifacts();
 validateMetadataFiles();
@@ -148,6 +164,35 @@ function validateArtifactNameTemplates() {
   }
 }
 
+function validateBuildScriptsUseCanonicalConfiguration() {
+  const buildScripts = Object.entries(packageJson.scripts || {})
+    .filter(([name, command]) => name.startsWith('dist:') && command.includes('electron-builder'));
+
+  for (const [name, command] of buildScripts) {
+    if (!command.includes('--config electron-builder.json')) {
+      addIssue(
+        `package.json script ${name} must load electron-builder.json explicitly.`,
+        false
+      );
+    }
+  }
+}
+
+function validateProtocolRegistration() {
+  const configs = [
+    ['package.json build.protocols', packageJson.build?.protocols],
+    ['electron-builder.json protocols', electronBuilderConfig?.protocols],
+  ];
+  for (const [label, protocols] of configs) {
+    const hasSignboardProtocol = Array.isArray(protocols) && protocols.some((protocol) => (
+      protocol && Array.isArray(protocol.schemes) && protocol.schemes.includes('signboard')
+    ));
+    if (!hasSignboardProtocol) {
+      addIssue(`${label} must register the signboard URL scheme.`, false);
+    }
+  }
+}
+
 function validateDeprecatedPublicArtifacts() {
   for (const artifact of deprecatedPublicArtifacts) {
     if (distEntrySet.has(artifact)) {
@@ -172,6 +217,35 @@ function validateRequiredArtifacts() {
     if (!match) {
       addIssue(`Artifact name does not follow required pattern: dist/${artifact}`, false);
       continue;
+    }
+
+    const artifactPath = path.join(distDir, artifact);
+    const artifactSize = fs.statSync(artifactPath).size;
+    if (artifactSize < MIN_RELEASE_ARTIFACT_BYTES) {
+      addIssue(
+        `Artifact is unexpectedly small (${artifactSize} bytes): dist/${artifact}`,
+        false
+      );
+    }
+
+    if (artifact.endsWith('.deb')) {
+      const validation = inspectDebianPackageFile(artifactPath);
+      if (!validation.valid) {
+        addIssue(
+          `Invalid Debian package dist/${artifact}: ${validation.errors.join(' ')}`,
+          false
+        );
+      }
+    }
+
+    if (artifact.endsWith('.pacman')) {
+      const validation = inspectPacmanPackageFile(artifactPath);
+      if (!validation.valid) {
+        addIssue(
+          `Invalid Pacman package dist/${artifact}: ${validation.errors.join(' ')}`,
+          false
+        );
+      }
     }
 
     const platform = artifact.startsWith(`signboard_${version}_win`) ? 'win' : match[1];
@@ -246,6 +320,8 @@ function validateMetadataFiles() {
 
       if (!distEntrySet.has(url)) {
         addIssue(`Metadata references missing file "${url}" in ${metadataFile}`, allowPartial);
+      } else {
+        validateMetadataArtifactEntry(metadataFile, entry, url);
       }
 
       const match = url.startsWith(`signboard_${version}_win`)
@@ -269,6 +345,37 @@ function validateMetadataFiles() {
       addIssue(`Metadata "path" is not present in files[] for ${metadataFile}: ${primaryPath}`, false);
     }
   }
+}
+
+function validateMetadataArtifactEntry(metadataFile, entry, artifactName) {
+  const details = getArtifactDetails(artifactName);
+  const metadataSize = Number(entry?.size);
+  if (!Number.isFinite(metadataSize) || metadataSize <= 0) {
+    addIssue(`Metadata entry is missing a valid size for "${artifactName}" in ${metadataFile}`, false);
+  } else if (metadataSize !== details.size) {
+    addIssue(
+      `Metadata size mismatch for "${artifactName}" in ${metadataFile}. Expected ${details.size}, found ${metadataSize}.`,
+      false
+    );
+  }
+
+  const metadataSha512 = typeof entry?.sha512 === 'string' ? entry.sha512.trim() : '';
+  if (!metadataSha512) {
+    addIssue(`Metadata entry is missing sha512 for "${artifactName}" in ${metadataFile}`, false);
+  } else if (metadataSha512 !== details.sha512) {
+    addIssue(`Metadata sha512 mismatch for "${artifactName}" in ${metadataFile}.`, false);
+  }
+}
+
+function getArtifactDetails(artifactName) {
+  if (!artifactDetailsCache.has(artifactName)) {
+    const artifactPath = path.join(distDir, artifactName);
+    artifactDetailsCache.set(artifactName, {
+      size: fs.statSync(artifactPath).size,
+      sha512: computeFileSha512(artifactPath),
+    });
+  }
+  return artifactDetailsCache.get(artifactName);
 }
 
 function addIssue(message, asWarning) {
@@ -306,7 +413,7 @@ function isKnownArchForPlatform(platform, arch) {
     return arch === 'arm64' || arch === 'x64' || arch === 'universal';
   }
   if (platform === 'linux') {
-    return arch === 'x86_64' || arch === 'amd64' || arch === 'arm64';
+    return arch === 'x86_64' || arch === 'x64' || arch === 'amd64' || arch === 'arm64' || arch === 'aarch64';
   }
   return false;
 }
@@ -316,7 +423,7 @@ function needsBlockmap(name) {
 }
 
 function isKnownExtension(extension) {
-  return ['dmg', 'zip', 'exe', 'AppImage', 'deb', 'rpm'].includes(extension);
+  return ['dmg', 'zip', 'exe', 'AppImage', 'deb', 'pacman', 'rpm'].includes(extension);
 }
 
 function escapeForRegex(input) {

@@ -48,6 +48,7 @@ async function run() {
     assert.deepStrictEqual(defaults.notifications, { enabled: false, time: '09:00' });
     assert.strictEqual(defaults.tooltipsEnabled, true);
     assert.deepStrictEqual(defaults.quickAdd, { globalShortcut: '' });
+    assert.deepStrictEqual(defaults.appearance, { themeSource: 'signboard' });
     assert.deepStrictEqual(defaults.externalPublishedCalendar, {
       enabled: false,
       port: 48273,
@@ -69,6 +70,7 @@ async function run() {
       notifications: { enabled: true, time: '08:30' },
       tooltipsEnabled: false,
       quickAdd: { globalShortcut: ' CommandOrControl + Shift + Space ' },
+      appearance: { themeSource: 'omarchy' },
       externalPublishedCalendar: {
         enabled: true,
         port: '49152',
@@ -106,6 +108,7 @@ async function run() {
     assert.deepStrictEqual(updated.notifications, { enabled: true, time: '08:30' });
     assert.strictEqual(updated.tooltipsEnabled, false);
     assert.deepStrictEqual(updated.quickAdd, { globalShortcut: 'CommandOrControl+Shift+Space' });
+    assert.deepStrictEqual(updated.appearance, { themeSource: 'omarchy' });
     assert.deepStrictEqual(updated.externalPublishedCalendar, {
       enabled: true,
       port: 49152,
@@ -151,6 +154,7 @@ async function run() {
     assert.deepStrictEqual(migrated.settings.notifications, { enabled: true, time: '24:15' });
     assert.strictEqual(migrated.settings.tooltipsEnabled, false);
     assert.deepStrictEqual(migrated.settings.quickAdd, { globalShortcut: '' });
+    assert.deepStrictEqual(migrated.settings.appearance, { themeSource: 'signboard' });
     assert.deepStrictEqual(migrated.settings.externalPublishedCalendar, {
       enabled: false,
       port: 48273,

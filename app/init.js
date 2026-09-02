@@ -1,5 +1,8 @@
 const EXTERNAL_BOARD_SYNC_INTERVAL_MS = 500;
 const EXTERNAL_BOARD_RENDER_DEBOUNCE_MS = 150;
+const LOCAL_BOARD_WATCH_SETTLE_INTERVAL_MS = 30;
+const LOCAL_BOARD_WATCH_SETTLE_MAX_MS = 240;
+const LOCAL_BOARD_WATCH_STABLE_SAMPLES = 2;
 const DUE_NOTIFICATION_CHECK_INTERVAL_MS = 60 * 1000;
 const DUE_NOTIFICATION_LAST_RUN_DATE_KEY = 'dueCardsNotificationLastRunDate';
 const DEFAULT_DUE_NOTIFICATION_TIME = '09:00';
@@ -25,18 +28,13 @@ let externalBoardRefreshPending = false;
 let externalBoardRenderTimeoutId = null;
 let externalBoardRenderInFlight = false;
 let dueCardNotificationIntervalId = null;
+let localDayRolloverTimerId = null;
+let localDayLastObservedIso = '';
+let unsubscribeSystemResume = null;
 let aboutSignboardInfoPromise = null;
 
 function formatLocalIsoDate(dateValue = new Date()) {
-    const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return SignboardLocalDate.formatLocalIsoDate(dateValue);
 }
 
 function getDueNotificationBoardRoots() {
@@ -166,6 +164,105 @@ function startDueCardNotificationSchedule() {
         if (dueCardNotificationIntervalId) {
             clearInterval(dueCardNotificationIntervalId);
             dueCardNotificationIntervalId = null;
+        }
+    }, { once: true });
+}
+
+function scheduleNextLocalDayRolloverCheck(dateValue = new Date()) {
+    if (localDayRolloverTimerId) {
+        clearTimeout(localDayRolloverTimerId);
+    }
+
+    const delay = SignboardLocalDate.getLocalDayRolloverDelay(dateValue);
+    localDayRolloverTimerId = window.setTimeout(() => {
+        localDayRolloverTimerId = null;
+        runLocalDayRolloverCheck().catch((error) => {
+            console.error('Local day rollover refresh failed.', error);
+        }).finally(() => {
+            scheduleNextLocalDayRolloverCheck();
+        });
+    }, delay);
+}
+
+async function runLocalDayRolloverCheck(dateValue = new Date()) {
+    const currentDayIso = formatLocalIsoDate(dateValue);
+    if (!currentDayIso) {
+        return false;
+    }
+
+    if (!localDayLastObservedIso) {
+        localDayLastObservedIso = currentDayIso;
+        return false;
+    }
+
+    if (currentDayIso === localDayLastObservedIso) {
+        return false;
+    }
+
+    const previousDay = SignboardLocalDate.parseLocalIsoDate(localDayLastObservedIso);
+    const currentDay = SignboardLocalDate.parseLocalIsoDate(currentDayIso);
+    localDayLastObservedIso = currentDayIso;
+
+    if (previousDay && currentDay && typeof reconcilePlannerDateCursors === 'function') {
+        reconcilePlannerDateCursors(previousDay, currentDay);
+    }
+
+    if (typeof refreshActiveCardEditorDateStatus === 'function') {
+        refreshActiveCardEditorDateStatus();
+    }
+
+    if (window.boardRoot) {
+        externalBoardRefreshPending = true;
+        scheduleExternalBoardRefresh();
+    }
+
+    const refreshTasks = [
+        runDueCardNotificationCheck().catch((error) => {
+            console.error('Due-card notification check after local day rollover failed.', error);
+        }),
+    ];
+    if (typeof isPlannerOpen === 'function' && isPlannerOpen() && typeof renderPlannerView === 'function') {
+        refreshTasks.push(renderPlannerView().catch((error) => {
+            console.error('Planner refresh after local day rollover failed.', error);
+        }));
+    }
+
+    await Promise.all(refreshTasks);
+    return true;
+}
+
+function checkLocalDayAndReschedule() {
+    runLocalDayRolloverCheck().catch((error) => {
+        console.error('Local day lifecycle check failed.', error);
+    }).finally(() => {
+        scheduleNextLocalDayRolloverCheck();
+    });
+}
+
+function startLocalDayRolloverSchedule() {
+    localDayLastObservedIso = formatLocalIsoDate(new Date());
+    scheduleNextLocalDayRolloverCheck();
+
+    window.addEventListener('focus', checkLocalDayAndReschedule);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            checkLocalDayAndReschedule();
+        }
+    });
+
+    if (window.electronAPI && typeof window.electronAPI.onSystemResume === 'function') {
+        unsubscribeSystemResume = window.electronAPI.onSystemResume(checkLocalDayAndReschedule);
+    }
+
+    window.addEventListener('beforeunload', () => {
+        if (localDayRolloverTimerId) {
+            clearTimeout(localDayRolloverTimerId);
+            localDayRolloverTimerId = null;
+        }
+        window.removeEventListener('focus', checkLocalDayAndReschedule);
+        if (typeof unsubscribeSystemResume === 'function') {
+            unsubscribeSystemResume();
+            unsubscribeSystemResume = null;
         }
     }, { once: true });
 }
@@ -770,6 +867,40 @@ function scheduleExternalBoardRefresh() {
     }, EXTERNAL_BOARD_RENDER_DEBOUNCE_MS);
 }
 
+async function acknowledgeLocalBoardFilesystemChanges() {
+    if (!window.board || typeof window.board.getBoardWatchToken !== 'function') {
+        return;
+    }
+
+    // fs.watch delivery can trail a completed rename transaction, especially on
+    // Linux. Wait for a short quiet period so delayed events from our own mutation
+    // are acknowledged without forcing a redundant full-board render.
+    const startedAt = Date.now();
+    let latestToken = externalBoardWatchToken;
+    let stableSamples = 0;
+
+    while (Date.now() - startedAt < LOCAL_BOARD_WATCH_SETTLE_MAX_MS) {
+        await new Promise((resolve) => window.setTimeout(resolve, LOCAL_BOARD_WATCH_SETTLE_INTERVAL_MS));
+        const sampledToken = Number(await window.board.getBoardWatchToken());
+        if (!Number.isFinite(sampledToken)) {
+            break;
+        }
+        if (sampledToken > latestToken) {
+            latestToken = sampledToken;
+            stableSamples = 0;
+            continue;
+        }
+        stableSamples += 1;
+        if (stableSamples >= LOCAL_BOARD_WATCH_STABLE_SAMPLES) {
+            break;
+        }
+    }
+
+    if (latestToken > externalBoardWatchToken) {
+        externalBoardWatchToken = latestToken;
+    }
+}
+
 async function runExternalBoardRefresh() {
     if (!window.boardRoot) {
         externalBoardRefreshPending = false;
@@ -1137,5 +1268,6 @@ async function init() {
 
     startExternalBoardSync();
     startDueCardNotificationSchedule();
+    startLocalDayRolloverSchedule();
 }
 init();

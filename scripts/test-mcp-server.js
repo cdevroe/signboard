@@ -7,6 +7,23 @@ const HEADER_TRANSPORT = 'header';
 const HEADER_BOM_TRANSPORT = 'header-bom';
 const NDJSON_TRANSPORT = 'ndjson';
 
+async function assertMcpToolDocumentation(requiredToolNames) {
+  const documentationPaths = [
+    path.join(__dirname, '..', 'MCP_README.md'),
+    path.join(__dirname, '..', 'skills', 'signboard-mcp', 'SKILL.md'),
+  ];
+
+  for (const documentationPath of documentationPaths) {
+    const contents = await fs.readFile(documentationPath, 'utf8');
+    const missingToolNames = requiredToolNames.filter((toolName) => !contents.includes(`\`${toolName}\``));
+    if (missingToolNames.length > 0) {
+      throw new Error(
+        `${path.relative(path.join(__dirname, '..'), documentationPath)} is missing MCP tools: ${missingToolNames.join(', ')}`,
+      );
+    }
+  }
+}
+
 function encodeMessage(payload, transportMode) {
   const json = JSON.stringify(payload);
 
@@ -378,6 +395,10 @@ async function runForTransport(transportMode, fixture) {
     if (!toolNames.has(toolName)) {
       throw new Error(`Missing MCP tool (${transportMode}): ${toolName}`);
     }
+  }
+
+  if (transportMode === HEADER_TRANSPORT) {
+    await assertMcpToolDocumentation(requiredToolNames);
   }
 
   send({

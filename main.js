@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 
-const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, Notification, ShareMenu, shell, powerSaveBlocker, nativeImage, screen } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, Notification, ShareMenu, shell, powerMonitor, powerSaveBlocker, nativeImage, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { createHash, randomUUID } = require('crypto');
 const fs = require('fs');
@@ -14,7 +14,12 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
 const { readCardWithTimestamps } = require('./lib/cardTimestamps');
-const { insertCardFileAtTop, reorderCardFilesInList, reorderListDirectories } = require('./lib/cardOrdering');
+const {
+  insertCardFileAtTop,
+  reorderCardFilesInList,
+  reorderCardFilesInListByDueDate,
+  reorderListDirectories,
+} = require('./lib/cardOrdering');
 const { readBoardSnapshot } = require('./lib/boardSnapshot');
 const { prepareNewCardFrontmatter } = require('./lib/cardLifecycle');
 const {
@@ -28,6 +33,7 @@ const {
 } = require('./lib/archive');
 const boardLabels = require('./lib/boardLabels');
 const appSettings = require('./lib/appSettings');
+const omarchyTheme = require('./lib/omarchyTheme');
 const { listOllamaModels, runSmartCardActionWithOllama, suggestCardTasksWithOllama } = require('./lib/aiTaskSuggestions');
 const { buildExternalPublishedCalendarFeed } = require('./lib/externalPublishedCalendar');
 const { importTrello, importObsidian, importTasksMd } = require('./lib/importers');
@@ -40,6 +46,14 @@ const {
   OPEN_BOARDS_STATE_FILE,
   normalizeOpenBoardsState,
 } = require('./lib/boardDiscovery');
+const { formatLocalIsoDate } = require('./shared/localDate');
+const { formatReleaseNotesForDialog } = require('./lib/updateReleaseNotes');
+const { inspectDebianPackageFile, inspectPacmanPackageFile } = require('./lib/releaseArtifactValidation');
+const { installPacmanPackage, isPacmanPackagePath } = require('./lib/linuxPackageInstaller');
+const {
+  getInvalidLinuxPackagePresentation,
+  getUpdaterErrorPresentation,
+} = require('./lib/updateErrors');
 
 const GITHUB_OWNER = 'cdevroe';
 const GITHUB_REPO = 'signboard';
@@ -163,6 +177,17 @@ let externalPublishedCalendarStatus = {
   message: 'Disabled',
 };
 let pendingSignboardProtocolUrl = '';
+let omarchyThemeStatus = {
+  detected: false,
+  available: false,
+  name: '',
+  mode: '',
+  palette: null,
+  themeDirectory: '',
+  message: 'Omarchy was not detected.',
+};
+let omarchyThemeWatcher = null;
+let omarchyThemeRefreshTimer = null;
 
 function isMcpPowerSaveBlockerActive() {
   return Number.isInteger(mcpPowerSaveBlockerId) && powerSaveBlocker.isStarted(mcpPowerSaveBlockerId);
@@ -172,6 +197,8 @@ const updateState = {
   checkInProgress: false,
   activeCheckIsManual: false,
   downloadInProgress: false,
+  userInitiatedUpdate: false,
+  lastUpdateInfo: null,
   reminderByVersion: {},
   checkIntervalId: null,
 };
@@ -2589,6 +2616,15 @@ function getMainWindow() {
   return BrowserWindow.getAllWindows()[0] || null;
 }
 
+function notifyRendererOfSystemResume() {
+  const win = getMainWindow();
+  if (!win || win.isDestroyed() || win.webContents.isLoadingMainFrame()) {
+    return;
+  }
+
+  win.webContents.send('system-resume');
+}
+
 function showDockIcon() {
   if (process.platform === 'darwin' && app.dock && typeof app.dock.show === 'function') {
     app.dock.show();
@@ -2733,7 +2769,79 @@ function withRuntimeAppSettings(settings) {
     ...settings,
     globalShortcutStatus: getQuickAddGlobalShortcutStatus(),
     externalPublishedCalendarStatus: getExternalPublishedCalendarStatus(),
+    omarchyThemeStatus: getPublicOmarchyThemeStatus(),
   };
+}
+
+function getPublicOmarchyThemeStatus() {
+  return {
+    detected: omarchyThemeStatus.detected === true,
+    available: omarchyThemeStatus.available === true,
+    name: String(omarchyThemeStatus.name || ''),
+    mode: String(omarchyThemeStatus.mode || ''),
+    palette: omarchyThemeStatus.palette ? { ...omarchyThemeStatus.palette } : null,
+    message: String(omarchyThemeStatus.message || ''),
+  };
+}
+
+function closeOmarchyThemeWatcher() {
+  if (omarchyThemeRefreshTimer) {
+    clearTimeout(omarchyThemeRefreshTimer);
+    omarchyThemeRefreshTimer = null;
+  }
+  closeWatcher(omarchyThemeWatcher);
+  omarchyThemeWatcher = null;
+}
+
+function scheduleOmarchyThemeRefresh() {
+  if (omarchyThemeRefreshTimer) {
+    clearTimeout(omarchyThemeRefreshTimer);
+  }
+  omarchyThemeRefreshTimer = setTimeout(() => {
+    omarchyThemeRefreshTimer = null;
+    refreshOmarchyThemeStatus({ notify: true, restartWatcher: true }).catch((error) => {
+      console.error('Unable to refresh the Omarchy theme.', error);
+    });
+  }, 120);
+}
+
+function startOmarchyThemeWatcher() {
+  closeOmarchyThemeWatcher();
+  const explicitThemeDirectory = String(process.env.SIGNBOARD_OMARCHY_THEME_DIR || '').trim();
+  if (process.platform !== 'linux' && !explicitThemeDirectory) {
+    return;
+  }
+
+  const themeDirectory = omarchyThemeStatus.themeDirectory ||
+    omarchyTheme.getDefaultOmarchyThemeDirectory();
+  const watchDirectory = path.dirname(themeDirectory);
+  omarchyThemeWatcher = attachDirectoryWatcher(watchDirectory, scheduleOmarchyThemeRefresh, {
+    onError: scheduleOmarchyThemeRefresh,
+  });
+}
+
+async function refreshOmarchyThemeStatus(options = {}) {
+  const previousPublicStatus = JSON.stringify(getPublicOmarchyThemeStatus());
+  omarchyThemeStatus = await omarchyTheme.readOmarchyTheme({
+    platform: process.platform,
+    themeDirectory: String(process.env.SIGNBOARD_OMARCHY_THEME_DIR || '').trim(),
+  });
+  const publicStatus = getPublicOmarchyThemeStatus();
+
+  if (options.restartWatcher === true || !omarchyThemeWatcher) {
+    startOmarchyThemeWatcher();
+  }
+
+  if (
+    options.notify === true &&
+    JSON.stringify(publicStatus) !== previousPublicStatus &&
+    mainWindow &&
+    !mainWindow.isDestroyed()
+  ) {
+    mainWindow.webContents.send('omarchy-theme-changed', publicStatus);
+  }
+
+  return publicStatus;
 }
 
 async function stopExternalPublishedCalendarServer() {
@@ -2911,6 +3019,7 @@ async function updateAppSettingsWithRuntimeStatus(partialSettings = {}) {
 }
 
 async function initializeAppRuntimeSettings() {
+  await refreshOmarchyThemeStatus({ notify: false, restartWatcher: true });
   const rawSettings = await appSettings.readAppSettings(app.getPath('userData'));
   const settings = await ensureExternalPublishedCalendarToken(rawSettings);
   applyQuickAddGlobalShortcut(settings);
@@ -3042,7 +3151,7 @@ async function suggestCardTasks(payload = {}) {
 
   try {
     const result = await suggestCardTasksWithOllama(settings.ai.ollama, payload, {
-      currentDate: new Date().toISOString().slice(0, 10),
+      currentDate: formatLocalIsoDate(),
     });
     return {
       ok: true,
@@ -3121,7 +3230,7 @@ async function runSmartCardAction(payload = {}) {
 
   try {
     const result = await runSmartCardActionWithOllama(settings.ai.ollama, actionToRun, cardContext, {
-      currentDate: new Date().toISOString().slice(0, 10),
+      currentDate: formatLocalIsoDate(),
       pasteText: typeof payloadSource.pasteText === 'string' ? payloadSource.pasteText : '',
     });
     return {
@@ -3353,74 +3462,60 @@ function getReleaseUrl(info) {
   return `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
 }
 
-function extractReleaseNotes(info) {
-  const releaseNotes = info?.releaseNotes;
-
-  if (typeof releaseNotes === 'string') {
-    return releaseNotes.trim();
-  }
-
-  if (Array.isArray(releaseNotes)) {
-    const notes = releaseNotes
-      .map((entry) => {
-        if (typeof entry === 'string') {
-          return entry.trim();
-        }
-        if (entry && typeof entry.note === 'string') {
-          const entryVersion = typeof entry.version === 'string' ? entry.version.trim() : '';
-          const heading = entryVersion ? `Version ${entryVersion}\n` : '';
-          return `${heading}${entry.note.trim()}`.trim();
-        }
-        return '';
-      })
-      .filter(Boolean);
-
-    return notes.join('\n\n');
-  }
-
-  return '';
-}
-
-function escapeRegExp(input) {
-  return String(input).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function stripReleaseNotesSection(notes, headingText) {
-  const source = typeof notes === 'string' ? notes.trim() : '';
-  const heading = String(headingText || '').trim();
-  if (!source || !heading) {
-    return source;
-  }
-
-  const sectionPattern = new RegExp(
-    `(?:^|\\n)##\\s+${escapeRegExp(heading)}\\s*\\n[\\s\\S]*?(?=\\n##\\s+|$)`,
-    'i'
-  );
-
-  return source
-    .replace(sectionPattern, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-function formatReleaseNotesForDialog(info) {
-  const notes = stripReleaseNotesSection(extractReleaseNotes(info), 'Downloads');
-
-  if (!notes) {
-    return 'No changelog details were provided in the release metadata.';
-  }
-
-  const maxChars = 1600;
-  if (notes.length <= maxChars) {
-    return notes;
-  }
-
-  return `${notes.slice(0, maxChars).trim()}\n\n...`;
-}
-
 async function openChangelog(info) {
   const url = getReleaseUrl(info);
   await shell.openExternal(url);
+}
+
+async function showUpdaterErrorDialog(presentation, info) {
+  const win = getMainWindow();
+  if (!win) {
+    return;
+  }
+
+  const offerDownloads = presentation?.offerDownloads === true;
+  const choice = await dialog.showMessageBox(win, {
+    type: 'error',
+    title: presentation?.title || 'Updater Error',
+    message: presentation?.message || 'Signboard encountered an updater error.',
+    detail: presentation?.detail || 'Unknown error',
+    buttons: offerDownloads ? ['Open Downloads', 'OK'] : ['OK'],
+    defaultId: 0,
+    cancelId: offerDownloads ? 1 : 0,
+    noLink: true,
+  });
+
+  if (offerDownloads && choice.response === 0) {
+    await openChangelog(info);
+  }
+}
+
+function inspectDownloadedLinuxPackage(info) {
+  const downloadedFile = typeof info?.downloadedFile === 'string' ? info.downloadedFile : '';
+  const extension = path.extname(downloadedFile).toLowerCase();
+  if (process.platform !== 'linux' || !['.deb', '.pacman'].includes(extension)) {
+    return null;
+  }
+
+  try {
+    const validation = extension === '.pacman'
+      ? inspectPacmanPackageFile(downloadedFile)
+      : inspectDebianPackageFile(downloadedFile);
+    return {
+      ...validation,
+      packageType: extension === '.pacman' ? 'pacman' : 'deb',
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      packageType: extension === '.pacman' ? 'pacman' : 'deb',
+      errors: [String(error?.message || error || 'The downloaded package could not be read.')],
+    };
+  }
+}
+
+function getDownloadedLinuxPackageType(info) {
+  return isPacmanPackagePath(info?.downloadedFile) ? 'pacman' : 'deb';
 }
 
 async function showUpdateAvailableDialog(info) {
@@ -3470,11 +3565,14 @@ async function showUpdateAvailableDialog(info) {
 
   try {
     updateState.downloadInProgress = true;
+    updateState.userInitiatedUpdate = true;
+    updateState.lastUpdateInfo = info;
     win.setProgressBar(2);
     await autoUpdater.downloadUpdate();
   } catch (error) {
     win.setProgressBar(-1);
     updateState.downloadInProgress = false;
+    updateState.userInitiatedUpdate = false;
     console.error('Failed to download update.', error);
     await dialog.showMessageBox(win, {
       type: 'error',
@@ -3512,10 +3610,26 @@ async function showUpdateReadyDialog(info) {
 
     if (choice.response === 1) {
       await remindLater(info?.version);
+      updateState.userInitiatedUpdate = false;
       return;
     }
 
     await clearReminder(info?.version);
+    if (process.platform === 'linux' && isPacmanPackagePath(info?.downloadedFile)) {
+      try {
+        installPacmanPackage(info.downloadedFile);
+        app.relaunch();
+        app.quit();
+      } catch (error) {
+        updateState.userInitiatedUpdate = false;
+        console.error('Failed to install the Arch Linux update.', error);
+        await showUpdaterErrorDialog(
+          getUpdaterErrorPresentation(error, process.platform, 'pacman'),
+          info,
+        );
+      }
+      return;
+    }
     autoUpdater.quitAndInstall();
     return;
   }
@@ -3531,10 +3645,14 @@ async function showUpdatePreviewDialog(type) {
     version: '9.9.9',
     releaseName: 'v9.9.9',
     releaseNotes: [
-      '### What is new',
-      '- Added self-update support via GitHub Releases.',
-      '- Added release-note changelog links.',
-      '- Added remind-later and install-now choices.',
+      '<h2>What\'s New</h2>',
+      '<ul>',
+      '<li><strong>New:</strong> Added self-update support via GitHub Releases.</li>',
+      '<li>Added release-note changelog links &amp; readable native dialog text.</li>',
+      '<li>Added remind-later and install-now choices.</li>',
+      '</ul>',
+      '<h2>Downloads</h2>',
+      '<ul><li><a href="https://example.com/signboard">Download Signboard</a></li></ul>',
     ].join('\n'),
   };
 
@@ -3676,6 +3794,7 @@ function setupAutoUpdater() {
   autoUpdater.allowDowngrade = false;
 
   autoUpdater.on('update-available', async (info) => {
+    updateState.lastUpdateInfo = info;
     const manual = updateState.activeCheckIsManual;
     const version = info?.version;
 
@@ -3718,10 +3837,23 @@ function setupAutoUpdater() {
 
   autoUpdater.on('update-downloaded', async (info) => {
     updateState.downloadInProgress = false;
+    updateState.lastUpdateInfo = info;
     const win = getMainWindow();
     if (win) {
       win.setProgressBar(-1);
     }
+
+    const packageValidation = inspectDownloadedLinuxPackage(info);
+    if (packageValidation && !packageValidation.valid) {
+      updateState.userInitiatedUpdate = false;
+      console.error('Downloaded Linux update package is invalid.', packageValidation.errors);
+      await showUpdaterErrorDialog(
+        getInvalidLinuxPackagePresentation(packageValidation, packageValidation.packageType),
+        info
+      );
+      return;
+    }
+
     await showUpdateReadyDialog(info);
   });
 
@@ -3734,22 +3866,15 @@ function setupAutoUpdater() {
 
     console.error('Updater error.', error);
 
-    if (!updateState.activeCheckIsManual) {
+    if (!updateState.activeCheckIsManual && !updateState.userInitiatedUpdate) {
       return;
     }
 
-    if (!win) {
-      return;
-    }
-
-    await dialog.showMessageBox(win, {
-      type: 'error',
-      title: 'Updater Error',
-      message: 'Signboard encountered an updater error.',
-      detail: String(error?.message || error || 'Unknown error'),
-      buttons: ['OK'],
-      noLink: true,
-    });
+    updateState.userInitiatedUpdate = false;
+    await showUpdaterErrorDialog(
+      getUpdaterErrorPresentation(error, process.platform, getDownloadedLinuxPackageType(updateState.lastUpdateInfo)),
+      updateState.lastUpdateInfo
+    );
   });
 
   // Check shortly after launch and then periodically while running.
@@ -4459,6 +4584,27 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       };
     }
 
+    case 'orderCardsByDueDate': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const targetListPath = requireWritablePath(event.sender, args[0]);
+      const archiveRoot = path.join(boardRoot, 'XXX-Archive');
+
+      if (targetListPath === boardRoot || targetListPath === archiveRoot || isPathInsideRoot(archiveRoot, targetListPath)) {
+        throw new Error('INVALID_TARGET_LIST');
+      }
+
+      const targetStats = await fsPromises.stat(targetListPath);
+      if (!targetStats.isDirectory()) {
+        throw new Error('INVALID_TARGET_LIST');
+      }
+
+      const result = await reorderCardFilesInListByDueDate(targetListPath);
+      return {
+        ok: true,
+        ...result,
+      };
+    }
+
     case 'reorderLists': {
       const boardRoot = requireActiveBoardRootForSender(event.sender);
       const rawOrderedListPaths = Array.isArray(args[0]) ? args[0] : [];
@@ -4936,6 +5082,7 @@ if (isCliMode) {
     await loadUpdatePreferences();
     await initializeAppRuntimeSettings();
     queueSignboardProtocolUrl(findSignboardProtocolUrlInArgs(process.argv));
+    powerMonitor.on('resume', notifyRendererOfSystemResume);
     createWindow();
     buildApplicationMenu();
     setupAutoUpdater();
@@ -4959,6 +5106,9 @@ app.on('browser-window-focus', () => {
   }
 
   ensureApplicationMenu();
+  refreshOmarchyThemeStatus({ notify: true, restartWatcher: !omarchyThemeWatcher }).catch((error) => {
+    console.error('Unable to refresh the Omarchy theme after focus.', error);
+  });
 });
 
 app.on('before-quit', () => {
@@ -4978,6 +5128,8 @@ app.on('before-quit', () => {
     externalPublishedCalendarServer.close();
     externalPublishedCalendarServer = null;
   }
+
+  closeOmarchyThemeWatcher();
 });
 
 app.on('will-quit', () => {
