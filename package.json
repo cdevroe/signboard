@@ -2,6 +2,12 @@
   "name": "signboard",
   "productName": "Signboard",
   "version": "1.7.0",
+  "description": "A fast, local-first Kanban board for Markdown files.",
+  "homepage": "https://github.com/cdevroe/signboard",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cdevroe/signboard.git"
+  },
   "license": "MIT",
   "author": "Colin Devroe <colin@cdevroe.com> (https://cdevroe.com)",
   "main": "main.js",
