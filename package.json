@@ -1,7 +1,7 @@
 {
   "name": "signboard",
   "productName": "Signboard",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "A fast, local-first Kanban board for Markdown files.",
   "homepage": "https://github.com/cdevroe/signboard",
   "repository": {

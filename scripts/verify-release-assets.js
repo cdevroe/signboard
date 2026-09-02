@@ -93,6 +93,7 @@ const distEntrySet = new Set(distEntries);
 
 validateArtifactNameTemplates();
 validateBuildScriptsUseCanonicalConfiguration();
+validateApplicationId();
 validateProtocolRegistration();
 validateDeprecatedPublicArtifacts();
 validateRequiredArtifacts();
@@ -175,6 +176,16 @@ function validateBuildScriptsUseCanonicalConfiguration() {
         false
       );
     }
+  }
+}
+
+function validateApplicationId() {
+  const expectedApplicationId = 'com.electron.signboard';
+  if (electronBuilderConfig?.appId !== expectedApplicationId) {
+    addIssue(
+      `electron-builder.json appId must remain ${expectedApplicationId} for update compatibility.`,
+      false
+    );
   }
 }
 
