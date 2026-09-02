@@ -22,7 +22,7 @@ If you want structured tool access from an agent, see [MCP Server](../MCP_README
 
 - Creating and organizing boards, lists, and cards
 - Drag-and-drop movement, including the empty insertion slot shown while dragging cards
-- Calendar-based start/due date ranges on Kanban cards and in the card editor, task lists, labels, linked-object counts, completed-list workflow settings, Kanban/Table board views, card age sorting and bulk actions in Table, Planner date views with automatic local-day rollover, and External Published Calendar
+- Calendar-based start/due date ranges on Kanban cards and in the card editor, task lists, labels, linked-object counts, completed-list workflow settings, one-time list ordering by due date, Kanban/Table board views, card age sorting and bulk actions in Table, Planner date views with automatic local-day rollover, and External Published Calendar
 - Archiving and restoring cards and lists
 - Settings, including detected Omarchy theme following in app-wide General, independent Normal and Advanced models using Ollama, LM Studio, OpenAI, Gemini, or Anthropic, OS-encrypted cloud API keys, separate Card and Board action tabs, drag-reorderable custom actions, portable action import/export/share links, and board-specific General, Labels, Appearance, Workflow, Obsidian, and Import panels
 - Smart Board Actions for board briefs, quick-win discovery, one-off questions, and reviewed proposals to create, clean up, label, date, move, or archive cards

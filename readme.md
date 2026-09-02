@@ -18,6 +18,7 @@ Signboard is free for personal use. If you are using Signboard for your work, it
 - 🌙 Light and dark mode variants for all color schemes
 - 🏷 Custom labels per board
 - 🗓 Compact calendar controls for card and task list item start/due dates
+- ↕️ One-time list ordering by due date, while preserving normal manual card ordering afterward
 - 📋 Bottom view dock for Planner, Kanban, and Table, including card age columns, sorting, list filtering, and bulk actions in Table
 - 🗂 Planner workspace view for actionable dated work across open boards, with automatic local-day rollover while Signboard stays open
 - 📆 Optional local External Published Calendar feed for calendar app subscriptions

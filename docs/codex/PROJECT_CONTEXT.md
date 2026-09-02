@@ -54,6 +54,7 @@ File: `main.js`
 - Owns archive browse/read/restore operations through `lib/archive.js`; renderer code never scans or restores archive contents directly.
 - Owns adjacent-card top-of-list moves through `moveCardToTop`, backed by `lib/cardOrdering.js`.
 - Owns transactional card/list drag reorder through `reorderCardsInList` and `reorderLists`, backed by `lib/cardOrdering.js` staging/rollback helpers instead of renderer-side multi-rename loops.
+- Owns the confirmed list-menu one-time due-date reorder through `orderCardsByDueDate`, using the same transactional ordering helper. Card due dates take precedence, earliest incomplete task due dates are the fallback, and stable ordering keeps ties and undated cards in their prior relative order.
 - Owns board duplication through `lib/boardDuplication.js`; renderer code supplies a tokenized destination folder selection and the main process copies the board, refreshes copied card IDs/metadata, resets copied managed Base state, and trusts the new board root.
 - In MCP mode, starts `lib/mcpServer.js`, passes desktop trusted board roots plus the last synced desktop open-board state into it, and communicates over stdio using MCP JSON-RPC framing.
 - MCP stdio transport supports both `Content-Length` framing and newline-delimited JSON-RPC for client compatibility.
@@ -213,7 +214,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - Builds card DOM for a list concurrently to reduce list render time.
   - Delegates card drag/drop filesystem ordering to main-process transactional reorder helpers, which record `moved-list` lifecycle events only for real cross-list card moves, not same-list reindexing.
 - `app/lists/listActionsPopover.js`:
-  - Renders native button actions for adding cards/lists, moving lists left/right, and archiving cards/lists.
+  - Renders native button actions for adding cards/lists, moving lists left/right, performing a confirmed one-time due-date reorder, and archiving cards/lists.
   - Keeps the popover labelled, focuses the first enabled action on open, supports arrow-key / `Home` / `End` / `Esc` option navigation, and announces completed list actions through the shared live status helper.
 - `app/cards/createCardElement.js`:
   - Reads card frontmatter/body preview.
@@ -467,6 +468,11 @@ CLI overdue behavior:
 ### Frontmatter tests
 - `npm run test:frontmatter`
 - Script: `scripts/test-frontmatter.js`
+
+### Card ordering tests
+- `npm run test:card-ordering`
+- Script: `scripts/test-card-ordering.js`
+- Covers transactional card/list ordering, stable due-date sorting with incomplete-task fallback, rollback, and zero-rename no-op behavior.
 
 ### Board label tests
 - `npm run test:board-labels`

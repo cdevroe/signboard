@@ -636,6 +636,7 @@ async function run() {
   context.renderListActionsPopover();
   assert(listActionsPopover.textContent.includes('Ctrl+N'), 'expected add-card shortcut hint in list actions popover');
   assert(listActionsPopover.textContent.includes('Ctrl+Shift+N'), 'expected add-list shortcut hint in list actions popover');
+  assert(listActionsPopover.textContent.includes('Order cards by due date'), 'expected due-date ordering action in list actions popover');
 
   context.setBoardLabels(Array.from({ length: 11 }, (_, index) => createLabel(index + 1)));
   filterState.filterIds = ['label-1'];

@@ -75,6 +75,12 @@ Lists can be reordered visually in the board. Since list order is stored in the 
 
 You can also open a list's actions menu and choose `Move list left` or `Move list right`.
 
+### Order a list by due date
+
+Open a list's actions menu and choose `Order cards by due date`. After you confirm, Signboard performs a one-time reorder from earliest to latest. A card's main due date is used first; if it has no main due date, its earliest incomplete task due date is used. Cards with the same due date keep their existing relative order, and cards without due dates stay in their existing relative order at the end.
+
+This changes the list's saved card order and has no automatic undo. Afterward, you can continue dragging cards into any manual order you prefer.
+
 ### Archive a list
 
 Open the list actions menu and choose `Archive this list`.

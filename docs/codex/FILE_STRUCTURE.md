@@ -48,7 +48,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/cards/createCardElement.js` - Card DOM rendering, compact start/due date metadata popover, task progress and linked-object badge display, list-item/card-title button semantics, and click behavior.
 - `app/cards/processAddNewCard.js` - New card creation flow, including open-board targeting and optional create-and-open behavior.
 - `app/cards/processAddNewList.js` - New list creation flow.
-- `app/lists/listActionsPopover.js` - List action popover rendering for adding cards/lists, moving lists left/right, archiving cards/lists, keyboard option navigation, shortcut hints, and status announcements.
+- `app/lists/listActionsPopover.js` - List action popover rendering for adding cards/lists, moving lists left/right, confirmed one-time due-date ordering, archiving cards/lists, keyboard option navigation, shortcut hints, and status announcements.
 - `app/lists/createListElement.js` - List DOM rendering with labelled section/list semantics, sanitized rename, card DnD handling, returned-path in-place updates, and cross-list move lifecycle logging.
 - `app/board/renderBoard.js` - Whole-board render using batched board snapshots, active Kanban/Table view dispatch, and Kanban list DnD handling through main-process transactional reorder.
 - `app/board/openBoard.js` - Board open/init logic and starter content.
@@ -76,7 +76,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/linuxPackageInstaller.js` - Safe Arch package validation/installation helper using `pacman -Qp` then `pkexec pacman -U`, deliberately without `pacman -Sy` fallback.
 - `lib/omarchyTheme.js` - Canonical Omarchy active-theme path resolution, restricted TOML palette parsing, contrast-safe token derivation, and read status.
 - `lib/releaseArtifactValidation.js` - Debian/ar and Pacman archive recognition, minimum release-artifact sizing, and SHA-512 helpers shared by runtime download checks and release validation.
-- `lib/cardOrdering.js` - Shared transactional ordering helpers used by main-process/MCP restore and move flows to insert a card at the top, reorder cards in a list, and reorder list directories while staging only changed entries and rolling back on failures.
+- `lib/cardOrdering.js` - Shared transactional ordering helpers used by main-process/MCP restore and move flows to insert a card at the top, reorder cards in a list, perform stable due-date ordering, and reorder list directories while staging only changed entries and rolling back on failures.
 - `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
 - `lib/boardLabels.js` - Board-level label/theme/workflow/External Published Calendar inclusion settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
 - `lib/boardDuplication.js` - Board folder duplication helper used by desktop Settings; copies board contents, assigns fresh copied-card IDs, refreshes copied Signboard metadata, rewrites internal `signboard://open-card` references, rewrites copied local linked-object paths, and resets copied managed Base state.
@@ -102,6 +102,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 ## Scripts (`scripts/`)
 
 - `scripts/test-frontmatter.js` - Node assertions for frontmatter behavior.
+- `scripts/test-card-ordering.js` - Node assertions for transactional card/list reordering, stable due-date ordering, task-date fallback, rollback, and unchanged-entry avoidance.
 - `scripts/test-board-labels.js` - Node assertions for board label settings defaults/migration/filter logic.
 - `scripts/test-board-snapshot.js` - Node assertions for batched board snapshot list/card reads, task metadata, timestamps, board settings, and archive inclusion behavior.
 - `scripts/test-board-duplication.js` - Node assertions for board folder duplication, copied-card ID refresh, internal Signboard link rewrites, linked-object path rewrites, and copied managed Base reset behavior.
