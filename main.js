@@ -14,7 +14,12 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
 const { readCardWithTimestamps } = require('./lib/cardTimestamps');
-const { insertCardFileAtTop, reorderCardFilesInList, reorderListDirectories } = require('./lib/cardOrdering');
+const {
+  insertCardFileAtTop,
+  reorderCardFilesInList,
+  reorderCardFilesInListByDueDate,
+  reorderListDirectories,
+} = require('./lib/cardOrdering');
 const { readBoardSnapshot } = require('./lib/boardSnapshot');
 const { prepareNewCardFrontmatter } = require('./lib/cardLifecycle');
 const {
@@ -4576,6 +4581,27 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
       return {
         ok: true,
         cards: reorderedCards,
+      };
+    }
+
+    case 'orderCardsByDueDate': {
+      const boardRoot = requireActiveBoardRootForSender(event.sender);
+      const targetListPath = requireWritablePath(event.sender, args[0]);
+      const archiveRoot = path.join(boardRoot, 'XXX-Archive');
+
+      if (targetListPath === boardRoot || targetListPath === archiveRoot || isPathInsideRoot(archiveRoot, targetListPath)) {
+        throw new Error('INVALID_TARGET_LIST');
+      }
+
+      const targetStats = await fsPromises.stat(targetListPath);
+      if (!targetStats.isDirectory()) {
+        throw new Error('INVALID_TARGET_LIST');
+      }
+
+      const result = await reorderCardFilesInListByDueDate(targetListPath);
+      return {
+        ok: true,
+        ...result,
       };
     }
 

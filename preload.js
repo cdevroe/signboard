@@ -105,6 +105,7 @@ contextBridge.exposeInMainWorld('board', {
     invokeBoard('recordCardListMove', cardPath, fromListPath, toListPath),
   reorderCardsInList: async (listPath, orderedCardPaths) =>
     invokeBoard('reorderCardsInList', listPath, orderedCardPaths),
+  orderCardsByDueDate: async (listPath) => invokeBoard('orderCardsByDueDate', listPath),
   reorderLists: async (orderedListPaths) => invokeBoard('reorderLists', orderedListPaths),
   moveCardToTop: async (cardPath, targetListPath) => invokeBoard('moveCardToTop', cardPath, targetListPath),
   moveCard: async (src, dst) => invokeBoard('moveCard', src, dst),

@@ -281,6 +281,41 @@ async function handleArchiveList(listPath) {
   }
 }
 
+async function handleOrderCardsByDueDate(listPath, listDisplayName) {
+  const displayName = String(listDisplayName || '').trim() || 'this list';
+  const warningMessage = `Order every card in "${displayName}" by due date?\n\nCards will be ordered from earliest to latest. Cards without due dates will be placed last. This can't be undone.`;
+  if (!window.confirm(warningMessage)) {
+    return;
+  }
+
+  closeListActionsPopover();
+
+  try {
+    if (!window.board || typeof window.board.orderCardsByDueDate !== 'function') {
+      throw new Error('Due-date ordering is unavailable.');
+    }
+
+    const result = await window.board.orderCardsByDueDate(listPath);
+    if (result && result.changed) {
+      if (typeof acknowledgeLocalBoardFilesystemChanges === 'function') {
+        await acknowledgeLocalBoardFilesystemChanges();
+      }
+      await renderBoard();
+    }
+
+    if (typeof announceSignboardStatus === 'function') {
+      announceSignboardStatus(result && result.changed
+        ? `Ordered cards in ${displayName} by due date.`
+        : `Cards in ${displayName} are already ordered by due date.`);
+    }
+  } catch (error) {
+    console.error('Failed to order cards by due date.', error);
+    if (typeof announceSignboardStatus === 'function') {
+      announceSignboardStatus('Cards could not be ordered by due date.');
+    }
+  }
+}
+
 async function handleMoveListByOffset(listPath, offset) {
   const normalizedBoardRoot = typeof normalizeBoardRootPath === 'function'
     ? normalizeBoardRootPath(window.boardRoot)
@@ -407,6 +442,14 @@ function renderListActionsPopover() {
     },
   });
 
+  const orderCardsByDueDateButton = createListActionsOption('Order cards by due date', {
+    disabled: state.cardCount < 2,
+    title: state.cardCount < 2 ? 'This list needs at least two cards to reorder' : '',
+    onClick: async () => {
+      await handleOrderCardsByDueDate(state.listPath, state.listDisplayName);
+    },
+  });
+
   const archiveCardsButton = createListActionsOption('Archive cards in this list', {
     destructive: true,
     disabled: state.cardCount === 0,
@@ -427,6 +470,7 @@ function renderListActionsPopover() {
   popover.appendChild(addListButton);
   popover.appendChild(moveListLeftButton);
   popover.appendChild(moveListRightButton);
+  popover.appendChild(orderCardsByDueDateButton);
   popover.appendChild(archiveCardsButton);
   popover.appendChild(archiveListButton);
   popover.setAttribute('aria-hidden', 'false');

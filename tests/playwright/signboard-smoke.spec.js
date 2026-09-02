@@ -1828,6 +1828,7 @@ test('opens the list actions popover and routes Add new card through the existin
   await expect(page.locator('#listActionsPopover')).toBeVisible();
   await expect(page.locator('#listActionsPopover')).toContainText('Add new card');
   await expect(page.locator('#listActionsPopover')).toContainText('Add new list');
+  await expect(page.locator('#listActionsPopover')).toContainText('Order cards by due date');
   await expect(page.locator('#listActionsPopover')).toContainText('Archive cards in this list');
   await expect(page.locator('#listActionsPopover')).toContainText('Archive this list');
 
@@ -2115,6 +2116,69 @@ test('adds a new list to the right of the invoking list from the list actions po
     const entries = await fs.readdir(boardRoot);
     return entries.find((entry) => /^001-Review-[A-Za-z0-9]{5}$/.test(entry)) || '';
   }).toMatch(/^001-Review-[A-Za-z0-9]{5}$/);
+});
+
+test('orders cards in a list by due date as a one-time action', async ({ page, boardRoot }) => {
+  const listPath = path.join(boardRoot, '000-To-do-stock');
+  await cardFrontmatter.writeCard(path.join(listPath, '001-later-card-aaaaa.md'), {
+    frontmatter: {
+      title: 'Later dated card',
+      due: '2026-05-10',
+    },
+    body: '',
+  });
+  await cardFrontmatter.writeCard(path.join(listPath, '002-task-due-bbbbb.md'), {
+    frontmatter: {
+      title: 'Earlier task-dated card',
+    },
+    body: '- [ ] (due: 2026-04-01) Finish the dated task',
+  });
+  await cardFrontmatter.writeCard(path.join(listPath, '003-undated-ccccc.md'), {
+    frontmatter: {
+      title: 'Second undated card',
+    },
+    body: '',
+  });
+
+  await page.evaluate(async () => {
+    await renderBoard();
+    window.__lastDueOrderConfirmMessage = '';
+    window.confirm = (message) => {
+      window.__lastDueOrderConfirmMessage = String(message || '');
+      return true;
+    };
+  });
+
+  const firstList = page.locator('.list').first();
+  await expect(firstList.locator('.card')).toHaveCount(4);
+  await firstList.locator('.list-actions-button').click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Order cards by due date' }).click();
+
+  await expect.poll(async () => {
+    return await page.evaluate(() => window.__lastDueOrderConfirmMessage);
+  }).toBe('Order every card in "To-do" by due date?\n\nCards will be ordered from earliest to latest. Cards without due dates will be placed last. This can\'t be undone.');
+  await expect(page.locator('#listActionsPopover')).toBeHidden();
+  await expect(firstList.locator('.card h3')).toHaveText([
+    'Earlier task-dated card',
+    'Later dated card',
+    'Plan release notes',
+    'Second undated card',
+  ]);
+
+  await expect.poll(async () => {
+    const cardFiles = (await fs.readdir(listPath))
+      .filter((entry) => entry.endsWith('.md'))
+      .sort();
+    return await Promise.all(cardFiles.map(async (cardFile) => {
+      const card = await cardFrontmatter.readCard(path.join(listPath, cardFile));
+      return card.frontmatter.title;
+    }));
+  }).toEqual([
+    'Earlier task-dated card',
+    'Later dated card',
+    'Plan release notes',
+    'Second undated card',
+  ]);
 });
 
 test('archives all cards in a list from the list actions popover', async ({ page, boardRoot }) => {
