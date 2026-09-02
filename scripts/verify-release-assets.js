@@ -92,6 +92,7 @@ const distEntries = fs.readdirSync(distDir);
 const distEntrySet = new Set(distEntries);
 
 validateArtifactNameTemplates();
+validateBuildScriptsUseCanonicalConfiguration();
 validateProtocolRegistration();
 validateDeprecatedPublicArtifacts();
 validateRequiredArtifacts();
@@ -158,6 +159,20 @@ function validateArtifactNameTemplates() {
         electronBuilderConfig.nsis.artifactName,
         'electron-builder.json nsis.artifactName',
         '${arch}'
+      );
+    }
+  }
+}
+
+function validateBuildScriptsUseCanonicalConfiguration() {
+  const buildScripts = Object.entries(packageJson.scripts || {})
+    .filter(([name, command]) => name.startsWith('dist:') && command.includes('electron-builder'));
+
+  for (const [name, command] of buildScripts) {
+    if (!command.includes('--config electron-builder.json')) {
+      addIssue(
+        `package.json script ${name} must load electron-builder.json explicitly.`,
+        false
       );
     }
   }
