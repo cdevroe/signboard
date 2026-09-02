@@ -37,6 +37,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Linux packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libarchive-tools
+
       - name: Build Linux packages
         run: npm run dist:linux:${{ matrix.arch }}
 
@@ -50,4 +55,3 @@ jobs:
             dist/signboard_*_linux_*.deb
             dist/signboard_*_linux_*.pacman
             dist/${{ matrix.metadata }}
-
