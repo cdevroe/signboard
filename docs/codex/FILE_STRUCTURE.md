@@ -18,6 +18,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `.gitignore` - Ignores `node_modules`, `dist`, `.env`, etc.
 - `buildjs.sh` - Concatenate shared renderer schema and renderer modules into `app/signboard.js`.
 - `electron-builder.json` - Build targets/artifact settings, including packaged `signboard://` URL-scheme registration.
+- `.github/workflows/release-linux.yml` - Native x64 and ARM64 Linux release-package builds, including updater metadata and downloadable workflow artifacts.
 - Linux build targets include native Arch/Omarchy `.pacman` packages in addition to AppImage, deb, and optional rpm artifacts.
 - `LICENSE` - MIT license.
 - `obsidian-plugin/` - Optional desktop-only Obsidian companion plugin source (`manifest.json`, self-contained `main.js`, helper/tested conversion/link/delete-cleanup utilities, styles, and plugin README) for opening/copying Signboard links, attaching active notes, asking before removing links to deleted notes, creating Signboard boards from folders, and handling `obsidian://signboard?...`.
