@@ -68,6 +68,8 @@ const MIN_WINDOW_HEIGHT = 680;
 const WINDOW_STATE_SAVE_DEBOUNCE_MS = 250;
 const MCP_SERVER_ARG = '--mcp-server';
 const MCP_CONFIG_ARG = '--mcp-config';
+const PACKAGED_SMOKE_TEST_ARG = '--packaged-smoke-test';
+const PACKAGED_SMOKE_TEST_FILE = 'packaged-smoke-test.json';
 const RUNTIME_APP_ICON_PATH = path.join(__dirname, 'build', 'icon-macos.png');
 const SIGNBOARD_USER_DATA_DIR = String(process.env.SIGNBOARD_USER_DATA_DIR || '').trim();
 const APP_ENTRY_URL = pathToFileURL(path.join(__dirname, 'index.html'));
@@ -155,6 +157,7 @@ function getUserArgsFromProcessArgv(argv = process.argv) {
 const signboardArgs = getUserArgsFromProcessArgv();
 const isMcpServerMode = signboardArgs.includes(MCP_SERVER_ARG);
 const isMcpConfigMode = signboardArgs.includes(MCP_CONFIG_ARG);
+const isPackagedSmokeTestMode = signboardArgs.includes(PACKAGED_SMOKE_TEST_ARG);
 const isCliMode = isCliInvocation(signboardArgs);
 let mainWindow = null;
 let isAppQuitting = false;
@@ -2108,7 +2111,7 @@ function registerSignboardProtocolClient() {
   return app.setAsDefaultProtocolClient('signboard');
 }
 
-if (!isCliMode && !isMcpServerMode && !isMcpConfigMode) {
+if (!isCliMode && !isMcpServerMode && !isMcpConfigMode && !isPackagedSmokeTestMode) {
   const gotSingleInstanceLock = app.requestSingleInstanceLock();
   if (!gotSingleInstanceLock) {
     app.quit();
@@ -2441,6 +2444,7 @@ function createWindow() {
 
   const win = new BrowserWindow({
     ...windowState.bounds,
+    show: !isPackagedSmokeTestMode,
     minWidth: minWindowWidth,
     minHeight: minWindowHeight,
     webPreferences: {
@@ -2603,6 +2607,27 @@ function createWindow() {
       console.error('Failed to dispatch pending signboard:// URL.', error);
     });
   });
+
+  if (isPackagedSmokeTestMode) {
+    win.webContents.once('did-finish-load', async () => {
+      try {
+        const rendererLoaded = await win.webContents.executeJavaScript(
+          "document.readyState === 'complete' && typeof window.board === 'object' && typeof window.electronAPI === 'object'"
+        );
+        const markerPath = path.join(app.getPath('userData'), PACKAGED_SMOKE_TEST_FILE);
+        await fsPromises.mkdir(path.dirname(markerPath), { recursive: true });
+        await fsPromises.writeFile(markerPath, JSON.stringify({
+          version: app.getVersion(),
+          isPackaged: app.isPackaged,
+          rendererLoaded: rendererLoaded === true,
+        }), 'utf8');
+        app.exit(rendererLoaded === true && app.isPackaged ? 0 : 1);
+      } catch (error) {
+        console.error('Packaged application smoke test failed.', error);
+        app.exit(1);
+      }
+    });
+  }
 
   win.loadFile('index.html');
   return win;
@@ -5079,6 +5104,11 @@ if (isCliMode) {
       return;
     }
 
+    if (isPackagedSmokeTestMode) {
+      createWindow();
+      return;
+    }
+
     await loadUpdatePreferences();
     await initializeAppRuntimeSettings();
     queueSignboardProtocolUrl(findSignboardProtocolUrlInArgs(process.argv));
@@ -5090,7 +5120,7 @@ if (isCliMode) {
 }
 
 app.on('activate', () => {
-  if (isCliMode) {
+  if (isCliMode || isPackagedSmokeTestMode) {
     return;
   }
 
@@ -5101,7 +5131,7 @@ app.on('activate', () => {
 });
 
 app.on('browser-window-focus', () => {
-  if (isCliMode || isMcpServerMode || isMcpConfigMode) {
+  if (isCliMode || isMcpServerMode || isMcpConfigMode || isPackagedSmokeTestMode) {
     return;
   }
 

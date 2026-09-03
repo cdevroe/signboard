@@ -9,6 +9,7 @@ const {
   inspectDebianPackageFile,
   inspectPacmanPackageFile,
 } = require('../lib/releaseArtifactValidation');
+const { validatePackagingConfig } = require('./test-packaging-config');
 
 const repoRoot = path.resolve(__dirname, '..');
 const distDir = path.join(repoRoot, 'dist');
@@ -93,6 +94,7 @@ const distEntrySet = new Set(distEntries);
 
 validateArtifactNameTemplates();
 validateBuildScriptsUseCanonicalConfiguration();
+validatePackagedSourceGlobs();
 validateApplicationId();
 validateProtocolRegistration();
 validateDeprecatedPublicArtifacts();
@@ -176,6 +178,12 @@ function validateBuildScriptsUseCanonicalConfiguration() {
         false
       );
     }
+  }
+}
+
+function validatePackagedSourceGlobs() {
+  for (const error of validatePackagingConfig(electronBuilderConfig)) {
+    addIssue(error, false);
   }
 }
 

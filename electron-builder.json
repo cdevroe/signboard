@@ -10,7 +10,9 @@
   "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
   "files": [
     "app/**",
+    "bin/**",
     "lib/**",
+    "shared/**",
     "static/**",
     "index.html",
     "main.js",

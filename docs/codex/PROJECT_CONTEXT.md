@@ -560,12 +560,14 @@ CLI overdue behavior:
 - Transactional card/list ordering stages and renames only entries whose numbered paths actually change, including a zero-rename fast path for unchanged drops.
 - Standard Linux packaging includes AppImage, deb, and native Arch/Omarchy pacman artifacts for x64 and ARM64; the native package supplies desktop integration without requiring FUSE.
 - macOS notarization hook: `scripts/notarize.js` (env vars from `.env`).
-- Release validation script: `scripts/verify-release-assets.js` (`npm run release:verify`) checks cross-platform updater assets, minimum sizes, Debian/Pacman recognition, electron-builder protocol registration, metadata naming, metadata sizes, and SHA-512 integrity. A Linux package that fails must be rebuilt in a Linux environment rather than published.
+- Release validation script: `scripts/verify-release-assets.js` (`npm run release:verify`) checks required packaged source roots, cross-platform updater assets, minimum sizes, Debian/Pacman recognition, electron-builder protocol registration, metadata naming, metadata sizes, and SHA-512 integrity. Every macOS `dist` command then launches its packaged app with isolated user data and requires the renderer-ready smoke-test marker before succeeding. A Linux package that fails must be rebuilt in a Linux environment rather than published.
 - Standard public releases should promote macOS universal, a single Windows installer, and Linux `x64`/`ARM64` AppImage, deb, and Arch/Omarchy downloads; use `docs/release-template.md` for the curated GitHub release body. electron-builder names Pacman architectures `x64` and `aarch64`.
 - The in-app update dialog reads GitHub release notes through `lib/updateReleaseNotes.js`, converts HTML or Markdown into readable plain text, decodes entities, removes link targets, strips the `## Downloads` section, and truncates only after normalization. The dev updater preview intentionally uses representative GitHub HTML.
 - Update release-note normalization tests: `npm run test:update-release-notes` (`scripts/test-update-release-notes.js`).
 - Updater error presentation tests: `npm run test:update-errors` (`scripts/test-update-errors.js`).
-- Debian release-artifact tests: `npm run test:release-artifacts` (`scripts/test-release-artifact-validation.js`).
+- Release-artifact tests: `npm run test:release-artifacts` (`scripts/test-release-artifact-validation.js`).
+- Packaging configuration test: `npm run test:packaging-config` (`scripts/test-packaging-config.js`).
+- Packaged macOS app launch test: `npm run test:packaged-app-launch -- --app dist/mac-universal/Signboard.app` (also runs automatically after macOS distribution builds).
 - End-to-end release prep: `npm run release:prepare` (build all + verify release assets).
 - MCP instructions for packaged and source installs: `MCP_README.md`.
 - Optional reusable agent skill for MCP workflows: `skills/signboard-mcp/SKILL.md`.

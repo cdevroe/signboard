@@ -29,6 +29,7 @@ Use this structure:
 - Keep the top section short and task-oriented so the updater dialog stays readable.
 - Put curated downloads after the changelog, not before it.
 - Upload all updater metadata and supporting artifacts required by `npm run release:verify`, even if they are not linked from the release body.
+- Do not publish a macOS build unless its automatic packaged-app launch test completed successfully after signing/notarization.
 - Do not upload Linux `.deb` or `.pacman` files until `npm run release:verify` confirms their expected names, minimum size, recognized package structure, and agreement with updater metadata size/SHA-512 values. Rebuild invalid cross-platform output in a Linux environment.
 
 ## Example Skeleton

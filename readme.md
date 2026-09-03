@@ -277,6 +277,7 @@ npm run test:import-trello
 npm run test:import-obsidian
 npm run test:import-tasksmd
 npm run test:obsidian-plugin
+npm run test:packaging-config
 npm run release:verify
 ```
 
@@ -300,6 +301,8 @@ npm run dist:mac:x64
 # Optional: build every macOS variant
 npm run dist:mac:all
 ```
+
+Each macOS distribution command finishes by launching the newly packaged app with isolated user data. The build fails unless the packaged main process and renderer bridge load successfully.
 
 ### Windows (NSIS installer)
 
