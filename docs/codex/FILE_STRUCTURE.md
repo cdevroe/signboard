@@ -17,7 +17,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `package-lock.json` - NPM lockfile.
 - `.gitignore` - Ignores `node_modules`, `dist`, `.env`, etc.
 - `buildjs.sh` - Concatenate shared renderer schema and renderer modules into `app/signboard.js`.
-- `electron-builder.json` - Build targets/artifact settings, including packaged `signboard://` URL-scheme registration.
+- `electron-builder.json` - Build targets/artifact settings, including packaged `signboard://` URL-scheme registration plus the `bin/**` and `shared/**` runtime source roots used by CLI/MCP and the desktop main process.
 - `.github/workflows/release-linux.yml` - Native x64 and ARM64 Linux release-package builds, including updater metadata and downloadable workflow artifacts.
 - Linux build targets include native Arch/Omarchy `.pacman` packages in addition to AppImage, deb, and optional rpm artifacts.
 - `LICENSE` - MIT license.
@@ -114,6 +114,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-linux-package-installer.js` - Pacman query/install command assertions, including protection against `pacman -Sy` fallback.
 - `scripts/test-omarchy-theme.js` - Omarchy path, palette parsing, malformed input, platform no-op, and active-theme replacement assertions.
 - `scripts/test-release-artifact-validation.js` - Valid, malformed, incomplete, and file-backed Debian/Pacman archive inspection assertions.
+- `scripts/test-packaging-config.js` - Required electron-builder runtime-source glob validation, including `bin/**` and `shared/**`.
+- `scripts/test-packaged-app-launch.js` - Isolated packaged-app smoke test that requires the packaged main process and renderer bridge to load before macOS distribution builds succeed.
 - `scripts/test-archive.js` - Archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.
 - `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
 - `scripts/test-external-published-calendar.js` - External Published Calendar assertions for ICS generation, completed-list skipping, checked-task skipping, and board opt-out.

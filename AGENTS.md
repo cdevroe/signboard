@@ -11,6 +11,7 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Read [docs/codex/FILE_STRUCTURE.md](./docs/codex/FILE_STRUCTURE.md) for the repository map.
 - Read [DESIGN.md](./DESIGN.md) before changing the default theme, visual system, or UI component styling.
 - Treat `app/signboard.js` as generated output; edit source modules in `app/**` or shared renderer modules such as `shared/appSettingsSchema.js`, then run `./buildjs.sh`.
+- Keep every runtime source root used by packaged code in `electron-builder.json`, including `bin/**` and `shared/**`; macOS distribution builds must pass `scripts/test-packaged-app-launch.js` before release.
 - Use `lib/atomicFile.js` for durable writes to Signboard-managed card, settings, sidecar, and Obsidian integration files.
 - Keep keyboard shortcut behavior, `index.html` shortcut help, and user-facing shortcut docs in sync.
 - Keep modal focus handling, live status announcements, reduced-motion behavior, forced-colors behavior, and keyboard-only focus styling in sync with `app/utilities/accessibility.js` and `static/styles.css`.
