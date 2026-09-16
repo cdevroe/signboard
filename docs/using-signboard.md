@@ -238,6 +238,8 @@ Board context can be Kanban or Table. Dated planning happens in Planner.
 
 Kanban is the board view. Use it for day-to-day drag-and-drop organization. Cards show compact metadata for start/due date ranges, checklist progress, labels, and linked-object counts.
 
+When a board has more lists than fit the window, you can drag the empty board surface left or right to scroll through them. The drag starts on the background only, so dragging a card or a list column still reorders it.
+
 ### Table
 
 Table is an active-board view for scanning and bulk-managing cards in board/list order. It uses the same board search, label filters, date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.

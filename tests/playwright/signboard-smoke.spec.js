@@ -367,6 +367,42 @@ async function openFirstCardInEditor(page) {
   await openCardInEditor(page, 0, 0);
 }
 
+async function addBoardListColumns(page, boardRoot, count) {
+  for (let index = 0; index < count; index += 1) {
+    const listName = `${String(index + 3).padStart(3, '0')}-Overflow-${index}-stock`;
+    await fs.mkdir(path.join(boardRoot, listName), { recursive: true });
+  }
+
+  await page.evaluate(async () => {
+    await renderBoard();
+  });
+}
+
+async function measureBoardPanOrigin(page) {
+  const origin = await page.evaluate(() => {
+    const board = document.getElementById('board');
+    const boardBox = board.getBoundingClientRect();
+    const listBottoms = [...board.querySelectorAll('.list')]
+      .map((list) => list.getBoundingClientRect().bottom);
+    const point = {
+      x: Math.round(boardBox.left + 320),
+      y: Math.round(Math.max(...listBottoms) + 40),
+    };
+
+    return {
+      ...point,
+      onBoardBackground: document.elementFromPoint(point.x, point.y) === board,
+      scrollRange: board.scrollWidth - board.clientWidth,
+    };
+  });
+
+  if (!origin.onBoardBackground) {
+    throw new Error('Unable to find an empty board background point to drag from.');
+  }
+
+  return origin;
+}
+
 async function openCardInEditor(page, listIndex, cardIndex = 0) {
   await page.locator('.list').nth(listIndex).locator('.card').nth(cardIndex).click();
   await expect(page.locator('#modalEditCard')).toBeVisible();
@@ -1404,6 +1440,43 @@ test('navigates board popovers and settings sections from the keyboard', async (
   await expect(page.locator('#boardSettingsPanelImport')).toHaveAttribute('aria-hidden', 'false');
   await page.keyboard.press('Escape');
   await expect(page.locator('#modalBoardSettings')).toBeHidden();
+});
+
+test('pans the board horizontally by dragging the board background', async ({ page, boardRoot }) => {
+  await addBoardListColumns(page, boardRoot, 9);
+  const origin = await measureBoardPanOrigin(page);
+  const board = page.locator('#board');
+
+  expect(origin.scrollRange).toBeGreaterThan(200);
+
+  await page.mouse.move(origin.x, origin.y);
+  await page.mouse.down();
+  await page.mouse.move(origin.x - 60, origin.y);
+  await expect(board).toHaveClass(/board-panning/);
+
+  await page.mouse.move(origin.x - 200, origin.y);
+  await page.mouse.up();
+
+  await expect(board).not.toHaveClass(/board-panning/);
+  expect(await page.evaluate(() => document.getElementById('board').scrollLeft)).toBe(200);
+});
+
+test('leaves list dragging alone while board panning is available', async ({ page, boardRoot }) => {
+  await addBoardListColumns(page, boardRoot, 9);
+  const listBox = await page.locator('.list').first().boundingBox();
+
+  if (!listBox) {
+    throw new Error('Unable to measure the first list column.');
+  }
+
+  await page.mouse.move(listBox.x + listBox.width / 2, listBox.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(listBox.x + listBox.width / 2 - 120, listBox.y + 8);
+
+  await expect(page.locator('#board')).not.toHaveClass(/board-panning/);
+  expect(await page.evaluate(() => document.getElementById('board').scrollLeft)).toBe(0);
+
+  await page.mouse.up();
 });
 
 test('renders card drag ghost as an empty drop slot', async ({ page }) => {
