@@ -1372,6 +1372,11 @@ main#board {
   -webkit-overflow-scrolling: touch;
 }
 
+main#board.board-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
 main#board.board-view-table,
 main#board.board-view-calendar,
 main#board.board-view-week {

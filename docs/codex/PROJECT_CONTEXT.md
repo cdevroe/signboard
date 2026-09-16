@@ -235,6 +235,11 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - Keeps the filter toolbar button icon-only and applies an accent-tinted active state when any filter is set; active summary text lives in tooltip/ARIA copy.
   - Handles card label popovers with inline label creation and a Labels settings shortcut, new-card label selection, Settings modal board panels, and the board import UI/actions.
   - Persists board labels through preload APIs.
+- `app/board/boardPan.js`:
+  - Pans the board horizontally when a primary mouse drag starts on the empty board surface.
+  - Ignores drags that begin on a list or card so Sortable list/card reordering is unchanged.
+  - Captures the pointer on the board, so a drag keeps scrolling after the cursor leaves the board area.
+  - Marks the board with `board-panning` during the drag for the grabbing cursor and text-selection suppression.
 - `app/board/boardSearch.js`:
   - Stores the current search query/tokens.
   - Debounces live search renders for title/body filtering.

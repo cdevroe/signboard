@@ -1128,6 +1128,7 @@ async function init() {
         initializeCommercialLicenseControls();
         initializeBoardLabelControls();
         initializeBoardSearchControls();
+        initializeBoardPanControls();
         initializeBoardViewControls();
         initializePlannerControls();
         initializeArchiveBrowserControls();

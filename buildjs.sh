@@ -16,6 +16,7 @@ cat \
   app/utilities/linkedObjects.js \
   app/appSettings.js \
   app/board/boardLabels.js \
+  app/board/boardPan.js \
   app/board/boardSearch.js \
   app/board/boardSnapshot.js \
   app/board/boardViews.js \
