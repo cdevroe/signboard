@@ -1180,6 +1180,34 @@ test('renders card start and due dates as a compact date range', async ({ page, 
   await expect(datePopover.getByRole('button', { name: 'Change due date' })).toContainText('Jun 26');
 });
 
+test('wraps long unbroken card text inside the card', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+  const card = await cardFrontmatter.readCard(cardPath);
+  const unbrokenText = 'https://infinitestategames.itch.io/ddmrpocket';
+
+  await cardFrontmatter.writeCard(cardPath, {
+    frontmatter: { ...card.frontmatter, title: unbrokenText },
+    body: unbrokenText,
+  });
+  await page.evaluate(async () => {
+    await renderBoard();
+  });
+
+  const overflow = await page.evaluate(() => {
+    const firstCard = document.querySelector('.list .card');
+    const title = firstCard.querySelector('.card-title-button');
+    const body = firstCard.querySelector('.card-body p');
+
+    return {
+      title: title.scrollWidth - title.clientWidth,
+      body: body.scrollWidth - body.clientWidth,
+    };
+  });
+
+  expect(overflow.title).toBeLessThanOrEqual(0);
+  expect(overflow.body).toBeLessThanOrEqual(0);
+});
+
 test('keeps the card date popover open during a pending board refresh', async ({ page }) => {
   const firstCard = page.locator('.list').first().locator('.card').first();
   await firstCard.hover();
