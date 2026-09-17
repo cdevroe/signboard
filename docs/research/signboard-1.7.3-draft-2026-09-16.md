@@ -1,6 +1,6 @@
 # Signboard 1.7.3 GitHub draft preparation
 
-The requested release draft is [Signboard 1.7.3](https://github.com/cdevroe/signboard/releases/tag/untagged-6c2933383ec12587fe35). It remains unpublished. The maintenance branch is `codex/release-1.7.3`; the active 2.0 working tree was not changed.
+The requested release draft is [Signboard 1.7.3](https://github.com/cdevroe/signboard/releases). It remains unpublished. The maintenance branch is `codex/release-1.7.3`; the active 2.0 working tree was not changed.
 
 ## Build provenance and checks
 
