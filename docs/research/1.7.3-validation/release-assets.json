@@ -1,0 +1,82 @@
+[
+  {
+    "name": "latest-linux-arm64.yml",
+    "size": 721,
+    "sha256": "94836bb1a6e3af8b1da34863a027735754bbc01d494569c692f0725f92502b14"
+  },
+  {
+    "name": "latest-linux.yml",
+    "size": 719,
+    "sha256": "896bd621b3a158d801bbbd54a94efe553e818bd42f045032e846102c0659f801"
+  },
+  {
+    "name": "latest-mac.yml",
+    "size": 527,
+    "sha256": "5e757f4fa76403792cfc341a45fbb2ea8acd1b252a9e1734470bb7e0ebc4865e"
+  },
+  {
+    "name": "latest.yml",
+    "size": 343,
+    "sha256": "1fb9b75d72bbfc40ed30ac5bb62ca1fcda7cb6715c3d7beb14adc56560130085"
+  },
+  {
+    "name": "signboard_1.7.3_linux_aarch64.pacman",
+    "size": 78704860,
+    "sha256": "311136cacc230dc2ae2f094a24936c748c730ca51385bf38440765d4385a0cea"
+  },
+  {
+    "name": "signboard_1.7.3_linux_amd64.deb",
+    "size": 92441656,
+    "sha256": "399f5a14d66ed1abab0c16e4180f904094377cbc2e3ca1468748bcc76c6a89db"
+  },
+  {
+    "name": "signboard_1.7.3_linux_arm64.AppImage",
+    "size": 119151921,
+    "sha256": "484fd6f4db8ff0b64341ad74f3bc34655dcfc809a925628079832ed1fdddccee"
+  },
+  {
+    "name": "signboard_1.7.3_linux_arm64.deb",
+    "size": 87443392,
+    "sha256": "0815b078946ebeec6d75eb776dd967681d3692860ae4388ae8c38e011859b54a"
+  },
+  {
+    "name": "signboard_1.7.3_linux_x64.pacman",
+    "size": 83720740,
+    "sha256": "4bf08c1f17230be4fc90815c67de1a3ad779edab81e91d4ece121f2d8a5b1cba"
+  },
+  {
+    "name": "signboard_1.7.3_linux_x86_64.AppImage",
+    "size": 118487813,
+    "sha256": "781f19805ccb3ac41f98ebb0082589d95477d508e87b50ce71dd74799dde593e"
+  },
+  {
+    "name": "signboard_1.7.3_mac_universal.dmg",
+    "size": 207888409,
+    "sha256": "8c803fabb854de009890be8a112bd54176e7aa785a897b8b775286fbaf066566"
+  },
+  {
+    "name": "signboard_1.7.3_mac_universal.dmg.blockmap",
+    "size": 218569,
+    "sha256": "1c063444e9b05e609a1a71a483e97d6da19bcffbe2fb0a26a9d4ed99419e3c19"
+  },
+  {
+    "name": "signboard_1.7.3_mac_universal.zip",
+    "size": 200790407,
+    "sha256": "09db29e77ddf95f4d452a81601e4d6869fe07ac6d50e362949197a9e09475f2d"
+  },
+  {
+    "name": "signboard_1.7.3_mac_universal.zip.blockmap",
+    "size": 211559,
+    "sha256": "485e502e7ab901ddb84ebd2715e50f87e9f11ba44291983a9ce596bc7b6ea072"
+  },
+  {
+    "name": "signboard_1.7.3_win.exe",
+    "size": 197366858,
+    "sha256": "2428a3deeb98115beb88d1588cc1a63ad170f6e4b9af58e2b16fe56959cb7837"
+  },
+  {
+    "name": "signboard_1.7.3_win.exe.blockmap",
+    "size": 204333,
+    "sha256": "5a2e0f8b1ee334a8d8a7e38f883dc363fe0d98b82c02f82ce9ce8da54ca2f34c"
+  }
+]

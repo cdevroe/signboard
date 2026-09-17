@@ -1,5 +1,7 @@
 # Signboard 1.7.3 implementation and validation
 
+For the later signed builds and GitHub draft, see [draft preparation](signboard-1.7.3-draft-2026-09-16.md). The checks below record the earlier implementation checkpoint.
+
 Status: implementation prepared on `codex/release-1.7.3`, based on public `1.7.2` (`255427f3dc38399a8f9a23e2217ade357a1bccef`). Public release publication is not part of this implementation checkpoint. The active `beta/2.0.0` checkout and its uncommitted multi-window work remain untouched.
 
 ## Included work

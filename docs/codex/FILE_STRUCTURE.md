@@ -194,3 +194,5 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `.github/workflows/release-windows.yml`: native Windows combined x64/ARM64 installer build, packaged desktop/CLI/MCP gate, and updater artifacts.
 
 - `.github/workflows/release-linux.yml`: native x64/ARM64 packages plus isolated packaged desktop/CLI/MCP launch checks under Xvfb before artifact upload.
+
+- `docs/research/signboard-1.7.3-draft-2026-09-16.md`: signed/native build provenance, draft release assets, and remaining publication checks.

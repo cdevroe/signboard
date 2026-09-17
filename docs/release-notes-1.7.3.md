@@ -14,4 +14,13 @@
 
 Thanks to amali for the text-wrapping and board-panning contributions in PRs #55 and #56.
 
-<!-- Release preparation: add the verified curated Downloads section immediately before publishing. This file is draft release copy, not a published release. -->
+## Downloads
+
+- [Download for macOS (Universal)](https://github.com/cdevroe/signboard/releases/download/1.7.3/signboard_1.7.3_mac_universal.dmg)
+- [Download for Windows](https://github.com/cdevroe/signboard/releases/download/1.7.3/signboard_1.7.3_win.exe)
+- [Linux AppImage (x64)](https://github.com/cdevroe/signboard/releases/download/1.7.3/signboard_1.7.3_linux_x86_64.AppImage)
+- [Linux AppImage (ARM64)](https://github.com/cdevroe/signboard/releases/download/1.7.3/signboard_1.7.3_linux_arm64.AppImage)
+- [Linux deb (x64)](https://github.com/cdevroe/signboard/releases/download/1.7.3/signboard_1.7.3_linux_amd64.deb)
+- [Linux deb (ARM64)](https://github.com/cdevroe/signboard/releases/download/1.7.3/signboard_1.7.3_linux_arm64.deb)
+- [Arch/Omarchy package (x64)](https://github.com/cdevroe/signboard/releases/download/1.7.3/signboard_1.7.3_linux_x64.pacman)
+- [Arch/Omarchy package (ARM64)](https://github.com/cdevroe/signboard/releases/download/1.7.3/signboard_1.7.3_linux_aarch64.pacman)
