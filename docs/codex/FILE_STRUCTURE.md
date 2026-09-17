@@ -190,3 +190,5 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `docs/release-notes-1.7.3.md`: draft maintenance release notes; add verified downloads before publication.
 - `docs/research/signboard-1.7.3-validation-2026-09-16.md`: implementation evidence, Babu measurements, and outstanding publication gates.
+
+- `.github/workflows/release-windows.yml`: native Windows combined x64/ARM64 installer build, packaged desktop/CLI/MCP gate, and updater artifacts.
