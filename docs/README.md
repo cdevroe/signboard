@@ -47,3 +47,12 @@ Signboard is intentionally simple on disk:
 - Obsidian helpers auto-create a managed `Signboard Board.base` for boards inside detected vaults, create linked notes in the board root when requested, and mark missing linked notes for explicit recreate/relink/remove actions. Existing boards can be moved into an Obsidian vault from `Settings > General > Move Board`. The optional `obsidian-plugin/` companion plugin can open/copy Signboard links, attach active notes, ask before removing links to deleted notes, and create a Signboard board from an Obsidian folder after confirmation.
 
 That makes boards easy to inspect, back up, sync, and automate with standard filesystem tools.
+
+## Improvements in 1.7.3
+
+- Long card titles and previews wrap inside the card. Drag empty board background with a mouse to scroll a wide board horizontally.
+- Large boards use bounded file reads. Kanban, Table, and Planner show a warning if some files cannot be read instead of presenting a partial view without explanation.
+- Exact CLI card filenames with a list selection avoid loading unrelated cards. Numbered lists/cards continue working beyond 999.
+- Explicit list/board renames reconcile stored card metadata; list renames preserve explicit completed-list workflow choices. Failed metadata writes attempt to restore the original directory and file contents.
+- Atomic saves preserve existing file permission bits. MCP uses a standalone headless launcher, checks real filesystem paths against allowed roots, validates explicit dates, and keeps copied/moved card IDs, links, and list properties consistent.
+- Card links open the requested trusted board reliably during startup or when the window was hidden. Use Help → Copy MCP Config to refresh existing agent configurations for the new launcher.

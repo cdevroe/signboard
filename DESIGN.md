@@ -251,7 +251,7 @@ Do not mix sharp rectangular controls into the default theme unless matching nat
 
 Buttons are quiet by default: white surface, slate text, one-pixel border, and 10px radius. Primary buttons use blue fill, white text, pill radius, and at least 40px height.
 
-Cards are white surfaces with 10px radius, 10px padding, subtle border, and a low shadow. Card titles are regular 16px text; preview and metadata text is muted. Label chips are pill-shaped, small, and use board label colors without overwhelming card text.
+Cards are white surfaces with 10px radius, 10px padding, subtle border, and a low shadow. Card titles are regular 16px text; preview and metadata text is muted. Title and preview text wraps inside the card, including unbroken strings such as URLs, so a card never spills over the column beside it. Label chips are pill-shaped, small, and use board label colors without overwhelming card text.
 
 Columns are fixed-width white surfaces with 14px radius, 12px padding, and a faint shadow. Column headers use 14px semibold text with a subtle bottom divider.
 

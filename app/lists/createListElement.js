@@ -8,7 +8,7 @@ async function createListElement(name, listPath, cardNames, options = {}) {
   const listName = document.createElement('span');
   listName.setAttribute('contenteditable',true);
   listName.setAttribute('data-listpath',listPath);
-  listName.textContent = name.substring(4,name.length-6);
+  listName.textContent = name.replace(/^\d+-/, '').replace(/(?:-[^-]{5}|-stock)$/, '');
   listName.id = typeof createStableDomId === 'function'
     ? createStableDomId('list-name', listPath)
     : '';
@@ -146,7 +146,7 @@ async function createListElement(name, listPath, cardNames, options = {}) {
 
 async function renameList( e ) {
   const currentListName = await window.board.getListDirectoryName( e.target.dataset.listpath );
-  const listNameMatch = currentListName.match(/^(\d{3}-)(.*?)(-[^-]{5}|-stock)$/);
+  const listNameMatch = currentListName.match(/^(\d{3,}-)(.*?)(-[^-]{5}|-stock)$/);
 
   if (!listNameMatch) {
     return;

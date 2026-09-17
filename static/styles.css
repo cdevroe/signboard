@@ -1372,6 +1372,11 @@ main#board {
   -webkit-overflow-scrolling: touch;
 }
 
+main#board.board-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
 main#board.board-view-table,
 main#board.board-view-calendar,
 main#board.board-view-week {
@@ -2546,6 +2551,7 @@ body.board-card-drag-active * {
   text-align: left;
   font: inherit;
   line-height: inherit;
+  overflow-wrap: anywhere;
 }
 .card-title-button:hover {
   background: transparent;
@@ -2560,6 +2566,7 @@ body.board-card-drag-active * {
 .card-body {
   font-size: var(--font-sm);
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 .metadata {
   display: flex;

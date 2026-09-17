@@ -8,6 +8,9 @@ function setBoardChromeState(hasOpenBoard) {
     return;
   }
 
+  const readWarning = document.getElementById('boardReadWarning');
+  if (readWarning) readWarning.remove();
+
   const boardNameEl = document.getElementById('boardName');
   if (boardNameEl) {
     boardNameEl.textContent = 'Signboard';
@@ -136,7 +139,7 @@ function isLikelyBoardDirectoryName(directoryName) {
     return true;
   }
 
-  return /^\d{3}-.+/.test(directoryName);
+  return /^\d{3,}-.+/.test(directoryName);
 }
 
 async function shouldUseLocatedBoardDirectory(nextPath) {
@@ -373,6 +376,8 @@ async function renderBoard() {
       return;
     }
 
+    updateBoardReadWarning(boardEl, snapshot);
+
     if (activeBoardView === 'table' && typeof renderTableBoard === 'function') {
       const tableBuild = await renderTableBoard(boardRoot, listsWithCards);
 
@@ -484,4 +489,20 @@ async function renderBoard() {
     }
     throw error;
   }
+}
+
+function updateBoardReadWarning(boardEl, snapshot) {
+  let notice = document.getElementById('boardReadWarning');
+  if (snapshot.ok !== false && !(snapshot.errors && snapshot.errors.length)) {
+    if (notice) notice.remove();
+    return;
+  }
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.id = 'boardReadWarning';
+    notice.className = 'planner-source-warning';
+    notice.setAttribute('role', 'status');
+    boardEl.before(notice);
+  }
+  notice.textContent = 'Some board files could not be read. Cards may be missing from this view. Check folder access and reopen the board to retry.';
 }

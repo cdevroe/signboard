@@ -367,6 +367,42 @@ async function openFirstCardInEditor(page) {
   await openCardInEditor(page, 0, 0);
 }
 
+async function addBoardListColumns(page, boardRoot, count) {
+  for (let index = 0; index < count; index += 1) {
+    const listName = `${String(index + 3).padStart(3, '0')}-Overflow-${index}-stock`;
+    await fs.mkdir(path.join(boardRoot, listName), { recursive: true });
+  }
+
+  await page.evaluate(async () => {
+    await renderBoard();
+  });
+}
+
+async function measureBoardPanOrigin(page) {
+  const origin = await page.evaluate(() => {
+    const board = document.getElementById('board');
+    const boardBox = board.getBoundingClientRect();
+    const listBottoms = [...board.querySelectorAll('.list')]
+      .map((list) => list.getBoundingClientRect().bottom);
+    const point = {
+      x: Math.round(boardBox.left + 320),
+      y: Math.round(Math.max(...listBottoms) + 40),
+    };
+
+    return {
+      ...point,
+      onBoardBackground: document.elementFromPoint(point.x, point.y) === board,
+      scrollRange: board.scrollWidth - board.clientWidth,
+    };
+  });
+
+  if (!origin.onBoardBackground) {
+    throw new Error('Unable to find an empty board background point to drag from.');
+  }
+
+  return origin;
+}
+
 async function openCardInEditor(page, listIndex, cardIndex = 0) {
   await page.locator('.list').nth(listIndex).locator('.card').nth(cardIndex).click();
   await expect(page.locator('#modalEditCard')).toBeVisible();
@@ -1180,6 +1216,34 @@ test('renders card start and due dates as a compact date range', async ({ page, 
   await expect(datePopover.getByRole('button', { name: 'Change due date' })).toContainText('Jun 26');
 });
 
+test('wraps long unbroken card text inside the card', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+  const card = await cardFrontmatter.readCard(cardPath);
+  const unbrokenText = 'https://infinitestategames.itch.io/ddmrpocket';
+
+  await cardFrontmatter.writeCard(cardPath, {
+    frontmatter: { ...card.frontmatter, title: unbrokenText },
+    body: 'W'.repeat(80),
+  });
+  await page.evaluate(async () => {
+    await renderBoard();
+  });
+
+  const overflow = await page.evaluate(() => {
+    const firstCard = document.querySelector('.list .card');
+    const title = firstCard.querySelector('.card-title-button');
+    const body = firstCard.querySelector('.card-body p');
+
+    return {
+      title: title.scrollWidth - title.clientWidth,
+      body: body.scrollWidth - body.clientWidth,
+    };
+  });
+
+  expect(overflow.title).toBeLessThanOrEqual(0);
+  expect(overflow.body).toBeLessThanOrEqual(0);
+});
+
 test('keeps the card date popover open during a pending board refresh', async ({ page }) => {
   const firstCard = page.locator('.list').first().locator('.card').first();
   await firstCard.hover();
@@ -1376,6 +1440,43 @@ test('navigates board popovers and settings sections from the keyboard', async (
   await expect(page.locator('#boardSettingsPanelImport')).toHaveAttribute('aria-hidden', 'false');
   await page.keyboard.press('Escape');
   await expect(page.locator('#modalBoardSettings')).toBeHidden();
+});
+
+test('pans the board horizontally by dragging the board background', async ({ page, boardRoot }) => {
+  await addBoardListColumns(page, boardRoot, 9);
+  const origin = await measureBoardPanOrigin(page);
+  const board = page.locator('#board');
+
+  expect(origin.scrollRange).toBeGreaterThan(200);
+
+  await page.mouse.move(origin.x, origin.y);
+  await page.mouse.down();
+  await page.mouse.move(origin.x - 60, origin.y);
+  await expect(board).toHaveClass(/board-panning/);
+
+  await page.mouse.move(origin.x - 200, origin.y);
+  await page.mouse.up();
+
+  await expect(board).not.toHaveClass(/board-panning/);
+  expect(await page.evaluate(() => document.getElementById('board').scrollLeft)).toBe(200);
+});
+
+test('leaves list dragging alone while board panning is available', async ({ page, boardRoot }) => {
+  await addBoardListColumns(page, boardRoot, 9);
+  const listBox = await page.locator('.list').first().boundingBox();
+
+  if (!listBox) {
+    throw new Error('Unable to measure the first list column.');
+  }
+
+  await page.mouse.move(listBox.x + listBox.width / 2, listBox.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(listBox.x + listBox.width / 2 - 120, listBox.y + 8);
+
+  await expect(page.locator('#board')).not.toHaveClass(/board-panning/);
+  expect(await page.evaluate(() => document.getElementById('board').scrollLeft)).toBe(0);
+
+  await page.mouse.up();
 });
 
 test('renders card drag ghost as an empty drop slot', async ({ page }) => {
@@ -3889,4 +3990,135 @@ test('shows import controls and renders an import summary from the Settings impo
   await expect(page.locator('#boardSettingsImportStatus')).toContainText('Imported 1 source.');
   await expect(page.locator('#boardSettingsImportStatus')).toContainText('2 lists created.');
   await expect(page.locator('#boardSettingsImportWarnings')).toContainText('Imported comments may be incomplete.');
+});
+
+test('card links reopen a closed trusted board and reveal the desktop window', async ({ electronApp, boardRoot }) => {
+  const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Closed handoff board']);
+  const targetBoard = boardRoots[1];
+  await cardFrontmatter.writeCard(path.join(targetBoard, '000-To-do-stock', '004-handoff-Hd123.md'), {
+    frontmatter: { title: 'Closed board handoff card', signboard_id: 'Hd123' },
+    body: 'A disposable card for the terminal handoff.',
+  });
+  await page.evaluate(async (root) => { await closeBoardTab(root); }, normalizeBoardRoot(targetBoard));
+  await expect(page.locator('#boardName')).toHaveText(path.basename(boardRoot));
+  expect(await page.evaluate((root) => getStoredOpenBoards().includes(root), normalizeBoardRoot(targetBoard))).toBe(false);
+  await electronApp.evaluate(({ app, BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0].hide();
+    app.emit('open-url', { preventDefault() {} }, 'signboard://open-card?id=Hd123');
+  });
+  await expect(page.locator('#cardEditorTitle')).toHaveText('Closed board handoff card');
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect(page.locator('#boardName')).toHaveText('Closed handoff board');
+  expect(await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible())).toBe(true);
+
+});
+
+test('cold-start card links wait for demo workspace restoration', async ({ userDataDir, boardRoot }) => {
+  const targetBoard = await createFixtureBoardAt(path.dirname(boardRoot), 'Cold handoff board');
+  await cardFrontmatter.writeCard(path.join(targetBoard, '000-To-do-stock', '004-handoff-Hd456.md'), {
+    frontmatter: { title: 'Cold start handoff card', signboard_id: 'Hd456' },
+    body: 'Startup must not restore another board over this card.',
+  });
+  await fs.writeFile(path.join(userDataDir, 'trusted-board-roots.json'), JSON.stringify([boardRoot, targetBoard]));
+  const launch = (args = []) => electron.launch({
+    executablePath: electronBinary,
+    args: ['.', ...args],
+    cwd: repoRoot,
+    env: { ...process.env, SIGNBOARD_USER_DATA_DIR: userDataDir, SIGNBOARD_TEST_DISABLE_FAVICON_FETCH: '1' },
+  });
+  let app;
+  try {
+    app = await launch();
+    await seedBoardState(await app.firstWindow(), boardRoot);
+    await app.close();
+    app = null;
+    app = await launch(['signboard://open-card?id=Hd456']);
+    const page = await app.firstWindow();
+    await expect(page.locator('#cardEditorTitle')).toHaveText('Cold start handoff card');
+    await expect(page.locator('#modalEditCard')).toBeVisible();
+    await expect(page.locator('#boardName')).toHaveText('Cold handoff board');
+    expect(await page.evaluate(() => getStoredActiveBoard())).toBe(normalizeBoardRoot(targetBoard));
+  } finally {
+    if (app) await app.close();
+  }
+});
+
+
+test('cleans up board panning after cancellation, lost capture, and blur', async ({ page, boardRoot }) => {
+  await addBoardListColumns(page, boardRoot, 9);
+  for (const eventType of ['pointercancel', 'lostpointercapture', 'blur']) {
+    await page.evaluate(() => { document.getElementById('board').scrollLeft = 0; });
+    const origin = await measureBoardPanOrigin(page);
+    await page.mouse.move(origin.x, origin.y);
+    await page.mouse.down();
+    await page.mouse.move(origin.x - 40, origin.y);
+    await expect(page.locator('#board')).toHaveClass(/board-panning/);
+    await page.evaluate((type) => {
+      if (type === 'blur') window.dispatchEvent(new Event('blur'));
+      else document.getElementById('board').dispatchEvent(new PointerEvent(type, { pointerId: boardPanState.pointerId }));
+    }, eventType);
+    await expect(page.locator('#board')).not.toHaveClass(/board-panning/);
+    await page.mouse.up();
+  }
+});
+
+test('board panning ignores touch, pen, secondary buttons, and boards without overflow', async ({ page, boardRoot }) => {
+  const fire = async (pointerType, button) => page.evaluate(({ pointerType, button }) => {
+    document.getElementById('board').dispatchEvent(new PointerEvent('pointerdown', { pointerType, button, pointerId: 999 }));
+    return boardPanState.pointerId;
+  }, { pointerType, button });
+  await page.setViewportSize({ width: 1600, height: 900 });
+  expect(await page.evaluate(() => document.getElementById('board').scrollWidth > document.getElementById('board').clientWidth)).toBe(false);
+  expect(await fire('mouse', 0)).toBe(null);
+  await addBoardListColumns(page, boardRoot, 9);
+  for (const [type, button] of [['touch', 0], ['pen', 0], ['mouse', 1], ['mouse', 2]]) {
+    expect(await fire(type, button)).toBe(null);
+  }
+  const origin = await measureBoardPanOrigin(page);
+  await page.mouse.move(origin.x, origin.y);
+  await page.mouse.down();
+  await page.mouse.move(origin.x - 100, origin.y);
+  await page.mouse.move(origin.x - 120, 5);
+  await page.mouse.up();
+  await expect(page.locator('#board')).not.toHaveClass(/board-panning/);
+});
+
+test('warns about partial board reads in Kanban, Table, and Planner and clears on recovery', async ({ page }) => {
+  await page.evaluate(() => {
+    window.testOriginalSnapshot = readBoardSnapshotForRender;
+    readBoardSnapshotForRender = async (...args) => {
+      const snapshot = await window.testOriginalSnapshot(...args);
+      return { ...snapshot, ok: false, errors: [{ code: 'EACCES', message: 'Unreadable fixture' }] };
+    };
+  });
+  await page.evaluate(() => renderBoard());
+  await expect(page.locator('#boardReadWarning')).toBeVisible();
+  await expect(page.locator('.list .card').first()).toBeVisible();
+  await page.keyboard.press(getShortcut('Alt+1'));
+  await expect(page.locator('#boardReadWarning')).toBeVisible();
+  await page.keyboard.press(getShortcut('2'));
+  await expect(page.locator('.planner-source-warning')).toContainText(['Some cards may be missing']);
+  await page.evaluate(() => { readBoardSnapshotForRender = window.testOriginalSnapshot; });
+  await page.keyboard.press(getShortcut('1'));
+  await expect(page.locator('#boardReadWarning')).toHaveCount(0);
+});
+
+test('card links reopen the application after its last window closes', async ({ userDataDir, boardRoot }) => {
+  await cardFrontmatter.writeCard(path.join(boardRoot, '000-To-do-stock', '004-reopen-Rp123.md'), {
+    frontmatter: { title: 'Reopened application card', signboard_id: 'Rp123' }, body: 'Disposable link test',
+  });
+  await fs.writeFile(path.join(userDataDir, 'trusted-board-roots.json'), JSON.stringify([boardRoot]));
+  const launch = (args = []) => electron.launch({ executablePath: electronBinary, args: ['.', ...args], cwd: repoRoot,
+    env: { ...process.env, SIGNBOARD_USER_DATA_DIR: userDataDir, SIGNBOARD_TEST_DISABLE_FAVICON_FETCH: '1' } });
+  let app = await launch();
+  try {
+    await seedBoardState(await app.firstWindow(), boardRoot);
+    const closed = app.waitForEvent('close');
+    await app.evaluate(({ BrowserWindow }) => { setImmediate(() => BrowserWindow.getAllWindows()[0].close()); });
+    await closed;
+    app = await launch(['signboard://open-card?id=Rp123']);
+    const page = await app.firstWindow();
+    await expect(page.locator('#cardEditorTitle')).toHaveText('Reopened application card');
+    await expect(page.locator('#modalEditCard')).toBeVisible();
+  } finally { await app.close(); }
 });

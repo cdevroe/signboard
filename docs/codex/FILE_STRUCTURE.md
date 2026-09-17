@@ -37,6 +37,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/utilities/linkedObjects.js` - Shared renderer helpers for counting structured `linked_objects` and legacy `related` links, plus paperclip count badge creation for Kanban/Table.
 - `app/appSettings.js` - Renderer app-settings state, app-wide General/Notifications/Smart Actions controls, drag-reorderable accordion Smart Card Action prompt/target rows, tooltip/notification/Quick Add global shortcut/AI assistance/External Published Calendar persistence scheduling, and one-time migration from legacy board settings; shared defaults/normalizers come from `shared/appSettingsSchema.js`.
 - `app/board/boardLabels.js` - Board-label state, completed-list workflow settings, shared shortcut-label helpers, header filter UI (`Today` / `Overdue` / next-range date filters + label filters, with date filters ignoring completed task date markers and completed workflow lists), keyboard-operable card label popovers with inline label creation and Labels settings shortcut, new-card label selection helpers, Settings modal app/current-board panel nav, General board rename/move/duplicate controls, Obsidian Base generation controls, and Trello/Obsidian import panel wiring + summary rendering.
+- `app/board/boardPan.js` - Click-and-drag horizontal panning from the empty board surface, using mouse pointer capture so a drag keeps scrolling after the cursor leaves the board.
 - `app/board/boardSearch.js` - Board search state, input handling for title/body filtering, and keyboard navigation from the search field through visible card results.
 - `app/board/boardSnapshot.js` - Renderer adapter for batched `readBoardSnapshot` results, with fallback to legacy per-list/per-card reads for tests or older bridges.
 - `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, bottom Planner/Kanban/Table workspace dock state, direct workspace view transitions, Kanban/Table board view state, Calendar/This Week layout helpers, temporal card placement by card start/due and open task start/due markers, and source-list/source-board pills on temporal cards.
@@ -174,3 +175,24 @@ This map focuses on source and operational files. Large generated/vendor folders
   - `docs/using-signboard.md`
   - `docs/signboard-cli.md`
   - `MCP_README.md` (when MCP setup or behavior changes)
+
+## 1.7.3 maintenance support
+
+- `lib/fileReadQueue.js` — shared bounded card/directory-read budget across simultaneous snapshots and CLI reads.
+- `lib/allowedPaths.js` — canonical allowed-root and nested symlink validation for MCP/discovery.
+- `lib/directoryRename.js` — explicit list/board rename reconciliation, workflow reference updates, and failure rollback.
+- `lib/mcpLaunch.js`, `bin/signboard-mcp.js`, `bin/signboard-mcp-config.js` — standalone headless MCP runtime/configuration.
+- `app/board/boardPan.js` — empty-background mouse panning with pointer and window-blur cleanup.
+- `scripts/test-maintenance.js` — targeted storage, resource-limit, metadata, permissions, numbering, lookup, and MCP boundary regressions.
+- `scripts/benchmark-maintenance.js` — paired source-operation measurements on pristine synthetic 100/1,000/5,000-card fixtures; six samples per operation/channel, with the first separated.
+- `scripts/soak-maintenance.js` — bounded Linux packaged desktop/CLI reliability sessions using new disposable boards/profiles and resource/integrity reporting.
+- `docs/codex/BABU_TESTING.md` — older-hardware isolation, benchmark, build freshness, and soak rules.
+
+- `docs/release-notes-1.7.3.md`: draft maintenance release notes; add verified downloads before publication.
+- `docs/research/signboard-1.7.3-validation-2026-09-16.md`: implementation evidence, Babu measurements, and outstanding publication gates.
+
+- `.github/workflows/release-windows.yml`: native Windows combined x64/ARM64 installer build, packaged desktop/CLI/MCP gate, and updater artifacts.
+
+- `.github/workflows/release-linux.yml`: native x64/ARM64 packages plus isolated packaged desktop/CLI/MCP launch checks under Xvfb before artifact upload.
+
+- `docs/research/signboard-1.7.3-draft-2026-09-16.md`: signed/native build provenance, draft release assets, and remaining publication checks.

@@ -1087,9 +1087,12 @@ async function init() {
         initializeBoardCardPointerActivationFallback();
     }
 
+    let finishWorkspaceRestore;
+    let protocolLinkQueue = new Promise((resolve) => { finishWorkspaceRestore = resolve; });
+
     if (window.electronAPI && typeof window.electronAPI.onOpenSignboardCardLink === 'function') {
         window.electronAPI.onOpenSignboardCardLink((payload) => {
-            handleOpenSignboardCardLink(payload).catch((error) => {
+            protocolLinkQueue = protocolLinkQueue.then(() => handleOpenSignboardCardLink(payload)).catch((error) => {
                 console.error('Failed to open Signboard card link.', error);
             });
         });
@@ -1097,7 +1100,7 @@ async function init() {
 
     if (window.electronAPI && typeof window.electronAPI.onOpenSignboardBoardLink === 'function') {
         window.electronAPI.onOpenSignboardBoardLink((payload) => {
-            handleOpenSignboardBoardLink(payload).catch((error) => {
+            protocolLinkQueue = protocolLinkQueue.then(() => handleOpenSignboardBoardLink(payload)).catch((error) => {
                 console.error('Failed to open Signboard board link.', error);
             });
         });
@@ -1128,6 +1131,7 @@ async function init() {
         initializeCommercialLicenseControls();
         initializeBoardLabelControls();
         initializeBoardSearchControls();
+        initializeBoardPanControls();
         initializeBoardViewControls();
         initializePlannerControls();
         initializeArchiveBrowserControls();
@@ -1156,8 +1160,9 @@ async function init() {
         initializeHeaderControls();
     }
 
+    let restoredBoardReady = Promise.resolve();
     if (restoredBoard) {
-        authorizeBoardAccess(restoredBoard).then((authorizedBoardPath) => {
+        restoredBoardReady = authorizeBoardAccess(restoredBoard).then(async (authorizedBoardPath) => {
             if (!authorizedBoardPath) {
                 window.boardRoot = '';
                 setStoredActiveBoard('');
@@ -1169,7 +1174,7 @@ async function init() {
             }
 
             window.boardRoot = authorizedBoardPath;
-            renderBoard().catch((error) => {
+            await renderBoard().catch((error) => {
                 console.error('Failed to render board on startup.', error);
             });
         }).catch((error) => {
@@ -1266,6 +1271,8 @@ async function init() {
         await closeAllModals(e);
     });
 
+    await restoredBoardReady;
+    finishWorkspaceRestore();
     startExternalBoardSync();
     startDueCardNotificationSchedule();
     startLocalDayRolloverSchedule();

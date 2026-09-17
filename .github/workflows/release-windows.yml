@@ -1,0 +1,43 @@
+name: Build Windows release artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "release/**"
+      - "codex/release-*"
+    paths:
+      - ".github/workflows/release-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build renderer
+        shell: bash
+        run: bash ./buildjs.sh
+      - name: Build combined Windows installer
+        run: npx electron-builder --config electron-builder.json --win nsis --x64 --arm64 --publish never
+      - name: Test packaged desktop, CLI, and MCP
+        run: node scripts/test-packaged-app-launch.js --app dist/win-unpacked/Signboard.exe
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: signboard-windows
+          if-no-files-found: error
+          path: |
+            dist/signboard_*_win.exe
+            dist/signboard_*_win.exe.blockmap
+            dist/latest.yml

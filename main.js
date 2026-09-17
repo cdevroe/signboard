@@ -11,6 +11,7 @@ const fs = require('fs');
 const fsPromises = fs.promises;
 const http = require('http');
 const path = require('path');
+const { renameManagedDirectory } = require('./lib/directoryRename');
 const { pathToFileURL } = require('url');
 const cardFrontmatter = require('./lib/cardFrontmatter');
 const { readCardWithTimestamps } = require('./lib/cardTimestamps');
@@ -40,6 +41,7 @@ const { importTrello, importObsidian, importTasksMd } = require('./lib/importers
 const { duplicateBoard } = require('./lib/boardDuplication');
 const obsidianIntegration = require('./lib/obsidianIntegration');
 const { startSignboardMcpServer } = require('./lib/mcpServer');
+const { buildMcpConfigTemplate: buildHeadlessMcpConfigTemplate } = require('./lib/mcpLaunch');
 const { isCliInvocation, runCli } = require('./lib/cliApp');
 const { installCliForCurrentUser } = require('./lib/cliInstall');
 const {
@@ -1871,7 +1873,7 @@ async function pathLooksLikeSignboardBoardRoot(boardRoot) {
 
   return entries.some((entry) => (
     entry.isDirectory() &&
-    (/^\d{3}-.+/.test(entry.name) || entry.name === 'XXX-Archive')
+    (/^\d{3,}-.+/.test(entry.name) || entry.name === 'XXX-Archive')
   ));
 }
 
@@ -2058,7 +2060,9 @@ async function resolveSignboardProtocolLink(candidateUrl) {
 }
 
 async function dispatchSignboardProtocolUrl(candidateUrl) {
-  const win = getMainWindow();
+  if (!parseSignboardProtocolUrl(candidateUrl)) return;
+  // macOS URL delivery need not also deliver activate.
+  const win = ensureMainWindowVisible();
   if (!win || win.isDestroyed() || !candidateUrl) {
     pendingSignboardProtocolUrl = candidateUrl || pendingSignboardProtocolUrl;
     return;
@@ -3276,11 +3280,6 @@ async function runSmartCardAction(payload = {}) {
 }
 
 function buildMcpConfigTemplate() {
-  const command = process.execPath;
-  const args = app.isPackaged ? [MCP_SERVER_ARG] : [app.getAppPath(), MCP_SERVER_ARG];
-  const env = {
-    SIGNBOARD_MCP_READ_ONLY: 'false',
-  };
   let defaultAllowedRoot = '';
   const trustedRoots = Array.from(readTrustedBoardRoots());
 
@@ -3298,17 +3297,13 @@ function buildMcpConfigTemplate() {
     }
   }
 
-  env.SIGNBOARD_MCP_ALLOWED_ROOTS = defaultAllowedRoot;
-
-  return {
-    mcpServers: {
-      signboard: {
-        command,
-        args,
-        env,
-      },
-    },
-  };
+  return buildHeadlessMcpConfigTemplate({
+    executablePath: process.execPath,
+    appPath: app.getAppPath(),
+    allowedRoots: defaultAllowedRoot,
+    desktopUserDataDir: app.getPath('userData'),
+    readOnly: false,
+  });
 }
 
 async function copyMcpConfigToClipboard() {
@@ -4710,7 +4705,11 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
         throw new Error('UNAUTHORIZED_PATH');
       }
 
-      await fsPromises.rename(sourcePath, destinationPath);
+      if (movingBoardRoot || operation === 'moveList') {
+        await renameManagedDirectory(activeBoardRoot, sourcePath, destinationPath);
+      } else {
+        await fsPromises.rename(sourcePath, destinationPath);
+      }
 
       if (movingBoardRoot) {
         replaceTrustedBoardRoot(sourcePath, destinationPath);

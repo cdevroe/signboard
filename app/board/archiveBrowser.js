@@ -1225,7 +1225,7 @@ function getArchiveDisplayNameForList(directoryName) {
 }
 
 function parseArchiveStructuredListName(directoryName) {
-  const match = String(directoryName || '').match(/^(\d{3}-)(.*?)(-[^-]{5}|-stock)$/);
+  const match = String(directoryName || '').match(/^(\d{3,}-)(.*?)(-[^-]{5}|-stock)$/);
   if (!match) {
     return null;
   }

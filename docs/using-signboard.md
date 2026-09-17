@@ -238,6 +238,8 @@ Board context can be Kanban or Table. Dated planning happens in Planner.
 
 Kanban is the board view. Use it for day-to-day drag-and-drop organization. Cards show compact metadata for start/due date ranges, checklist progress, labels, and linked-object counts.
 
+When a board has more lists than fit the window, you can drag the empty board surface left or right to scroll through them. The drag starts on the background only, so dragging a card or a list column still reorders it.
+
 ### Table
 
 Table is an active-board view for scanning and bulk-managing cards in board/list order. It uses the same board search, label filters, date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.
@@ -500,3 +502,12 @@ You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 - Use labels for durable categories and use lists for workflow stages.
 - Archive aggressively. The archive browser makes restoring easy.
 - If you want automation or scripting, pair this guide with [Signboard CLI](./signboard-cli.md), which can also create new board folders from the terminal.
+
+## Improvements in 1.7.3
+
+- Long card titles and previews wrap inside the card. Drag empty board background with a mouse to scroll a wide board horizontally.
+- Large boards use bounded file reads. Kanban, Table, and Planner show a warning if some files cannot be read instead of presenting a partial view without explanation.
+- Exact CLI card filenames with a list selection avoid loading unrelated cards. Numbered lists/cards continue working beyond 999.
+- Explicit list/board renames reconcile stored card metadata; list renames preserve explicit completed-list workflow choices. Failed metadata writes attempt to restore the original directory and file contents.
+- Atomic saves preserve existing file permission bits. MCP uses a standalone headless launcher, checks real filesystem paths against allowed roots, validates explicit dates, and keeps copied/moved card IDs, links, and list properties consistent.
+- Card links open the requested trusted board reliably during startup or when the window was hidden. Use Help → Copy MCP Config to refresh existing agent configurations for the new launcher.
