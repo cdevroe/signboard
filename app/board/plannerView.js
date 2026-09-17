@@ -916,7 +916,8 @@ async function collectPlannerCardsForBoard(boardRoot) {
       boardRoot: normalizedBoardRoot,
       boardDisplayName: boardDisplayName || fallbackBoardName,
       cards,
-      error: null,
+      error: snapshot.ok === false || (snapshot.errors && snapshot.errors.length)
+        ? new Error('Some board files could not be read.') : null,
     };
   } catch (error) {
     return {
@@ -1487,7 +1488,8 @@ async function renderPlannerView() {
   if (errors.length > 0) {
     const errorNotice = document.createElement('div');
     errorNotice.className = 'planner-source-warning';
-    errorNotice.textContent = `${errors.length} open board${errors.length === 1 ? '' : 's'} could not be loaded.`;
+    errorNotice.setAttribute('role', 'status');
+    errorNotice.textContent = `${errors.length} open board${errors.length === 1 ? '' : 's'} could not be fully loaded. Some cards may be missing from this view.`;
     stagingEl.prepend(errorNotice);
   }
 

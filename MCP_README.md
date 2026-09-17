@@ -2,11 +2,7 @@
 
 Signboard includes a built-in Model Context Protocol (MCP) server mode so local LLM agents can read and update boards on your machine.
 
-The MCP server runs through the Signboard executable with:
-
-```bash
---mcp-server
-```
+Generated MCP configurations run the bundled `bin/signboard-mcp.js` entrypoint in Electron's Node mode. This keeps the server headless from process startup and avoids initializing the desktop GUI lifecycle inside agent sandboxes.
 
 ## Why this exists
 
@@ -32,7 +28,9 @@ Example (macOS/Linux):
 ```bash
 SIGNBOARD_MCP_READ_ONLY=false \
 SIGNBOARD_MCP_ALLOWED_ROOTS="$HOME/Documents/signboards:$HOME/Test\ Board\ Colin/" \
-"/Applications/Signboard.app/Contents/MacOS/Signboard" --mcp-server
+ELECTRON_RUN_AS_NODE=1 \
+"/Applications/Signboard.app/Contents/MacOS/Signboard" \
+"/Applications/Signboard.app/Contents/Resources/app.asar/bin/signboard-mcp.js"
 ```
 
 Example (Windows PowerShell):
@@ -40,7 +38,9 @@ Example (Windows PowerShell):
 ```powershell
 $env:SIGNBOARD_MCP_READ_ONLY = "false"
 $env:SIGNBOARD_MCP_ALLOWED_ROOTS = "C:\Users\you\Boards;D:\Work\Boards"
-& "C:\Users\you\AppData\Local\Programs\Signboard\Signboard.exe" --mcp-server
+$env:ELECTRON_RUN_AS_NODE = "1"
+& "C:\Users\you\AppData\Local\Programs\Signboard\Signboard.exe" `
+  "C:\Users\you\AppData\Local\Programs\Signboard\resources\app.asar\bin\signboard-mcp.js"
 ```
 
 ## Running from source
@@ -57,29 +57,24 @@ npm run mcp:config
 
 ## Running from packaged Signboard
 
-Typical executable locations:
+Typical desktop executable locations:
 
 - macOS: `/Applications/Signboard.app/Contents/MacOS/Signboard`
 - Windows: `C:\Users\<you>\AppData\Local\Programs\Signboard\Signboard.exe`
 - Linux native package (including Arch/Omarchy): `/usr/bin/signboard`
 - Linux AppImage: wherever you saved the `signboard_*.AppImage` file
 
-Start MCP server mode by launching that executable with `--mcp-server`.
+Use `Help` -> `Copy MCP Config` from the packaged app to get the executable, bundled headless entrypoint, Node-mode environment, and current trusted roots for that installation. Avoid configuring an agent to invoke the desktop executable with only `--mcp-server`; that initializes the GUI lifecycle before JavaScript can select headless mode.
 
-Print config JSON from packaged app:
-
-```bash
-"/Applications/Signboard.app/Contents/MacOS/Signboard" --mcp-config
-```
-
-With the native Linux package, the equivalent commands are `signboard --mcp-server` and `signboard --mcp-config`.
+The legacy desktop `--mcp-server` and `--mcp-config` flags remain supported for compatibility; use the generated Node-mode configuration for agent clients.
 
 ## In-app config shortcut
 
 Signboard includes a menu helper at `Help` -> `Copy MCP Config`.
 
 - It copies a complete JSON config snippet to your clipboard.
-- It sets `command` to Signboard's current executable path.
+- It sets `command` to Signboard's current executable path and `args` to the bundled headless MCP entrypoint.
+- It includes `ELECTRON_RUN_AS_NODE=1`, so Electron starts as a Node process without initializing the desktop GUI lifecycle.
 - It includes `SIGNBOARD_MCP_READ_ONLY=false` and uses existing trusted board roots for `SIGNBOARD_MCP_ALLOWED_ROOTS` when available; otherwise it falls back to a starter `Documents/Boards` value.
 
 ## Optional agent skill file
@@ -194,10 +189,12 @@ If neither `SIGNBOARD_MCP_ALLOWED_ROOTS` nor desktop trusted board roots are ava
   "mcpServers": {
     "signboard": {
       "command": "/Applications/Signboard.app/Contents/MacOS/Signboard",
-      "args": ["--mcp-server"],
+      "args": ["/Applications/Signboard.app/Contents/Resources/app.asar/bin/signboard-mcp.js"],
       "env": {
+        "ELECTRON_RUN_AS_NODE": "1",
         "SIGNBOARD_MCP_READ_ONLY": "false",
-        "SIGNBOARD_MCP_ALLOWED_ROOTS": "/Users/you/Documents/Boards"
+        "SIGNBOARD_MCP_ALLOWED_ROOTS": "/Users/you/Documents/Boards",
+        "SIGNBOARD_DESKTOP_USER_DATA_DIR": "/Users/you/Library/Application Support/Signboard"
       }
     }
   }
@@ -210,17 +207,26 @@ If neither `SIGNBOARD_MCP_ALLOWED_ROOTS` nor desktop trusted board roots are ava
 {
   "name": "signboard",
   "command": "/Applications/Signboard.app/Contents/MacOS/Signboard",
-  "args": ["--mcp-server"],
+  "args": ["/Applications/Signboard.app/Contents/Resources/app.asar/bin/signboard-mcp.js"],
   "env": {
+    "ELECTRON_RUN_AS_NODE": "1",
     "SIGNBOARD_MCP_READ_ONLY": "false",
-    "SIGNBOARD_MCP_ALLOWED_ROOTS": "/Users/you/Documents/Boards"
+    "SIGNBOARD_MCP_ALLOWED_ROOTS": "/Users/you/Documents/Boards",
+    "SIGNBOARD_DESKTOP_USER_DATA_DIR": "/Users/you/Library/Application Support/Signboard"
   }
 }
 ```
 
+## Maintenance behavior in 1.7.3
+
+- Allowed roots are checked against resolved filesystem paths, including destination parents. A symlink cannot grant access outside the configured or desktop-trusted roots. Explicitly allowed symlink roots remain usable. Bulk archive/import operations validate nested links before invoking shared filesystem helpers.
+- Card create, update, duplicate, move, and dry-run responses normalize Signboard/Obsidian metadata against the destination. Copies receive their own ID/link; moving updates list and status properties.
+- Explicit `start` and `due` writes require real calendar dates in `YYYY-MM-DD` form; empty/null still clears a date. Invalid writes fail before changing the card.
+- Card/list order prefixes support values above 999.
+
 ## Behavior notes
 
-- In MCP mode, Signboard starts headless, but activating the app can still reveal the desktop window.
+- The recommended Node-mode MCP entrypoint never initializes or reveals the desktop window.
 - The process communicates over stdio (MCP JSON-RPC framing).
 - The stdio parser accepts both header-framed MCP and newline-delimited JSON-RPC payloads.
 - `signboard_list_board_views` reports the board-scoped Kanban and Table views; dated Calendar/This Week/Day/Agenda planning is handled by the desktop Planner overlay.

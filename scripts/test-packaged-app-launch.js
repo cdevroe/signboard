@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
+const assert = require('assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -24,6 +25,57 @@ function resolveExecutable(appPath) {
   return appPath;
 }
 
+async function checkHeadlessEntrypoints(executablePath, tempRoot) {
+  const resources = process.platform === 'darwin'
+    ? path.resolve(path.dirname(executablePath), '../Resources')
+    : path.join(path.dirname(executablePath), 'resources');
+  const appArchive = path.join(resources, 'app.asar');
+  const env = {
+    ...process.env,
+    ELECTRON_RUN_AS_NODE: '1',
+    SIGNBOARD_USER_DATA_DIR: path.join(tempRoot, 'user-data'),
+    SIGNBOARD_DESKTOP_USER_DATA_DIR: path.join(tempRoot, 'user-data'),
+    SIGNBOARD_CLI_CONFIG_DIR: path.join(tempRoot, 'cli'),
+    SIGNBOARD_MCP_ALLOWED_ROOTS: tempRoot,
+    SIGNBOARD_MCP_READ_ONLY: 'true',
+  };
+  const invoke = (entry, args = []) => execFileSync(executablePath,
+    [path.join(appArchive, 'bin', entry), ...args], { env, encoding: 'utf8', timeout: timeoutMs });
+  assert.match(invoke('signboard.js', ['--help']), /Signboard CLI/);
+  const server = JSON.parse(invoke('signboard-mcp-config.js')).mcpServers.signboard;
+  assert.equal(server.command, executablePath);
+  assert.equal(server.args[0], path.join(appArchive, 'bin/signboard-mcp.js'));
+  assert.equal(server.env.ELECTRON_RUN_AS_NODE, '1');
+  await new Promise((resolve, reject) => {
+    const child = spawn(server.command, server.args, { env, stdio: ['pipe', 'pipe', 'pipe'] });
+    let output = ''; let stderr = ''; let initialized = false;
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error('Packaged MCP initialization timed out.'));
+    }, timeoutMs);
+    child.on('error', (error) => { clearTimeout(timer); reject(error); });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.stdout.on('data', (chunk) => {
+      output += chunk;
+      if (!output.includes('\n') || initialized) return;
+      try {
+        const message = JSON.parse(output.slice(0, output.indexOf('\n')));
+        assert.equal(message.id, 1);
+        assert.equal(message.result?.serverInfo?.version, packageJson.version);
+        initialized = true;
+        child.stdin.end();
+      } catch (error) { child.kill('SIGKILL'); clearTimeout(timer); reject(error); }
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (initialized && code === 0) resolve();
+      else reject(new Error(`Packaged MCP exited before clean initialization (${code}): ${stderr}`));
+    });
+    child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize',
+      params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'packaged-smoke', version: '1' } } }) + '\n');
+  });
+}
+
 async function run() {
   const appPath = readAppArgument(process.argv.slice(2));
   if (!appPath) {
@@ -45,6 +97,7 @@ async function run() {
   let child;
 
   try {
+    await checkHeadlessEntrypoints(executablePath, tempRoot);
     const result = await new Promise((resolve, reject) => {
       child = spawn(executablePath, ['--packaged-smoke-test'], {
         env: {
@@ -90,7 +143,7 @@ async function run() {
       throw new Error(`Packaged renderer did not report ready: ${JSON.stringify(marker)}`);
     }
 
-    console.log(`Packaged application launch test passed for Signboard ${marker.version}.`);
+    console.log(`Packaged desktop, CLI, and MCP launch tests passed for Signboard ${marker.version}.`);
   } catch (error) {
     if (stdout.trim()) {
       console.error(`Packaged app stdout:\n${stdout.trim()}`);

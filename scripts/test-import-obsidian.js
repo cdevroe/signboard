@@ -24,7 +24,7 @@ async function run() {
   const kanbanFile = path.join(tmpDir, 'Roadmap.md');
   const taskScopeDir = path.join(tmpDir, 'TaskScope');
   const cardBoardVault = path.join(tmpDir, 'Vault');
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = require('../shared/localDate').formatLocalIsoDate(new Date());
   await fs.mkdir(boardRoot, { recursive: true });
   await fs.mkdir(taskScopeDir, { recursive: true });
   await fs.mkdir(path.join(cardBoardVault, '.obsidian', 'plugins', 'card-board'), { recursive: true });

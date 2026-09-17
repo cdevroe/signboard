@@ -175,3 +175,18 @@ This map focuses on source and operational files. Large generated/vendor folders
   - `docs/using-signboard.md`
   - `docs/signboard-cli.md`
   - `MCP_README.md` (when MCP setup or behavior changes)
+
+## 1.7.3 maintenance support
+
+- `lib/fileReadQueue.js` — shared bounded card/directory-read budget across simultaneous snapshots and CLI reads.
+- `lib/allowedPaths.js` — canonical allowed-root and nested symlink validation for MCP/discovery.
+- `lib/directoryRename.js` — explicit list/board rename reconciliation, workflow reference updates, and failure rollback.
+- `lib/mcpLaunch.js`, `bin/signboard-mcp.js`, `bin/signboard-mcp-config.js` — standalone headless MCP runtime/configuration.
+- `app/board/boardPan.js` — empty-background mouse panning with pointer and window-blur cleanup.
+- `scripts/test-maintenance.js` — targeted storage, resource-limit, metadata, permissions, numbering, lookup, and MCP boundary regressions.
+- `scripts/benchmark-maintenance.js` — paired source-operation measurements on pristine synthetic 100/1,000/5,000-card fixtures; six samples per operation/channel, with the first separated.
+- `scripts/soak-maintenance.js` — bounded Linux packaged desktop/CLI reliability sessions using new disposable boards/profiles and resource/integrity reporting.
+- `docs/codex/BABU_TESTING.md` — older-hardware isolation, benchmark, build freshness, and soak rules.
+
+- `docs/release-notes-1.7.3.md`: draft maintenance release notes; add verified downloads before publication.
+- `docs/research/signboard-1.7.3-validation-2026-09-16.md`: implementation evidence, Babu measurements, and outstanding publication gates.

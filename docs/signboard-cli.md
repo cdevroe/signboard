@@ -514,3 +514,9 @@ Checklist items may also contain start and due dates in the body:
 ```
 
 Task due dates participate in CLI due-date filtering. Start/scheduled task dates are returned in JSON metadata for agents and used by the desktop Planner/date-filter views. Use `--task-status open` to limit task due matches to unchecked items, or `--task-status any` to include checked task due markers when you want historical matches.
+
+## 1.7.3 maintenance behavior
+
+Use `--list` plus an exact card filename for a direct lookup, for example `signboard cards read --list "000-To-do-stock" --card "001-plan-ab123.md"`. Case-insensitive and ambiguous-reference behavior is preserved; partial/title references still search normally. Listing cards bounds simultaneous reads and derives task metadata in one pass.
+
+Creation and archive/order helpers accept numeric prefixes beyond 999. `lists rename` updates the affected cards' stored list/status properties and explicit completed-list workflow references, preserving unrelated metadata. A failed rewrite attempts rollback. Atomic saves preserve existing POSIX permission bits.

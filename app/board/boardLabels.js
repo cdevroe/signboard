@@ -911,7 +911,7 @@ function getBoardWorkflowListDisplayName(listName) {
     return '';
   }
 
-  const listNameMatch = normalized.match(/^\d{3}-(.*?)(-[^-]{5}|-stock)$/);
+  const listNameMatch = normalized.match(/^\d{3,}-(.*?)(-[^-]{5}|-stock)$/);
   if (listNameMatch) {
     return String(listNameMatch[1] || '').trim();
   }

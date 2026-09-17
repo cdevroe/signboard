@@ -2,10 +2,40 @@ const { spawn } = require('child_process');
 const fs = require('fs').promises;
 const os = require('os');
 const path = require('path');
+const { buildMcpConfigTemplate } = require('../lib/mcpLaunch');
 
 const HEADER_TRANSPORT = 'header';
 const HEADER_BOM_TRANSPORT = 'header-bom';
 const NDJSON_TRANSPORT = 'ndjson';
+const MCP_ENTRY_PATH = path.resolve(__dirname, '..', 'bin', 'signboard-mcp.js');
+
+function assertHeadlessMcpLaunchConfig() {
+  const config = buildMcpConfigTemplate({
+    executablePath: '/Applications/Signboard.app/Contents/MacOS/Signboard',
+    appPath: '/Applications/Signboard.app/Contents/Resources/app.asar',
+    allowedRoots: '/Users/example/Documents/Boards',
+    desktopUserDataDir: '/Users/example/Library/Application Support/Signboard',
+  });
+  const server = config.mcpServers && config.mcpServers.signboard;
+
+  if (!server || server.env.ELECTRON_RUN_AS_NODE !== '1') {
+    throw new Error(`MCP config did not enable Electron Node mode: ${JSON.stringify(config)}`);
+  }
+  if (server.args[0] !== '/Applications/Signboard.app/Contents/Resources/app.asar/bin/signboard-mcp.js') {
+    throw new Error(`MCP config did not target the headless entrypoint: ${JSON.stringify(config)}`);
+  }
+  if (server.args.includes('--mcp-server')) {
+    throw new Error(`MCP config still launches the desktop lifecycle: ${JSON.stringify(config)}`);
+  }
+}
+
+async function assertMcpEntrypointIsPackaged() {
+  const builderConfigPath = path.join(__dirname, '..', 'electron-builder.json');
+  const builderConfig = JSON.parse(await fs.readFile(builderConfigPath, 'utf8'));
+  if (!Array.isArray(builderConfig.files) || !builderConfig.files.includes('bin/**')) {
+    throw new Error('electron-builder.json must package bin/** for the headless MCP entrypoint.');
+  }
+}
 
 async function assertMcpToolDocumentation(requiredToolNames) {
   const documentationPaths = [
@@ -251,7 +281,7 @@ async function createFixtureBoard() {
 async function runForTransport(transportMode, fixture) {
   const child = spawn(
     process.execPath,
-    ['-e', "const { startSignboardMcpServer } = require('./lib/mcpServer'); startSignboardMcpServer({ appVersion: 'test' });"],
+    [MCP_ENTRY_PATH],
     {
       cwd: path.resolve(__dirname, '..'),
       env: {
@@ -1195,7 +1225,7 @@ async function runForTransport(transportMode, fixture) {
 async function runRequiresAllowedRootsSmoke() {
   const child = spawn(
     process.execPath,
-    ['-e', "const { startSignboardMcpServer } = require('./lib/mcpServer'); startSignboardMcpServer({ appVersion: 'test' });"],
+    [MCP_ENTRY_PATH],
     {
       cwd: path.resolve(__dirname, '..'),
       env: {
@@ -1315,28 +1345,31 @@ async function runRequiresAllowedRootsSmoke() {
 
 async function runTrustedRootsSmoke() {
   const fixture = await createFixtureBoard();
+  const desktopUserDataDir = path.join(fixture.cleanupRoot, 'desktop-user-data');
+  await fs.mkdir(desktopUserDataDir, { recursive: true });
+  await fs.writeFile(
+    path.join(desktopUserDataDir, 'trusted-board-roots.json'),
+    JSON.stringify([fixture.boardRoot]),
+    'utf8',
+  );
+  await fs.writeFile(
+    path.join(desktopUserDataDir, 'open-boards.json'),
+    JSON.stringify({
+      openBoardRoots: [fixture.boardRoot],
+      activeBoardRoot: fixture.boardRoot,
+    }),
+    'utf8',
+  );
   const child = spawn(
     process.execPath,
-    [
-      '-e',
-      [
-        "const { startSignboardMcpServer } = require('./lib/mcpServer');",
-        "const trustedBoardRoots = JSON.parse(process.env.SIGNBOARD_TEST_TRUSTED_ROOTS || '[]');",
-        "const desktopOpenBoardsState = JSON.parse(process.env.SIGNBOARD_TEST_OPEN_BOARDS || '{}');",
-        "startSignboardMcpServer({ appVersion: 'test', trustedBoardRoots, desktopOpenBoardsState });",
-      ].join(' '),
-    ],
+    [MCP_ENTRY_PATH],
     {
       cwd: path.resolve(__dirname, '..'),
       env: {
         ...process.env,
         SIGNBOARD_MCP_ALLOWED_ROOTS: path.join(fixture.cleanupRoot, 'unrelated-root'),
         SIGNBOARD_MCP_READ_ONLY: 'true',
-        SIGNBOARD_TEST_TRUSTED_ROOTS: JSON.stringify([fixture.boardRoot]),
-        SIGNBOARD_TEST_OPEN_BOARDS: JSON.stringify({
-          openBoardRoots: [fixture.boardRoot],
-          activeBoardRoot: fixture.boardRoot,
-        }),
+        SIGNBOARD_DESKTOP_USER_DATA_DIR: desktopUserDataDir,
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     },
@@ -1510,6 +1543,8 @@ async function runTrustedRootsSmoke() {
 }
 
 async function run() {
+  assertHeadlessMcpLaunchConfig();
+  await assertMcpEntrypointIsPackaged();
   const transportModes = [HEADER_TRANSPORT, HEADER_BOM_TRANSPORT, NDJSON_TRANSPORT];
 
   for (const transportMode of transportModes) {

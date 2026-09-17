@@ -12,7 +12,7 @@ Start here before opening source files.
 - App updates are handled in `main.js` via `electron-updater` (GitHub releases), with menu-triggered/manual checks and remind-later state in `update-preferences.json` under Electron `userData`. The native app menu is also validated on focus and rebuilt if required Signboard actions are missing.
 - Obsidian outbound integration lives in `lib/obsidianIntegration.js` plus `main.js` IPC/protocol handlers: cards get flat Obsidian-friendly properties on create/write/move, `signboard://open-card?id=...` resolves only inside trusted board roots, `signboard://open-board?path=...` can open validated vault-contained board folders after confirmation, and boards inside detected vaults auto-create/update a managed `Signboard Board.base` unless the user customizes it. Board activation may ensure that Base but must not rewrite card Markdown; bulk metadata reconciliation belongs to imports, board moves, and explicit Base actions. The optional Obsidian companion plugin source lives in `obsidian-plugin/`.
 - External Published Calendar is an opt-in app setting served by a main-process HTTP server bound to `127.0.0.1`; it publishes an iCalendar feed of trusted-board card due dates and incomplete task due markers, excluding completed workflow lists and board-level opt-outs.
-- `main.js` also supports headless MCP mode via `--mcp-server` for local agent integration over stdio; implementation lives in `lib/mcpServer.js`.
+- `bin/signboard-mcp.js` provides headless MCP over stdio without desktop startup; implementation lives in `lib/mcpServer.js`. `main.js --mcp-server` remains a compatibility invocation.
 - MCP board-scoped tools use the union of `SIGNBOARD_MCP_ALLOWED_ROOTS` and the desktop app's trusted board roots from `trusted-board-roots.json`; empty allowed roots leave only non-board config/listing tools available when no trusted roots exist. Agents should call `signboard_list_boards` before board-scoped MCP work to get known board roots, desktop-open/active flags, trusted-root flags, and bounded allowed-root scan results.
 - MCP board-name resolution searches configured/trusted roots and also matches the root directory itself, so trusted board roots can be actual board folders rather than only parent folders.
 - Signboard MCP includes board discovery (`signboard_list_boards`), board-name resolution (`signboard_resolve_board_by_name`), archive browse/read/restore tools (`signboard_list_archive_entries`, `signboard_read_archive_entry`, `signboard_restore_archived_card`, `signboard_restore_archived_list`, `signboard_archive_list`), Trello/Obsidian/Tasks.md import tools, and supports both header-framed + newline-delimited stdio JSON-RPC; dotted `signboard.*` names remain accepted as legacy aliases.
@@ -95,3 +95,17 @@ Start here before opening source files.
 - Skip heavy/generated content unless explicitly needed: `node_modules/`, `dist/`, `static/vendor/`, and usually `package-lock.json`.
 - Always update agent-facing docs when behavior/architecture/tooling changes (`CODEX.md`, `AGENTS.md`, `docs/codex/PROJECT_CONTEXT.md`, `docs/codex/FILE_STRUCTURE.md`).
 - Always update release-facing docs when user behavior, CLI behavior, or setup flows change (`docs/README.md`, `docs/using-signboard.md`, `docs/signboard-cli.md`, `readme.md`, and `MCP_README.md` when relevant).
+
+## 1.7.3 maintenance invariants
+
+- Card reads share the bounded queue in `lib/fileReadQueue.js`; preserve ordering and partial-read errors, and keep Kanban/Table/Planner warnings visible when snapshots are incomplete.
+- Exact CLI filenames scoped to a list avoid reading unrelated cards. Keep case-insensitive ambiguity handling and one-pass task metadata aligned with fallback lookups.
+- `lib/allowedPaths.js` enforces canonical MCP roots for existing paths, new destinations, and nested bulk-operation paths. Validate legacy settings and archive paths too; explicitly allowed symlink roots must still work.
+- MCP create/update/duplicate/move and previews normalize destination metadata, and explicit date writes reject impossible dates before mutation.
+- Prefix padding is a minimum of three digits, not a three-digit maximum. Keep desktop, CLI, MCP, imports, archive, discovery, and list display parsing aligned beyond 999.
+- Directory renames use `lib/directoryRename.js` for metadata/workflow reconciliation and rollback on write failure. Preserve unrelated frontmatter and avoid silently overwriting concurrently edited files.
+- Atomic replacements preserve existing POSIX permission bits while retaining temp-file cleanup and fsync behavior.
+- MCP agent launch configurations use `bin/signboard-mcp.js` with `ELECTRON_RUN_AS_NODE=1`; source configuration generation uses `bin/signboard-mcp-config.js`. Desktop compatibility flags remain available.
+- Card deep links reveal the desktop window and wait for saved-workspace restoration before changing renderer context. Closing the last window still quits the app; cold-start links must reopen the requested card.
+- Board panning is mouse-only on the empty background, with capture/cancel/blur cleanup. Long title and preview text wraps within cards.
+- Run `npm run test:maintenance`, focused/full Electron tests, and packaged launch checks for this maintenance work. Follow `docs/codex/BABU_TESTING.md` for isolated target validation.

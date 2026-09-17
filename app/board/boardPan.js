@@ -67,6 +67,11 @@ function handleBoardPanPointerMove(event) {
     return;
   }
 
+  if ((event.buttons & 1) === 0) {
+    stopBoardPan(board);
+    return;
+  }
+
   board.scrollLeft = boardPanState.originScrollLeft - (event.clientX - boardPanState.originClientX);
 }
 
@@ -95,5 +100,6 @@ function initializeBoardPanControls() {
   board.addEventListener('pointercancel', handleBoardPanPointerEnd);
   // Losing the capture for any other reason must not leave the board stuck in the panning state.
   board.addEventListener('lostpointercapture', handleBoardPanPointerEnd);
+  window.addEventListener('blur', () => stopBoardPan(board));
   boardPanState.initialized = true;
 }

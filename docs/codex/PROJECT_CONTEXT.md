@@ -598,3 +598,17 @@ Ignore these unless task explicitly requires them:
 - `node_modules/` (dependencies)
 - `static/vendor/` (vendored third-party libraries)
 - `package-lock.json` (unless dependency updates are requested)
+
+## 1.7.3 maintenance invariants
+
+- Card reads share the bounded queue in `lib/fileReadQueue.js`; preserve ordering and partial-read errors, and keep Kanban/Table/Planner warnings visible when snapshots are incomplete.
+- Exact CLI filenames scoped to a list avoid reading unrelated cards. Keep case-insensitive ambiguity handling and one-pass task metadata aligned with fallback lookups.
+- `lib/allowedPaths.js` enforces canonical MCP roots for existing paths, new destinations, and nested bulk-operation paths. Validate legacy settings and archive paths too; explicitly allowed symlink roots must still work.
+- MCP create/update/duplicate/move and previews normalize destination metadata, and explicit date writes reject impossible dates before mutation.
+- Prefix padding is a minimum of three digits, not a three-digit maximum. Keep desktop, CLI, MCP, imports, archive, discovery, and list display parsing aligned beyond 999.
+- Directory renames use `lib/directoryRename.js` for metadata/workflow reconciliation and rollback on write failure. Preserve unrelated frontmatter and avoid silently overwriting concurrently edited files.
+- Atomic replacements preserve existing POSIX permission bits while retaining temp-file cleanup and fsync behavior.
+- MCP agent launch configurations use `bin/signboard-mcp.js` with `ELECTRON_RUN_AS_NODE=1`; source configuration generation uses `bin/signboard-mcp-config.js`. Desktop compatibility flags remain available.
+- Card deep links reveal the desktop window and wait for saved-workspace restoration before changing renderer context. Closing the last window still quits the app; cold-start links must reopen the requested card.
+- Board panning is mouse-only on the empty background, with capture/cancel/blur cleanup. Long title and preview text wraps within cards.
+- Run `npm run test:maintenance`, focused/full Electron tests, and packaged launch checks for this maintenance work. Follow `docs/codex/BABU_TESTING.md` for isolated target validation.

@@ -2772,13 +2772,13 @@ function getPathDirectoryName(filePath) {
 
 function getCardEditorListDisplayName(directoryName) {
     const normalized = String(directoryName || '');
-    const listNameMatch = normalized.match(/^\d{3}-(.*?)(-[^-]{5}|-stock)$/);
+    const listNameMatch = normalized.match(/^\d{3,}-(.*?)(-[^-]{5}|-stock)$/);
     if (listNameMatch) {
         return listNameMatch[1];
     }
 
-    if (/^\d{3}-.+/.test(normalized)) {
-        return normalized.slice(4);
+    if (/^\d{3,}-.+/.test(normalized)) {
+        return normalized.replace(/^\d+-/, '');
     }
 
     return normalized || 'Untitled';

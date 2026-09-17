@@ -33,7 +33,7 @@ function formatListIndex(index) {
 }
 
 function buildReindexedListDirectoryName(directoryName, index) {
-    const suffixMatch = String(directoryName || '').match(/^\d{3}(.*)$/);
+    const suffixMatch = String(directoryName || '').match(/^\d{3,}(.*)$/);
     const suffix = suffixMatch ? suffixMatch[1] : `-${String(directoryName || '').replace(/^\d+-?/, '')}`;
     return `${formatListIndex(index)}${suffix}`;
 }

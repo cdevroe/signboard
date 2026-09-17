@@ -1,0 +1,8 @@
+{
+  "date": "2026-09-17T01:54:39.798Z",
+  "timezone": "America/New_York",
+  "node": "v26.8.1",
+  "baseline": "/home/cdevroe/.local/share/signboard-lab/review-1.7.3-20260917/baseline",
+  "candidate": "/home/cdevroe/.local/share/signboard-lab/review-1.7.3-20260917/candidate",
+  "platform": "linux"
+}

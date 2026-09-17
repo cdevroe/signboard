@@ -10,6 +10,7 @@ Use this skill when the user asks to read or modify Signboard data through MCP.
 ## Preconditions
 
 - Signboard MCP server is configured and running.
+- Packaged Electron configurations launch `bin/signboard-mcp.js` with `ELECTRON_RUN_AS_NODE=1`; do not replace that entrypoint with the desktop executable plus `--mcp-server` in a sandboxed agent client.
 - `boardRoot` values must be absolute paths.
 - Board creation uses an absolute `parentRoot`; import source paths must also be absolute and allowed.
 - Respect server mode from `signboard_get_config`:

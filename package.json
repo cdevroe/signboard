@@ -1,7 +1,7 @@
 {
   "name": "signboard",
   "productName": "Signboard",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "A fast, local-first Kanban board for Markdown files.",
   "homepage": "https://github.com/cdevroe/signboard",
   "repository": {
@@ -18,7 +18,9 @@
     "protocols": [
       {
         "name": "Signboard",
-        "schemes": ["signboard"]
+        "schemes": [
+          "signboard"
+        ]
       }
     ],
     "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
@@ -32,8 +34,8 @@
     "prestart": "npm run build:js",
     "start": "electron .",
     "cli": "node ./bin/signboard.js",
-    "mcp:server": "electron . --mcp-server",
-    "mcp:config": "electron . --mcp-config",
+    "mcp:server": "node bin/signboard-mcp.js",
+    "mcp:config": "node bin/signboard-mcp-config.js",
     "build:icons": "node scripts/generate-icons.js",
     "build:js": "./buildjs.sh",
     "test:cli": "node scripts/test-cli.js",
@@ -99,7 +101,8 @@
     "dist:all": "npm run dist:mac && npm run dist:win && npm run dist:linux",
     "release:verify": "node scripts/verify-release-assets.js",
     "release:verify:partial": "node scripts/verify-release-assets.js --allow-partial",
-    "release:prepare": "npm run dist:all && npm run release:verify"
+    "release:prepare": "npm run dist:all && npm run release:verify",
+    "test:maintenance": "node scripts/test-maintenance.js"
   },
   "devDependencies": {
     "@fiahfy/icns": "^0.0.7",
