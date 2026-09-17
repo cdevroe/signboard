@@ -19,9 +19,11 @@ jobs:
           - runner: ubuntu-24.04
             arch: x64
             metadata: latest-linux.yml
+            unpacked: linux-unpacked
           - runner: ubuntu-24.04-arm
             arch: arm64
             metadata: latest-linux-arm64.yml
+            unpacked: linux-arm64-unpacked
     runs-on: ${{ matrix.runner }}
 
     steps:
@@ -40,10 +42,16 @@ jobs:
       - name: Install Linux packaging tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libarchive-tools
+          sudo apt-get install --yes libarchive-tools xvfb
 
       - name: Build Linux packages
         run: npm run dist:linux:${{ matrix.arch }}
+
+      - name: Test packaged desktop, CLI, and MCP
+        run: |
+          sudo chown root:root dist/${{ matrix.unpacked }}/chrome-sandbox
+          sudo chmod 4755 dist/${{ matrix.unpacked }}/chrome-sandbox
+          xvfb-run --auto-servernum node scripts/test-packaged-app-launch.js --app dist/${{ matrix.unpacked }}/signboard
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v7
