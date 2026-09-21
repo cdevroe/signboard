@@ -95,11 +95,6 @@
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="archive"></i></span>
       <span class="board-menu-action-label">Archive</span>
     </button>
-    <button id="themeToggle" class="board-menu-action" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">
-      <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="moon"></i></span>
-      <span class="board-menu-action-label">Dark Mode</span>
-      <span class="menu-shortcut-hint" data-shortcut-action="toggleTheme" data-shortcut-format="menu" aria-hidden="true">⌘⇧D</span>
-    </button>
     <button id="openCommercialLicenseModal" class="board-menu-action" type="button" title="Sponsor Signboard" aria-label="Sponsor Signboard">
       <span class="board-menu-action-icon" aria-hidden="true"><i data-feather="heart"></i></span>
       <span class="board-menu-action-label">Sponsor</span>
@@ -472,15 +467,6 @@
               </label>
             </div>
           </div>
-          <div id="boardSettingsAppearanceGroup" class="board-settings-group hidden" aria-hidden="true">
-            <label for="boardSettingsThemeSource">App theme</label>
-            <select id="boardSettingsThemeSource" aria-label="App theme">
-              <option value="signboard">Signboard</option>
-              <option value="omarchy">Follow Omarchy theme</option>
-            </select>
-            <p id="boardSettingsOmarchyThemeStatus" class="board-settings-status board-settings-status-inline" aria-live="polite">Omarchy was not detected.</p>
-            <p class="boardSettingsHint">Uses Omarchy’s active colors and follows theme changes. Non-default board color schemes remain unchanged.</p>
-          </div>
           <div class="board-settings-group">
             <label for="boardSettingsQuickAddShortcut">Global Quick Add shortcut</label>
             <div class="board-settings-inline-actions">
@@ -622,15 +608,30 @@
           <div class="board-color-scheme-selector">
             <select id="boardColorSchemeSelect" aria-label="Color scheme"></select>
           </div>
-          <div class="board-theme-settings-grid">
-            <div class="board-theme-settings-mode">
-              <h4>Light</h4>
-              <div id="boardThemeLightPreview" class="board-theme-preview"></div>
-            </div>
-            <div class="board-theme-settings-mode">
-              <h4>Dark</h4>
-              <div id="boardThemeDarkPreview" class="board-theme-preview"></div>
-            </div>
+          <p class="boardSettingsHint" id="appearanceModeHint">Mode applies to all boards. Auto follows your operating system.</p>
+          <div class="board-theme-settings-grid" role="radiogroup" aria-label="Appearance mode" aria-describedby="appearanceModeHint">
+            <button class="board-theme-settings-mode" type="button" role="radio" aria-checked="false" data-appearance-mode="light" aria-label="Light">
+              <strong>Light</strong>
+              <span id="boardThemeLightPreview" class="board-theme-preview" aria-hidden="true"></span>
+            </button>
+            <button class="board-theme-settings-mode" type="button" role="radio" aria-checked="false" data-appearance-mode="dark" aria-label="Dark">
+              <strong>Dark</strong>
+              <span id="boardThemeDarkPreview" class="board-theme-preview" aria-hidden="true"></span>
+            </button>
+            <button class="board-theme-settings-mode" type="button" role="radio" aria-checked="false" data-appearance-mode="auto" aria-label="Auto">
+              <strong>Auto</strong>
+              <span id="boardThemeAutoPreview" class="board-theme-preview" aria-hidden="true"></span>
+            </button>
+          </div>
+          <p id="appearanceModeStatus" class="board-settings-status board-settings-status-inline board-settings-status-description" role="status"></p>
+          <div id="boardSettingsAppearanceGroup" class="board-settings-group hidden" aria-hidden="true">
+            <label for="boardSettingsThemeSource">App theme</label>
+            <select id="boardSettingsThemeSource" aria-label="App theme">
+              <option value="signboard">Signboard</option>
+              <option value="omarchy">Follow Omarchy theme</option>
+            </select>
+            <p id="boardSettingsOmarchyThemeStatus" class="board-settings-status board-settings-status-inline board-settings-status-description" aria-live="polite">Omarchy was not detected.</p>
+            <p class="boardSettingsHint">Uses Omarchy’s active colors and follows theme changes. Non-default board color schemes remain unchanged.</p>
           </div>
           <div class="board-theme-settings-actions">
             <button id="btnApplyThemeColorsToOpenBoards" type="button" title="Apply color scheme to all open boards">Apply to all Open Boards</button>

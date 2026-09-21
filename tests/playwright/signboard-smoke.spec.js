@@ -12,6 +12,12 @@ const appSettingsSchema = require('../../shared/appSettingsSchema');
 const repoRoot = path.resolve(__dirname, '../..');
 const usesMetaModifier = process.platform === 'darwin';
 const shouldBringPlaywrightAppToFront = process.env.SIGNBOARD_PLAYWRIGHT_FOREGROUND === '1';
+
+function launchElectron(options) {
+  const virtualDisplay = process.platform === 'linux' && process.env.SIGNBOARD_PLAYWRIGHT_VIRTUAL_DESKTOP === '1';
+  return electron.launch({ ...options, args: virtualDisplay ? ['--ozone-platform=x11', ...(options.args || [])] : options.args });
+}
+
 const defaultSmartCardActionLabels = appSettingsSchema
   .cloneDefaultSmartCardActions()
   .map((action) => action.label);
@@ -562,7 +568,7 @@ const test = base.extend({
   },
 
   electronApp: async ({ userDataDir, omarchyThemeDir }, use) => {
-    const app = await electron.launch({
+    const app = await launchElectron({
       executablePath: electronBinary,
       args: ['.'],
       cwd: repoRoot,
@@ -662,7 +668,8 @@ test('opens a card when a startup board refresh lands between pointer down and u
   await expect(page.locator('#modalEditCard')).toBeVisible();
 });
 
-test('installs native application menu actions', async ({ electronApp }) => {
+test('installs native application menu actions', async ({ electronApp, page }) => {
+  await expect(page.locator('#board')).toBeVisible();
   const snapshot = await electronApp.evaluate(({ Menu, app }) => {
     const appMenu = Menu.getApplicationMenu();
     const serializeMenuItem = (item) => ({
@@ -1161,7 +1168,7 @@ test('refreshes board card previews after external markdown edits', async ({ pag
   await expect(page.locator('.list').first().locator('.card').first().locator('.card-body p')).toHaveText('Clean MCP notes.');
 });
 
-test('refreshes an unchanged open card editor after external markdown edits', async ({ page, boardRoot }) => {
+test('refreshes an unchanged open card editor after external markdown edits', async ({ page, boardRoot }, testInfo) => {
   const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
   const card = await cardFrontmatter.readCard(cardPath);
 
@@ -1172,7 +1179,19 @@ test('refreshes an unchanged open card editor after external markdown edits', as
     body: 'Cleaned while the editor stayed open.',
   });
 
-  await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue('Cleaned while the editor stayed open.');
+  try {
+    await expect(page.locator('#cardEditorOverType .overtype-input')).toHaveValue('Cleaned while the editor stayed open.');
+  } catch (error) {
+    await testInfo.attach('editor-refresh-state', { contentType: 'application/json', body: JSON.stringify(await page.evaluate(async () => ({
+      clean: isActiveEditorUnchangedFromDisk(), active: isCardEditorActive(),
+      baseline: activeEditorDiskState, currentBody: getEditorBodyValue(), currentTitle: getEditorTitleValue(),
+      currentMetadata: getEditorFrontmatter(), pendingSave: Boolean(pendingEditorSaveTimer), saving: editorSaveOperationInFlight,
+      watchedRoot: externalBoardWatchRoot, rememberedToken: externalBoardWatchToken, token: await window.board.getBoardWatchToken(),
+      refreshPending: externalBoardRefreshPending, refreshBlocked: isExternalBoardRefreshBlocked(),
+      disk: await window.board.readCard(getActiveEditorCardPath()),
+    })), null, 2) });
+    throw error;
+  }
 });
 
 test('does not throw when formatting invalid due date values', async ({ page }) => {
@@ -1523,6 +1542,8 @@ test('does not leave duplicate card nodes after rapid cross-list dragging', asyn
 
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
+  await page.mouse.move(start.x + 6, start.y + 6);
+  await expect(page.locator('.card-sortable--fallback')).toHaveCount(1);
   for (let index = 0; index < 10; index += 1) {
     await page.mouse.move(secondListBottom.x, secondListBottom.y, { steps: 3 });
     await page.mouse.move(firstListBottom.x, firstListBottom.y, { steps: 3 });
@@ -1549,7 +1570,8 @@ test('does not leave duplicate card nodes after rapid cross-list dragging', asyn
   expect(duringDrag.fallbackOpacity).toBe('1');
 
   await page.mouse.up();
-  await page.waitForTimeout(500);
+  await expect(page.locator('.card-sortable--fallback')).toHaveCount(0);
+  await expect(page.locator('.card-sortable--ghost')).toHaveCount(0);
 
   const afterDrop = await page.evaluate(() => ({
     fallbackCount: document.querySelectorAll('.card-sortable--fallback').length,
@@ -2870,9 +2892,11 @@ test('opens settings from the renderer keyboard shortcut', async ({ page }) => {
   await expect(notificationsDetails).toHaveAttribute('aria-hidden', 'true');
 });
 
-test('follows detected Omarchy colors and theme replacements until manually overridden', async ({ page, omarchyThemeDir }) => {
+test('follows detected Omarchy colors and theme replacements until manually overridden', async ({ electronApp, page, omarchyThemeDir }) => {
   await page.keyboard.press(getShortcut('Comma'));
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
+
+  await page.locator('#boardSettingsNavColors').click();
 
   const appearanceGroup = page.locator('#boardSettingsAppearanceGroup');
   const themeSource = page.locator('#boardSettingsThemeSource');
@@ -2921,8 +2945,11 @@ test('follows detected Omarchy colors and theme replacements until manually over
   await expect(themeSource.locator('option[value="omarchy"]')).toContainText('Paper');
 
   await page.locator('#boardSettingsClose').click();
-  await openBoardMenu(page);
-  await page.locator('#themeToggle').click();
+  await electronApp.evaluate(({ Menu }) => {
+    const item = Menu.getApplicationMenu().items.find(item => item.label === 'View').submenu.items.find(item => item.label === 'Toggle Light/Dark Mode');
+    if (item.accelerator !== 'CmdOrCtrl+Shift+D') throw new Error('Theme shortcut is missing');
+    item.click();
+  });
   await expect.poll(async () => page.evaluate(async () => ({
     source: document.documentElement.dataset.appThemeSource || '',
     savedSource: (await window.electronAPI.readAppSettings()).appearance.themeSource,
@@ -4020,7 +4047,7 @@ test('cold-start card links wait for demo workspace restoration', async ({ userD
     body: 'Startup must not restore another board over this card.',
   });
   await fs.writeFile(path.join(userDataDir, 'trusted-board-roots.json'), JSON.stringify([boardRoot, targetBoard]));
-  const launch = (args = []) => electron.launch({
+  const launch = (args = []) => launchElectron({
     executablePath: electronBinary,
     args: ['.', ...args],
     cwd: repoRoot,
@@ -4108,7 +4135,7 @@ test('card links reopen the application after its last window closes', async ({ 
     frontmatter: { title: 'Reopened application card', signboard_id: 'Rp123' }, body: 'Disposable link test',
   });
   await fs.writeFile(path.join(userDataDir, 'trusted-board-roots.json'), JSON.stringify([boardRoot]));
-  const launch = (args = []) => electron.launch({ executablePath: electronBinary, args: ['.', ...args], cwd: repoRoot,
+  const launch = (args = []) => launchElectron({ executablePath: electronBinary, args: ['.', ...args], cwd: repoRoot,
     env: { ...process.env, SIGNBOARD_USER_DATA_DIR: userDataDir, SIGNBOARD_TEST_DISABLE_FAVICON_FETCH: '1' } });
   let app = await launch();
   try {
@@ -4121,4 +4148,179 @@ test('card links reopen the application after its last window closes', async ({ 
     await expect(page.locator('#cardEditorTitle')).toHaveText('Reopened application card');
     await expect(page.locator('#modalEditCard')).toBeVisible();
   } finally { await app.close(); }
+});
+
+test('Appearance previews choose Light Dark and Auto and preserve the preference', async ({ electronApp, page }, testInfo) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.keyboard.press(getShortcut('Comma'));
+  await page.locator('#boardSettingsNavColors').click();
+  const light = page.getByRole('radio', { name: 'Light', exact: true });
+  const dark = page.getByRole('radio', { name: 'Dark', exact: true });
+  const auto = page.getByRole('radio', { name: 'Auto', exact: true });
+  await expect(page.locator('#boardColorSchemeSelect option:not(:disabled)')).toHaveCount(51);
+  await expect(page.locator('#boardColorSchemeSelect option:checked')).toHaveText('Current colors');
+  await expect(page.locator('#boardSettingsOmarchyThemeStatus')).toContainText('Detected');
+  await page.locator('#boardColorSchemeSelect').selectOption('tokyo-night');
+  await expect.poll(() => page.evaluate(async () => (await window.board.readBoardSettings(window.boardRoot)).colorScheme)).toBe('tokyo-night');
+  await page.screenshot({ path: testInfo.outputPath('appearance-light.png') });
+  await dark.locator('#boardThemeDarkPreview').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(dark).toHaveAttribute('aria-checked', 'true');
+  await page.screenshot({ path: testInfo.outputPath('appearance-dark.png') });
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await auto.click();
+  await expect(auto).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', '');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(auto).toHaveAttribute('aria-checked', 'true');
+  await page.screenshot({ path: testInfo.outputPath('appearance-auto.png') });
+  await expect.poll(() => page.evaluate(async () => (await window.electronAPI.readAppSettings()).appearance.mode)).toBe('auto');
+  await page.locator('#boardSettingsClose').click();
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => getAppAppearanceMode())).toBe('auto');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.keyboard.press(getShortcut('Comma'));
+  await page.locator('#boardSettingsNavColors').click();
+  await auto.focus();
+  await page.keyboard.press('Home');
+  await expect(light).toBeFocused();
+  await expect(light).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', '');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', '');
+  await page.locator('#boardSettingsClose').click();
+  await electronApp.evaluate(({ Menu }) => {
+    const item = Menu.getApplicationMenu().items.find(item => item.label === 'View').submenu.items.find(item => item.label === 'Toggle Light/Dark Mode');
+    if (item.accelerator !== 'CmdOrCtrl+Shift+D') throw new Error('Theme shortcut is missing');
+    item.click();
+  });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect.poll(() => page.evaluate(async () => (await window.electronAPI.readAppSettings()).appearance.mode)).toBe('dark');
+  await expect(page.locator('#themeToggle')).toHaveCount(0);
+});
+
+test('Appearance migrates an existing dark choice without changing the board scheme', async ({ page }) => {
+  await page.evaluate(async () => {
+    await flushAppSettingsSave();
+    await window.electronAPI.updateAppSettings({ appearance: { themeSource: 'signboard', mode: '' } });
+    localStorage.setItem('theme', 'dark');
+    await window.board.updateBoardSettings(window.boardRoot, { colorScheme: 'harvest' });
+  });
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect.poll(() => page.evaluate(async () => (await window.electronAPI.readAppSettings()).appearance.mode)).toBe('dark');
+  await expect.poll(() => page.evaluate(() => getBoardColorScheme())).toBe('harvest');
+});
+
+test('Planner card editing preserves the Kanban board its scheme and filters', async ({ electronApp, boardRoot }) => {
+  const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
+  const sourceRoot = normalizeBoardRoot(boardRoots[0]);
+  const cardRoot = normalizeBoardRoot(boardRoots[1]);
+  const cardPath = path.join(boardRoots[1], '001-Doing-stock', '000-polish-copy-stock.md');
+  await cardFrontmatter.updateFrontmatter(cardPath, { due: formatLocalIsoDate() });
+  await page.evaluate(async ({ sourceRoot, cardRoot }) => {
+    await window.board.updateBoardSettings(sourceRoot, { colorScheme: 'lavender' });
+    await window.board.updateBoardSettings(cardRoot, { colorScheme: 'cozy-blush' });
+    await renderBoard();
+    setBoardSearchQuery('release');
+    getBoardLabelState().activeDateFilter = 'today';
+    await openPlannerView();
+  }, { sourceRoot, cardRoot });
+  const planner = page.locator('#plannerOverlay');
+  await expect(planner).toBeVisible();
+  const plannerBackground = await planner.evaluate(el => getComputedStyle(el).backgroundColor);
+  expect(plannerBackground).toBe('rgb(242, 245, 236)');
+  const entry = page.locator('.planner-calendar-card').filter({ hasText: 'Polish homepage copy' });
+  const frame = entry.locator('.board-temporal-card-frame');
+  const frameBackground = await frame.evaluate(el => getComputedStyle(el).backgroundColor);
+  const dueColor = await planner.evaluate(el => getComputedStyle(el).getPropertyValue('--due-date-today-color'));
+  await entry.click();
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await expect(page.locator('#cardEditorListSelect')).toHaveValue(path.join(cardRoot, '001-Doing-stock'));
+  expect(await page.evaluate(() => getStoredActiveBoard())).toBe(sourceRoot);
+  expect(await planner.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(plannerBackground);
+  await expect.poll(() => frame.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(frameBackground);
+  expect(await planner.evaluate(el => getComputedStyle(el).getPropertyValue('--due-date-today-color'))).toBe(dueColor);
+  const notes = page.locator('#cardEditorOverType .overtype-input');
+  await notes.fill('Saved from Planner to the Roadmap card.');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.boardRoot)).toBe(sourceRoot);
+  await expect.poll(async () => (await cardFrontmatter.readCard(cardPath)).body).toContain('Saved from Planner');
+  expect(await page.evaluate(() => getBoardSearchQuery())).toBe('release');
+  expect(await page.evaluate(() => getBoardLabelState().activeDateFilter)).toBe('today');
+  expect(await planner.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(plannerBackground);
+  // A workspace shortcut from an open foreign card must also restore first.
+  await entry.click();
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  await page.keyboard.press(getShortcut('1'));
+  await expect(planner).toBeHidden();
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+  expect(await page.evaluate(() => window.boardRoot)).toBe(sourceRoot);
+  expect(await page.evaluate(() => getStoredActiveBoard())).toBe(sourceRoot);
+  expect(await page.evaluate(() => getBoardColorScheme())).toBe('lavender');
+  // Watch authorization verifies that main-process operations returned too.
+  expect(await page.evaluate(async () => (await window.board.startBoardWatch(window.boardRoot)).ok)).toBe(true);
+});
+
+test('Planner restores the selected board after a failed card open or same-board switch', async ({ electronApp, boardRoot }) => {
+  const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Other Board']);
+  const sourceRoot = normalizeBoardRoot(boardRoots[0]);
+  const cardRoot = normalizeBoardRoot(boardRoots[1]);
+  const cardPath = path.join(boardRoots[1], '001-Doing-stock', '000-polish-copy-stock.md');
+  const result = await page.evaluate(async ({ sourceRoot, cardRoot, cardPath }) => {
+    await openPlannerView();
+    let failed = false;
+    try {
+      await openPlannerCard({ boardRoot: cardRoot, cardPath: `${cardRoot}001-Doing-stock/missing.md` });
+    } catch { failed = true; }
+    const recovered = failed && window.boardRoot === sourceRoot && !getPlannerState().cardContext;
+    await openPlannerCard({ boardRoot: cardRoot, cardPath });
+    await switchToBoardPath(sourceRoot);
+    closePlannerView();
+    return {
+      recovered,
+      root: window.boardRoot,
+      name: document.getElementById('boardName').textContent,
+      canWatch: (await window.board.startBoardWatch(sourceRoot)).ok,
+      context: getPlannerState().cardContext,
+    };
+  }, { sourceRoot, cardRoot, cardPath });
+  expect(result.recovered).toBe(true);
+  expect(result.root).toBe(sourceRoot);
+  expect(result.name).toBe(path.basename(boardRoots[0]));
+  expect(result.canWatch).toBe(true);
+  expect(result.context).toBeNull();
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+  await expect(page.locator('#plannerOverlay')).toBeHidden();
+});
+
+test('Planner label settings update the card board and restore the selected board', async ({ electronApp, boardRoot }) => {
+  const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Other Board']);
+  const sourceRoot = normalizeBoardRoot(boardRoots[0]);
+  const cardRoot = normalizeBoardRoot(boardRoots[1]);
+  const cardPath = path.join(boardRoots[1], '001-Doing-stock', '000-polish-copy-stock.md');
+  const originalLabels = await page.evaluate(async root => (await window.board.readBoardSettings(root)).labels, sourceRoot);
+  for (const closeMethod of ['button', 'escape']) {
+    await page.evaluate(async ({ cardRoot, cardPath }) => {
+      await openPlannerView();
+      await openPlannerCard({ boardRoot: cardRoot, cardPath });
+    }, { cardRoot, cardPath });
+    await page.locator('#cardEditorSetLabelsLink').click();
+    await page.locator('.card-label-popover').getByRole('button', { name: 'Open label settings' }).click();
+    await expect(page.locator('#modalEditCard')).toBeHidden();
+    await expect(page.locator('#boardSettingsPanelLabels')).toBeVisible();
+    expect(await page.evaluate(() => window.boardRoot)).toBe(cardRoot);
+    expect(await page.evaluate(() => getStoredActiveBoard())).toBe(sourceRoot);
+    const labelName = `Other board ${closeMethod}`;
+    await page.locator('#boardSettingsLabels .board-settings-label-name').first().fill(labelName);
+    if (closeMethod === 'button') await page.locator('#boardSettingsClose').click();
+    else await page.keyboard.press('Escape');
+    await expect.poll(() => page.evaluate(() => window.boardRoot)).toBe(sourceRoot);
+    await expect.poll(() => page.evaluate(async root => (await window.board.readBoardSettings(root)).labels[0].name, cardRoot)).toBe(labelName);
+    expect(await page.evaluate(async root => (await window.board.readBoardSettings(root)).labels, sourceRoot)).toEqual(originalLabels);
+    expect(await page.evaluate(() => getPlannerState().cardContext)).toBeNull();
+  }
 });

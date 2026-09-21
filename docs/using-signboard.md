@@ -288,7 +288,7 @@ Planner includes:
 - Day
 - Agenda
 
-Planner cards show their source as `Board · List`, with that source pill tinted from the source board's color scheme. Clicking a Planner card opens the normal card editor and switches the active board behind Planner when needed, so labels and list moves stay tied to the card’s real board.
+Planner cards show their source as `Board · List`, with that source pill tinted from the source board's color scheme. Clicking a Planner card opens the normal editor with the card’s own labels and lists. Closing it or returning to Kanban/Table keeps the board and filters you were using before Planner.
 
 Planner defaults to all open boards. Use the scope toggle to narrow to the current board, or use the filter menu to choose a custom set of open boards.
 
@@ -298,7 +298,7 @@ From Planner search, press `Enter` or `Arrow Down` to focus the first visible Pl
 
 Planner hides cards from completed lists by default. Each board can auto-detect lists named `Done`, `Completed`, `Complete`, `Closed`, `Finished`, `Resolved`, or `Shipped`, and you can override those choices in Settings. Use the Planner filter menu when you want completed dated cards shown for historical review.
 
-Planner uses your light/dark mode but keeps the default Signboard color palette instead of inheriting the active board color scheme.
+Planner uses the selected Kanban/Table board’s color scheme and your active light/dark mode, including Auto. Opening another board’s card does not change the Planner palette or your selected board.
 
 You can leave Signboard running continuously. At local midnight—and again when the window becomes visible, receives focus, or the computer resumes from sleep—Signboard refreshes date filters, date colors, relative Table ages, Agenda labels, and Planner date views. Calendar, This Week, and Day advance when they were showing the previously current period; if you deliberately browsed to another month, week, or day, that date remains pinned.
 
@@ -359,13 +359,13 @@ Open `Settings` from the board menu or press `Cmd/Ctrl + ,`.
 
 The `App Settings` group controls settings that apply across Signboard:
 
-- `General`: tooltips, the optional global Quick Add shortcut while Signboard is open, and `Follow Omarchy theme` when Omarchy is detected
+- `General`: tooltips and the optional global Quick Add shortcut while Signboard is open
 - `Notifications`: daily due-date reminders and External Published Calendar publishing
 - `Smart Actions`: AI assistance through Ollama and Smart Card Actions
 
 If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due. The notification time field is shown only while reminders are enabled.
 
-On Omarchy, choose `Follow Omarchy theme` to use the active Omarchy palette. Signboard watches for atomic Omarchy theme replacements and updates while running. The option is hidden on other operating systems and Linux desktops, so their appearance is unchanged. Manually toggling light/dark mode returns to the Signboard theme, and a non-default board color scheme remains a deliberate per-board override.
+In `Settings > Appearance` on Omarchy, choose `Follow Omarchy theme` to use the active Omarchy palette. Signboard watches for atomic Omarchy theme replacements and updates while running. The option is hidden on other operating systems and Linux desktops, so their appearance is unchanged. Choosing Light, Dark, or Auto returns to board colors, and a non-default board color scheme remains a deliberate per-board override.
 
 When AI assistance is enabled, Signboard checks the configured Ollama URL, shows whether it can connect, and loads the locally installed models from Ollama into a model dropdown. Use the refresh button next to the model picker after pulling a new model. When AI assistance is off, Smart Actions shows a setup state with an enable button. The card editor then shows a floating Smart Card Actions button with default actions for generating a new title, generating a summary, generating a task list, auto-labeling from the current board's existing labels, smart paste formatting, a one-off Quick Smart Action, and a read-only Question the Card action. Use the gear in the Smart Card Actions menu to open the Smart Actions settings panel directly. App Settings lets you drag actions to reorder them, expand an action with `Edit`, customize each built-in prompt, and add custom actions with a label, affected card data, and prompt. Custom actions can target Title, Labels, Content, Due Dates, or Attachments. Content suggestions are appended to the card instead of replacing existing notes. Quick Smart Action is reorderable in settings but does not store a prompt; choose its prompt and target when you run it from the card editor. Question the Card is reorderable in settings but does not store a prompt or show an affected-data selector; type a question when you run it, review the answer in the modal, and optionally ask a fresh follow-up without storing chat history or changing card data. New custom actions appear at the top of the actions list. For the generated task list action, change the number in the prompt when you want a different number of tasks. Suggestions are previewed before they replace the title, insert Markdown, set a due date, link suggested URL/app attachments, or apply labels. Auto-label only applies labels that already exist on the current board, preserves labels already assigned to the card, and skips duplicates. Attachment suggestions only link web URLs, app links, or `signboard://` links after confirmation; local file paths are not attached by AI. Card title, body, board/list context, start/due dates, current labels, available board labels, linked-object summaries, a compact markdown-file view of the card for questions, pasted smart-paste text, Quick Smart Action prompts, and Question the Card prompts are sent to the configured Ollama URL only when you use an action.
 
@@ -411,7 +411,7 @@ Labels are stored with the board so each board can have its own vocabulary.
 
 ### Appearance
 
-The `Appearance` section lets you choose a board color scheme. Each scheme includes both light and dark variants.
+The `Appearance` section offers 51 board color schemes, including 42 contributed by Marcus Holtz with contrast adjustments. It lets you choose a board color scheme and click its Light or Dark preview to select that mode. Choose Auto to follow your operating system’s light/dark preference, including changes while Signboard is running. Mode applies to all boards; the scheme applies to the current board. Your existing light/dark choice is preserved when upgrading. The Board menu no longer contains a mode switch; `Cmd/Ctrl + Shift + D` still toggles Light/Dark and leaves Auto or Omarchy following.
 
 You can also apply the color scheme to all currently open boards.
 

@@ -319,8 +319,15 @@ function applyAppSettings(settings) {
   setAppExternalPublishedCalendarStatus(source.externalPublishedCalendarStatus);
   setAppOmarchyThemeStatus(source.omarchyThemeStatus);
   getAppSettingsState().settingsLoaded = true;
+  if (!getAppAppearanceSettings().mode) {
+    setAppAppearanceSettings({
+      ...getAppAppearanceSettings(),
+      mode: localStorage.getItem('theme') === 'dark' ? 'dark' : 'light',
+    });
+    scheduleAppSettingsSave();
+  }
   if (typeof applyConfiguredAppTheme === 'function') {
-    applyConfiguredAppTheme({ renderBoard: false });
+    applyConfiguredAppTheme({ renderBoard: false }).catch((error) => console.error('Unable to apply appearance.', error));
   }
 }
 
@@ -448,7 +455,9 @@ function renderAppSettingsControls() {
 
   if (omarchyThemeStatus) {
     omarchyThemeStatus.classList.remove('is-success', 'is-warning');
-    omarchyThemeStatus.textContent = omarchyTheme.message;
+    omarchyThemeStatus.textContent = omarchyTheme.available && appearance.themeSource !== 'omarchy'
+      ? `Detected ${omarchyTheme.name || 'Omarchy'}. Choose Follow Omarchy theme to use its colors.`
+      : omarchyTheme.message;
     omarchyThemeStatus.classList.add(omarchyTheme.available ? 'is-success' : 'is-warning');
   }
 
@@ -1185,6 +1194,7 @@ function persistAppSettings() {
         return;
       }
 
+      const requestedAppearance = getAppAppearanceSettings();
       const result = await window.electronAPI.updateAppSettings({
         notifications: getAppNotificationSettings(),
         tooltipsEnabled: getAppTooltipsEnabled(),
@@ -1193,6 +1203,11 @@ function persistAppSettings() {
         externalPublishedCalendar: getAppExternalPublishedCalendarSettings(),
         ai: getAppAiSettings(),
       });
+      // A quick second mode selection must survive an older save response.
+      const currentAppearance = getAppAppearanceSettings();
+      if (JSON.stringify(currentAppearance) !== JSON.stringify(requestedAppearance)) {
+        result.appearance = currentAppearance;
+      }
       applyAppSettings(result);
       renderAppSettingsControls();
     })

@@ -1178,6 +1178,15 @@ async function saveEditorCard(bodyValue) {
         return;
     }
 
+    // Editor initialization/theme updates can emit onChange without a user edit.
+    // Do not rewrite that cached content over a newer external file change.
+    if (activeEditorDiskState && activeEditorDiskState.cardPath === cardPath &&
+        String(bodyValue || '') === activeEditorDiskState.body &&
+        getEditorTitleValue() === activeEditorDiskState.title &&
+        JSON.stringify(getEditorFrontmatter()) === activeEditorDiskState.frontmatterJson) {
+        return;
+    }
+
     editorSaveOperationInFlight = true;
 
     try {

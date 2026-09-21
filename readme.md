@@ -15,7 +15,7 @@ Signboard is free for personal use. If you are using Signboard for your work, it
 - 📂 Cards saved as Markdown files
 - 💎 Full Obsidian support
 - 🖌️ Color scheme per board (several to choose from!)
-- 🌙 Light and dark mode variants for all color schemes
+- 🌙 Light, Dark, and automatic system appearance from clickable scheme previews
 - 🏷 Custom labels per board
 - 🗓 Compact calendar controls for card and task list item start/due dates
 - ↕️ One-time list ordering by due date, while preserving normal manual card ordering afterward
@@ -73,7 +73,7 @@ yay -S signboard-appimage
 paru -S signboard-appimage
 ```
 
-On Omarchy, open `Settings > General` and choose `Follow Omarchy theme` to use the active Omarchy palette and follow future theme changes. The choice appears only when Signboard detects Omarchy. Selecting a non-default board color scheme keeps that board's deliberate palette.
+On Omarchy, open `Settings > Appearance` and choose `Follow Omarchy theme` to use the active Omarchy palette and follow future theme changes. The choice appears only when Signboard detects Omarchy. Selecting a non-default board color scheme keeps that board's deliberate palette.
 
 ## Documentation
 
@@ -358,6 +358,8 @@ Notes:
 ## 🤝 Contributing
 
 Contributions in all forms are welcome!  
+
+Thanks to [Marcus Holtz (@MarcusHoltz)](https://github.com/MarcusHoltz) for contributing 42 color schemes in [#58](https://github.com/cdevroe/signboard/issues/58) and Planner scheme inheritance in [#59](https://github.com/cdevroe/signboard/issues/59). The new schemes include contrast adjustments for readable text and controls.
 
 - **Report bugs**: Open an [Issue](https://github.com/cdevroe/signboard/issues).
 - **Suggest features**: Open an [Issue](https://github.com/cdevroe/signboard/issues) with the `enhancement` label.

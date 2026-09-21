@@ -366,12 +366,8 @@ async function openBoardSettingsFromShortcut() {
 }
 
 function toggleThemeModeFromShortcut() {
-    const themeToggleButton = document.getElementById('themeToggle');
-    if (!themeToggleButton || typeof themeToggleButton.click !== 'function') {
-        return false;
-    }
-
-    themeToggleButton.click();
+    if (typeof toggleAppThemeMode !== 'function') return false;
+    toggleAppThemeMode().catch((error) => console.error('Unable to change appearance mode.', error));
     return true;
 }
 
@@ -904,7 +900,8 @@ if (window.electronAPI && typeof window.electronAPI.onOpenQuickAddCard === 'func
 }
 
 if (window.electronAPI && typeof window.electronAPI.onToggleThemeMode === 'function') {
-    window.electronAPI.onToggleThemeMode(() => {
+    window.electronAPI.onToggleThemeMode(async () => {
+        await waitForNativeMenuTrackingToSettle();
         hideShortcutHelpModal();
         toggleThemeModeFromShortcut();
     });

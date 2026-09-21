@@ -136,6 +136,11 @@ async function closeAllModals(e, options = {}){
         return;
     }
 
+    if (!options.skipPlannerCardOpenWait && typeof getPlannerState === 'function') {
+        const pendingOpen = getPlannerState().cardOpenPromise;
+        if (pendingOpen) await pendingOpen.catch(() => {});
+    }
+
     const shouldRerender = Boolean(options.rerender);
     const skipRerender = Boolean(options.skipRerender);
 
@@ -299,7 +304,12 @@ async function closeAllModals(e, options = {}){
         }
     }
 
-    if (!skipRerender && (shouldRerender || editModalClosed || boardSettingsClosed)) {
+    const restoredPlannerBoard = (editModalClosed || boardSettingsClosed) && !options.preservePlannerCardContext && typeof restorePlannerCardContext === 'function'
+        ? await restorePlannerCardContext() : false;
+
+    // A temporary editor board must be replaced even when a following command
+    // skips the usual redraw (including switching to the already-selected tab).
+    if (restoredPlannerBoard || (!skipRerender && (shouldRerender || editModalClosed || boardSettingsClosed))) {
         await renderBoard();
         if (editModalClosed && typeof isPlannerOpen === 'function' && isPlannerOpen() && typeof renderPlannerView === 'function') {
             await renderPlannerView();

@@ -142,8 +142,10 @@ async function applyConfiguredAppTheme(options = {}) {
     }
   } else {
     clearOmarchyThemeVariables();
-    const savedThemeMode = localStorage.getItem('theme');
-    root.dataset.theme = savedThemeMode === 'dark' ? 'dark' : '';
+    const preference = getAppAppearanceMode();
+    const mode = preference === 'auto' ? getSystemThemeMode() : preference;
+    root.dataset.theme = mode === 'dark' ? 'dark' : '';
+    localStorage.setItem('theme', root.dataset.theme);
     restoreCurrentBoardThemeVariables();
   }
 
@@ -151,112 +153,95 @@ async function applyConfiguredAppTheme(options = {}) {
     applyBoardThemeForCurrentBoard();
   }
   applyEditorThemeFromActiveMode();
-  renderThemeToggleButtonState();
+  renderAppearanceModeControls();
 
   if (options.renderBoard !== false && window.boardRoot && typeof renderBoard === 'function') {
     await renderBoard();
   }
 }
 
-function stopFollowingOmarchyForManualThemeToggle() {
-  if (!isFollowingOmarchyTheme() || typeof setAppAppearanceSettings !== 'function') {
-    return;
+// The operating system controls the effective mode only when Auto is selected.
+const systemThemeQuery = typeof window.matchMedia === 'function'
+  ? window.matchMedia('(prefers-color-scheme: dark)')
+  : null;
+
+function getSystemThemeMode() {
+  return systemThemeQuery && systemThemeQuery.matches ? 'dark' : 'light';
+}
+
+function getAppAppearanceMode() {
+  const mode = getAppAppearanceSettings().mode;
+  return ['light', 'dark', 'auto'].includes(mode)
+    ? mode
+    : (localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');
+}
+
+function renderAppearanceModeControls() {
+  const mode = getAppAppearanceMode();
+  const followingOmarchy = isFollowingOmarchyTheme();
+  for (const button of document.querySelectorAll('[data-appearance-mode]')) {
+    const selected = !followingOmarchy && button.dataset.appearanceMode === mode;
+    button.setAttribute('aria-checked', String(selected));
+    button.tabIndex = selected || (followingOmarchy && button.dataset.appearanceMode === 'light') ? 0 : -1;
   }
-  setAppAppearanceSettings({ themeSource: 'signboard' });
-  clearOmarchyThemeVariables();
-  restoreCurrentBoardThemeVariables();
-  if (typeof scheduleAppSettingsSave === 'function') {
-    scheduleAppSettingsSave();
-  }
-  if (typeof renderAppSettingsControls === 'function') {
-    renderAppSettingsControls();
+  const status = document.getElementById('appearanceModeStatus');
+  if (status) {
+    status.textContent = followingOmarchy
+      ? 'Following Omarchy colors and mode. Select a mode to use board colors.'
+      : mode === 'auto' ? `Following system appearance — ${getSystemThemeMode()} now.` : '';
   }
 }
 
-function renderThemeToggleButtonState() {
-  const themeToggle = document.getElementById('themeToggle');
-  if (!themeToggle) {
-    return;
-  }
-
-  const isDarkMode = document.documentElement.dataset.theme === 'dark';
-  const iconName = isDarkMode ? 'sun' : 'moon';
-  const label = isDarkMode ? 'Light Mode' : 'Dark Mode';
-  const iconMarkup = (
-    window.feather &&
-    window.feather.icons &&
-    typeof window.feather.icons[iconName]?.toSvg === 'function'
-  )
-    ? window.feather.icons[iconName].toSvg({
-      width: 16,
-      height: 16,
-      stroke: 'currentColor',
-    })
-    : `<i data-feather="${iconName}"></i>`;
-
-  themeToggle.innerHTML = `
-    <span class="board-menu-action-icon" aria-hidden="true">${iconMarkup}</span>
-    <span class="board-menu-action-label">${label}</span>
-    <span class="menu-shortcut-hint" aria-hidden="true">${getShortcutHintText('toggleTheme')}</span>
-  `;
-  themeToggle.setAttribute('title', `Switch to ${isDarkMode ? 'light' : 'dark'} mode (${getShortcutHintText('toggleTheme')})`);
-  themeToggle.setAttribute('aria-label', `Switch to ${isDarkMode ? 'light' : 'dark'} mode`);
-  themeToggle.setAttribute('aria-keyshortcuts', getShortcutAriaKeyshortcuts('toggleTheme'));
-
-  if (
-    !(
-      window.feather &&
-      window.feather.icons &&
-      typeof window.feather.icons[iconName]?.toSvg === 'function'
-    ) &&
-    typeof feather !== 'undefined' &&
-    feather &&
-    typeof feather.replace === 'function'
-  ) {
-    feather.replace();
-  }
+async function setAppAppearanceMode(mode) {
+  if (!['light', 'dark', 'auto'].includes(mode)) return;
+  setAppAppearanceSettings({ ...getAppAppearanceSettings(), themeSource: 'signboard', mode });
+  scheduleAppSettingsSave();
+  await applyConfiguredAppTheme();
+  renderAppSettingsControls();
 }
 
-const themeToggle = document.getElementById('themeToggle');
-const savedThemeMode = localStorage.getItem('theme');
-if (savedThemeMode) {
-  document.documentElement.dataset.theme = savedThemeMode;
+async function toggleAppThemeMode() {
+  await setAppAppearanceMode(getBoardThemeMode() === 'dark' ? 'light' : 'dark');
 }
 
-renderThemeToggleButtonState();
-
-if (themeToggle) {
-  themeToggle.addEventListener('click', () => {
-    stopFollowingOmarchyForManualThemeToggle();
-    const current = document.documentElement.dataset.theme;
-    const newTheme = current === 'dark' ? '' : 'dark';
-    document.documentElement.dataset.theme = newTheme;
-    localStorage.setItem('theme', newTheme);
-    renderThemeToggleButtonState();
-
-    if (typeof applyBoardThemeForCurrentBoard === 'function') {
-      applyBoardThemeForCurrentBoard();
-    }
-
-    applyEditorThemeFromActiveMode();
-
-    if (window.boardRoot && typeof renderBoard === 'function') {
-      renderBoard().catch((error) => {
-        console.error('Unable to render board after theme change.', error);
-      });
-    }
-
-    if (typeof closeBoardMenuPopover === 'function') {
-      closeBoardMenuPopover();
-    }
+for (const button of document.querySelectorAll('[data-appearance-mode]')) {
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setAppAppearanceMode(button.dataset.appearanceMode).catch((error) => {
+      console.error('Unable to change appearance mode.', error);
+    });
   });
-
-  window.addEventListener('DOMContentLoaded', () => {
-    if (typeof applyBoardThemeForCurrentBoard === 'function') {
-      applyBoardThemeForCurrentBoard();
-    }
+  button.addEventListener('keydown', (event) => {
+    const buttons = [...document.querySelectorAll('[data-appearance-mode]')];
+    const index = buttons.indexOf(button);
+    let next = index;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % buttons.length;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + buttons.length - 1) % buttons.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = buttons.length - 1;
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+    buttons[next].focus();
+    buttons[next].click();
   });
 }
+
+if (systemThemeQuery) {
+  systemThemeQuery.addEventListener('change', () => {
+    if (getAppAppearanceMode() === 'auto' && !isFollowingOmarchyTheme()) {
+      applyConfiguredAppTheme().catch((error) => console.error('Unable to follow system appearance.', error));
+    }
+    renderBoardThemeSettingsControls();
+  });
+}
+
+// Retain the legacy choice during bootstrap; app settings take over once loaded.
+document.documentElement.dataset.theme = localStorage.getItem('theme') === 'dark' ? 'dark' : '';
+renderAppearanceModeControls();
+window.addEventListener('DOMContentLoaded', () => {
+  if (typeof applyBoardThemeForCurrentBoard === 'function') applyBoardThemeForCurrentBoard();
+});
 
 if (window.electronAPI && typeof window.electronAPI.onOmarchyThemeChanged === 'function') {
   window.electronAPI.onOmarchyThemeChanged((status) => {

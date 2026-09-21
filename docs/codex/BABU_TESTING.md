@@ -4,6 +4,7 @@ User decision (2026-09-09): make performance and long-running reliability on Bab
 
 ## When to use Babu
 
+- Routine Electron UI tests now use `npm run test:playwright`, which transfers a separate working-tree snapshot to a private Xvfb desktop on Babu and returns results to the Mac. See [Playwright testing](./PLAYWRIGHT_TESTING.md). These runs do not change `development-current` or require a packaged build for every edit. The normal Babu desktop and user's Mac must remain available; local foreground UI tests require explicit permission for that run.
 - After meaningful development/testing checkpoints, refresh and smoke-test the development build. After a public release, refresh the release baseline. A documentation-only change does not require a rebuild.
 - For startup, rendering, board management, search, storage, or TUI performance changes, capture comparable before/after measurements on Babu before claiming a performance improvement.
 - For watchers, editor autosave, filesystem mutations, lifecycle/date rollover, or release candidates, include a bounded longer session with desktop/TUI/CLI working on disposable data. Run a short smoke first; a two-second idle sample is not a soak test.
@@ -29,7 +30,7 @@ Read those before remote changes. Preserve SSH, loopback-only WayVNC, the fixed 
 
 Never install a development package over the release. Do not change the production app ID to achieve separation. Development launchers set `SIGNBOARD_USER_DATA_DIR`, `SIGNBOARD_DESKTOP_USER_DATA_DIR`, and `SIGNBOARD_CLI_CONFIG_DIR` to their own profiles. Do not copy credentials, license data, or real boards into the lab. Use separate profiles and board copies for benchmark runs on both channels; the normal Release launcher is for manual use, not an isolated benchmark profile.
 
-Before promotion, regenerate the renderer bundle and build the Linux x64 unpacked artifact with `--publish never`; run the existing packaged app/TUI launch check, relevant focused tests, and an interactive TUI smoke. Record version, commit/dirty state or source manifest, lockfile hash, runtime versions, artifact path, and validation outcome. Label unavailable release features (currently the TUI) as unavailable rather than comparing against a fabricated release implementation. This workflow does not authorize publishing releases.
+Before promotion, regenerate the renderer bundle and build the Linux x64 unpacked artifact with `electron-builder --config electron-builder.json --linux --x64 --dir --publish never`; run the existing packaged app/TUI launch check, relevant focused tests, and an interactive TUI smoke. Always pass the explicit config: the small `package.json` build field alone omits the canonical runtime file list and hooks. Record version, commit/dirty state or source manifest, lockfile hash, runtime versions, artifact path, and validation outcome. Label unavailable release features (currently the TUI) as unavailable rather than comparing against a fabricated release implementation. This workflow does not authorize publishing releases.
 
 ## Measurement contract
 

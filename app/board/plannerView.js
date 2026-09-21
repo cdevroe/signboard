@@ -24,6 +24,8 @@ function getPlannerState() {
     window.__plannerViewState = {
       controlsInitialized: false,
       isOpen: false,
+      cardContext: null,
+      cardOpenPromise: null,
       activeView: PLANNER_VIEW_IDS.CALENDAR,
       calendarCursor: createMonthCursorDate(),
       weekCursor: createWeekCursorDate(),
@@ -107,7 +109,8 @@ function getPlannerSelectedBoardRoots() {
 }
 
 function getPlannerCurrentBoardRoot() {
-  return normalizeBoardPath(window.boardRoot || '');
+  const context = getPlannerState().cardContext;
+  return normalizeBoardPath(context ? context.boardRoot : window.boardRoot || '');
 }
 
 function canUsePlannerLabelFiltersForBoards(boardRoots) {
@@ -938,21 +941,85 @@ async function collectPlannerCards() {
   };
 }
 
+const PLANNER_CARD_THEME_PROPERTIES = Object.freeze({
+  boardBackground: '--bg', surface: '--bg-card', text: '--text', muted: '--muted',
+  border: '--border', shadow: '--shadow', shadowCard: '--shadow-card',
+  accent: '--accent', accentText: '--accent-contrast',
+});
+
+// The editor still needs the card's board labels, lists and palette. Keep that
+// context temporary: the selected Kanban/Table board and its filters stay intact.
+function syncPlannerBoardTheme() {
+  const overlay = document.getElementById('plannerOverlay');
+  if (!overlay) return;
+  const context = getPlannerState().cardContext;
+  overlay.dataset.boardColorScheme = context ? context.colorScheme : getBoardColorScheme();
+  for (const property of Object.values(PLANNER_CARD_THEME_PROPERTIES)) overlay.style.removeProperty(property);
+  if (!context) return;
+  const mode = getBoardThemeMode();
+  let palette = context.palettes[mode];
+  if ((!context.colorScheme || context.colorScheme === 'default') &&
+      typeof isFollowingOmarchyTheme === 'function' && isFollowingOmarchyTheme()) {
+    palette = getAppOmarchyThemeStatus().palette;
+  }
+  for (const [key, property] of Object.entries(PLANNER_CARD_THEME_PROPERTIES)) {
+    overlay.style.setProperty(property, palette[key]);
+  }
+}
+
+async function restorePlannerCardContext() {
+  const state = getPlannerState();
+  const context = state.cardContext;
+  if (!context) return false;
+  // Inline label creation may have queued a write for the editor's board.
+  if (typeof flushBoardLabelSettingsSave === 'function') await flushBoardLabelSettingsSave();
+  // Main-process archive/move/watch operations also own an active board root.
+  // Restore their authorization context before exposing the original board.
+  if (!await authorizeBoardAccess(context.boardRoot)) {
+    throw new Error('Unable to restore the selected board after editing a Planner card.');
+  }
+  state.cardContext = null;
+  window.boardRoot = context.boardRoot;
+  window.__boardLabelState = context.labelState;
+  window.__boardSearchState = context.searchState;
+  restoreCurrentBoardThemeVariables();
+  syncPlannerBoardTheme();
+  renderBoardTabs();
+  return true;
+}
+
 async function openPlannerCard(cardEntry) {
-  if (!cardEntry || !cardEntry.cardPath) {
-    return;
-  }
-
-  const cardBoardRoot = normalizeBoardPath(cardEntry.boardRoot);
-  if (
-    cardBoardRoot &&
-    normalizeBoardPath(window.boardRoot) !== cardBoardRoot &&
-    typeof switchToBoardPath === 'function'
-  ) {
-    await switchToBoardPath(cardBoardRoot);
-  }
-
-  await toggleEditCardModal(cardEntry.cardPath);
+  if (!cardEntry || !cardEntry.cardPath) return;
+  const state = getPlannerState();
+  if (state.cardOpenPromise) return state.cardOpenPromise;
+  state.cardOpenPromise = (async () => {
+    await closeAllModals({ key: 'Escape' }, { skipPlannerCardOpenWait: true });
+    const cardBoardRoot = normalizeBoardPath(cardEntry.boardRoot);
+    if (!getPlannerOpenBoardRoots().includes(cardBoardRoot)) return;
+    if (normalizeBoardPath(window.boardRoot) !== cardBoardRoot) {
+      if (typeof flushBoardLabelSettingsSave === 'function') await flushBoardLabelSettingsSave();
+      const authorizedBoard = await authorizeBoardAccess(cardBoardRoot);
+      if (!authorizedBoard) return;
+      state.cardContext = {
+        boardRoot: window.boardRoot,
+        labelState: getBoardLabelState(),
+        searchState: getBoardSearchState(),
+        colorScheme: getBoardColorScheme(),
+        palettes: getBoardThemePalettes(),
+      };
+      syncPlannerBoardTheme();
+      window.boardRoot = authorizedBoard;
+      window.__boardLabelState = undefined;
+      window.__boardSearchState = undefined;
+      await renderBoard();
+    }
+    await toggleEditCardModal(cardEntry.cardPath);
+  })().catch(async (error) => {
+    await restorePlannerCardContext();
+    await renderBoard();
+    throw error;
+  }).finally(() => { state.cardOpenPromise = null; });
+  return state.cardOpenPromise;
 }
 
 function createPlannerTemporalCard(cardEntry, isoDate, className) {

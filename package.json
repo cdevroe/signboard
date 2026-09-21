@@ -1,7 +1,7 @@
 {
   "name": "signboard",
   "productName": "Signboard",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "description": "A fast, local-first Kanban board for Markdown files.",
   "homepage": "https://github.com/cdevroe/signboard",
   "repository": {
@@ -70,7 +70,7 @@
     "test:import-obsidian": "node scripts/test-import-obsidian.js",
     "test:import-tasksmd": "node scripts/test-import-tasksmd.js",
     "test:timestamp": "node scripts/test-timestamp-format.js",
-    "test:playwright": "npm run build:js && playwright test",
+    "test:playwright": "node scripts/run-playwright.js",
     "migrate:legacy-cards": "node scripts/migrate-legacy-cards.js",
     "dist": "npm run dist:mac",
     "dist:mac": "npm run build:js && electron-builder --config electron-builder.json --mac --universal --publish never && npm run test:packaged-app-launch -- --app dist/mac-universal/Signboard.app",
@@ -102,7 +102,10 @@
     "release:verify": "node scripts/verify-release-assets.js",
     "release:verify:partial": "node scripts/verify-release-assets.js --allow-partial",
     "release:prepare": "npm run dist:all && npm run release:verify",
-    "test:maintenance": "node scripts/test-maintenance.js"
+    "test:maintenance": "node scripts/test-maintenance.js",
+    "test:playwright:local": "node scripts/run-playwright.js --local",
+    "test:playwright:runner": "node scripts/test-playwright-runner.js",
+    "test:board-theme-palettes": "node scripts/test-board-theme-palettes.js"
   },
   "devDependencies": {
     "@fiahfy/icns": "^0.0.7",
