@@ -1,0 +1,74 @@
+{
+  "complete": false,
+  "pending": [
+    "macOS universal DMG and ZIP, blockmaps, latest-mac.yml"
+  ],
+  "build": {
+    "schemaVersion": 1,
+    "version": "1.7.4",
+    "buildId": "20260921.1",
+    "channel": "release",
+    "builtAt": "2026-09-21T19:53:34.362Z",
+    "sourceFingerprint": "87088b1449418b3efcde5b96798e95735ab8f991ea78cf870e7fbbd9d792a2a9",
+    "sourceFileCount": 171,
+    "commit": "abacfab086e24dec3811c03e00a14cad1b06267c",
+    "dirty": true
+  },
+  "assets": [
+    {
+      "name": "latest-linux-arm64.yml",
+      "size": 721,
+      "sha256": "aa4deb2b989d5a136d4f7d27c3f8fd5b9900831769df90c032099ddd7d6c1fa6"
+    },
+    {
+      "name": "latest-linux.yml",
+      "size": 719,
+      "sha256": "e704cf97447ff0eb821092fec34bbc81fa2fe948e2fae925de93c085d016f5f3"
+    },
+    {
+      "name": "latest.yml",
+      "size": 343,
+      "sha256": "02565b85d97c8d740bd8664935271f1f7fc2f670fdeaf55bf4ee1715165e89b6"
+    },
+    {
+      "name": "signboard_1.7.4_linux_aarch64.pacman",
+      "size": 78699084,
+      "sha256": "e0e0de2b7c49c9c8c4a577f3754f9af84f6187beed7d42cb5ddba28eb6ac2e6e"
+    },
+    {
+      "name": "signboard_1.7.4_linux_amd64.deb",
+      "size": 92448016,
+      "sha256": "2a7074733cb8a161833bc51d9e698f8aa80afadf4bf43b4dff868eca89f0b4ae"
+    },
+    {
+      "name": "signboard_1.7.4_linux_arm64.AppImage",
+      "size": 119168477,
+      "sha256": "691cd25145b675ccb699270ac9902ed2a9854a13dd021bb532d231d7ef2cecf5"
+    },
+    {
+      "name": "signboard_1.7.4_linux_arm64.deb",
+      "size": 87452244,
+      "sha256": "7dd3d99ac89c729569c5a187fa332c4f8ffa7e21950561136cf1493b9eff008f"
+    },
+    {
+      "name": "signboard_1.7.4_linux_x64.pacman",
+      "size": 83775228,
+      "sha256": "b0cea8864bb808dbe32e664aa78898b9bcd3561c9e150ac35bc95fdf94986936"
+    },
+    {
+      "name": "signboard_1.7.4_linux_x86_64.AppImage",
+      "size": 118504315,
+      "sha256": "dab8fd5308007319508f4214e750e9b85d7120dfa0d1ef28a132646e2a1a7813"
+    },
+    {
+      "name": "signboard_1.7.4_win.exe",
+      "size": 197398336,
+      "sha256": "4833ebe1bed8cab36344de5e7dfa19d4d0dfa4a20deeecb44bbfbfc312deb8a5"
+    },
+    {
+      "name": "signboard_1.7.4_win.exe.blockmap",
+      "size": 204230,
+      "sha256": "195e1a8870f05bacdb7cb5e209cb98bff6de5395fbb8d7dd93ff3a07e64c5a20"
+    }
+  ]
+}
