@@ -1,6 +1,6 @@
 # Signboard 1.7.4 draft preparation
 
-[Draft PR #60](https://github.com/cdevroe/signboard/pull/60) and the [unpublished release draft](https://github.com/cdevroe/signboard/releases/tag/untagged-248214a27eb0320436d4) are prepared. Marcus Holtz is credited in the README, release notes, PR, and co-authored implementation commit. The PR remains a draft; no merge or release publication has occurred.
+[Draft PR #60](https://github.com/cdevroe/signboard/pull/60) and the [unpublished release draft](https://github.com/cdevroe/signboard/releases) are prepared. Marcus Holtz is credited in the README, release notes, PR, and co-authored implementation commit. The PR remains a draft; no merge or release publication has occurred.
 
 ## Source identity
 
