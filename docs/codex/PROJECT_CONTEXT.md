@@ -623,3 +623,5 @@ Ignore these unless task explicitly requires them:
 - Routine Electron tests use `npm run test:playwright` on Babu’s isolated Xvfb desktop. Local GUI tests require explicit permission and `npm run test:playwright:local`; see `docs/codex/PLAYWRIGHT_TESTING.md`.
 
 - `saveEditorCard` skips unchanged body/title/frontmatter writes against the loaded disk state, so initialization/theme callbacks cannot overwrite an external edit with cached content.
+
+- Release builds share one stamp in `config/build-info.json`: run `npm run build:stamp -- --channel release` once after source changes, commit it, and reuse it on every builder. The packaging hook rejects stale/missing stamps. About and `signboard --version [--json]` report the build and source fingerprint; updater versions remain unchanged. See `docs/build-identity.md`.

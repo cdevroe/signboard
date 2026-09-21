@@ -668,6 +668,18 @@ test('opens a card when a startup board refresh lands between pointer down and u
   await expect(page.locator('#modalEditCard')).toBeVisible();
 });
 
+test('About reports and copies the shared build identity', async ({ electronApp, page }) => {
+  await expect(page.locator('#board')).toBeVisible();
+  await page.evaluate(() => openAboutSignboardModal());
+  const info = await page.evaluate(() => window.electronAPI.getAppInfo());
+  expect(info.buildInfo.buildId).toMatch(/^\d{8}\.\d+$/);
+  await expect(page.locator('[data-about-app-version]')).toHaveText(info.buildLabel);
+  await expect(page.locator('#aboutSignboardBuildMeta')).toContainText(info.buildInfo.sourceFingerprint.slice(0, 12));
+  await page.locator('#aboutSignboardCopyBuild').click();
+  await expect(page.locator('#aboutSignboardBuildStatus')).toHaveText('Build details copied.');
+  expect(await electronApp.evaluate(({ clipboard }) => clipboard.readText())).toBe(info.buildDetails);
+});
+
 test('installs native application menu actions', async ({ electronApp, page }) => {
   await expect(page.locator('#board')).toBeVisible();
   const snapshot = await electronApp.evaluate(({ Menu, app }) => {

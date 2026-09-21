@@ -105,7 +105,10 @@
     "test:maintenance": "node scripts/test-maintenance.js",
     "test:playwright:local": "node scripts/run-playwright.js --local",
     "test:playwright:runner": "node scripts/test-playwright-runner.js",
-    "test:board-theme-palettes": "node scripts/test-board-theme-palettes.js"
+    "test:board-theme-palettes": "node scripts/test-board-theme-palettes.js",
+    "build:stamp": "npm run build:js && node scripts/stamp-build.js",
+    "build:check": "node scripts/stamp-build.js --check",
+    "test:build-info": "node scripts/test-build-info.js"
   },
   "devDependencies": {
     "@fiahfy/icns": "^0.0.7",

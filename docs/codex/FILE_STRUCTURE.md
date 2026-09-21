@@ -202,3 +202,5 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `docs/codex/PLAYWRIGHT_TESTING.md` — remote Electron testing and explicit native Mac validation procedure.
 
 - `scripts/test-board-theme-palettes.js`: validates the 42 contributed schemes, unique IDs, complete tokens, and 4.5:1 text/link/button contrast in Light and Dark.
+
+- `lib/buildInfo.js`, `config/build-info.json`, and `scripts/{buildIdentity,stamp-build,verify-build-identity,test-build-info}.js` — shared build identity, atomic/locked stamping (`lib/fileTransaction.js`), cross-platform packaging validation, About/CLI reporting, and regressions.

@@ -1,3 +1,4 @@
+const { getBuildInfo, formatBuildInfo, buildInfoDetails } = require('./lib/buildInfo');
 /*!
  * Signboard - A local-first Kanban app that writes Markdown
  * Copyright (c) 2025-2026 Colin Devroe - cdevroe.com
@@ -2622,6 +2623,7 @@ function createWindow() {
         await fsPromises.mkdir(path.dirname(markerPath), { recursive: true });
         await fsPromises.writeFile(markerPath, JSON.stringify({
           version: app.getVersion(),
+          buildInfo: getBuildInfo(),
           isPackaged: app.isPackaged,
           rendererLoaded: rendererLoaded === true,
         }), 'utf8');
@@ -4991,15 +4993,21 @@ ipcMain.handle('open-external-url', async (_event, rawUrl) => {
   }
 });
 
-ipcMain.handle('get-app-info', async () => ({
+ipcMain.handle('get-app-info', async () => {
+  const buildInfo = getBuildInfo();
+  return {
   appName: app.getName(),
   appVersion: app.getVersion(),
+  buildInfo,
+  buildLabel: formatBuildInfo(buildInfo),
+  buildDetails: buildInfoDetails(buildInfo),
   authorName: APP_AUTHOR_NAME,
   authorUrl: APP_AUTHOR_URL,
   copyright: APP_COPYRIGHT,
   license: APP_LICENSE,
   websiteUrl: APP_WEBSITE_URL,
-}));
+  };
+});
 
 ipcMain.handle('read-app-settings', async () => (
   readAppSettingsWithRuntimeStatus()

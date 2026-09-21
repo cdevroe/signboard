@@ -520,3 +520,5 @@ Task due dates participate in CLI due-date filtering. Start/scheduled task dates
 Use `--list` plus an exact card filename for a direct lookup, for example `signboard cards read --list "000-To-do-stock" --card "001-plan-ab123.md"`. Case-insensitive and ambiguous-reference behavior is preserved; partial/title references still search normally. Listing cards bounds simultaneous reads and derives task metadata in one pass.
 
 Creation and archive/order helpers accept numeric prefixes beyond 999. `lists rename` updates the affected cards' stored list/status properties and explicit completed-list workflow references, preserving unrelated metadata. A failed rewrite attempts rollback. Atomic saves preserve existing POSIX permission bits.
+
+Build identity is shown in About and by `signboard --version` (`--json` for structured details). Copy Build Details includes the source fingerprint for support. The build ID is separate from the release version.

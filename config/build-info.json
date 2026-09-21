@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "version": "1.7.4",
+  "buildId": "20260921.1",
+  "channel": "release",
+  "builtAt": "2026-09-21T19:53:34.362Z",
+  "sourceFingerprint": "87088b1449418b3efcde5b96798e95735ab8f991ea78cf870e7fbbd9d792a2a9",
+  "sourceFileCount": 171,
+  "commit": "abacfab086e24dec3811c03e00a14cad1b06267c",
+  "dirty": true
+}

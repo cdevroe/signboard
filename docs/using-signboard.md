@@ -514,3 +514,5 @@ You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 - Explicit list/board renames reconcile stored card metadata; list renames preserve explicit completed-list workflow choices. Failed metadata writes attempt to restore the original directory and file contents.
 - Atomic saves preserve existing file permission bits. MCP uses a standalone headless launcher, checks real filesystem paths against allowed roots, validates explicit dates, and keeps copied/moved card IDs, links, and list properties consistent.
 - Card links open the requested trusted board reliably during startup or when the window was hidden. Use Help → Copy MCP Config to refresh existing agent configurations for the new launcher.
+
+Build identity is shown in About and by `signboard --version` (`--json` for structured details). Copy Build Details includes the source fingerprint for support. The build ID is separate from the release version.
