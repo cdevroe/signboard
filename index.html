@@ -292,6 +292,10 @@
             <kbd data-shortcut-action="toggleTheme">⌘ + ⇧ + D</kbd>
           </li>
           <li>
+            <span>Choose color scheme</span>
+            <kbd data-shortcut-action="colorSchemePicker">⌘ + ⇧ + T</kbd>
+          </li>
+          <li>
             <span>Cycle color scheme</span>
             <kbd data-shortcut-action="cycleColorScheme">⌘ + ⌃ + ⇧ + C</kbd>
           </li>
@@ -605,8 +609,14 @@
         <section id="boardSettingsPanelColors" class="boardSettingsSection board-settings-panel" role="tabpanel" aria-hidden="true" aria-labelledby="boardSettingsNavColors" data-settings-panel="colors">
           <h3>Appearance</h3>
           <p class="boardSettingsHint">Choose a color scheme for this board. Each scheme has a light and dark variant.</p>
-          <div class="board-color-scheme-selector">
-            <select id="boardColorSchemeSelect" aria-label="Color scheme"></select>
+          <div id="boardColorSchemePicker" class="board-color-scheme-selector">
+            <input id="boardColorSchemeSearch" type="text" role="combobox" aria-label="Color scheme" aria-autocomplete="list" aria-expanded="false" aria-controls="boardColorSchemeOptions" aria-describedby="boardColorSchemeHint" placeholder="Search color schemes…" autocomplete="off" spellcheck="false">
+            <span class="board-color-scheme-chevron" aria-hidden="true">⌄</span>
+            <span id="boardColorSchemeHint" class="sr-only">Type to search. Use Up and Down to browse, Enter to apply, and Escape to dismiss.</span>
+            <div id="boardColorSchemePopup" class="board-color-scheme-popup" hidden>
+              <div id="boardColorSchemeOptions" role="listbox" aria-label="Color schemes"></div>
+              <p id="boardColorSchemeStatus" role="status" aria-live="polite"></p>
+            </div>
           </div>
           <p class="boardSettingsHint" id="appearanceModeHint">Mode applies to all boards. Auto follows your operating system.</p>
           <div class="board-theme-settings-grid" role="radiogroup" aria-label="Appearance mode" aria-describedby="appearanceModeHint">

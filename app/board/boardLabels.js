@@ -80,6 +80,7 @@ const SHORTCUT_ACTION_DEFINITIONS = Object.freeze({
   focusSearch: Object.freeze({ key: 'F', usesPrimaryModifier: true }),
   switchBoard: Object.freeze({ key: 'K', usesPrimaryModifier: true }),
   boardSettings: Object.freeze({ key: ',', usesPrimaryModifier: true }),
+  colorSchemePicker: Object.freeze({ key: 'T', usesPrimaryModifier: true, shiftKey: true }),
   toggleTheme: Object.freeze({ key: 'D', usesPrimaryModifier: true, shiftKey: true }),
   cycleColorScheme: Object.freeze({ key: 'C', usesPrimaryModifier: true, controlKeyOnMac: true, altKeyOnNonMac: true, shiftKey: true }),
   moveCardLeft: Object.freeze({ key: '[', usesPrimaryModifier: true, shiftKey: true }),
@@ -3460,31 +3461,8 @@ function renderThemeModePreview(themeMode, palette) {
 }
 
 function renderBoardThemeSettingsControls() {
-  const select = document.getElementById('boardColorSchemeSelect');
   const palettes = getBoardThemePalettes();
-  const activeSchemeId = getBoardColorScheme();
-
-  if (select) {
-    const hadOptions = select.options.length > 0;
-    if (!hadOptions) {
-      // Older boards can have derived/custom colors without a named scheme.
-      // Keep their colors and display an explicit value instead of a blank select.
-      const currentColors = document.createElement('option');
-      currentColors.value = '';
-      currentColors.textContent = 'Current colors';
-      currentColors.disabled = true;
-      select.appendChild(currentColors);
-      for (const scheme of COLOR_SCHEMES) {
-        const option = document.createElement('option');
-        option.value = scheme.id;
-        option.textContent = scheme.name;
-        select.appendChild(option);
-      }
-    }
-    const knownScheme = Boolean(getColorSchemeById(activeSchemeId));
-    select.options[0].hidden = knownScheme;
-    select.value = knownScheme ? activeSchemeId : '';
-  }
+  boardColorSchemePicker.render();
 
   renderThemeModePreview('light', palettes.light);
   renderThemeModePreview('dark', palettes.dark);
@@ -3820,6 +3798,7 @@ function setActiveBoardSettingsPanel(panelId) {
     ? panelId
     : 'app';
   const state = getBoardLabelState();
+  if (normalizedPanelId !== 'colors') boardColorSchemePicker.close();
   state.activeSettingsPanel = normalizedPanelId;
   renderBoardSettingsPanelState();
 }
@@ -4508,6 +4487,7 @@ async function closeBoardSettingsModal() {
     return;
   }
 
+  boardColorSchemePicker.close();
   await flushBoardSettingsSave();
   if (typeof flushAppSettingsSave === 'function') await flushAppSettingsSave();
   if (typeof setAccessibleModalVisible === 'function') {
@@ -4618,7 +4598,6 @@ function initializeBoardLabelControls() {
   const duplicateBoardInput = document.getElementById('boardSettingsDuplicateNameInput');
   const duplicateBoardButton = document.getElementById('btnDuplicateBoard');
   const duplicateBoardStatus = document.getElementById('boardSettingsDuplicateStatus');
-  const colorSchemeSelect = document.getElementById('boardColorSchemeSelect');
   const applyThemeToOpenBoardsButton = document.getElementById('btnApplyThemeColorsToOpenBoards');
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
@@ -4900,20 +4879,7 @@ function initializeBoardLabelControls() {
     });
   }
 
-  if (colorSchemeSelect) {
-    colorSchemeSelect.addEventListener('change', async (event) => {
-      const schemeId = event.target.value;
-      if (
-        typeof waitForNativeSelectChangeToSettle === 'function' &&
-        !await waitForNativeSelectChangeToSettle(colorSchemeSelect, schemeId)
-      ) {
-        return;
-      }
-
-      applyColorSchemeById(schemeId);
-      scheduleBoardSettingsSave();
-    });
-  }
+  boardColorSchemePicker.initialize();
 
   if (applyThemeToOpenBoardsButton) {
     applyThemeToOpenBoardsButton.addEventListener('click', async (event) => {

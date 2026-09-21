@@ -290,6 +290,8 @@ async function closeAllModals(e, options = {}){
         }
     }
 
+    if (boardSettingsClosed) boardColorSchemePicker.close();
+
     if (editModalClosed) {
         if (typeof destroyTaskLineDueDateControls === 'function') {
             destroyTaskLineDueDateControls();

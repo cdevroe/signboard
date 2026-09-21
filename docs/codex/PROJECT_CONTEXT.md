@@ -302,6 +302,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - `Cmd/Ctrl + Option/Alt + 2/3/4/5`: open or switch to the matching Planner date view scoped to the current board.
   - `Cmd/Ctrl + Shift + P`: open/close Planner.
   - `Cmd/Ctrl + ,`: open Settings from renderer key handling and the native menu accelerator.
+  - `Cmd/Ctrl + Shift + T`: open Appearance with color-scheme search focused.
   - `Cmd/Ctrl + Shift + D`: toggle light/dark mode through the native menu accelerator.
   - `Cmd + Control + Shift + C` on macOS / `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes without closing the active screen.
   - `Cmd/Ctrl + Shift + [` and `Cmd/Ctrl + Shift + ]`: move the open card to the previous/next list, no-op at board edges.
@@ -614,6 +615,8 @@ Ignore these unless task explicitly requires them:
 - Run `npm run test:maintenance`, focused/full Electron tests, and packaged launch checks for this maintenance work. Follow `docs/codex/BABU_TESTING.md` for isolated target validation.
 
 ## Appearance and Planner — 1.7.4
+
+- The searchable scheme combobox lives in `app/ui/colorSchemePicker.js`; typing/arrows only browse, Enter/click applies, and Escape/Tab cancels browsing. `Cmd/Ctrl + Shift + T` and View > Choose Color Scheme open Appearance with search focused. Keep native/preload/renderer shortcuts, modal dismissal, selected-board restoration, and help aligned.
 
 - Light/Dark/Auto lives in Settings > Appearance as accessible preview radio buttons. Mode is app-wide in `appearance.mode`; empty values migrate the legacy localStorage choice. Auto observes `prefers-color-scheme` live; explicit choices and the existing toggle shortcut leave Omarchy following. Preserve choice during older save responses.
 - Planner inherits the selected Kanban/Table board scheme. Its temporary foreign-card editor context must preserve persisted selection, filters, source-board labels/list writes, and the Planner palette; restore after save/close, failed open, or a workspace shortcut. A card’s Labels-settings shortcut keeps its board context until Settings closes.

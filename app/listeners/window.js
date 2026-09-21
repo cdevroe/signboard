@@ -246,6 +246,10 @@ function isBoardSettingsShortcut(event) {
     return event.code === 'Comma' || key === ',';
 }
 
+function isColorSchemePickerShortcut(event) {
+    return hasPrimaryShiftOnly(event) && (event.code === 'KeyT' || String(event.key || '').toLowerCase() === 't');
+}
+
 function isColorSchemeCycleShortcut(event) {
     if (!event || !event.shiftKey) {
         return false;
@@ -329,7 +333,7 @@ function focusBoardSearchInput() {
     return true;
 }
 
-async function openBoardSettingsFromShortcut() {
+async function openBoardSettingsFromShortcut(panel) {
     if (!window.boardRoot) {
         return false;
     }
@@ -339,12 +343,10 @@ async function openBoardSettingsFromShortcut() {
     }
 
     if (typeof isBoardSettingsModalOpen === 'function' && isBoardSettingsModalOpen()) {
-        return true;
-    }
-
-    const openSettingsButton = document.getElementById('openBoardSettings');
-    if (openSettingsButton && typeof openSettingsButton.click === 'function') {
-        openSettingsButton.click();
+        if (panel === 'colors') {
+            setActiveBoardSettingsPanel('colors');
+            boardColorSchemePicker.focus();
+        }
         return true;
     }
 
@@ -358,7 +360,9 @@ async function openBoardSettingsFromShortcut() {
         await ensureBoardLabelsLoaded();
     }
     if (typeof openBoardSettingsModal === 'function') {
-        openBoardSettingsModal();
+        openBoardSettingsModal(panel === 'colors'
+            ? { panel: 'colors', initialFocus: '#boardColorSchemeSearch' }
+            : {});
         return true;
     }
 
@@ -517,6 +521,7 @@ function shouldCloseCardEditorForGlobalShortcut(event) {
         isBoardSwitcherShortcut(event) ||
         isPlannerToggleShortcut(event) ||
         isBoardSettingsShortcut(event) ||
+        isColorSchemePickerShortcut(event) ||
         isArchiveBrowserShortcut(event) ||
         isAddCardOrListShortcut(event) ||
         isBoardSearchShortcut(event) ||
@@ -883,9 +888,10 @@ if (window.electronAPI && typeof window.electronAPI.onOpenBoardSwitcher === 'fun
 }
 
 if (window.electronAPI && typeof window.electronAPI.onOpenBoardSettings === 'function') {
-    window.electronAPI.onOpenBoardSettings(() => {
+    window.electronAPI.onOpenBoardSettings(async (panel) => {
+        await waitForNativeMenuTrackingToSettle();
         hideShortcutHelpModal();
-        openBoardSettingsFromShortcut().catch((error) => {
+        openBoardSettingsFromShortcut(panel).catch((error) => {
             console.error('Unable to open settings from shortcut.', error);
         });
     });
@@ -1061,10 +1067,10 @@ window.addEventListener('keydown', async (e) => {
             }
         }
 
-        if (isBoardSettingsShortcut(e)) {
+        if (isBoardSettingsShortcut(e) || isColorSchemePickerShortcut(e)) {
             e.preventDefault();
             hideShortcutHelpModal();
-            await openBoardSettingsFromShortcut();
+            await openBoardSettingsFromShortcut(isColorSchemePickerShortcut(e) ? 'colors' : undefined);
             return;
         }
 

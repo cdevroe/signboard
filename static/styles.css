@@ -4627,10 +4627,11 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 .board-color-scheme-selector {
+  position: relative;
   margin-bottom: 12px;
 }
 
-.board-color-scheme-selector select {
+.board-color-scheme-selector input {
   width: 100%;
   padding: 8px 10px;
   font-size: var(--font-sm);
@@ -4638,8 +4639,62 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   border-radius: var(--radius);
   background: var(--bg-card);
   color: var(--text);
+  padding-right: 30px;
+}
+
+.board-color-scheme-chevron {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.board-color-scheme-popup {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: 0 6px 14px var(--shadow);
+}
+
+#boardColorSchemeOptions {
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.board-color-scheme-option {
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: var(--font-sm);
   cursor: pointer;
-  appearance: auto;
+}
+
+.board-color-scheme-option:is(:hover, .is-active) {
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
+}
+
+.board-color-scheme-option.is-active { border-color: var(--accent); }
+.board-color-scheme-option[aria-selected="true"] { font-weight: 700; }
+.board-color-scheme-option[aria-selected="true"]::after { content: ' ✓'; }
+
+#boardColorSchemeStatus {
+  margin: 6px 10px 2px;
+  font-size: var(--font-xs);
+  color: var(--muted);
+}
+
+@media (forced-colors: active) {
+  .board-color-scheme-option.is-active { border-color: Highlight; }
+  .board-color-scheme-option[aria-selected="true"] { color: LinkText; }
 }
 
 .board-theme-settings-grid {

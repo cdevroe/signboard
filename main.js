@@ -3969,6 +3969,13 @@ function buildApplicationMenu() {
       sendToMainWindow('open-board-settings');
     },
   });
+  const createColorSchemeMenuItem = () => ({
+    label: 'Choose Color Scheme...',
+    accelerator: 'CmdOrCtrl+Shift+T',
+    click: () => {
+      sendToMainWindow('open-board-settings', 'colors');
+    },
+  });
   const createToggleThemeMenuItem = () => ({
     label: 'Toggle Light/Dark Mode',
     accelerator: 'CmdOrCtrl+Shift+D',
@@ -4046,6 +4053,7 @@ function buildApplicationMenu() {
       createKanbanViewMenuItem(),
       createTableViewMenuItem(),
       { type: 'separator' },
+      createColorSchemeMenuItem(),
       createToggleThemeMenuItem(),
       { type: 'separator' },
       { role: 'reload' },
@@ -4112,6 +4120,7 @@ function applicationMenuHasRequiredActions(menu = Menu.getApplicationMenu()) {
     'Keyboard Shortcuts',
     'Kanban View',
     'Table View',
+    'Choose Color Scheme...',
   ]);
   const seenLabels = new Set();
   const visitItems = (items = []) => {

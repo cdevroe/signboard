@@ -73,6 +73,8 @@ When in doubt, follow [CODEX.md](./CODEX.md).
 
 ## Appearance and Planner — 1.7.4
 
+- The searchable scheme combobox lives in `app/ui/colorSchemePicker.js`; typing/arrows only browse, Enter/click applies, and Escape/Tab cancels browsing. `Cmd/Ctrl + Shift + T` and View > Choose Color Scheme open Appearance with search focused. Keep native/preload/renderer shortcuts, modal dismissal, selected-board restoration, and help aligned.
+
 - Light/Dark/Auto lives in Settings > Appearance as accessible preview radio buttons. Mode is app-wide in `appearance.mode`; empty values migrate the legacy localStorage choice. Auto observes `prefers-color-scheme` live; explicit choices and the existing toggle shortcut leave Omarchy following. Preserve choice during older save responses.
 - Planner inherits the selected Kanban/Table board scheme. Its temporary foreign-card editor context must preserve persisted selection, filters, source-board labels/list writes, and the Planner palette; restore after save/close, failed open, or a workspace shortcut. A card’s Labels-settings shortcut retains its context until Settings closes.
 - Routine Electron tests use `npm run test:playwright` on Babu’s isolated Xvfb desktop. Local GUI tests require explicit permission and `npm run test:playwright:local`; see `docs/codex/PLAYWRIGHT_TESTING.md`.

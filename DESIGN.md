@@ -225,7 +225,7 @@ Header controls should remain compact and tool-like: icon buttons are 40px minim
 
 Planner Calendar, This Week, Day, and Agenda keep the same card language as Kanban, but compress cards into small temporal summaries with board/list context and task progress.
 
-Planner is a workspace-level overlay that uses the selected Kanban/Table board’s color scheme for visual continuity. Opening a card from another board must preserve that selection and the Planner palette while the editor uses the card’s own board context. Planner cards retain board/list text and source-colored pills because they gather work from multiple boards. Appearance offers keyboard-accessible Light, Dark, and Auto preview choices; mode applies app-wide, while schemes remain per-board. Auto follows operating-system appearance changes without replacing the saved preference.
+Planner is a workspace-level overlay that uses the selected Kanban/Table board’s color scheme for visual continuity. Opening a card from another board must preserve that selection and the Planner palette while the editor uses the card’s own board context. Planner cards retain board/list text and source-colored pills because they gather work from multiple boards. Appearance offers a searchable scheme combobox (type to filter, arrows to browse, Enter/click to apply) and keyboard-accessible Light, Dark, and Auto preview choices; mode applies app-wide, while schemes remain per-board. Auto follows operating-system appearance changes without replacing the saved preference.
 
 ## Elevation & Depth
 

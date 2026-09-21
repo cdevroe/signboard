@@ -31,7 +31,7 @@ If you want structured tool access from an agent, see [MCP Server](../MCP_README
 - Readable plain-text update changelogs in native dialogs across macOS, Windows, and Linux, plus Ubuntu `.deb` and Arch/Omarchy `.pacman` validation with package-specific recovery
 - Accessibility support for keyboard-operable cards/list actions, modal focus handling, live status announcements, reduced motion, and forced-colors mode
 - Keyboard result/menu navigation for board search, Planner search, Archive search, board tabs, list actions, label/filter popovers, and Settings sections
-- Keyboard shortcuts for Quick Add card creation across open boards, creating lists, switching and closing open boards, opening Planner views across all open boards or the current board, cycling colors, moving open cards, archiving, and opening Archive
+- Keyboard shortcuts for Quick Add card creation across open boards, creating lists, switching and closing open boards, opening Planner views across all open boards or the current board, searching color schemes (`Cmd/Ctrl + Shift + T`), cycling colors, moving open cards, archiving, and opening Archive
 - CLI setup, board discovery, board creation, command reference, filters, age sorting, timestamp JSON output, card duplication/template workflows, dry-run previews, archive workflows, settings, and imports
 - MCP trusted/open board discovery, trusted-root behavior, and board-name lookup
 

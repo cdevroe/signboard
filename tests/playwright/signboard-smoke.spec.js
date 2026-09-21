@@ -716,6 +716,7 @@ test('installs native application menu actions', async ({ electronApp, page }) =
     'Kanban View',
     'Table View',
     'Toggle Light/Dark Mode',
+    'Choose Color Scheme...',
   ]));
 
   if (snapshot.platform === 'darwin') {
@@ -4150,6 +4151,93 @@ test('card links reopen the application after its last window closes', async ({ 
   } finally { await app.close(); }
 });
 
+test('color scheme search filters names and applies only a chosen result', async ({ page }, testInfo) => {
+  await expect(page.locator('#board')).toBeVisible();
+  await page.keyboard.press(getShortcut('Shift+T'));
+  const search = page.getByRole('combobox', { name: 'Color scheme', exact: true });
+  const options = page.locator('#boardColorSchemeOptions [role="option"]');
+  const initialScheme = await page.evaluate(() => getBoardColorScheme());
+  await expect(search).toBeFocused();
+  await expect(options).toHaveCount(51);
+  await search.fill('  nIgHt  ');
+  const names = await options.allTextContents();
+  expect(names.length).toBeGreaterThan(1);
+  expect(names.every(name => name.toLowerCase().includes('night'))).toBe(true);
+  await search.press('ArrowDown');
+  const activeName = await page.locator('.board-color-scheme-option.is-active').textContent();
+  expect(await page.evaluate(() => getBoardColorScheme())).toBe(initialScheme);
+  await page.screenshot({ path: testInfo.outputPath('scheme-search.png') });
+  await search.press('Enter');
+  await expect(search).toHaveValue(activeName);
+  await expect(search).toHaveAttribute('aria-expanded', 'false');
+  const chosenScheme = await page.evaluate(() => getBoardColorScheme());
+  await expect.poll(() => page.evaluate(async () => (await window.board.readBoardSettings(window.boardRoot)).colorScheme)).toBe(chosenScheme);
+
+  await search.fill('no such scheme');
+  await expect(options).toHaveCount(0);
+  await expect(page.locator('#boardColorSchemeStatus')).toHaveText('No color schemes found.');
+  await search.press('Enter');
+  expect(await page.evaluate(() => getBoardColorScheme())).toBe(chosenScheme);
+  await search.press('Escape');
+  await expect(search).toHaveValue(activeName);
+  await expect(search).toHaveAttribute('aria-expanded', 'false');
+  await expect(search).toBeFocused();
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await search.press('ArrowDown');
+  await expect(options).toHaveCount(51);
+  await expect(page.locator('#boardColorSchemeOptions [aria-selected="true"]')).toHaveText(activeName);
+  await search.fill('lavender');
+  await search.press('Tab');
+  await expect(search).toHaveValue(activeName);
+  await expect(search).toHaveAttribute('aria-expanded', 'false');
+  expect(await page.evaluate(() => getBoardColorScheme())).toBe(chosenScheme);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modalBoardSettings')).toBeHidden();
+
+  // The shortcut also routes an already-open Settings modal to Appearance.
+  await page.keyboard.press(getShortcut('Comma'));
+  await expect(page.locator('#boardSettingsPanelApp')).toBeVisible();
+  await page.keyboard.press(getShortcut('Shift+T'));
+  await expect(search).toBeFocused();
+  await expect(options).toHaveCount(51);
+  await search.fill('lavender');
+  await page.getByRole('option', { name: 'Lavender', exact: true }).click();
+  await expect(search).toHaveValue('Lavender');
+  await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  await expect.poll(() => page.evaluate(async () => (await window.board.readBoardSettings(window.boardRoot)).colorScheme)).toBe('lavender');
+});
+
+test('native color scheme command closes a Planner card and targets the selected board', async ({ electronApp, boardRoot }) => {
+  const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Other Board']);
+  const sourceRoot = normalizeBoardRoot(boardRoots[0]);
+  const cardRoot = normalizeBoardRoot(boardRoots[1]);
+  const cardPath = path.join(boardRoots[1], '001-Doing-stock', '000-polish-copy-stock.md');
+  await page.evaluate(async ({ cardRoot, cardPath }) => {
+    await openPlannerView();
+    await openPlannerCard({ boardRoot: cardRoot, cardPath });
+  }, { cardRoot, cardPath });
+  await expect(page.locator('#modalEditCard')).toBeVisible();
+  const accelerator = await electronApp.evaluate(({ Menu }) => {
+    const item = Menu.getApplicationMenu().items.find(item => item.label === 'View').submenu.items.find(item => item.label === 'Choose Color Scheme...');
+    item.click();
+    return item.accelerator;
+  });
+  expect(accelerator).toBe('CmdOrCtrl+Shift+T');
+  const search = page.getByRole('combobox', { name: 'Color scheme', exact: true });
+  await expect(search).toBeFocused();
+  await expect(page.locator('#modalEditCard')).toBeHidden();
+  expect(await page.evaluate(() => window.boardRoot)).toBe(sourceRoot);
+  expect(await page.evaluate(() => getStoredActiveBoard())).toBe(sourceRoot);
+  const foreignScheme = await page.evaluate(async root => (await window.board.readBoardSettings(root)).colorScheme, cardRoot);
+  await search.fill('tokyo night');
+  await search.press('Enter');
+  await expect.poll(() => page.evaluate(async root => (await window.board.readBoardSettings(root)).colorScheme, sourceRoot)).toBe('tokyo-night');
+  expect(await page.evaluate(async root => (await window.board.readBoardSettings(root)).colorScheme, cardRoot)).toBe(foreignScheme);
+  await search.press('Escape');
+  await expect(page.locator('#modalBoardSettings')).toBeHidden();
+  await expect(page.locator('#plannerOverlay')).toBeVisible();
+});
+
 test('Appearance previews choose Light Dark and Auto and preserve the preference', async ({ electronApp, page }, testInfo) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.keyboard.press(getShortcut('Comma'));
@@ -4157,10 +4245,13 @@ test('Appearance previews choose Light Dark and Auto and preserve the preference
   const light = page.getByRole('radio', { name: 'Light', exact: true });
   const dark = page.getByRole('radio', { name: 'Dark', exact: true });
   const auto = page.getByRole('radio', { name: 'Auto', exact: true });
-  await expect(page.locator('#boardColorSchemeSelect option:not(:disabled)')).toHaveCount(51);
-  await expect(page.locator('#boardColorSchemeSelect option:checked')).toHaveText('Current colors');
+  const schemeSearch = page.getByRole('combobox', { name: 'Color scheme', exact: true });
+  await expect(schemeSearch).toHaveValue('Current colors');
+  await schemeSearch.click();
+  await expect(page.locator('#boardColorSchemeOptions [role="option"]')).toHaveCount(51);
   await expect(page.locator('#boardSettingsOmarchyThemeStatus')).toContainText('Detected');
-  await page.locator('#boardColorSchemeSelect').selectOption('tokyo-night');
+  await schemeSearch.fill('tokyo');
+  await page.getByRole('option', { name: 'Tokyo Night', exact: true }).click();
   await expect.poll(() => page.evaluate(async () => (await window.board.readBoardSettings(window.boardRoot)).colorScheme)).toBe('tokyo-night');
   await page.screenshot({ path: testInfo.outputPath('appearance-light.png') });
   await dark.locator('#boardThemeDarkPreview').click();

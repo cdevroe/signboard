@@ -35,6 +35,7 @@ cat \
   app/modals/toggleAddCardToListModal.js \
   app/modals/toggleEditCardModal.js \
   app/ui/theme.js \
+  app/ui/colorSchemePicker.js \
   app/ui/tooltips.js \
   app/board/boardTabs.js \
   app/board/boardSwitcher.js \

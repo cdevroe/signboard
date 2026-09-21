@@ -102,6 +102,7 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + Option/Alt + 4`: open Planner Day for the current board
 - `Cmd/Ctrl + Option/Alt + 5`: open Planner Agenda for the current board
 - `Cmd/Ctrl + ,`: open Settings
+- `Cmd/Ctrl + Shift + T`: open Appearance with color-scheme search focused
 - `Cmd/Ctrl + Shift + D`: toggle light and dark mode
 - `Cmd + Control + Shift + C` on macOS, `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes
 - `Cmd/Ctrl + Shift + [`: move the open card to the previous list

@@ -413,6 +413,8 @@ Labels are stored with the board so each board can have its own vocabulary.
 
 The `Appearance` section offers 51 board color schemes, including 42 contributed by Marcus Holtz with contrast adjustments. It lets you choose a board color scheme and click its Light or Dark preview to select that mode. Choose Auto to follow your operating system’s light/dark preference, including changes while Signboard is running. Mode applies to all boards; the scheme applies to the current board. Your existing light/dark choice is preserved when upgrading. The Board menu no longer contains a mode switch; `Cmd/Ctrl + Shift + D` still toggles Light/Dark and leaves Auto or Omarchy following.
 
+Type in the scheme picker to filter names as you type. Use Up/Down to browse, then Enter or click to apply a scheme. Searching does not change colors. Escape dismisses the results and keeps your current scheme; Tab also leaves it unchanged. `Cmd/Ctrl + Shift + T` opens Appearance with the picker focused, including from Planner or an open card. You can also choose `View > Choose Color Scheme…` from the native menu.
+
 You can also apply the color scheme to all currently open boards.
 
 ### Workflow
@@ -477,6 +479,7 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + Option/Alt + 4`: open Planner Day for the current board
 - `Cmd/Ctrl + Option/Alt + 5`: open Planner Agenda for the current board
 - `Cmd/Ctrl + ,`: open Settings
+- `Cmd/Ctrl + Shift + T`: open Appearance with color-scheme search focused
 - `Cmd/Ctrl + Shift + D`: toggle light and dark mode
 - `Cmd + Control + Shift + C` on macOS, `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes
 - `Cmd/Ctrl + Shift + [`: move the open card to the previous list
