@@ -5,3 +5,11 @@ certificate.p12
 dist
 app/signboard.js
 output/playwright
+.playwright-mcp/
+signboard-pro-mobile.png
+wordpress-plugin/signboard-smart-actions*.zip
+output/smart-evals/
+
+# Local review scratch files; release records are committed in docs/research.
+output/reviews/1.7.4-implementation/
+output/reviews/1.7.4-issues-58-59/
