@@ -227,6 +227,8 @@ async function switchToBoardPath(boardPath) {
         return false;
     }
 
+    await prepareForBoardSwitch();
+
     if (normalizeBoardPath(window.boardRoot) === normalizedPath) {
         setStoredActiveBoard(normalizedPath);
         renderBoardTabs();
@@ -235,8 +237,6 @@ async function switchToBoardPath(boardPath) {
         }
         return true;
     }
-
-    await prepareForBoardSwitch();
 
     const authorizedBoardPath = await authorizeBoardAccess(normalizedPath);
     if (!authorizedBoardPath) {
@@ -717,7 +717,9 @@ function updateBoardTabsOverflow() {
     }
 
     const openBoards = getStoredOpenBoards();
-    const activeBoard = normalizeBoardPath(window.boardRoot || getStoredActiveBoard());
+    const activeBoard = typeof getPlannerCurrentBoardRoot === 'function'
+        ? getPlannerCurrentBoardRoot() || getStoredActiveBoard()
+        : normalizeBoardPath(window.boardRoot || getStoredActiveBoard());
     const boardTabs = [...tabsEl.querySelectorAll('.board-tab[data-board-path]')];
     const addBoardTab = tabsEl.querySelector('.board-tab-add');
     const overflowTab = tabsEl.querySelector('.board-tab-more');
@@ -842,7 +844,9 @@ function renderBoardTabs() {
     }
 
     tabsWrapper.classList.remove('hidden');
-    const activeBoard = normalizeBoardPath(window.boardRoot || getStoredActiveBoard());
+    const activeBoard = typeof getPlannerCurrentBoardRoot === 'function'
+        ? getPlannerCurrentBoardRoot() || getStoredActiveBoard()
+        : normalizeBoardPath(window.boardRoot || getStoredActiveBoard());
 
     for (const boardPath of openBoards) {
         tabsEl.appendChild(createBoardTabElement(boardPath, activeBoard));

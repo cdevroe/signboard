@@ -1,3 +1,4 @@
+const { getBuildInfo, formatBuildInfo, buildInfoDetails } = require('./lib/buildInfo');
 /*!
  * Signboard - A local-first Kanban app that writes Markdown
  * Copyright (c) 2025-2026 Colin Devroe - cdevroe.com
@@ -2622,6 +2623,7 @@ function createWindow() {
         await fsPromises.mkdir(path.dirname(markerPath), { recursive: true });
         await fsPromises.writeFile(markerPath, JSON.stringify({
           version: app.getVersion(),
+          buildInfo: getBuildInfo(),
           isPackaged: app.isPackaged,
           rendererLoaded: rendererLoaded === true,
         }), 'utf8');
@@ -3969,6 +3971,13 @@ function buildApplicationMenu() {
       sendToMainWindow('open-board-settings');
     },
   });
+  const createColorSchemeMenuItem = () => ({
+    label: 'Choose Color Scheme...',
+    accelerator: 'CmdOrCtrl+Shift+T',
+    click: () => {
+      sendToMainWindow('open-board-settings', 'colors');
+    },
+  });
   const createToggleThemeMenuItem = () => ({
     label: 'Toggle Light/Dark Mode',
     accelerator: 'CmdOrCtrl+Shift+D',
@@ -4046,6 +4055,7 @@ function buildApplicationMenu() {
       createKanbanViewMenuItem(),
       createTableViewMenuItem(),
       { type: 'separator' },
+      createColorSchemeMenuItem(),
       createToggleThemeMenuItem(),
       { type: 'separator' },
       { role: 'reload' },
@@ -4112,6 +4122,7 @@ function applicationMenuHasRequiredActions(menu = Menu.getApplicationMenu()) {
     'Keyboard Shortcuts',
     'Kanban View',
     'Table View',
+    'Choose Color Scheme...',
   ]);
   const seenLabels = new Set();
   const visitItems = (items = []) => {
@@ -4982,15 +4993,21 @@ ipcMain.handle('open-external-url', async (_event, rawUrl) => {
   }
 });
 
-ipcMain.handle('get-app-info', async () => ({
+ipcMain.handle('get-app-info', async () => {
+  const buildInfo = getBuildInfo();
+  return {
   appName: app.getName(),
   appVersion: app.getVersion(),
+  buildInfo,
+  buildLabel: formatBuildInfo(buildInfo),
+  buildDetails: buildInfoDetails(buildInfo),
   authorName: APP_AUTHOR_NAME,
   authorUrl: APP_AUTHOR_URL,
   copyright: APP_COPYRIGHT,
   license: APP_LICENSE,
   websiteUrl: APP_WEBSITE_URL,
-}));
+  };
+});
 
 ipcMain.handle('read-app-settings', async () => (
   readAppSettingsWithRuntimeStatus()

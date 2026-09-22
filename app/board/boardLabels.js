@@ -80,6 +80,7 @@ const SHORTCUT_ACTION_DEFINITIONS = Object.freeze({
   focusSearch: Object.freeze({ key: 'F', usesPrimaryModifier: true }),
   switchBoard: Object.freeze({ key: 'K', usesPrimaryModifier: true }),
   boardSettings: Object.freeze({ key: ',', usesPrimaryModifier: true }),
+  colorSchemePicker: Object.freeze({ key: 'T', usesPrimaryModifier: true, shiftKey: true }),
   toggleTheme: Object.freeze({ key: 'D', usesPrimaryModifier: true, shiftKey: true }),
   cycleColorScheme: Object.freeze({ key: 'C', usesPrimaryModifier: true, controlKeyOnMac: true, altKeyOnNonMac: true, shiftKey: true }),
   moveCardLeft: Object.freeze({ key: '[', usesPrimaryModifier: true, shiftKey: true }),
@@ -479,6 +480,1100 @@ const COLOR_SCHEMES = [
       accentText:      '#211b17',
       shadow:          'rgba(0, 0, 0, 0.42)',
       shadowCard:      'rgba(0, 0, 0, 0.56)',
+    },
+  },
+  // Additional schemes by Marcus Holtz (@MarcusHoltz), issue #58.
+  // Text, metadata and accents are adjusted to 4.5:1 on both canvas and cards.
+  {
+    id: 'default-dark',
+    name: 'Default Dark',
+    light: {
+      boardBackground: '#F8F8F8',
+      surface: '#FFFFFF',
+      text: '#3B3B3B',
+      muted: '#6c737e',
+      border: '#E5E5E5',
+      accent: '#005FB8',
+      accentText: '#FFFFFF',
+      shadow: 'rgba(59, 59, 59, 0.05)',
+      shadowCard: 'rgba(59, 59, 59, 0.09)',
+    },
+    dark: {
+      boardBackground: '#1E1E1E',
+      surface: '#252526',
+      text: '#D4D4D4',
+      muted: '#8c8c8c',
+      border: '#3C3C3C',
+      accent: '#5692ba',
+      accentText: '#252525',
+      shadow: 'rgba(0, 0, 0, 0.44)',
+      shadowCard: 'rgba(0, 0, 0, 0.52)',
+    },
+  },
+  {
+    id: 'dark-modern',
+    name: 'Dark Modern',
+    light: {
+      boardBackground: '#F8F8F8',
+      surface: '#FFFFFF',
+      text: '#3B3B3B',
+      muted: '#727272',
+      border: '#E5E5E5',
+      accent: '#005FB8',
+      accentText: '#FFFFFF',
+      shadow: 'rgba(59, 59, 59, 0.05)',
+      shadowCard: 'rgba(59, 59, 59, 0.09)',
+    },
+    dark: {
+      boardBackground: '#1F1F1F',
+      surface: '#181818',
+      text: '#CCCCCC',
+      muted: '#8B8B8B',
+      border: '#2B2B2B',
+      accent: '#238bda',
+      accentText: '#1f1f1f',
+      shadow: 'rgba(0, 0, 0, 0.46)',
+      shadowCard: 'rgba(0, 0, 0, 0.54)',
+    },
+  },
+  {
+    id: 'dark-plus',
+    name: 'Dark Plus',
+    light: {
+      boardBackground: '#ffffff',
+      surface: '#f3f3f3',
+      text: '#1f1f1f',
+      muted: '#6b6b6b',
+      border: '#d6d6d6',
+      accent: '#0066b8',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.05)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#1e1e1e',
+      surface: '#252526',
+      text: '#d4d4d4',
+      muted: '#8c8c8c',
+      border: '#3e3e42',
+      accent: '#569cd6',
+      accentText: '#2f2f2f',
+      shadow: 'rgba(0,0,0,0.45)',
+      shadowCard: 'rgba(0,0,0,0.55)',
+    },
+  },
+  {
+    id: 'charcoal',
+    name: 'Charcoal',
+    light: {
+      boardBackground: '#f7f7f7',
+      surface: '#ffffff',
+      text: '#292929',
+      muted: '#717171',
+      border: '#dddddd',
+      accent: '#555555',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#242424',
+      surface: '#2d2d2d',
+      text: '#dddddd',
+      muted: '#949494',
+      border: '#444444',
+      accent: '#aaaaaa',
+      accentText: '#242424',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'graphite',
+    name: 'Graphite',
+    light: {
+      boardBackground: '#f5f5f5',
+      surface: '#ffffff',
+      text: '#262626',
+      muted: '#707070',
+      border: '#d5d5d5',
+      accent: '#525252',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#202020',
+      surface: '#2a2a2a',
+      text: '#dddddd',
+      muted: '#919191',
+      border: '#404040',
+      accent: '#b8b8b8',
+      accentText: '#202020',
+      shadow: 'rgba(0,0,0,0.46)',
+      shadowCard: 'rgba(0,0,0,0.56)',
+    },
+  },
+  {
+    id: 'slate',
+    name: 'Slate',
+    light: {
+      boardBackground: '#f5f6f7',
+      surface: '#ffffff',
+      text: '#27313a',
+      muted: '#67727c',
+      border: '#d9dde1',
+      accent: '#526b7a',
+      accentText: '#ffffff',
+      shadow: 'rgba(39,49,58,0.04)',
+      shadowCard: 'rgba(39,49,58,0.08)',
+    },
+    dark: {
+      boardBackground: '#252a2e',
+      surface: '#30363b',
+      text: '#d8dee3',
+      muted: '#959ea7',
+      border: '#424a50',
+      accent: '#9bb1bd',
+      accentText: '#252a2e',
+      shadow: 'rgba(0,0,0,0.43)',
+      shadowCard: 'rgba(0,0,0,0.53)',
+    },
+  },
+  {
+    id: 'slate-blue',
+    name: 'Slate Blue',
+    light: {
+      boardBackground: '#f5f6f8',
+      surface: '#ffffff',
+      text: '#28313d',
+      muted: '#677184',
+      border: '#d9dde4',
+      accent: '#526d91',
+      accentText: '#ffffff',
+      shadow: 'rgba(40,49,61,0.04)',
+      shadowCard: 'rgba(40,49,61,0.08)',
+    },
+    dark: {
+      boardBackground: '#20252d',
+      surface: '#292f39',
+      text: '#d9dee7',
+      muted: '#8c96a5',
+      border: '#3d4552',
+      accent: '#91a9c7',
+      accentText: '#20252d',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'true-black',
+    name: 'True Black',
+    light: {
+      boardBackground: '#ffffff',
+      surface: '#f5f5f5',
+      text: '#181818',
+      muted: '#707070',
+      border: '#d8d8d8',
+      accent: '#444444',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#000000',
+      surface: '#101010',
+      text: '#e6e6e6',
+      muted: '#858585',
+      border: '#292929',
+      accent: '#b8b8b8',
+      accentText: '#000000',
+      shadow: 'rgba(0,0,0,0.55)',
+      shadowCard: 'rgba(0,0,0,0.65)',
+    },
+  },
+  {
+    id: 'one-dark',
+    name: 'One Dark',
+    light: {
+      boardBackground: '#FAFAFA',
+      surface: '#FFFFFF',
+      text: '#383A42',
+      muted: '#737378',
+      border: '#ECECEC',
+      accent: '#3b6edd',
+      accentText: '#FFFFFF',
+      shadow: 'rgba(56, 58, 66, 0.05)',
+      shadowCard: 'rgba(56, 58, 66, 0.09)',
+    },
+    dark: {
+      boardBackground: '#282C34',
+      surface: '#21252B',
+      text: '#ABB2BF',
+      muted: '#8e939c',
+      border: '#3A3F4B',
+      accent: '#61AFEF',
+      accentText: '#21252B',
+      shadow: 'rgba(0, 0, 0, 0.44)',
+      shadowCard: 'rgba(0, 0, 0, 0.52)',
+    },
+  },
+  {
+    id: 'nord',
+    name: 'Nord',
+    light: {
+      boardBackground: '#ECEFF4',
+      surface: '#FFFFFF',
+      text: '#2E3440',
+      muted: '#636d82',
+      border: '#D8DEE9',
+      accent: '#516f93',
+      accentText: '#FFFFFF',
+      shadow: 'rgba(46, 52, 64, 0.05)',
+      shadowCard: 'rgba(46, 52, 64, 0.09)',
+    },
+    dark: {
+      boardBackground: '#2E3440',
+      surface: '#3B4252',
+      text: '#D8DEE9',
+      muted: '#a5aebf',
+      border: '#434C5E',
+      accent: '#88C0D0',
+      accentText: '#2E3440',
+      shadow: 'rgba(0, 0, 0, 0.44)',
+      shadowCard: 'rgba(0, 0, 0, 0.52)',
+    },
+  },
+  {
+    id: 'nord-polar',
+    name: 'Nord Polar Night',
+    light: {
+      boardBackground: '#eceff4',
+      surface: '#e5e9f0',
+      text: '#2e3440',
+      muted: '#5f697b',
+      border: '#d8dee9',
+      accent: '#4e6b8f',
+      accentText: '#ffffff',
+      shadow: 'rgba(46,52,64,0.04)',
+      shadowCard: 'rgba(46,52,64,0.08)',
+    },
+    dark: {
+      boardBackground: '#242933',
+      surface: '#2e3440',
+      text: '#d8dee9',
+      muted: '#929cac',
+      border: '#3b4252',
+      accent: '#81a1c1',
+      accentText: '#242933',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'tokyo-night',
+    name: 'Tokyo Night',
+    light: {
+      boardBackground: '#E1E2E7',
+      surface: '#F0F1F7',
+      text: '#3760BF',
+      muted: '#546298',
+      border: '#C4C8DA',
+      accent: '#2564b9',
+      accentText: '#FFFFFF',
+      shadow: 'rgba(55, 96, 191, 0.05)',
+      shadowCard: 'rgba(55, 96, 191, 0.09)',
+    },
+    dark: {
+      boardBackground: '#1A1B26',
+      surface: '#24283B',
+      text: '#A9B1D6',
+      muted: '#888eac',
+      border: '#292E42',
+      accent: '#7AA2F7',
+      accentText: '#1A1B26',
+      shadow: 'rgba(0, 0, 0, 0.46)',
+      shadowCard: 'rgba(0, 0, 0, 0.54)',
+    },
+  },
+  {
+    id: 'tokyo-storm',
+    name: 'Tokyo Night Storm',
+    light: {
+      boardBackground: '#f7f7fb',
+      surface: '#eef0f6',
+      text: '#343b58',
+      muted: '#676c85',
+      border: '#d7d9e3',
+      accent: '#34548a',
+      accentText: '#ffffff',
+      shadow: 'rgba(52,59,88,0.04)',
+      shadowCard: 'rgba(52,59,88,0.08)',
+    },
+    dark: {
+      boardBackground: '#24283b',
+      surface: '#1f2335',
+      text: '#a9b1d6',
+      muted: '#858eb1',
+      border: '#292e42',
+      accent: '#7aa2f7',
+      accentText: '#24283b',
+      shadow: 'rgba(0,0,0,0.43)',
+      shadowCard: 'rgba(0,0,0,0.53)',
+    },
+  },
+  {
+    id: 'night-owl',
+    name: 'Night Owl',
+    light: {
+      boardBackground: '#fbfbfb',
+      surface: '#ffffff',
+      text: '#403f53',
+      muted: '#66777e',
+      border: '#e0e0e0',
+      accent: '#4571ce',
+      accentText: '#ffffff',
+      shadow: 'rgba(64,63,83,0.05)',
+      shadowCard: 'rgba(64,63,83,0.09)',
+    },
+    dark: {
+      boardBackground: '#011627',
+      surface: '#0b2942',
+      text: '#d6deeb',
+      muted: '#809191',
+      border: '#1d3b53',
+      accent: '#82aaff',
+      accentText: '#011627',
+      shadow: 'rgba(0,0,0,0.46)',
+      shadowCard: 'rgba(0,0,0,0.56)',
+    },
+  },
+  {
+    id: 'everforest',
+    name: 'Everforest',
+    light: {
+      boardBackground: '#fdf6e3',
+      surface: '#f4f0d9',
+      text: '#5c6a72',
+      muted: '#676f66',
+      border: '#e0dcc7',
+      accent: '#667401',
+      accentText: '#fdf6e3',
+      shadow: 'rgba(92,106,114,0.05)',
+      shadowCard: 'rgba(92,106,114,0.09)',
+    },
+    dark: {
+      boardBackground: '#2d353b',
+      surface: '#343f44',
+      text: '#d3c6aa',
+      muted: '#9faaa2',
+      border: '#4f585e',
+      accent: '#a7c080',
+      accentText: '#2d353b',
+      shadow: 'rgba(0,0,0,0.42)',
+      shadowCard: 'rgba(0,0,0,0.52)',
+    },
+  },
+  {
+    id: 'zenburn',
+    name: 'Zenburn',
+    light: {
+      boardBackground: '#f5f3ea',
+      surface: '#fbfaf4',
+      text: '#3f3f3f',
+      muted: '#5e755e',
+      border: '#e0ddd0',
+      accent: '#4a7777',
+      accentText: '#ffffff',
+      shadow: 'rgba(63,63,63,0.05)',
+      shadowCard: 'rgba(63,63,63,0.09)',
+    },
+    dark: {
+      boardBackground: '#3f3f3f',
+      surface: '#4f4f4f',
+      text: '#dcdccc',
+      muted: '#b2c6b2',
+      border: '#5f5f5f',
+      accent: '#8cd0d3',
+      accentText: '#1f1f1f',
+      shadow: 'rgba(0,0,0,0.42)',
+      shadowCard: 'rgba(0,0,0,0.52)',
+    },
+  },
+  {
+    id: 'monokai-muted',
+    name: 'Monokai Muted',
+    light: {
+      boardBackground: '#fafafa',
+      surface: '#f1f1f0',
+      text: '#272822',
+      muted: '#726e5c',
+      border: '#d6d5cc',
+      accent: '#497575',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#272822',
+      surface: '#2f302a',
+      text: '#f8f8f2',
+      muted: '#a6a58c',
+      border: '#494a42',
+      accent: '#a6c8a8',
+      accentText: '#272822',
+      shadow: 'rgba(0,0,0,0.42)',
+      shadowCard: 'rgba(0,0,0,0.52)',
+    },
+  },
+  {
+    id: 'material-dark',
+    name: 'Material Dark',
+    light: {
+      boardBackground: '#fafafa',
+      surface: '#f0f0f0',
+      text: '#212121',
+      muted: '#6d6d6d',
+      border: '#dddddd',
+      accent: '#1565c0',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#263238',
+      surface: '#2f3b40',
+      text: '#eeffff',
+      muted: '#91a5ae',
+      border: '#455a64',
+      accent: '#80cbc4',
+      accentText: '#263238',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'material-palenight',
+    name: 'Material Palenight',
+    light: {
+      boardBackground: '#fafafa',
+      surface: '#f2f2f5',
+      text: '#3a3d4a',
+      muted: '#6b6e7b',
+      border: '#d9dae0',
+      accent: '#4b62e4',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#292d3e',
+      surface: '#303447',
+      text: '#babed8',
+      muted: '#989cae',
+      border: '#41465d',
+      accent: '#82aaff',
+      accentText: '#292d3e',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'gruvbox',
+    name: 'Gruvbox',
+    light: {
+      boardBackground: '#fbf1c7',
+      surface: '#f2e5bc',
+      text: '#3c3836',
+      muted: '#70655b',
+      border: '#d5c4a1',
+      accent: '#076678',
+      accentText: '#ffffff',
+      shadow: 'rgba(60,56,54,0.04)',
+      shadowCard: 'rgba(60,56,54,0.08)',
+    },
+    dark: {
+      boardBackground: '#282828',
+      surface: '#32302f',
+      text: '#ebdbb2',
+      muted: '#a89984',
+      border: '#504945',
+      accent: '#83a598',
+      accentText: '#282828',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'gruvbox-dark',
+    name: 'Gruvbox Dark',
+    light: {
+      boardBackground: '#FBF1C7',
+      surface: '#F2E5BC',
+      text: '#3C3836',
+      muted: '#70655b',
+      border: '#D5C4A1',
+      accent: '#076678',
+      accentText: '#FBF1C7',
+      shadow: 'rgba(60, 56, 54, 0.05)',
+      shadowCard: 'rgba(60, 56, 54, 0.09)',
+    },
+    dark: {
+      boardBackground: '#282828',
+      surface: '#3C3836',
+      text: '#EBDBB2',
+      muted: '#aba094',
+      border: '#504945',
+      accent: '#88a99c',
+      accentText: '#282828',
+      shadow: 'rgba(0, 0, 0, 0.44)',
+      shadowCard: 'rgba(0, 0, 0, 0.52)',
+    },
+  },
+  {
+    id: 'gruvbox-soft',
+    name: 'Gruvbox Soft',
+    light: {
+      boardBackground: '#f9f5d7',
+      surface: '#f2e5bc',
+      text: '#504945',
+      muted: '#70655b',
+      border: '#d5c4a1',
+      accent: '#3a6f72',
+      accentText: '#ffffff',
+      shadow: 'rgba(60,56,54,0.04)',
+      shadowCard: 'rgba(60,56,54,0.08)',
+    },
+    dark: {
+      boardBackground: '#32302f',
+      surface: '#3c3836',
+      text: '#ebdbb2',
+      muted: '#aea08c',
+      border: '#504945',
+      accent: '#88a99c',
+      accentText: '#32302f',
+      shadow: 'rgba(0,0,0,0.40)',
+      shadowCard: 'rgba(0,0,0,0.50)',
+    },
+  },
+  {
+    id: 'iceberg',
+    name: 'Iceberg',
+    light: {
+      boardBackground: '#e8e9ec',
+      surface: '#f4f4f6',
+      text: '#33374c',
+      muted: '#64687c',
+      border: '#d2d4de',
+      accent: '#2d539e',
+      accentText: '#ffffff',
+      shadow: 'rgba(51,55,76,0.05)',
+      shadowCard: 'rgba(51,55,76,0.09)',
+    },
+    dark: {
+      boardBackground: '#161821',
+      surface: '#1e2132',
+      text: '#c6c8d1',
+      muted: '#83889c',
+      border: '#272c42',
+      accent: '#84a0c6',
+      accentText: '#161821',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'github-dark',
+    name: 'GitHub Dark',
+    light: {
+      boardBackground: '#FFFFFF',
+      surface: '#F6F8FA',
+      text: '#24292F',
+      muted: '#57606A',
+      border: '#D0D7DE',
+      accent: '#0969DA',
+      accentText: '#FFFFFF',
+      shadow: 'rgba(36, 41, 47, 0.05)',
+      shadowCard: 'rgba(36, 41, 47, 0.09)',
+    },
+    dark: {
+      boardBackground: '#0D1117',
+      surface: '#161B22',
+      text: '#C9D1D9',
+      muted: '#8B949E',
+      border: '#30363D',
+      accent: '#58A6FF',
+      accentText: '#0D1117',
+      shadow: 'rgba(0, 0, 0, 0.46)',
+      shadowCard: 'rgba(0, 0, 0, 0.54)',
+    },
+  },
+  {
+    id: 'github-dimmed',
+    name: 'GitHub Dimmed',
+    light: {
+      boardBackground: '#ffffff',
+      surface: '#f6f8fa',
+      text: '#24292f',
+      muted: '#57606a',
+      border: '#d0d7de',
+      accent: '#0969da',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#22272e',
+      surface: '#2d333b',
+      text: '#adbac7',
+      muted: '#909ba5',
+      border: '#444c56',
+      accent: '#6cb6ff',
+      accentText: '#22272e',
+      shadow: 'rgba(0,0,0,0.40)',
+      shadowCard: 'rgba(0,0,0,0.50)',
+    },
+  },
+  {
+    id: 'github-high-contrast',
+    name: 'GitHub High Contrast',
+    light: {
+      boardBackground: '#ffffff',
+      surface: '#f6f8fa',
+      text: '#1f2328',
+      muted: '#57606a',
+      border: '#afb8c1',
+      accent: '#0969da',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.05)',
+      shadowCard: 'rgba(0,0,0,0.09)',
+    },
+    dark: {
+      boardBackground: '#0a0c10',
+      surface: '#14171c',
+      text: '#f0f3f6',
+      muted: '#9198a1',
+      border: '#434a54',
+      accent: '#6cb6ff',
+      accentText: '#0a0c10',
+      shadow: 'rgba(0,0,0,0.48)',
+      shadowCard: 'rgba(0,0,0,0.58)',
+    },
+  },
+  {
+    id: 'solarized',
+    name: 'Solarized',
+    light: {
+      boardBackground: '#fdf6e3',
+      surface: '#eee8d5',
+      text: '#576c73',
+      muted: '#5f6b6c',
+      border: '#d8d2bd',
+      accent: '#1e6da5',
+      accentText: '#ffffff',
+      shadow: 'rgba(88,110,117,0.04)',
+      shadowCard: 'rgba(88,110,117,0.08)',
+    },
+    dark: {
+      boardBackground: '#002b36',
+      surface: '#073642',
+      text: '#8b9b9d',
+      muted: '#8a9ba1',
+      border: '#174956',
+      accent: '#39a89f',
+      accentText: '#002b36',
+      shadow: 'rgba(0,0,0,0.42)',
+      shadowCard: 'rgba(0,0,0,0.52)',
+    },
+  },
+  {
+    id: 'solarized-dark',
+    name: 'Solarized Dark',
+    light: {
+      boardBackground: '#FDF6E3',
+      surface: '#FFFBF0',
+      text: '#60747c',
+      muted: '#697373',
+      border: '#EEE8D5',
+      accent: '#2076b3',
+      accentText: '#FDF6E3',
+      shadow: 'rgba(101, 123, 131, 0.05)',
+      shadowCard: 'rgba(101, 123, 131, 0.09)',
+    },
+    dark: {
+      boardBackground: '#002B36',
+      surface: '#073642',
+      text: '#8b9b9d',
+      muted: '#8b9b9f',
+      border: '#0E4C5B',
+      accent: '#4b9fda',
+      accentText: '#32312d',
+      shadow: 'rgba(0, 0, 0, 0.45)',
+      shadowCard: 'rgba(0, 0, 0, 0.53)',
+    },
+  },
+  {
+    id: 'solarized-black',
+    name: 'Solarized Black',
+    light: {
+      boardBackground: '#fdf6e3',
+      surface: '#eee8d5',
+      text: '#576c73',
+      muted: '#5f6b6c',
+      border: '#d8d2bd',
+      accent: '#1e6da5',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#001f26',
+      surface: '#002b36',
+      text: '#93a1a1',
+      muted: '#7d9096',
+      border: '#123f49',
+      accent: '#2aa198',
+      accentText: '#001f26',
+      shadow: 'rgba(0,0,0,0.50)',
+      shadowCard: 'rgba(0,0,0,0.58)',
+    },
+  },
+  {
+    id: 'papercolor',
+    name: 'PaperColor',
+    light: {
+      boardBackground: '#eeeeee',
+      surface: '#ffffff',
+      text: '#444444',
+      muted: '#6c6c6c',
+      border: '#d0d0d0',
+      accent: '#005faf',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#1c1c1c',
+      surface: '#262626',
+      text: '#d0d0d0',
+      muted: '#8c8c8c',
+      border: '#444444',
+      accent: '#5fafd7',
+      accentText: '#1c1c1c',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'catppuccin-mocha',
+    name: 'Catppuccin Mocha',
+    light: {
+      boardBackground: '#eff1f5',
+      surface: '#e6e9ef',
+      text: '#4c4f69',
+      muted: '#666879',
+      border: '#ccd0da',
+      accent: '#1c5fe5',
+      accentText: '#ffffff',
+      shadow: 'rgba(76,79,105,0.04)',
+      shadowCard: 'rgba(76,79,105,0.08)',
+    },
+    dark: {
+      boardBackground: '#1e1e2e',
+      surface: '#181825',
+      text: '#cdd6f4',
+      muted: '#9399b2',
+      border: '#313244',
+      accent: '#89b4fa',
+      accentText: '#1e1e2e',
+      shadow: 'rgba(0,0,0,0.45)',
+      shadowCard: 'rgba(0,0,0,0.55)',
+    },
+  },
+  {
+    id: 'catppuccin-macchiato',
+    name: 'Catppuccin Macchiato',
+    light: {
+      boardBackground: '#eff1f5',
+      surface: '#e6e9ef',
+      text: '#4c4f69',
+      muted: '#666879',
+      border: '#ccd0da',
+      accent: '#1c5fe5',
+      accentText: '#ffffff',
+      shadow: 'rgba(76,79,105,0.04)',
+      shadowCard: 'rgba(76,79,105,0.08)',
+    },
+    dark: {
+      boardBackground: '#24273a',
+      surface: '#1f2335',
+      text: '#cad3f5',
+      muted: '#9297b7',
+      border: '#363a4f',
+      accent: '#8aadf4',
+      accentText: '#24273a',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'rose-pine',
+    name: 'Rosé Pine',
+    light: {
+      boardBackground: '#FAF4ED',
+      surface: '#FFFAF3',
+      text: '#575279',
+      muted: '#716d89',
+      border: '#F2E9E1',
+      accent: '#7b6991',
+      accentText: '#FFFAF3',
+      shadow: 'rgba(87, 82, 121, 0.05)',
+      shadowCard: 'rgba(87, 82, 121, 0.09)',
+    },
+    dark: {
+      boardBackground: '#191724',
+      surface: '#1F1D2E',
+      text: '#E0DEF4',
+      muted: '#87839a',
+      border: '#26233A',
+      accent: '#C4A7E7',
+      accentText: '#191724',
+      shadow: 'rgba(0, 0, 0, 0.46)',
+      shadowCard: 'rgba(0, 0, 0, 0.54)',
+    },
+  },
+  {
+    id: 'ayu-mirage',
+    name: 'Ayu Mirage',
+    light: {
+      boardBackground: '#fafafa',
+      surface: '#f0f0f0',
+      text: '#5c6166',
+      muted: '#696e75',
+      border: '#d9d9d9',
+      accent: '#417582',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#1f2430',
+      surface: '#242936',
+      text: '#cbccc6',
+      muted: '#87909f',
+      border: '#343b4c',
+      accent: '#95c9d5',
+      accentText: '#1f2430',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'dracula-muted',
+    name: 'Dracula Muted',
+    light: {
+      boardBackground: '#fafafa',
+      surface: '#f1f1f5',
+      text: '#282a36',
+      muted: '#6c6d79',
+      border: '#d8d9e0',
+      accent: '#5d6d9c',
+      accentText: '#ffffff',
+      shadow: 'rgba(40,42,54,0.04)',
+      shadowCard: 'rgba(40,42,54,0.08)',
+    },
+    dark: {
+      boardBackground: '#282a36',
+      surface: '#30323f',
+      text: '#f8f8f2',
+      muted: '#9a9ca8',
+      border: '#44475a',
+      accent: '#bdc9ef',
+      accentText: '#282a36',
+      shadow: 'rgba(0,0,0,0.45)',
+      shadowCard: 'rgba(0,0,0,0.55)',
+    },
+  },
+  {
+    id: 'flexoki-dark',
+    name: 'Flexoki Dark',
+    light: {
+      boardBackground: '#FFFCF0',
+      surface: '#F2F0E5',
+      text: '#100F0C',
+      muted: '#6e6d68',
+      border: '#E6E2CC',
+      accent: '#205EA6',
+      accentText: '#FFFCF0',
+      shadow: 'rgba(16, 15, 12, 0.05)',
+      shadowCard: 'rgba(16, 15, 12, 0.09)',
+    },
+    dark: {
+      boardBackground: '#100F0C',
+      surface: '#1C1B1A',
+      text: '#CECDC3',
+      muted: '#878580',
+      border: '#282726',
+      accent: '#DA702C',
+      accentText: '#100F0C',
+      shadow: 'rgba(0, 0, 0, 0.46)',
+      shadowCard: 'rgba(0, 0, 0, 0.54)',
+    },
+  },
+  {
+    id: 'carbon',
+    name: 'Carbon',
+    light: {
+      boardBackground: '#ffffff',
+      surface: '#f4f4f4',
+      text: '#161616',
+      muted: '#6f6f6f',
+      border: '#c6c6c6',
+      accent: '#0f62fe',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#161616',
+      surface: '#262626',
+      text: '#f4f4f4',
+      muted: '#a8a8a8',
+      border: '#525252',
+      accent: '#78a9ff',
+      accentText: '#161616',
+      shadow: 'rgba(0,0,0,0.46)',
+      shadowCard: 'rgba(0,0,0,0.56)',
+    },
+  },
+  {
+    id: 'carbon-gray',
+    name: 'Carbon Gray',
+    light: {
+      boardBackground: '#f4f4f4',
+      surface: '#ffffff',
+      text: '#161616',
+      muted: '#6f6f6f',
+      border: '#c6c6c6',
+      accent: '#525252',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#262626',
+      surface: '#333333',
+      text: '#f4f4f4',
+      muted: '#a8a8a8',
+      border: '#525252',
+      accent: '#c6c6c6',
+      accentText: '#161616',
+      shadow: 'rgba(0,0,0,0.42)',
+      shadowCard: 'rgba(0,0,0,0.52)',
+    },
+  },
+  {
+    id: 'editor-neutral',
+    name: 'Editor Neutral',
+    light: {
+      boardBackground: '#ffffff',
+      surface: '#f7f7f7',
+      text: '#242424',
+      muted: '#717171',
+      border: '#dddddd',
+      accent: '#48769d',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.07)',
+    },
+    dark: {
+      boardBackground: '#202124',
+      surface: '#292a2d',
+      text: '#e8eaed',
+      muted: '#9aa0a6',
+      border: '#3c4043',
+      accent: '#8ab4f8',
+      accentText: '#202124',
+      shadow: 'rgba(0,0,0,0.45)',
+      shadowCard: 'rgba(0,0,0,0.52)',
+    },
+  },
+  {
+    id: 'kanagawa',
+    name: 'Kanagawa',
+    light: {
+      boardBackground: '#f7f2e3',
+      surface: '#eee6cc',
+      text: '#545464',
+      muted: '#686761',
+      border: '#e5ddb0',
+      accent: '#4c6799',
+      accentText: '#f7f2e3',
+      shadow: 'rgba(84,84,100,0.05)',
+      shadowCard: 'rgba(84,84,100,0.09)',
+    },
+    dark: {
+      boardBackground: '#1f1f28',
+      surface: '#2a2a37',
+      text: '#dcd7ba',
+      muted: '#92928b',
+      border: '#54546d',
+      accent: '#7e9cd8',
+      accentText: '#1f1f28',
+      shadow: 'rgba(0,0,0,0.44)',
+      shadowCard: 'rgba(0,0,0,0.54)',
+    },
+  },
+  {
+    id: 'base16-default-dark',
+    name: 'Base16 Default Dark',
+    light: {
+      boardBackground: '#f5f5f5',
+      surface: '#ffffff',
+      text: '#202020',
+      muted: '#707070',
+      border: '#e0e0e0',
+      accent: '#4f7687',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#151515',
+      surface: '#202020',
+      text: '#d0d0d0',
+      muted: '#878787',
+      border: '#303030',
+      accent: '#6a9fb5',
+      accentText: '#151515',
+      shadow: 'rgba(0,0,0,0.46)',
+      shadowCard: 'rgba(0,0,0,0.56)',
+    },
+  },
+  {
+    id: 'almost-black',
+    name: 'Almost Black',
+    light: {
+      boardBackground: '#ffffff',
+      surface: '#f5f5f5',
+      text: '#202020',
+      muted: '#707070',
+      border: '#d8d8d8',
+      accent: '#505050',
+      accentText: '#ffffff',
+      shadow: 'rgba(0,0,0,0.04)',
+      shadowCard: 'rgba(0,0,0,0.08)',
+    },
+    dark: {
+      boardBackground: '#121212',
+      surface: '#1c1c1c',
+      text: '#e0e0e0',
+      muted: '#888888',
+      border: '#333333',
+      accent: '#b0b0b0',
+      accentText: '#121212',
+      shadow: 'rgba(0,0,0,0.50)',
+      shadowCard: 'rgba(0,0,0,0.60)',
     },
   },
 ];
@@ -1295,6 +2390,7 @@ function applyDerivedBoardThemes(themeOverrides, options = {}) {
 }
 
 function applyBoardThemeForCurrentBoard(themeMode) {
+  if (typeof syncPlannerBoardTheme === 'function') syncPlannerBoardTheme();
   const mode = themeMode || getBoardThemeMode();
   const palettes = getBoardThemePalettes();
   let editorPalettes = palettes;
@@ -1925,7 +3021,9 @@ async function openBoardLabelSettingsFromPopover() {
     closeListActionsPopover();
   }
   if (typeof closeAllModals === 'function') {
-    await closeAllModals({ key: 'Escape' });
+    // This shortcut edits the card's board labels, including a foreign Planner
+    // card. Retain its temporary context until these settings close as well.
+    await closeAllModals({ key: 'Escape' }, { preservePlannerCardContext: true });
   }
 
   await ensureBoardLabelsLoaded();
@@ -2324,7 +3422,7 @@ function renderBoardSettingsLabels() {
 }
 
 function renderThemeModePreview(themeMode, palette) {
-  const preview = document.getElementById(`boardTheme${themeMode === 'light' ? 'Light' : 'Dark'}Preview`);
+  const preview = document.getElementById(`boardTheme${themeMode === 'auto' ? 'Auto' : themeMode === 'light' ? 'Light' : 'Dark'}Preview`);
   if (!preview || !palette) {
     return;
   }
@@ -2335,7 +3433,7 @@ function renderThemeModePreview(themeMode, palette) {
   preview.style.boxShadow = `0 6px 14px ${palette.shadow}`;
   preview.innerHTML = '';
 
-  const previewSurface = document.createElement('div');
+  const previewSurface = document.createElement('span');
   previewSurface.className = 'board-theme-preview-surface';
   previewSurface.style.background = palette.surface;
   previewSurface.style.borderColor = palette.border;
@@ -2343,14 +3441,13 @@ function renderThemeModePreview(themeMode, palette) {
   previewSurface.style.boxShadow = `0 4px 10px ${palette.shadowCard}`;
 
   const title = document.createElement('strong');
-  title.textContent = themeMode === 'dark' ? 'Dark Preview' : 'Light Preview';
+  title.textContent = themeMode === 'auto' ? 'Follow system' : 'Card title';
 
   const body = document.createElement('span');
-  body.textContent = 'Body text keeps readable contrast.';
+  body.textContent = themeMode === 'auto' ? 'Changes automatically' : 'Notes and details';
   body.style.color = palette.muted;
 
-  const accent = document.createElement('button');
-  accent.type = 'button';
+  const accent = document.createElement('span');
   accent.textContent = 'Primary';
   accent.className = 'board-theme-preview-button';
   accent.style.background = palette.accent;
@@ -2364,25 +3461,13 @@ function renderThemeModePreview(themeMode, palette) {
 }
 
 function renderBoardThemeSettingsControls() {
-  const select = document.getElementById('boardColorSchemeSelect');
   const palettes = getBoardThemePalettes();
-  const activeSchemeId = getBoardColorScheme() || 'light';
-
-  if (select) {
-    const hadOptions = select.options.length > 0;
-    if (!hadOptions) {
-      for (const scheme of COLOR_SCHEMES) {
-        const option = document.createElement('option');
-        option.value = scheme.id;
-        option.textContent = scheme.name;
-        select.appendChild(option);
-      }
-    }
-    select.value = activeSchemeId;
-  }
+  boardColorSchemePicker.render();
 
   renderThemeModePreview('light', palettes.light);
   renderThemeModePreview('dark', palettes.dark);
+  renderThemeModePreview('auto', palettes[typeof getSystemThemeMode === 'function' ? getSystemThemeMode() : 'light']);
+  if (typeof renderAppearanceModeControls === 'function') renderAppearanceModeControls();
 }
 
 async function applyThemeOverridesToOpenBoards() {
@@ -2713,6 +3798,7 @@ function setActiveBoardSettingsPanel(panelId) {
     ? panelId
     : 'app';
   const state = getBoardLabelState();
+  if (normalizedPanelId !== 'colors') boardColorSchemePicker.close();
   state.activeSettingsPanel = normalizedPanelId;
   renderBoardSettingsPanelState();
 }
@@ -3279,7 +4365,9 @@ async function moveBoardDirectory(nextBoardRoot) {
   }
 
   window.boardRoot = normalizedTargetRoot;
-  setStoredActiveBoard(normalizedTargetRoot);
+  if (typeof getPlannerState !== 'function' || !getPlannerState().cardContext) {
+    setStoredActiveBoard(normalizedTargetRoot);
+  }
   renderBoardTabs();
   await renderBoard();
   renderBoardGeneralSettingsControls();
@@ -3399,7 +4487,9 @@ async function closeBoardSettingsModal() {
     return;
   }
 
+  boardColorSchemePicker.close();
   await flushBoardSettingsSave();
+  if (typeof flushAppSettingsSave === 'function') await flushAppSettingsSave();
   if (typeof setAccessibleModalVisible === 'function') {
     setAccessibleModalVisible(modal, false);
   } else {
@@ -3410,6 +4500,10 @@ async function closeBoardSettingsModal() {
 
   if (typeof setBoardInteractive === 'function') {
     setBoardInteractive(true);
+  }
+  if (typeof restorePlannerCardContext === 'function' && await restorePlannerCardContext()) {
+    await renderBoard();
+    if (isPlannerOpen()) await renderPlannerView();
   }
 }
 
@@ -3504,7 +4598,6 @@ function initializeBoardLabelControls() {
   const duplicateBoardInput = document.getElementById('boardSettingsDuplicateNameInput');
   const duplicateBoardButton = document.getElementById('btnDuplicateBoard');
   const duplicateBoardStatus = document.getElementById('boardSettingsDuplicateStatus');
-  const colorSchemeSelect = document.getElementById('boardColorSchemeSelect');
   const applyThemeToOpenBoardsButton = document.getElementById('btnApplyThemeColorsToOpenBoards');
   const notificationsToggle = document.getElementById('boardSettingsNotificationsToggle');
   const notificationsTimeInput = document.getElementById('boardSettingsNotificationsTime');
@@ -3786,20 +4879,7 @@ function initializeBoardLabelControls() {
     });
   }
 
-  if (colorSchemeSelect) {
-    colorSchemeSelect.addEventListener('change', async (event) => {
-      const schemeId = event.target.value;
-      if (
-        typeof waitForNativeSelectChangeToSettle === 'function' &&
-        !await waitForNativeSelectChangeToSettle(colorSchemeSelect, schemeId)
-      ) {
-        return;
-      }
-
-      applyColorSchemeById(schemeId);
-      scheduleBoardSettingsSave();
-    });
-  }
+  boardColorSchemePicker.initialize();
 
   if (applyThemeToOpenBoardsButton) {
     applyThemeToOpenBoardsButton.addEventListener('click', async (event) => {
@@ -3836,7 +4916,7 @@ function initializeBoardLabelControls() {
         return;
       }
 
-      setAppAppearanceSettings({ themeSource });
+      setAppAppearanceSettings({ ...getAppAppearanceSettings(), themeSource });
       scheduleAppSettingsSave();
 
       const shouldRender = typeof waitForNativeSelectChangeToSettle !== 'function' ||

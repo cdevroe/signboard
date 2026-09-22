@@ -15,6 +15,7 @@ This guide covers the desktop app and the core workflow for managing a project i
 - [Archive and Restore](#archive-and-restore)
 - [Settings](#settings)
 - [Updates](#updates)
+- [Backups and Sync](#backups-and-sync)
 - [Accessibility](#accessibility)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [A Few Practical Tips](#a-few-practical-tips)
@@ -288,7 +289,7 @@ Planner includes:
 - Day
 - Agenda
 
-Planner cards show their source as `Board · List`, with that source pill tinted from the source board's color scheme. Clicking a Planner card opens the normal card editor and switches the active board behind Planner when needed, so labels and list moves stay tied to the card’s real board.
+Planner cards show their source as `Board · List`, with that source pill tinted from the source board's color scheme. Clicking a Planner card opens the normal editor with the card’s own labels and lists. Closing it or returning to Kanban/Table keeps the board and filters you were using before Planner.
 
 Planner defaults to all open boards. Use the scope toggle to narrow to the current board, or use the filter menu to choose a custom set of open boards.
 
@@ -298,7 +299,7 @@ From Planner search, press `Enter` or `Arrow Down` to focus the first visible Pl
 
 Planner hides cards from completed lists by default. Each board can auto-detect lists named `Done`, `Completed`, `Complete`, `Closed`, `Finished`, `Resolved`, or `Shipped`, and you can override those choices in Settings. Use the Planner filter menu when you want completed dated cards shown for historical review.
 
-Planner uses your light/dark mode but keeps the default Signboard color palette instead of inheriting the active board color scheme.
+Planner uses the selected Kanban/Table board’s color scheme and your active light/dark mode, including Auto. Opening another board’s card does not change the Planner palette or your selected board.
 
 You can leave Signboard running continuously. At local midnight—and again when the window becomes visible, receives focus, or the computer resumes from sleep—Signboard refreshes date filters, date colors, relative Table ages, Agenda labels, and Planner date views. Calendar, This Week, and Day advance when they were showing the previously current period; if you deliberately browsed to another month, week, or day, that date remains pinned.
 
@@ -359,13 +360,13 @@ Open `Settings` from the board menu or press `Cmd/Ctrl + ,`.
 
 The `App Settings` group controls settings that apply across Signboard:
 
-- `General`: tooltips, the optional global Quick Add shortcut while Signboard is open, and `Follow Omarchy theme` when Omarchy is detected
+- `General`: tooltips and the optional global Quick Add shortcut while Signboard is open
 - `Notifications`: daily due-date reminders and External Published Calendar publishing
 - `Smart Actions`: AI assistance through Ollama and Smart Card Actions
 
 If notifications are enabled, Signboard checks open boards each day at the configured local time and shows a reminder when cards are due. The notification time field is shown only while reminders are enabled.
 
-On Omarchy, choose `Follow Omarchy theme` to use the active Omarchy palette. Signboard watches for atomic Omarchy theme replacements and updates while running. The option is hidden on other operating systems and Linux desktops, so their appearance is unchanged. Manually toggling light/dark mode returns to the Signboard theme, and a non-default board color scheme remains a deliberate per-board override.
+In `Settings > Appearance` on Omarchy, choose `Follow Omarchy theme` to use the active Omarchy palette. Signboard watches for atomic Omarchy theme replacements and updates while running. The option is hidden on other operating systems and Linux desktops, so their appearance is unchanged. Choosing Light, Dark, or Auto returns to board colors, and a non-default board color scheme remains a deliberate per-board override.
 
 When AI assistance is enabled, Signboard checks the configured Ollama URL, shows whether it can connect, and loads the locally installed models from Ollama into a model dropdown. Use the refresh button next to the model picker after pulling a new model. When AI assistance is off, Smart Actions shows a setup state with an enable button. The card editor then shows a floating Smart Card Actions button with default actions for generating a new title, generating a summary, generating a task list, auto-labeling from the current board's existing labels, smart paste formatting, a one-off Quick Smart Action, and a read-only Question the Card action. Use the gear in the Smart Card Actions menu to open the Smart Actions settings panel directly. App Settings lets you drag actions to reorder them, expand an action with `Edit`, customize each built-in prompt, and add custom actions with a label, affected card data, and prompt. Custom actions can target Title, Labels, Content, Due Dates, or Attachments. Content suggestions are appended to the card instead of replacing existing notes. Quick Smart Action is reorderable in settings but does not store a prompt; choose its prompt and target when you run it from the card editor. Question the Card is reorderable in settings but does not store a prompt or show an affected-data selector; type a question when you run it, review the answer in the modal, and optionally ask a fresh follow-up without storing chat history or changing card data. New custom actions appear at the top of the actions list. For the generated task list action, change the number in the prompt when you want a different number of tasks. Suggestions are previewed before they replace the title, insert Markdown, set a due date, link suggested URL/app attachments, or apply labels. Auto-label only applies labels that already exist on the current board, preserves labels already assigned to the card, and skips duplicates. Attachment suggestions only link web URLs, app links, or `signboard://` links after confirmation; local file paths are not attached by AI. Card title, body, board/list context, start/due dates, current labels, available board labels, linked-object summaries, a compact markdown-file view of the card for questions, pasted smart-paste text, Quick Smart Action prompts, and Question the Card prompts are sent to the configured Ollama URL only when you use an action.
 
@@ -411,7 +412,9 @@ Labels are stored with the board so each board can have its own vocabulary.
 
 ### Appearance
 
-The `Appearance` section lets you choose a board color scheme. Each scheme includes both light and dark variants.
+The `Appearance` section offers 51 board color schemes, including 42 contributed by Marcus Holtz with contrast adjustments. It lets you choose a board color scheme and click its Light or Dark preview to select that mode. Choose Auto to follow your operating system’s light/dark preference, including changes while Signboard is running. Mode applies to all boards; the scheme applies to the current board. Your existing light/dark choice is preserved when upgrading. The Board menu no longer contains a mode switch; `Cmd/Ctrl + Shift + D` still toggles Light/Dark and leaves Auto or Omarchy following.
+
+Type in the scheme picker to filter names as you type. Use Up/Down to browse, then Enter or click to apply a scheme. Searching does not change colors. Escape dismisses the results and keeps your current scheme; Tab also leaves it unchanged. `Cmd/Ctrl + Shift + T` opens Appearance with the picker focused, including from Planner or an open card. You can also choose `View > Choose Color Scheme…` from the native menu.
 
 You can also apply the color scheme to all currently open boards.
 
@@ -443,7 +446,15 @@ Imports copy data into Signboard and leave the original source files where they 
 
 Signboard checks for updates automatically. You can also choose `Check for Updates...` from the Signboard app menu on macOS or the Help menu on Windows and Linux. The native update dialog converts the GitHub release body from HTML or Markdown into readable plain text and omits the release's download-link section. Use `View changelog` to open the complete release page.
 
+When reporting a problem, use **Copy Build Details** in About to include the release version, build ID, and source fingerprint. A warning about unreadable cards means the displayed board may be incomplete; check the reported files before treating missing cards as deleted.
+
 On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access. On Arch Linux and Omarchy, it recognizes the downloaded `.pacman`, validates it with `pacman -Qp`, and installs it with `pkexec pacman -U`. Signboard never performs a database-only `pacman -Sy` refresh. If validation or installation fails, your installed copy remains unchanged and the package-specific error dialog offers `Open Downloads`.
+
+## Backups and Sync
+
+Back up the entire board folder, including its settings, archive, and hidden files. Linked files outside the board need their own backup. With a sync service, let changes finish syncing before editing on another device; keep versioned backups as well.
+
+See [File format and backups](./file-format.md) for the folder layout, card metadata, and restoring a board copy. Agents can use [Signboard CLI](./signboard-cli.md) or the [MCP server](../MCP_README.md) to maintain this structure during automated changes.
 
 ## Accessibility
 
@@ -477,6 +488,7 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + Option/Alt + 4`: open Planner Day for the current board
 - `Cmd/Ctrl + Option/Alt + 5`: open Planner Agenda for the current board
 - `Cmd/Ctrl + ,`: open Settings
+- `Cmd/Ctrl + Shift + T`: open Appearance with color-scheme search focused
 - `Cmd/Ctrl + Shift + D`: toggle light and dark mode
 - `Cmd + Control + Shift + C` on macOS, `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes
 - `Cmd/Ctrl + Shift + [`: move the open card to the previous list
@@ -501,13 +513,4 @@ You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 - Keep list names short. They are stored in folder names, so concise names stay readable on disk.
 - Use labels for durable categories and use lists for workflow stages.
 - Archive aggressively. The archive browser makes restoring easy.
-- If you want automation or scripting, pair this guide with [Signboard CLI](./signboard-cli.md), which can also create new board folders from the terminal.
-
-## Improvements in 1.7.3
-
-- Long card titles and previews wrap inside the card. Drag empty board background with a mouse to scroll a wide board horizontally.
-- Large boards use bounded file reads. Kanban, Table, and Planner show a warning if some files cannot be read instead of presenting a partial view without explanation.
-- Exact CLI card filenames with a list selection avoid loading unrelated cards. Numbered lists/cards continue working beyond 999.
-- Explicit list/board renames reconcile stored card metadata; list renames preserve explicit completed-list workflow choices. Failed metadata writes attempt to restore the original directory and file contents.
-- Atomic saves preserve existing file permission bits. MCP uses a standalone headless launcher, checks real filesystem paths against allowed roots, validates explicit dates, and keeps copied/moved card IDs, links, and list properties consistent.
-- Card links open the requested trusted board reliably during startup or when the window was hidden. Use Help → Copy MCP Config to refresh existing agent configurations for the new launcher.
+- If you want automation or scripting, pair this guide with [Signboard CLI](./signboard-cli.md) or [MCP Server](../MCP_README.md).

@@ -10,6 +10,7 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Read [docs/codex/PROJECT_CONTEXT.md](./docs/codex/PROJECT_CONTEXT.md) for architecture and behavior.
 - Read [docs/codex/FILE_STRUCTURE.md](./docs/codex/FILE_STRUCTURE.md) for the repository map.
 - Read [DESIGN.md](./DESIGN.md) before changing the default theme, visual system, or UI component styling.
+- Keep research notes, QA reports, machine-specific release records, and agent handoff instructions local under ignored `.local/` or `output/` paths. Do not commit or upload them. Public documentation should describe the product and reusable development workflows.
 - Treat `app/signboard.js` as generated output; edit source modules in `app/**` or shared renderer modules such as `shared/appSettingsSchema.js`, then run `./buildjs.sh`.
 - Keep every runtime source root used by packaged code in `electron-builder.json`, including `bin/**` and `shared/**`; macOS distribution builds must pass `scripts/test-packaged-app-launch.js` before release.
 - Use `lib/atomicFile.js` for durable writes to Signboard-managed card, settings, sidecar, and Obsidian integration files.
@@ -29,7 +30,7 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Keep native Arch/Omarchy `.pacman` packages in the standard Linux release matrix alongside AppImage and deb artifacts.
 - Keep electron-builder's `signboard://` protocol declaration aligned in `package.json` and `electron-builder.json` so packaged Linux desktop entries register the URL scheme.
 - Preserve the legacy `com.electron.signboard` packaged application ID so signed updates remain compatible with Signboard 1.6.0 and earlier installs; changing the application ID requires an explicit migration plan and update-path regression.
-- Omarchy theme following is an opt-in app setting shown only when the canonical active theme is detected; keep `lib/omarchyTheme.js`, main-process watching, preload events, `app/ui/theme.js`, app settings, Planner palette overrides, manual light/dark opt-out behavior, and tests aligned. Non-default board color schemes must remain deliberate overrides.
+- Omarchy theme following is an opt-in app setting shown only when the canonical active theme is detected; keep `lib/omarchyTheme.js`, main-process watching, preload events, `app/ui/theme.js`, app settings, Planner board-palette inheritance, Light/Dark/Auto opt-out behavior, and tests aligned. Non-default board color schemes must remain deliberate overrides.
 - MCP allowed roots include both explicit MCP roots and desktop trusted board roots; keep root loading, `get_config`, `signboard_list_boards`, and board-name resolution tests aligned.
 - CLI and MCP board discovery/creation should stay aligned: `signboard boards list` and `signboard_list_boards` report the same known-board metadata shape where applicable, while `signboard boards create` and `signboard_create_board` scaffold the same default lists and starter card.
 - Keep the advertised MCP tool inventory aligned across `lib/mcpServer.js`, `MCP_README.md`, `skills/signboard-mcp/SKILL.md`, and `scripts/test-mcp-server.js`.
@@ -69,4 +70,16 @@ When in doubt, follow [CODEX.md](./CODEX.md).
 - MCP agent launch configurations use `bin/signboard-mcp.js` with `ELECTRON_RUN_AS_NODE=1`; source configuration generation uses `bin/signboard-mcp-config.js`. Desktop compatibility flags remain available.
 - Card deep links reveal the desktop window and wait for saved-workspace restoration before changing renderer context. Closing the last window still quits the app; cold-start links must reopen the requested card.
 - Board panning is mouse-only on the empty background, with capture/cancel/blur cleanup. Long title and preview text wraps within cards.
-- Run `npm run test:maintenance`, focused/full Electron tests, and packaged launch checks for this maintenance work. Follow `docs/codex/BABU_TESTING.md` for isolated target validation.
+- Run `npm run test:maintenance`, focused/full Electron tests, and packaged launch checks for this maintenance work. Follow `docs/codex/TESTING.md` for isolated target validation and consult ignored `.local/codex/` host instructions when present.
+
+## Appearance and Planner — 1.7.4
+
+- The searchable scheme combobox lives in `app/ui/colorSchemePicker.js`; typing/arrows only browse, Enter/click applies, and Escape/Tab cancels browsing. `Cmd/Ctrl + Shift + T` and View > Choose Color Scheme open Appearance with search focused. Keep native/preload/renderer shortcuts, modal dismissal, selected-board restoration, and help aligned.
+
+- Light/Dark/Auto lives in Settings > Appearance as accessible preview radio buttons. Mode is app-wide in `appearance.mode`; empty values migrate the legacy localStorage choice. Auto observes `prefers-color-scheme` live; explicit choices and the existing toggle shortcut leave Omarchy following. Preserve choice during older save responses.
+- Planner inherits the selected Kanban/Table board scheme. Its temporary foreign-card editor context must preserve persisted selection, filters, source-board labels/list writes, and the Planner palette; restore after save/close, failed open, or a workspace shortcut. A card’s Labels-settings shortcut retains its context until Settings closes.
+- Routine Electron tests use `npm run test:playwright` on a configured Linux host’s isolated Xvfb desktop. Local GUI tests require explicit permission and `npm run test:playwright:local`; see `docs/codex/PLAYWRIGHT_TESTING.md`.
+
+- Skip unchanged card-editor saves against `activeEditorDiskState`; initialization/theme callbacks must not rewrite cached content over an external edit. Keep the external-editor-refresh regression aligned.
+
+- Release builds share one stamp in `config/build-info.json`: run `npm run build:stamp -- --channel release` once after source changes, commit it, and reuse it on every builder. The packaging hook rejects stale/missing stamps. About and `signboard --version [--json]` report the build and source fingerprint; updater versions remain unchanged. See `docs/build-identity.md`.

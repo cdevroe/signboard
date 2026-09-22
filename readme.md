@@ -4,6 +4,8 @@ Signboard is a local-first desktop kanban app that stores your lists as director
 
 Signboard is free for personal use. If you are using Signboard for your work, it would be appreciated if you make the commercial-use sponsorship payment to support future development. See the app's "Sponsor" button.
 
+Signboard is over 1 year old now. Starting in Signboard 2.0.0 there will be Pro-only features. Signboard Pro will cost $49/year.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/cdevroe/signboard)](https://github.com/cdevroe/signboard/issues)
 [![GitHub pull requests](https://img.shields.io/github/issues-pr/cdevroe/signboard)](https://github.com/cdevroe/signboard/pulls)
@@ -13,29 +15,23 @@ Signboard is free for personal use. If you are using Signboard for your work, it
 
 ## ✨ Highlights
 - 📂 Cards saved as Markdown files
-- 💎 Full Obsidian support
-- 🖌️ Color scheme per board (several to choose from!)
-- 🌙 Light and dark mode variants for all color schemes
+- 💎 Full Obsidian integration (Bases generation, linked objects, etc.)
+- 🖌️ Color scheme per board (dozens to choose from and compatible with Omarchy theme switching)
+- 🌙 Light, Dark, and Automatic modes
 - 🏷 Custom labels per board
-- 🗓 Compact calendar controls for card and task list item start/due dates
-- ↕️ One-time list ordering by due date, while preserving normal manual card ordering afterward
-- 📋 Bottom view dock for Planner, Kanban, and Table, including card age columns, sorting, list filtering, and bulk actions in Table
-- 🗂 Planner workspace view for actionable dated work across open boards, with automatic local-day rollover while Signboard stays open
+- 🗓 Start and Due dates for cards and task list items
+- 📋 Planner, Kanban, and Table views
+- 🗂 Planner views include Calendar, This Week, Day, and Agenda views for actionable dated work across open boards
 - 📆 Optional local External Published Calendar feed for calendar app subscriptions
-- 🔮 Obsidian-friendly properties, Bases generation, linked objects, linked-object counts, and `signboard://` card links
-- 🎨 Board-colored source pills in Planner date views
-- ✅ Completed-list workflow settings that preserve due-date history
-- ✅ Progress counters on cards
 - 🔎 Live search
 - 🗄️ Linked files and URLs on cards
-- ✨ Optional local Ollama Smart Card Actions for titles, summaries, task lists, auto-labeling, smart paste, due dates, linked objects, one-off quick prompts, read-only card questions, and drag-reorderable custom actions
-- 🧲 Drag-and-drop card movement
+- ✨ Optional local AI Smart Card Actions
 - ⚡ Unlimited open boards with overflow tabs and a quick switcher
-- 🧬 Board duplication from Settings with fresh copied-card IDs
-- ⌨️ Keyboard shortcuts
-- ♿ Keyboard, screen reader, reduced-motion, and forced-colors improvements
+- ⌨️ Tons of keyboard shortcuts!
+- ♿ Accessible!
 - 🤖 MCP server
 - 💻 CLI
+- ⌨️ TUI (coming in 2.0.0)
 
 ---
 
@@ -63,7 +59,7 @@ For standard releases, Signboard intentionally promotes a smaller public downloa
 
 ### Arch Linux (AUR)
 
-On Arch Linux and Arch-based distributions, Signboard is available on the [Arch User Repository](https://aur.archlinux.org/packages/signboard-appimage) as `signboard-appimage` for `x86_64` and `aarch64`. The package is maintained in the community [`missing-aur`](https://github.com/Cleboost/missing-aur) project and kept up to date with upstream releases.
+On Arch Linux and Arch-based distributions, Signboard is available on the [Arch User Repository](https://aur.archlinux.org/packages/signboard-appimage) as `signboard-appimage` for `x86_64` and `aarch64`. The package is maintained by the community [`missing-aur`](https://github.com/Cleboost/missing-aur) project; updates may follow the official release.
 
 Install with your preferred AUR helper:
 
@@ -73,14 +69,13 @@ yay -S signboard-appimage
 paru -S signboard-appimage
 ```
 
-On Omarchy, open `Settings > General` and choose `Follow Omarchy theme` to use the active Omarchy palette and follow future theme changes. The choice appears only when Signboard detects Omarchy. Selecting a non-default board color scheme keeps that board's deliberate palette.
-
 ## Documentation
 
 - [Documentation hub](./docs/README.md)
 - [Using Signboard](./docs/using-signboard.md)
 - [Signboard CLI](./docs/signboard-cli.md)
 - [MCP Server](./MCP_README.md)
+- [File format and backups](./docs/file-format.md)
 
 ### Keyboard Shortcuts
 
@@ -102,6 +97,7 @@ On macOS, use `Cmd`. On Windows and Linux, use `Ctrl`.
 - `Cmd/Ctrl + Option/Alt + 4`: open Planner Day for the current board
 - `Cmd/Ctrl + Option/Alt + 5`: open Planner Agenda for the current board
 - `Cmd/Ctrl + ,`: open Settings
+- `Cmd/Ctrl + Shift + T`: open Appearance with color-scheme search focused
 - `Cmd/Ctrl + Shift + D`: toggle light and dark mode
 - `Cmd + Control + Shift + C` on macOS, `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes
 - `Cmd/Ctrl + Shift + [`: move the open card to the previous list
@@ -233,10 +229,9 @@ Example task checklist syntax:
 - You can manually check any time from `Check for Updates...`:
   - macOS: Signboard app menu
   - Windows/Linux: Help menu
-- Update dialogs convert GitHub release HTML or Markdown into readable plain text and omit the download-link section. Use `View changelog` for the complete release page.
+- Use `View changelog` for the complete release page.
 - On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access.
-- On Arch Linux and Omarchy, Signboard recognizes the downloaded `.pacman`, validates it with `pacman -Qp`, and installs it with `pkexec pacman -U`. It never runs a database-only `pacman -Sy` refresh.
-- Invalid downloads or package-manager failures leave the installed version unchanged and offer a shortcut to the release Downloads page.
+- On Arch Linux and Omarchy, Signboard recognizes the downloaded `.pacman`, validates it with `pacman -Qp`, and installs it with `pkexec pacman -U`.
 
 ---
 
@@ -281,11 +276,13 @@ npm run test:packaging-config
 npm run release:verify
 ```
 
-Playwright Electron tests do not explicitly bring the Signboard window to the foreground by default. Set `SIGNBOARD_PLAYWRIGHT_FOREGROUND=1` before `npm run test:playwright` when you want the app focused while debugging.
+`npm run test:playwright` runs Electron tests on a configured Linux host in an isolated virtual desktop. To run them on your own desktop, use `npm run test:playwright:local`; test windows may take focus. See [Playwright testing](./docs/codex/PLAYWRIGHT_TESTING.md) for setup.
 
 ---
 
 ## 📦 Distribution Builds
+
+After changing source, run `npm run build:stamp -- --channel release` once, commit the stamp with the source, and use that same snapshot on every build machine. See [build identity](./docs/build-identity.md).
 
 ### macOS
 
@@ -302,7 +299,7 @@ npm run dist:mac:x64
 npm run dist:mac:all
 ```
 
-Each macOS distribution command finishes by launching the newly packaged app with isolated user data. The build fails unless the packaged main process and renderer bridge load successfully.
+Each macOS distribution command finishes with isolated launch tests for the packaged app, CLI, and MCP server. The build fails if any of them cannot start.
 
 ### Windows (NSIS installer)
 
@@ -359,6 +356,8 @@ Notes:
 
 Contributions in all forms are welcome!  
 
+Thanks to [Marcus Holtz (@MarcusHoltz)](https://github.com/MarcusHoltz) for contributing 42 color schemes in [#58](https://github.com/cdevroe/signboard/issues/58) and Planner scheme inheritance in [#59](https://github.com/cdevroe/signboard/issues/59). The new schemes include contrast adjustments for readable text and controls.
+
 - **Report bugs**: Open an [Issue](https://github.com/cdevroe/signboard/issues).
 - **Suggest features**: Open an [Issue](https://github.com/cdevroe/signboard/issues) with the `enhancement` label.
 - **Submit fixes or features**: Fork the repo, make your changes, and open a [Pull Request](https://github.com/cdevroe/signboard/pulls).
@@ -371,7 +370,7 @@ Contributions in all forms are welcome!
 
 ## 💖 Sponsor the Project
 
-Signboard now includes an in-app sponsorship modal with two options:
+Signboard 1.7.x includes an in-app sponsorship modal with two options:
 
 - Personal use: free, with an optional tip in any amount
 - Commercial use: requested one-time payment
@@ -387,26 +386,17 @@ The source code in this repository is licensed under the [MIT](./LICENSE) licens
 Important clarification:
 
 - The MIT license allows personal and commercial use of the source code.
-- The in-app `$49` commercial-use payment is currently a sponsorship request and honor-system purchase model for packaged app users.
+- In Signboard 1.7.x, the in-app `$49` commercial-use payment is an optional one-time sponsorship. The planned Signboard 2.0 Pro subscription is described above.
 - The optional personal-use tip is also a sponsorship mechanism, not a separate software license.
 
 # Third-Party Notices
 
 My thanks to [John Gruber](https://daringfireball.net/) for creating [Markdown](https://daringfireball.net/projects/markdown/) and to [Steph Ango](https://stephango.com/), CEO of [Obsidian](https://obsidian.md/), for his [File over app philosophy](https://stephango.com/file-over-app).
 
-Signboard includes static versions of the following open source libraries:
+Signboard includes the following open source libraries:
 
 - [Turndown](https://github.com/mixmark-io/turndown) – [MIT License](https://github.com/mixmark-io/turndown/blob/master/LICENSE)
 - [OverType](https://github.com/panphora/overtype) - [MIT License](https://github.com/panphora/overtype/blob/main/LICENSE)
 - [SortableJS](https://github.com/SortableJS/Sortable) – [MIT License](https://github.com/SortableJS/Sortable/blob/master/LICENSE)
 - [Feather Icons](https://github.com/feathericons/feather) – [MIT License](https://github.com/feathericons/feather/blob/master/LICENSE)
 - [fDatepicker](https://github.com/liedekef/fdatepicker) – [MIT License](https://github.com/liedekef/fdatepicker/blob/master/LICENSE.md)
-
-## Improvements in 1.7.3
-
-- Long card titles and previews wrap inside the card. Drag empty board background with a mouse to scroll a wide board horizontally.
-- Large boards use bounded file reads. Kanban, Table, and Planner show a warning if some files cannot be read instead of presenting a partial view without explanation.
-- Exact CLI card filenames with a list selection avoid loading unrelated cards. Numbered lists/cards continue working beyond 999.
-- Explicit list/board renames reconcile stored card metadata; list renames preserve explicit completed-list workflow choices. Failed metadata writes attempt to restore the original directory and file contents.
-- Atomic saves preserve existing file permission bits. MCP uses a standalone headless launcher, checks real filesystem paths against allowed roots, validates explicit dates, and keeps copied/moved card IDs, links, and list properties consistent.
-- Card links open the requested trusted board reliably during startup or when the window was hidden. Use Help → Copy MCP Config to refresh existing agent configurations for the new launcher.

@@ -173,15 +173,15 @@ html, body { margin: 0; height: 100%; }
 }
 
 :root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .card > .card-drag-frame,
-:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .board-temporal-card-frame {
+:root:not([data-theme="dark"]) .planner-overlay[data-board-color-scheme="cozy-blush"] .board-temporal-card-frame {
   background: color-mix(in oklab, #ffe5d9 74%, #ffffff);
   border-color: color-mix(in oklab, #f4acb7 68%, #ffe5d9);
   box-shadow: 0 6px 16px rgba(157, 129, 137, 0.10);
 }
 
 :root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .card:hover > .card-drag-frame,
-:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .board-calendar-card:hover .board-temporal-card-frame,
-:root[data-board-color-scheme="cozy-blush"]:not([data-theme="dark"]) .board-this-week-card:hover .board-temporal-card-frame {
+:root:not([data-theme="dark"]) .planner-overlay[data-board-color-scheme="cozy-blush"] .board-calendar-card:hover .board-temporal-card-frame,
+:root:not([data-theme="dark"]) .planner-overlay[data-board-color-scheme="cozy-blush"] .board-this-week-card:hover .board-temporal-card-frame {
   border-color: color-mix(in oklab, #9d8189 45%, #f4acb7);
   box-shadow: 0 10px 22px rgba(157, 129, 137, 0.14);
 }
@@ -719,15 +719,6 @@ body:not(.board-empty) #boardTabs {
 
 /* Planner overlay */
 .planner-overlay {
-  --bg: #f7f8fa;
-  --bg-card: #ffffff;
-  --text: #0f172a;
-  --muted: #6b7280;
-  --border: #e6e8ec;
-  --shadow: rgba(15, 23, 42, .04);
-  --shadow-card: rgba(15, 23, 42, .06);
-  --accent: #0b5fff;
-  --accent-contrast: #ffffff;
   --due-date-today-color: color-mix(in oklab, #d92d20 72%, var(--text));
   --due-date-tomorrow-color: color-mix(in oklab, #15803d 78%, var(--text));
   --task-progress-complete-color: color-mix(in oklab, #15803d 78%, var(--text));
@@ -743,30 +734,9 @@ body:not(.board-empty) #boardTabs {
 }
 
 :root[data-theme="dark"] .planner-overlay {
-  --bg: #091102;
-  --bg-card: #12200a;
-  --text: #e8f0e5;
-  --muted: #a0b3a3;
-  --border: #1f2e17;
-  --shadow: rgba(0, 0, 0, 0.45);
-  --shadow-card: rgba(0, 0, 0, 0.55);
-  --accent: #6fcf97;
-  --accent-contrast: #07130c;
   --due-date-today-color: color-mix(in oklab, #ff6b6b 80%, var(--text));
   --due-date-tomorrow-color: color-mix(in oklab, #4ade80 80%, var(--text));
   --task-progress-complete-color: color-mix(in oklab, #4ade80 84%, var(--text));
-}
-
-:root[data-app-theme-source="omarchy"] .planner-overlay {
-  --bg: var(--sb-omarchy-bg);
-  --bg-card: var(--sb-omarchy-bg-card);
-  --text: var(--sb-omarchy-text);
-  --muted: var(--sb-omarchy-muted);
-  --border: var(--sb-omarchy-border);
-  --shadow: var(--sb-omarchy-shadow);
-  --shadow-card: var(--sb-omarchy-shadow-card);
-  --accent: var(--sb-omarchy-accent);
-  --accent-contrast: var(--sb-omarchy-accent-contrast);
 }
 
 .planner-overlay.hidden {
@@ -4254,6 +4224,12 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   text-align: left;
 }
 
+.board-settings-status-description {
+  max-width: none;
+  white-space: normal;
+  line-height: 1.45;
+}
+
 .board-settings-status.is-success {
   color: var(--task-progress-complete-color);
 }
@@ -4651,10 +4627,11 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 }
 
 .board-color-scheme-selector {
+  position: relative;
   margin-bottom: 12px;
 }
 
-.board-color-scheme-selector select {
+.board-color-scheme-selector input {
   width: 100%;
   padding: 8px 10px;
   font-size: var(--font-sm);
@@ -4662,13 +4639,67 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   border-radius: var(--radius);
   background: var(--bg-card);
   color: var(--text);
+  padding-right: 30px;
+}
+
+.board-color-scheme-chevron {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.board-color-scheme-popup {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: 0 6px 14px var(--shadow);
+}
+
+#boardColorSchemeOptions {
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.board-color-scheme-option {
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: var(--font-sm);
   cursor: pointer;
-  appearance: auto;
+}
+
+.board-color-scheme-option:is(:hover, .is-active) {
+  background: color-mix(in oklab, var(--bg-card) 88%, var(--border));
+}
+
+.board-color-scheme-option.is-active { border-color: var(--accent); }
+.board-color-scheme-option[aria-selected="true"] { font-weight: 700; }
+.board-color-scheme-option[aria-selected="true"]::after { content: ' ✓'; }
+
+#boardColorSchemeStatus {
+  margin: 6px 10px 2px;
+  font-size: var(--font-xs);
+  color: var(--muted);
+}
+
+@media (forced-colors: active) {
+  .board-color-scheme-option.is-active { border-color: Highlight; }
+  .board-color-scheme-option[aria-selected="true"] { color: LinkText; }
 }
 
 .board-theme-settings-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -4681,12 +4712,36 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
   gap: 8px;
 }
 
-.board-theme-settings-mode h4 {
+.board-theme-settings-mode > strong {
   margin: 0;
   font-size: var(--font-sm);
 }
 
+.board-theme-settings-mode {
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.board-theme-settings-mode[aria-checked="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.board-theme-settings-mode:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 4px;
+}
+
+@media (forced-colors: active) {
+  .board-theme-settings-mode[aria-checked="true"] { outline-color: Highlight; }
+  .board-theme-settings-mode:focus-visible { outline-color: CanvasText; }
+}
+
 .board-theme-preview {
+  display: block;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   min-height: 102px;
@@ -4712,6 +4767,8 @@ button:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 45%,
 
 .board-theme-preview-button {
   width: fit-content;
+  border: 1px solid;
+  border-radius: var(--radius);
   font-size: var(--font-xs);
   padding: 4px 8px;
   box-shadow: none;
@@ -6313,7 +6370,7 @@ select:disabled {
 
 /* 11) Print – simple, text-first */
 @media print {
-  body > header, #themeToggle, .workspace-view-dock, .planner-overlay { display: none !important; }
+  body > header, .workspace-view-dock, .planner-overlay { display: none !important; }
   main#board { overflow: visible; }
   .list { box-shadow: none; border-color: #bbb; }
   .card { box-shadow: none; border-color: #bbb; }

@@ -122,6 +122,8 @@
   });
   const DEFAULT_APPEARANCE_SETTINGS = Object.freeze({
     themeSource: 'signboard',
+    // Empty until the renderer migrates the existing local light/dark choice.
+    mode: '',
   });
   const DEFAULT_EXTERNAL_PUBLISHED_CALENDAR_SETTINGS = Object.freeze({
     enabled: false,
@@ -199,6 +201,7 @@
     const source = isObject(rawAppearanceSettings) ? rawAppearanceSettings : {};
     return {
       themeSource: source.themeSource === 'omarchy' ? 'omarchy' : DEFAULT_APPEARANCE_SETTINGS.themeSource,
+      mode: ['light', 'dark', 'auto'].includes(source.mode) ? source.mode : '',
     };
   }
 

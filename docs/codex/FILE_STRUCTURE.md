@@ -42,7 +42,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/board/boardSnapshot.js` - Renderer adapter for batched `readBoardSnapshot` results, with fallback to legacy per-list/per-card reads for tests or older bridges.
 - `app/board/boardViews.js` - Shared Kanban/Planner temporal helpers, bottom Planner/Kanban/Table workspace dock state, direct workspace view transitions, Kanban/Table board view state, Calendar/This Week layout helpers, temporal card placement by card start/due and open task start/due markers, and source-list/source-board pills on temporal cards.
 - `app/board/tableView.js` - Board-scoped Table view rendering, dense row metadata including Start/Due, Created/Updated age columns, and linked-object counts, board filter/search reuse, Table list filter and sort controls, checkbox/shift-range bulk selection, bulk archive/move/label/date actions, and list-column card moves through the top-of-list move IPC path.
-- `app/board/plannerView.js` - Workspace-level Planner overlay with Calendar, This Week, Day, and Agenda views across currently open boards, all/current/custom board scope controls, Planner-local search/date/completed-card/board/active-board-label filters, local-day cursor reconciliation that preserves browsed periods, keyboard navigation for Planner search/filter controls, bottom-dock open/close behavior, and Planner card opening that switches the active board when needed.
+- `app/board/plannerView.js` - Workspace-level Planner overlay with Calendar, This Week, Day, and Agenda views across currently open boards, all/current/custom board scope controls, Planner-local search/date/completed-card/board/active-board-label filters, local-day cursor reconciliation that preserves browsed periods, keyboard navigation for Planner search/filter controls, bottom-dock open/close behavior, and temporary Planner card-editor context that preserves the selected Kanban/Table board, filters, persisted selection, and Planner palette.
 - `app/board/archiveBrowser.js` - Dedicated Archive modal UI, search-first archived card/list browsing with keyboard result navigation, detail-pane rendering, incremental result loading, and restore flows.
 - `app/board/boardTabs.js` - Open-board tab session state (restore/add/close/reorder), last-known open/active board snapshot sync to main process, keyboard navigation/close behavior for visible tabs, responsive `N more` overflow for unbounded open boards, plus the shared safe board-switch helper used by tab clicks and the switcher.
 - `app/board/boardSwitcher.js` - Quick board switcher overlay for `Cmd/Ctrl + K`, filtering and closing currently open boards and delegating selected board changes to the shared switch helper.
@@ -60,7 +60,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `app/modals/toggleEditCardModal.js` - Card editor open/save/archive/duplicate logic, compact calendar-based card start/due metadata control, Created/Updated timestamp display, active-card top-of-list moves from the dropdown/directional controls, debounced + serialized saves, clean-editor reloads after external/MCP card edits, fresh duplicate lifecycle metadata, raw body URL detection/open controls, linked-object paperclip controls including inline URL/app-link entry, anchored Smart Card Action previews for title/summary/task-list/auto-label/smart-paste/due-date/attachment/custom/Quick output and read-only Question the Card answers plus a Smart Actions settings shortcut, Obsidian rename reconciliation between `linked_objects` and `related` wikilinks, missing-note status rendering with recreate/relink/remove actions, drag/drop local-file linking, Open With/Obsidian actions, and one task-line calendar control for start/due dates aligned from measured line coordinates.
 - `app/listeners/window.js` - Keyboard shortcuts, menu/global-command listeners, Quick Add card modal wiring with board/list selection across open boards, workspace view switching, Planner toggle/view shortcut handling including all-open-board and current-board date-view scopes, Settings fallback handling, quick board switcher shortcut handling, color cycling, active-card move/archive shortcuts, active-editor closing for workspace-level shortcuts, and the `Cmd/Ctrl + /` helper modal behavior; keep `#modalKeyboardShortcuts` list in sync when adding/changing shortcuts.
 - `app/init.js` - App bootstrap, folder picker handling, top-level event wiring, Obsidian-vault-required info modal controls, sponsorship modal triggers, external board-change auto-refresh sync, and the DST-safe local-day rollover lifecycle across midnight/focus/visibility/system-resume, including safe deferred board renders and open-editor date-status refreshes.
-- `app/ui/theme.js` - Theme toggle + OverType theme integration, including opt-in Omarchy runtime palette application, Planner variables, atomic replacement events, and manual-toggle opt-out.
+- `app/ui/colorSchemePicker.js` - Searchable, keyboard-accessible scheme combobox with explicit selection, live result counts, and dismissal without changing colors.
+- `app/ui/theme.js` - App-wide Light/Dark/Auto preference, accessible clickable previews, live operating-system appearance following, legacy choice migration, keyboard toggle, OverType integration, and opt-in Omarchy palette handling.
 - `app/ui/tooltips.js` - Lightweight custom tooltip engine (event delegation + mutation observer) using existing element label attributes.
 
 ## Shared/library code
@@ -134,15 +135,13 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Playwright tests (`tests/playwright/`)
 
-- `tests/playwright/signboard-smoke.spec.js` - Electron UI smoke tests for board rendering, shortcuts, drag/drop behavior, modals, board switching, Planner overlay behavior, archive, settings, and imports. The suite avoids explicit `page.bringToFront()` by default; set `SIGNBOARD_PLAYWRIGHT_FOREGROUND=1` for foreground debugging.
+- `tests/playwright/signboard-smoke.spec.js` - Electron UI smoke tests for board rendering, shortcuts, drag/drop behavior, modals, board switching, Planner overlay behavior, archive, settings, and imports. Use the isolated Linux runner by default; local GUI runs require explicit permission and `npm run test:playwright:local`.
 - `tests/playwright/helpers/fixtureBoard.js` - Temporary board fixture builder used by the Playwright smoke suite.
 
 ## Static assets (`static/`)
 
 - `static/styles.css` - App styling, layout, theme tokens, modal/editor styles, keyboard-only focus affordances, reduced-motion/forced-colors rules, and card drag placeholder visuals.
 - `static/vendor/*.js|*.css` - Vendored third-party libs:
-  - Marked
-  - Turndown
   - SortableJS
   - Feather Icons
   - OverType
@@ -157,6 +156,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Usually ignored for code tasks
 
+- `.local/` and `output/` - Local research, QA reports, and agent handoff notes. Never commit or upload these records.
 - `node_modules/` - Installed dependencies.
 - `dist/` - Generated binaries/installers.
 - `static/vendor/` - External vendored source (edit only when updating vendored libs).
@@ -186,13 +186,19 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-maintenance.js` — targeted storage, resource-limit, metadata, permissions, numbering, lookup, and MCP boundary regressions.
 - `scripts/benchmark-maintenance.js` — paired source-operation measurements on pristine synthetic 100/1,000/5,000-card fixtures; six samples per operation/channel, with the first separated.
 - `scripts/soak-maintenance.js` — bounded Linux packaged desktop/CLI reliability sessions using new disposable boards/profiles and resource/integrity reporting.
-- `docs/codex/BABU_TESTING.md` — older-hardware isolation, benchmark, build freshness, and soak rules.
+- `docs/codex/TESTING.md` — isolated validation, benchmark, build freshness, and soak rules; machine-specific instructions live in ignored `.local/codex/`.
 
-- `docs/release-notes-1.7.3.md`: draft maintenance release notes; add verified downloads before publication.
-- `docs/research/signboard-1.7.3-validation-2026-09-16.md`: implementation evidence, Babu measurements, and outstanding publication gates.
+- `docs/release-notes-1.7.3.md`: published 1.7.3 release notes and download links.
 
 - `.github/workflows/release-windows.yml`: native Windows combined x64/ARM64 installer build, packaged desktop/CLI/MCP gate, and updater artifacts.
 
 - `.github/workflows/release-linux.yml`: native x64/ARM64 packages plus isolated packaged desktop/CLI/MCP launch checks under Xvfb before artifact upload.
+- `scripts/run-playwright.js`, `scripts/playwright-linux-worker.js`, and `scripts/playwright-safety.js` — isolated Linux test transport, private Xvfb execution, source manifests, and local-GUI opt-in guards. Linux dependency installation uses bundled Sharp/libvips rather than compiling against host libraries.
+- `docs/codex/PLAYWRIGHT_TESTING.md` — remote Electron testing and explicit native Mac validation procedure.
 
-- `docs/research/signboard-1.7.3-draft-2026-09-16.md`: signed/native build provenance, draft release assets, and remaining publication checks.
+- `scripts/test-board-theme-palettes.js`: validates the 42 contributed schemes, unique IDs, complete tokens, and 4.5:1 text/link/button contrast in Light and Dark.
+
+- `lib/buildInfo.js`, `config/build-info.json`, and `scripts/{buildIdentity,stamp-build,verify-build-identity,test-build-info}.js` — shared build identity, atomic/locked stamping (`lib/fileTransaction.js`), cross-platform packaging validation, About/CLI reporting, and regressions.
+
+- `docs/file-format.md` — public board/card format, managed metadata, backups, restore, and sync guidance.
+- `docs/codex/README.md` — contributor documentation entry point and local/public scope.

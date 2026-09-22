@@ -14,6 +14,10 @@ Signboard is a local-first board app built with Electron and plain JavaScript. B
 - Desktop card reads, CLI JSON card output, and MCP card tool responses expose normalized timestamps in addition to frontmatter/body. `timestamps.createdAt` prefers `createdAt` frontmatter, then a `created` activity entry, then filesystem birth/ctime/mtime for legacy cards; `timestamps.updatedAt` comes from filesystem modification time. CLI card listing also supports age-oriented sort keys for updated/created oldest/newest.
 - Task checklist lines in card bodies can store task due markers with `(due: YYYY-MM-DD)`.
 
+## Local development records
+
+Research notes, QA reports, machine-specific release records, and agent handoff instructions belong in ignored `.local/` or `output/` paths on the developer’s computer. Do not commit or upload them. Keep public documentation focused on the product and reusable development workflows.
+
 ## Runtime Architecture
 
 ### Main Process
@@ -84,7 +88,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
 - `index.html` loads vendored libraries and `app/signboard.js` with `defer`.
 - The bottom Planner/Kanban/Table workspace dock and Planner overlay markup live in `index.html`; Planner covers the board header/tabs while open and is hidden when no boards are open.
 - `app/signboard.js` is concatenated from source modules and shared renderer schema by `buildjs.sh`.
-- Settings groups app-level controls into General, Notifications, and Smart Actions panels. General shows an opt-in `Follow Omarchy theme` source only when Omarchy is detected; it follows active palette replacements, while manual light/dark mode opts out and non-default board schemes remain overrides. The Smart Actions panel owns AI assistance, Ollama verification/model selection, disabled/setup state, and drag-reorderable accordion Smart Card Action customization; new custom actions appear at the top of the list and can be expanded to edit label, target, and prompt text. Custom targets are Title, Labels, Content, Due Dates, and Attachments; Content appends Markdown rather than replacing notes. Quick Smart Action is a reorderable built-in with no stored prompt and collects one-off prompt/target input in the card editor. Question the Card is a reorderable built-in with no stored prompt or target selector; it collects a one-off question, sends card context including a compact markdown-file snapshot, and renders a read-only answer with a fresh follow-up prompt without storing chat history. Generated task-list quantity is controlled by the task-list prompt text rather than a separate app setting. Shared app-settings defaults and normalizers, including appearance source, built-in Smart Card Action prompts, targets, and saved action order, live in `shared/appSettingsSchema.js` and are consumed by both `lib/appSettings.js` and `app/appSettings.js`. Current-board settings are ordered General, Labels, Appearance, Workflow, Obsidian, and Import; board General owns board rename/move/duplicate actions, with import summary/warning rendering in the existing settings modal.
+- Settings groups app-level controls into General, Notifications, and Smart Actions panels. Appearance shows an opt-in `Follow Omarchy theme` source only when Omarchy is detected; it follows active palette replacements, while manual light/dark mode opts out and non-default board schemes remain overrides. The Smart Actions panel owns AI assistance, Ollama verification/model selection, disabled/setup state, and drag-reorderable accordion Smart Card Action customization; new custom actions appear at the top of the list and can be expanded to edit label, target, and prompt text. Custom targets are Title, Labels, Content, Due Dates, and Attachments; Content appends Markdown rather than replacing notes. Quick Smart Action is a reorderable built-in with no stored prompt and collects one-off prompt/target input in the card editor. Question the Card is a reorderable built-in with no stored prompt or target selector; it collects a one-off question, sends card context including a compact markdown-file snapshot, and renders a read-only answer with a fresh follow-up prompt without storing chat history. Generated task-list quantity is controlled by the task-list prompt text rather than a separate app setting. Shared app-settings defaults and normalizers, including appearance source, built-in Smart Card Action prompts, targets, and saved action order, live in `shared/appSettingsSchema.js` and are consumed by both `lib/appSettings.js` and `app/appSettings.js`. Current-board settings are ordered General, Labels, Appearance, Workflow, Obsidian, and Import; board General owns board rename/move/duplicate actions, with import summary/warning rendering in the existing settings modal.
 - The shared Obsidian-vault-required info modal lives in `index.html` and is controlled from `app/init.js`; linked-note creation and Base generation use it when the active board is not inside a detected vault.
 - The sponsorship modal is available from the Board menu "Sponsor" item, About modal, and a fixed bottom-right "Sponsor" pill that hides on compact windows so it does not cover lists and can be dismissed locally.
 - The Board menu now opens a dedicated Archive browser modal; Archive remains hidden from normal board rendering and is not a fourth board view.
@@ -108,7 +112,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
 ### Card files
 - Pattern: `NNN-<slug>-<rand5>.md`
 - File content format written by app:
-  - YAML frontmatter (`title`, optional `due`, optional `labels`, unknown keys preserved)
+  - YAML frontmatter (`title`, optional `start`/`due`, optional `labels`, unknown keys preserved)
   - Markdown body
 - Card `labels` frontmatter stores board label ids (e.g. `labels: ["label-1"]`).
 - Card writes add flat Obsidian-friendly properties for cards inside list directories: `title`, `status`, `signboard_id`, `signboard_board`, `signboard_list`, `signboard_uri`, optional legacy `related` links, and optional structured `linked_objects`. The card file suffix is preferred for `signboard_id` so duplicated cards do not inherit another card's deep-link identity.
@@ -135,7 +139,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - `- [ ]`
   - `- [x]`, `- [X]`
   - spaced variants like `- [x ]`, `- [ x]`, `- [ x ]`
-- Task due marker syntax is recognized only at the start of task content:
+- Task date markers are recognized at the start of task content:
+  - `(start: YYYY-MM-DD)` or `(scheduled: YYYY-MM-DD)`
   - `(due: YYYY-MM-DD)`
 - Task list summary is always computed as:
   - `completed/total` where `total` includes completed and incomplete checklist items.
@@ -201,8 +206,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - Uses Planner-local search plus `Today` / `Overdue` / next-range date filters, completed-card visibility, and open-board filters; label filters appear only when scoped to the active board.
   - Lets keyboard users move from Planner search into visible Planner cards, move between cards with arrows, return to search with `Esc`, and traverse the Planner filter popover with arrows.
   - Hides cards from completed workflow lists by default while preserving their due-date metadata; the Planner filter menu can show completed dated cards when needed.
-  - Opens Planner cards through the normal editor, switching the active board behind the overlay first when the card belongs to a different board.
-  - Keeps Planner on the default Signboard palette for the active light/dark mode instead of inheriting the active board color scheme, while tinting card source pills from their source board color schemes.
+  - Opens Planner cards through temporary board context for the normal editor; closing restores the original board and filters without changing the persisted selection.
+  - Uses the selected Kanban/Table board palette in Planner, while tinting source pills from each card’s own board. Foreign-card editing preserves the original board, filters, and Planner palette.
   - Advances Calendar/This Week/Day cursors after a local-day rollover only when they represented the previously current month/week/day, preserving deliberately browsed historical or future periods.
 - `app/lists/createListElement.js`:
   - Builds list UI, add-card button, list rename behavior, and labelled section/list semantics for assistive technology.
@@ -302,6 +307,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - `Cmd/Ctrl + Option/Alt + 2/3/4/5`: open or switch to the matching Planner date view scoped to the current board.
   - `Cmd/Ctrl + Shift + P`: open/close Planner.
   - `Cmd/Ctrl + ,`: open Settings from renderer key handling and the native menu accelerator.
+  - `Cmd/Ctrl + Shift + T`: open Appearance with color-scheme search focused.
   - `Cmd/Ctrl + Shift + D`: toggle light/dark mode through the native menu accelerator.
   - `Cmd + Control + Shift + C` on macOS / `Ctrl + Alt + Shift + C` elsewhere: cycle board color schemes without closing the active screen.
   - `Cmd/Ctrl + Shift + [` and `Cmd/Ctrl + Shift + ]`: move the open card to the previous/next list, no-op at board edges.
@@ -317,10 +323,10 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
 ### Theme support
 - `app/ui/theme.js`:
   - Toggles `document.documentElement.dataset.theme`.
-  - Persists theme to localStorage.
+  - Persists Light/Dark/Auto in app settings and retains the effective mode in legacy localStorage.
   - Updates OverType theme to match app theme.
-  - Renders the board-menu theme action label, shortcut hint, and accessible shortcut metadata.
-  - Applies a validated Omarchy runtime palette to the app/default boards and Planner while following is selected, responds to main-process palette events, and makes manual light/dark toggling opt out.
+  - Owns accessible Appearance preview choices, live system-mode changes, and the existing native menu/keyboard toggle.
+  - Applies the validated Omarchy palette to default boards while following is selected and responds to main-process palette events. Planner inherits the selected board scheme. Choosing Light, Dark, or Auto opts out of Omarchy following.
 - `DESIGN.md` documents the default Signboard theme as Design.md-compatible tokens plus rationale; consult it before changing default palette, typography, spacing, shape, elevation, or core component styling.
 - `app/ui/tooltips.js`:
   - Provides custom app-styled tooltips for primary controls without third-party dependencies.
@@ -611,4 +617,16 @@ Ignore these unless task explicitly requires them:
 - MCP agent launch configurations use `bin/signboard-mcp.js` with `ELECTRON_RUN_AS_NODE=1`; source configuration generation uses `bin/signboard-mcp-config.js`. Desktop compatibility flags remain available.
 - Card deep links reveal the desktop window and wait for saved-workspace restoration before changing renderer context. Closing the last window still quits the app; cold-start links must reopen the requested card.
 - Board panning is mouse-only on the empty background, with capture/cancel/blur cleanup. Long title and preview text wraps within cards.
-- Run `npm run test:maintenance`, focused/full Electron tests, and packaged launch checks for this maintenance work. Follow `docs/codex/BABU_TESTING.md` for isolated target validation.
+- Run `npm run test:maintenance`, focused/full Electron tests, and packaged launch checks for this maintenance work. Follow `docs/codex/TESTING.md` for isolated target validation and consult ignored `.local/codex/` host instructions when present.
+
+## Appearance and Planner — 1.7.4
+
+- The searchable scheme combobox lives in `app/ui/colorSchemePicker.js`; typing/arrows only browse, Enter/click applies, and Escape/Tab cancels browsing. `Cmd/Ctrl + Shift + T` and View > Choose Color Scheme open Appearance with search focused. Keep native/preload/renderer shortcuts, modal dismissal, selected-board restoration, and help aligned.
+
+- Light/Dark/Auto lives in Settings > Appearance as accessible preview radio buttons. Mode is app-wide in `appearance.mode`; empty values migrate the legacy localStorage choice. Auto observes `prefers-color-scheme` live; explicit choices and the existing toggle shortcut leave Omarchy following. Preserve choice during older save responses.
+- Planner inherits the selected Kanban/Table board scheme. Its temporary foreign-card editor context must preserve persisted selection, filters, source-board labels/list writes, and the Planner palette; restore after save/close, failed open, or a workspace shortcut. A card’s Labels-settings shortcut keeps its board context until Settings closes.
+- Routine Electron tests use `npm run test:playwright` on a configured Linux host’s isolated Xvfb desktop. Local GUI tests require explicit permission and `npm run test:playwright:local`; see `docs/codex/PLAYWRIGHT_TESTING.md`.
+
+- `saveEditorCard` skips unchanged body/title/frontmatter writes against the loaded disk state, so initialization/theme callbacks cannot overwrite an external edit with cached content.
+
+- Release builds share one stamp in `config/build-info.json`: run `npm run build:stamp -- --channel release` once after source changes, commit it, and reuse it on every builder. The packaging hook rejects stale/missing stamps. About and `signboard --version [--json]` report the build and source fingerprint; updater versions remain unchanged. See `docs/build-identity.md`.

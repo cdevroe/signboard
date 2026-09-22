@@ -8,6 +8,7 @@ const path = require('path');
 
 const repoRoot = path.resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+const expectedBuild = require('../lib/buildInfo').getBuildInfo();
 const timeoutMs = 45_000;
 
 function readAppArgument(argv) {
@@ -42,6 +43,8 @@ async function checkHeadlessEntrypoints(executablePath, tempRoot) {
   const invoke = (entry, args = []) => execFileSync(executablePath,
     [path.join(appArchive, 'bin', entry), ...args], { env, encoding: 'utf8', timeout: timeoutMs });
   assert.match(invoke('signboard.js', ['--help']), /Signboard CLI/);
+  assert(expectedBuild.buildId, 'A current shared build stamp is required before package validation.');
+  assert.deepEqual(JSON.parse(invoke('signboard.js', ['--version', '--json'])), expectedBuild);
   const server = JSON.parse(invoke('signboard-mcp-config.js')).mcpServers.signboard;
   assert.equal(server.command, executablePath);
   assert.equal(server.args[0], path.join(appArchive, 'bin/signboard-mcp.js'));
@@ -142,6 +145,7 @@ async function run() {
     if (marker.isPackaged !== true || marker.rendererLoaded !== true) {
       throw new Error(`Packaged renderer did not report ready: ${JSON.stringify(marker)}`);
     }
+    assert.deepEqual(marker.buildInfo, expectedBuild, 'Packaged desktop must match the shared build identity.');
 
     console.log(`Packaged desktop, CLI, and MCP launch tests passed for Signboard ${marker.version}.`);
   } catch (error) {

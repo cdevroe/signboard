@@ -4,13 +4,16 @@
   "protocols": [
     {
       "name": "Signboard",
-      "schemes": ["signboard"]
+      "schemes": [
+        "signboard"
+      ]
     }
   ],
   "artifactName": "signboard_${version}_${os}_${arch}.${ext}",
   "files": [
     "app/**",
     "bin/**",
+    "config/**",
     "lib/**",
     "shared/**",
     "static/**",
@@ -24,7 +27,13 @@
   ],
   "win": {
     "target": [
-      { "target": "nsis", "arch": ["x64","arm64"] }
+      {
+        "target": "nsis",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      }
     ],
     "icon": "build/icon.ico"
   },
@@ -34,7 +43,10 @@
   },
   "mac": {
     "category": "public.app-category.productivity",
-    "target": ["dmg", "zip"],
+    "target": [
+      "dmg",
+      "zip"
+    ],
     "icon": "build/icon.icns",
     "hardenedRuntime": true,
     "entitlements": "build/entitlements.mac.plist",
@@ -42,7 +54,12 @@
     "gatekeeperAssess": false
   },
   "linux": {
-    "target": ["AppImage", "deb", "pacman", "rpm"],
+    "target": [
+      "AppImage",
+      "deb",
+      "pacman",
+      "rpm"
+    ],
     "category": "Utility",
     "icon": "build/icons"
   },
@@ -55,5 +72,6 @@
       "repo": "signboard",
       "releaseType": "draft"
     }
-  ]
+  ],
+  "beforePack": "scripts/verify-build-identity.js"
 }

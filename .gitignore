@@ -4,4 +4,11 @@ node_modules
 certificate.p12
 dist
 app/signboard.js
-output/playwright
+.playwright-mcp/
+signboard-pro-mobile.png
+wordpress-plugin/signboard-smart-actions*.zip
+
+# Research, QA output, and agent handoff notes stay on this computer.
+.local/
+docs/research/
+output/

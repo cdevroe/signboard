@@ -474,6 +474,10 @@ function normalizeAboutSignboardInfo(rawInfo = {}) {
     return {
         appName: String(info.appName || ABOUT_SIGNBOARD_FALLBACK_INFO.appName).trim() || ABOUT_SIGNBOARD_FALLBACK_INFO.appName,
         appVersion: String(info.appVersion || '').trim(),
+        buildLabel: String(info.buildLabel || '').trim(),
+        buildDetails: String(info.buildDetails || '').trim(),
+        builtAt: String(info.builtAt || info.buildInfo?.builtAt || '').trim(),
+        sourceFingerprint: String(info.sourceFingerprint || info.buildInfo?.sourceFingerprint || '').trim(),
         authorName: String(info.authorName || ABOUT_SIGNBOARD_FALLBACK_INFO.authorName).trim() || ABOUT_SIGNBOARD_FALLBACK_INFO.authorName,
         authorUrl: getValidatedExternalUrl(info.authorUrl || ABOUT_SIGNBOARD_FALLBACK_INFO.authorUrl) || ABOUT_SIGNBOARD_FALLBACK_INFO.authorUrl,
         copyright: String(info.copyright || ABOUT_SIGNBOARD_FALLBACK_INFO.copyright).trim() || ABOUT_SIGNBOARD_FALLBACK_INFO.copyright,
@@ -509,8 +513,14 @@ function applyAboutSignboardInfo(info) {
         : 'Version unavailable';
 
     document.querySelectorAll('[data-about-app-version]').forEach((element) => {
-        element.textContent = versionLabel;
+        element.textContent = normalizedInfo.buildLabel || versionLabel;
     });
+    const buildMeta = document.getElementById('aboutSignboardBuildMeta');
+    if (buildMeta) {
+        buildMeta.textContent = normalizedInfo.builtAt
+            ? `Built ${normalizedInfo.builtAt.slice(0, 16).replace('T', ' ')} UTC · Source ${normalizedInfo.sourceFingerprint.slice(0, 12)}` : '';
+        buildMeta.hidden = !normalizedInfo.builtAt;
+    }
     document.querySelectorAll('[data-about-license]').forEach((element) => {
         element.textContent = normalizedInfo.license;
     });
@@ -579,6 +589,16 @@ function closeAboutSignboardModal() {
 function initializeAboutSignboardControls() {
     const closeButton = document.getElementById('aboutSignboardClose');
     const supportButton = document.getElementById('aboutSignboardSupportButton');
+
+    const copyBuildButton = document.getElementById('aboutSignboardCopyBuild');
+    copyBuildButton?.addEventListener('click', async () => {
+        const status = document.getElementById('aboutSignboardBuildStatus');
+        try {
+            const info = await getAboutSignboardInfo();
+            await window.electronAPI.copyTextToClipboard(info.buildDetails || `Signboard ${info.appVersion}`);
+            status.textContent = 'Build details copied.';
+        } catch { status.textContent = 'Unable to copy build details.'; }
+    });
 
     renderAboutSignboardModalState().catch((error) => {
         console.error('Failed to initialize About Signboard modal.', error);

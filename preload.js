@@ -190,8 +190,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return () => {};
     }
 
-    const listener = () => {
-      callback();
+    const listener = (_event, panel) => {
+      callback(panel === 'colors' ? 'colors' : undefined);
     };
 
     ipcRenderer.on('open-board-settings', listener);

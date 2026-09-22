@@ -7,6 +7,7 @@ const assert = require('assert');
 const REQUIRED_PACKAGED_GLOBS = [
   'app/**',
   'bin/**',
+  'config/**',
   'lib/**',
   'shared/**',
   'static/**',
