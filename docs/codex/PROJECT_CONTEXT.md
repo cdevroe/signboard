@@ -14,6 +14,10 @@ Signboard is a local-first board app built with Electron and plain JavaScript. B
 - Desktop card reads, CLI JSON card output, and MCP card tool responses expose normalized timestamps in addition to frontmatter/body. `timestamps.createdAt` prefers `createdAt` frontmatter, then a `created` activity entry, then filesystem birth/ctime/mtime for legacy cards; `timestamps.updatedAt` comes from filesystem modification time. CLI card listing also supports age-oriented sort keys for updated/created oldest/newest.
 - Task checklist lines in card bodies can store task due markers with `(due: YYYY-MM-DD)`.
 
+## Local development records
+
+Research notes, QA reports, machine-specific release records, and agent handoff instructions belong in ignored `.local/` or `output/` paths on the developer’s computer. Do not commit or upload them. Keep public documentation focused on the product and reusable development workflows.
+
 ## Runtime Architecture
 
 ### Main Process

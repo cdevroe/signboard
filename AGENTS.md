@@ -10,6 +10,7 @@ If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the ca
 - Read [docs/codex/PROJECT_CONTEXT.md](./docs/codex/PROJECT_CONTEXT.md) for architecture and behavior.
 - Read [docs/codex/FILE_STRUCTURE.md](./docs/codex/FILE_STRUCTURE.md) for the repository map.
 - Read [DESIGN.md](./DESIGN.md) before changing the default theme, visual system, or UI component styling.
+- Keep research notes, QA reports, machine-specific release records, and agent handoff instructions local under ignored `.local/` or `output/` paths. Do not commit or upload them. Public documentation should describe the product and reusable development workflows.
 - Treat `app/signboard.js` as generated output; edit source modules in `app/**` or shared renderer modules such as `shared/appSettingsSchema.js`, then run `./buildjs.sh`.
 - Keep every runtime source root used by packaged code in `electron-builder.json`, including `bin/**` and `shared/**`; macOS distribution builds must pass `scripts/test-packaged-app-launch.js` before release.
 - Use `lib/atomicFile.js` for durable writes to Signboard-managed card, settings, sidecar, and Obsidian integration files.

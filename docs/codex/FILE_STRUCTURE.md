@@ -135,15 +135,13 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Playwright tests (`tests/playwright/`)
 
-- `tests/playwright/signboard-smoke.spec.js` - Electron UI smoke tests for board rendering, shortcuts, drag/drop behavior, modals, board switching, Planner overlay behavior, archive, settings, and imports. The suite avoids explicit `page.bringToFront()` by default; set `SIGNBOARD_PLAYWRIGHT_FOREGROUND=1` for foreground debugging.
+- `tests/playwright/signboard-smoke.spec.js` - Electron UI smoke tests for board rendering, shortcuts, drag/drop behavior, modals, board switching, Planner overlay behavior, archive, settings, and imports. Use the isolated Linux runner by default; local GUI runs require explicit permission and `npm run test:playwright:local`.
 - `tests/playwright/helpers/fixtureBoard.js` - Temporary board fixture builder used by the Playwright smoke suite.
 
 ## Static assets (`static/`)
 
 - `static/styles.css` - App styling, layout, theme tokens, modal/editor styles, keyboard-only focus affordances, reduced-motion/forced-colors rules, and card drag placeholder visuals.
 - `static/vendor/*.js|*.css` - Vendored third-party libs:
-  - Marked
-  - Turndown
   - SortableJS
   - Feather Icons
   - OverType
@@ -158,6 +156,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 ## Usually ignored for code tasks
 
+- `.local/` and `output/` - Local research, QA reports, and agent handoff notes. Never commit or upload these records.
 - `node_modules/` - Installed dependencies.
 - `dist/` - Generated binaries/installers.
 - `static/vendor/` - External vendored source (edit only when updating vendored libs).
@@ -189,15 +188,11 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/soak-maintenance.js` — bounded Linux packaged desktop/CLI reliability sessions using new disposable boards/profiles and resource/integrity reporting.
 - `docs/codex/BABU_TESTING.md` — older-hardware isolation, benchmark, build freshness, and soak rules.
 
-- `docs/release-notes-1.7.3.md`: draft maintenance release notes; add verified downloads before publication.
-- `docs/research/signboard-1.7.3-validation-2026-09-16.md`: implementation evidence, Babu measurements, and outstanding publication gates.
+- `docs/release-notes-1.7.3.md`: published 1.7.3 release notes and download links.
 
 - `.github/workflows/release-windows.yml`: native Windows combined x64/ARM64 installer build, packaged desktop/CLI/MCP gate, and updater artifacts.
 
 - `.github/workflows/release-linux.yml`: native x64/ARM64 packages plus isolated packaged desktop/CLI/MCP launch checks under Xvfb before artifact upload.
-
-- `docs/research/signboard-1.7.3-draft-2026-09-16.md`: signed/native build provenance, draft release assets, and remaining publication checks.
-
 - `scripts/run-playwright.js`, `scripts/playwright-linux-worker.js`, and `scripts/playwright-safety.js` — isolated Babu test transport, private Xvfb execution, source manifests, and local-GUI opt-in guards. Linux dependency installation uses bundled Sharp/libvips rather than compiling against host libraries.
 - `docs/codex/PLAYWRIGHT_TESTING.md` — remote Electron testing and explicit native Mac validation procedure.
 

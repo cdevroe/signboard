@@ -5,6 +5,7 @@ Start here before opening source files.
 - Read `docs/codex/PROJECT_CONTEXT.md` for architecture, data model, and behavior.
 - Read `docs/codex/FILE_STRUCTURE.md` for an annotated map of the repository.
 - Read `DESIGN.md` before changing the default theme, visual system, or UI component styling.
+- Keep research notes, QA reports, machine-specific release records, and agent handoff instructions local under ignored `.local/` or `output/` paths. Do not commit or upload them. Public documentation should describe the product and reusable development workflows.
 - Omarchy theme following is opt-in under Settings > Appearance and reads the canonical active `~/.local/state/omarchy/current/theme/colors.toml` and sibling `current/theme.name`; main-process watching handles atomic replacements, manual light/dark toggling opts out, and non-default board color schemes remain overrides. Keep `lib/omarchyTheme.js`, preload events, renderer theme/settings code, Planner CSS variables, and tests aligned.
 - Treat `app/signboard.js` as generated output; edit the source modules in `app/**` or shared renderer modules such as `shared/appSettingsSchema.js`, then run `./buildjs.sh`.
 - Tooltip UI is implemented in `app/ui/tooltips.js` and reads existing control labels (`title` / `aria-label` / `alt`) to keep tooltip copy centralized in markup.
