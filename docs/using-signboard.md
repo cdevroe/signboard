@@ -15,6 +15,7 @@ This guide covers the desktop app and the core workflow for managing a project i
 - [Archive and Restore](#archive-and-restore)
 - [Settings](#settings)
 - [Updates](#updates)
+- [Backups and Sync](#backups-and-sync)
 - [Accessibility](#accessibility)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [A Few Practical Tips](#a-few-practical-tips)
@@ -445,7 +446,15 @@ Imports copy data into Signboard and leave the original source files where they 
 
 Signboard checks for updates automatically. You can also choose `Check for Updates...` from the Signboard app menu on macOS or the Help menu on Windows and Linux. The native update dialog converts the GitHub release body from HTML or Markdown into readable plain text and omits the release's download-link section. Use `View changelog` to open the complete release page.
 
+When reporting a problem, use **Copy Build Details** in About to include the release version, build ID, and source fingerprint. A warning about unreadable cards means the displayed board may be incomplete; check the reported files before treating missing cards as deleted.
+
 On Ubuntu, Signboard validates a downloaded `.deb` before requesting administrator access. On Arch Linux and Omarchy, it recognizes the downloaded `.pacman`, validates it with `pacman -Qp`, and installs it with `pkexec pacman -U`. Signboard never performs a database-only `pacman -Sy` refresh. If validation or installation fails, your installed copy remains unchanged and the package-specific error dialog offers `Open Downloads`.
+
+## Backups and Sync
+
+Back up the entire board folder, including its settings, archive, and hidden files. Linked files outside the board need their own backup. With a sync service, let changes finish syncing before editing on another device; keep versioned backups as well.
+
+See [File format and backups](./file-format.md) for the folder layout, card metadata, and restoring a board copy. Agents can use [Signboard CLI](./signboard-cli.md) or the [MCP server](../MCP_README.md) to maintain this structure during automated changes.
 
 ## Accessibility
 
@@ -504,15 +513,4 @@ You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 - Keep list names short. They are stored in folder names, so concise names stay readable on disk.
 - Use labels for durable categories and use lists for workflow stages.
 - Archive aggressively. The archive browser makes restoring easy.
-- If you want automation or scripting, pair this guide with [Signboard CLI](./signboard-cli.md), which can also create new board folders from the terminal.
-
-## Improvements in 1.7.3
-
-- Long card titles and previews wrap inside the card. Drag empty board background with a mouse to scroll a wide board horizontally.
-- Large boards use bounded file reads. Kanban, Table, and Planner show a warning if some files cannot be read instead of presenting a partial view without explanation.
-- Exact CLI card filenames with a list selection avoid loading unrelated cards. Numbered lists/cards continue working beyond 999.
-- Explicit list/board renames reconcile stored card metadata; list renames preserve explicit completed-list workflow choices. Failed metadata writes attempt to restore the original directory and file contents.
-- Atomic saves preserve existing file permission bits. MCP uses a standalone headless launcher, checks real filesystem paths against allowed roots, validates explicit dates, and keeps copied/moved card IDs, links, and list properties consistent.
-- Card links open the requested trusted board reliably during startup or when the window was hidden. Use Help → Copy MCP Config to refresh existing agent configurations for the new launcher.
-
-Build identity is shown in About and by `signboard --version` (`--json` for structured details). Copy Build Details includes the source fingerprint for support. The build ID is separate from the release version.
+- If you want automation or scripting, pair this guide with [Signboard CLI](./signboard-cli.md) or [MCP Server](../MCP_README.md).

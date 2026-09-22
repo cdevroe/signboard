@@ -112,7 +112,7 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
 ### Card files
 - Pattern: `NNN-<slug>-<rand5>.md`
 - File content format written by app:
-  - YAML frontmatter (`title`, optional `due`, optional `labels`, unknown keys preserved)
+  - YAML frontmatter (`title`, optional `start`/`due`, optional `labels`, unknown keys preserved)
   - Markdown body
 - Card `labels` frontmatter stores board label ids (e.g. `labels: ["label-1"]`).
 - Card writes add flat Obsidian-friendly properties for cards inside list directories: `title`, `status`, `signboard_id`, `signboard_board`, `signboard_list`, `signboard_uri`, optional legacy `related` links, and optional structured `linked_objects`. The card file suffix is preferred for `signboard_id` so duplicated cards do not inherit another card's deep-link identity.
@@ -139,7 +139,8 @@ Files: `index.html`, `app/signboard.js` (generated), source modules in `app/**`,
   - `- [ ]`
   - `- [x]`, `- [X]`
   - spaced variants like `- [x ]`, `- [ x]`, `- [ x ]`
-- Task due marker syntax is recognized only at the start of task content:
+- Task date markers are recognized at the start of task content:
+  - `(start: YYYY-MM-DD)` or `(scheduled: YYYY-MM-DD)`
   - `(due: YYYY-MM-DD)`
 - Task list summary is always computed as:
   - `completed/total` where `total` includes completed and incomplete checklist items.
@@ -616,7 +617,7 @@ Ignore these unless task explicitly requires them:
 - MCP agent launch configurations use `bin/signboard-mcp.js` with `ELECTRON_RUN_AS_NODE=1`; source configuration generation uses `bin/signboard-mcp-config.js`. Desktop compatibility flags remain available.
 - Card deep links reveal the desktop window and wait for saved-workspace restoration before changing renderer context. Closing the last window still quits the app; cold-start links must reopen the requested card.
 - Board panning is mouse-only on the empty background, with capture/cancel/blur cleanup. Long title and preview text wraps within cards.
-- Run `npm run test:maintenance`, focused/full Electron tests, and packaged launch checks for this maintenance work. Follow `docs/codex/BABU_TESTING.md` for isolated target validation.
+- Run `npm run test:maintenance`, focused/full Electron tests, and packaged launch checks for this maintenance work. Follow `docs/codex/TESTING.md` for isolated target validation and consult ignored `.local/codex/` host instructions when present.
 
 ## Appearance and Planner — 1.7.4
 
@@ -624,7 +625,7 @@ Ignore these unless task explicitly requires them:
 
 - Light/Dark/Auto lives in Settings > Appearance as accessible preview radio buttons. Mode is app-wide in `appearance.mode`; empty values migrate the legacy localStorage choice. Auto observes `prefers-color-scheme` live; explicit choices and the existing toggle shortcut leave Omarchy following. Preserve choice during older save responses.
 - Planner inherits the selected Kanban/Table board scheme. Its temporary foreign-card editor context must preserve persisted selection, filters, source-board labels/list writes, and the Planner palette; restore after save/close, failed open, or a workspace shortcut. A card’s Labels-settings shortcut keeps its board context until Settings closes.
-- Routine Electron tests use `npm run test:playwright` on Babu’s isolated Xvfb desktop. Local GUI tests require explicit permission and `npm run test:playwright:local`; see `docs/codex/PLAYWRIGHT_TESTING.md`.
+- Routine Electron tests use `npm run test:playwright` on a configured Linux host’s isolated Xvfb desktop. Local GUI tests require explicit permission and `npm run test:playwright:local`; see `docs/codex/PLAYWRIGHT_TESTING.md`.
 
 - `saveEditorCard` skips unchanged body/title/frontmatter writes against the loaded disk state, so initialization/theme callbacks cannot overwrite an external edit with cached content.
 

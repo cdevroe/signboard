@@ -186,16 +186,19 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-maintenance.js` — targeted storage, resource-limit, metadata, permissions, numbering, lookup, and MCP boundary regressions.
 - `scripts/benchmark-maintenance.js` — paired source-operation measurements on pristine synthetic 100/1,000/5,000-card fixtures; six samples per operation/channel, with the first separated.
 - `scripts/soak-maintenance.js` — bounded Linux packaged desktop/CLI reliability sessions using new disposable boards/profiles and resource/integrity reporting.
-- `docs/codex/BABU_TESTING.md` — older-hardware isolation, benchmark, build freshness, and soak rules.
+- `docs/codex/TESTING.md` — isolated validation, benchmark, build freshness, and soak rules; machine-specific instructions live in ignored `.local/codex/`.
 
 - `docs/release-notes-1.7.3.md`: published 1.7.3 release notes and download links.
 
 - `.github/workflows/release-windows.yml`: native Windows combined x64/ARM64 installer build, packaged desktop/CLI/MCP gate, and updater artifacts.
 
 - `.github/workflows/release-linux.yml`: native x64/ARM64 packages plus isolated packaged desktop/CLI/MCP launch checks under Xvfb before artifact upload.
-- `scripts/run-playwright.js`, `scripts/playwright-linux-worker.js`, and `scripts/playwright-safety.js` — isolated Babu test transport, private Xvfb execution, source manifests, and local-GUI opt-in guards. Linux dependency installation uses bundled Sharp/libvips rather than compiling against host libraries.
+- `scripts/run-playwright.js`, `scripts/playwright-linux-worker.js`, and `scripts/playwright-safety.js` — isolated Linux test transport, private Xvfb execution, source manifests, and local-GUI opt-in guards. Linux dependency installation uses bundled Sharp/libvips rather than compiling against host libraries.
 - `docs/codex/PLAYWRIGHT_TESTING.md` — remote Electron testing and explicit native Mac validation procedure.
 
 - `scripts/test-board-theme-palettes.js`: validates the 42 contributed schemes, unique IDs, complete tokens, and 4.5:1 text/link/button contrast in Light and Dark.
 
 - `lib/buildInfo.js`, `config/build-info.json`, and `scripts/{buildIdentity,stamp-build,verify-build-identity,test-build-info}.js` — shared build identity, atomic/locked stamping (`lib/fileTransaction.js`), cross-platform packaging validation, About/CLI reporting, and regressions.
+
+- `docs/file-format.md` — public board/card format, managed metadata, backups, restore, and sync guidance.
+- `docs/codex/README.md` — contributor documentation entry point and local/public scope.

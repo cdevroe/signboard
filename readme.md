@@ -75,6 +75,7 @@ paru -S signboard-appimage
 - [Using Signboard](./docs/using-signboard.md)
 - [Signboard CLI](./docs/signboard-cli.md)
 - [MCP Server](./MCP_README.md)
+- [File format and backups](./docs/file-format.md)
 
 ### Keyboard Shortcuts
 

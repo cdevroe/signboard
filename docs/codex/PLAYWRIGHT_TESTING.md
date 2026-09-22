@@ -1,12 +1,15 @@
-# Electron tests without taking over the Mac
+# Isolated Electron tests
 
-`npm run test:playwright` runs the Electron suite on Babu over SSH, inside a separate Xvfb desktop with Openbox. No Electron process starts on the calling computer. The virtual display also stays separate from Babu's Hyprland, physical screen, and VNC desktop.
+`npm run test:playwright` runs the Electron suite on a configured Linux host over SSH, inside a separate Xvfb desktop with Openbox. No Electron process starts on the calling computer. The virtual display stays separate from the host's normal desktop.
 
 ```bash
-# Full suite, on Babu
+# Choose your Linux test host
+export SIGNBOARD_PLAYWRIGHT_HOST=user@linux-host
+
+# Full suite, on the configured host
 npm run test:playwright
 
-# Focused tests, on Babu; normal Playwright arguments are forwarded literally
+# Focused tests; normal Playwright arguments are forwarded literally
 npm run test:playwright -- --grep 'Appearance|Planner'
 
 # Discovery only: stays local and never launches Electron
@@ -20,7 +23,7 @@ The runner builds the renderer, copies the current working tree (including uncom
 
 Each run prints its local results directory under `output/playwright/remote/<run-id>/`: `run.log`, `source.json` (commit, dirty state, file hashes, arguments), and retrieved `artifacts/`, including the JSON test report and available failure attachments. The remote source and results remain under `~/.local/share/signboard-lab/playwright/runs/<run-id>/` for diagnosis; disposable dependencies and profiles are removed after execution. Old completed run folders can be removed when their results are no longer needed. The dependency cache is shared only within the test lab.
 
-Runs are serialized and supervised by a transient systemd user service with a 25-minute ceiling, lower CPU priority, and whole-process-tree cleanup. Ctrl+C/disconnection requests cancellation; systemd stops remaining children when the worker exits or reaches its deadline. Test processes have core dumps disabled to avoid expensive crash-dump work on the older laptop. If Babu is unavailable, prerequisites are missing, or another run holds the lock, the command fails visibly. It never falls back to running Electron on the Mac. A failed artifact download leaves the remote files available and reports their location. This source-test workflow does not replace or promote `development-current`, overwrite the existing remote source tree, or touch a running user TUI. Follow [Babu testing guidance](./BABU_TESTING.md) separately for packaged builds, benchmarks, and soaks; avoid competing workloads during measurements.
+Runs are serialized and supervised by a transient systemd user service with a 25-minute ceiling, lower CPU priority, and whole-process-tree cleanup. Ctrl+C/disconnection requests cancellation; systemd stops remaining children when the worker exits or reaches its deadline. Test processes have core dumps disabled to avoid expensive crash-dump work on the test host. If the host is unavailable, prerequisites are missing, or another run holds the lock, the command fails visibly. It never falls back to running Electron on the calling computer. A failed artifact download leaves the remote files available and reports their location. This source-test workflow does not replace installed release/development builds or overwrite an existing remote source tree. Follow [Testing and release validation](./TESTING.md) separately for packaged builds, benchmarks, and soaks; avoid competing workloads during measurements.
 
 ## Deliberate native checks
 
@@ -36,12 +39,10 @@ Direct `npx playwright test` is blocked by the configuration unless the run uses
 
 ## Host setup
 
-The calling computer needs Node, installed project dependencies, `ssh`, and `rsync`, plus key-based SSH access. Defaults are `cdevroe@babu.local` and the home-relative `.local/share/signboard-lab/playwright`. Another Linux host can be selected with `SIGNBOARD_PLAYWRIGHT_HOST=user@host` and, optionally, `SIGNBOARD_PLAYWRIGHT_REMOTE_ROOT=/path/to/test-lab`. Remote paths must contain only letters, digits, underscores, dots, slashes, and hyphens, without `..` components.
+The calling computer needs Node, installed project dependencies, `ssh`, and `rsync`, plus key-based SSH access. Set `SIGNBOARD_PLAYWRIGHT_HOST=user@host` for your own test host; the built-in fallback targets the maintainer's local lab. The default remote root is home-relative `.local/share/signboard-lab/playwright`; override it with `SIGNBOARD_PLAYWRIGHT_REMOTE_ROOT=/path/to/test-lab` when needed. Remote paths must contain only letters, digits, underscores, dots, slashes, and hyphens, without `..` components.
 
 The Linux host needs Node/npm, rsync, flock, an available systemd user manager, Electron's Linux runtime libraries, Xvfb/xvfb-run, xauth, xprop, Openbox, and dbus-run-session. Virtual-display programs can be installed normally or unpacked under `<test-lab>/tools/root/usr`; the runner checks both that prefix and PATH. Never substitute the user's normal `DISPLAY` when a prerequisite is missing. Private profiles use a short systemd-managed runtime directory because Chromium's Unix socket paths must stay below the OS path-length limit. The Electron test launcher passes `--ozone-platform=x11` for virtual-display runs; the private environment selects Openbox/GTK instead of inheriting the user's Wayland session or portal preferences.
 
-On Babu, the initial tools were downloaded from its configured Omarchy package mirror, verified with the installed Pacman keyring, and extracted into that test prefix without sudo or a system package transaction. The verified archives/signatures remain in `tools/packages/`. Versions at setup: xorg-server-xvfb 21.1.24-1, Openbox 3.6.1-14, startup-notification 0.12-9, and imlib2 1.12.7-3. Existing system xauth/xprop and D-Bus supply the remaining tools. Refresh these deliberately from the host's compatible package set; do not perform an Arch partial upgrade to prepare tests.
+A dependency cache seed must have a matching lockfile hash. Set `SIGNBOARD_PLAYWRIGHT_DEPENDENCY_SEED` in the remote user service environment to select a source tree with Linux dependencies; otherwise a lockfile-based `npm ci` populates a new cache. The cache identity includes lockfile hash, Node major version, and architecture. For launch diagnostics, set `SIGNBOARD_PLAYWRIGHT_DEBUG=1` on the calling computer to include Playwright's browser-process logs in that run.
 
-The initial dependency cache may be seeded from `/home/cdevroe/src/signboard-codex-test` only when its lockfile hash matches. `SIGNBOARD_PLAYWRIGHT_DEPENDENCY_SEED`, set in the remote user service environment, can select another seed; otherwise a lockfile-based `npm ci` populates a new cache. The cache identity includes lockfile hash, Node major version, and architecture. For launch diagnostics, set `SIGNBOARD_PLAYWRIGHT_DEBUG=1` on the calling computer to include Playwright's browser-process logs in that run.
-
-The worker sets `SHARP_IGNORE_GLOBAL_LIBVIPS=1` when installing dependencies so Sharp uses its bundled binary rather than Babu’s unrelated system libvips build.
+The worker sets `SHARP_IGNORE_GLOBAL_LIBVIPS=1` when installing dependencies so Sharp uses its bundled binary rather than an unrelated system libvips build.

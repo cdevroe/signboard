@@ -1,60 +1,26 @@
 # Signboard Documentation
 
-Signboard is a local-first board app that stores lists as folders and cards as Markdown files.
+Signboard stores boards as folders and cards as Markdown files. These guides describe the 1.7.x app and its automation interfaces.
 
-## Table of Contents
+## Choose a guide
 
-- [Using Signboard](./using-signboard.md)
-- [Signboard CLI](./signboard-cli.md)
-- [MCP Server](../MCP_README.md)
+| What you want to do | Start here |
+| --- | --- |
+| Use boards, cards, Planner, Appearance, or Obsidian integration | [Using Signboard](./using-signboard.md) |
+| Work from a terminal or write scripts | [Signboard CLI](./signboard-cli.md) |
+| Connect an AI agent and give it structured board tools | [MCP Server](../MCP_README.md) |
+| Inspect card metadata, back up boards, or restore a copy | [File format and backups](./file-format.md) |
 
-## Start Here
+For installation and platform downloads, see the [main README](../readme.md#installation).
 
-If you are using the desktop app, begin with [Using Signboard](./using-signboard.md).
+## Agents using Signboard
 
-Arch Linux and Omarchy users can install the native `.pacman` release package with `sudo pacman -U ./signboard_VERSION_linux_x64.pacman`. ARM users should choose `linux_aarch64.pacman`. It includes the launcher entry, `signboard://` handler, and icon and does not require FUSE. The community [`signboard-appimage` AUR package](https://aur.archlinux.org/packages/signboard-appimage) is also available.
+Use MCP when your client supports local stdio tools, or the CLI with `--json` for shell-based automation. Both guides cover board discovery, reading before changes, previews, and verifying writes.
 
-If you want to automate Signboard, script it, or drive it from an agent without MCP, go to [Signboard CLI](./signboard-cli.md).
+The optional [Signboard MCP skill](../skills/signboard-mcp/SKILL.md) supplies a reusable agent workflow. An agent working with your boards does not need the source architecture documentation.
 
-If you want structured tool access from an agent, see [MCP Server](../MCP_README.md).
+## Contributing to Signboard
 
-## What These Docs Cover
+People and coding agents changing the app should use the [contributor documentation](./codex/README.md), starting with [AGENTS.md](../AGENTS.md) and [CODEX.md](../CODEX.md). It covers architecture, the source map, testing, and build identity.
 
-- Creating and organizing boards, lists, and cards
-- Drag-and-drop movement, including the empty insertion slot shown while dragging cards
-- Calendar-based start/due date ranges on Kanban cards and in the card editor, task lists, labels, linked-object counts, completed-list workflow settings, one-time list ordering by due date, Kanban/Table board views, card age sorting and bulk actions in Table, Planner date views with automatic local-day rollover, and External Published Calendar
-- Archiving and restoring cards and lists
-- Settings, including Light/Dark/Auto mode and detected Omarchy theme following in Appearance, app-wide General/Notifications/Smart Actions panels, drag-reorderable local Ollama Smart Card Actions for generated titles/summaries/task lists/auto-labeling/smart paste/due dates/linked-object suggestions, one-off Quick Smart Actions, read-only card questions, and board-specific General, Labels, Appearance, Workflow, Obsidian, and Import panels, plus board rename/move/duplicate actions
-- Obsidian integration, including boards stored inside vaults, Open With actions, generated Bases files, CLI writes that remain visible in managed Bases, linked notes, missing-note handling, linked objects, dropped local-file linking, URL favicons, `signboard://` card/board links, and the optional Obsidian companion plugin
-- Raw web URLs in card bodies, opened from the editor through the inline open-link control or Cmd/Ctrl-click
-- Native text editing context menus in editable fields
-- Readable plain-text update changelogs in native dialogs across macOS, Windows, and Linux, plus Ubuntu `.deb` and Arch/Omarchy `.pacman` validation with package-specific recovery
-- Accessibility support for keyboard-operable cards/list actions, modal focus handling, live status announcements, reduced motion, and forced-colors mode
-- Keyboard result/menu navigation for board search, Planner search, Archive search, board tabs, list actions, label/filter popovers, and Settings sections
-- Keyboard shortcuts for Quick Add card creation across open boards, creating lists, switching and closing open boards, opening Planner views across all open boards or the current board, searching color schemes (`Cmd/Ctrl + Shift + T`), cycling colors, moving open cards, archiving, and opening Archive
-- CLI setup, board discovery, board creation, command reference, filters, age sorting, timestamp JSON output, card duplication/template workflows, dry-run previews, archive workflows, settings, and imports
-- MCP trusted/open board discovery, trusted-root behavior, and board-name lookup
-
-## File-First Model
-
-Signboard is intentionally simple on disk:
-
-- A board is a folder.
-- Each list is a subfolder inside the board's folder.
-- Each card is a Markdown file inside a list folder.
-- Board settings are stored in `board-settings.md`.
-- Archived cards and lists live in `XXX-Archive`.
-- Obsidian helpers auto-create a managed `Signboard Board.base` for boards inside detected vaults, create linked notes in the board root when requested, and mark missing linked notes for explicit recreate/relink/remove actions. Existing boards can be moved into an Obsidian vault from `Settings > General > Move Board`. The optional `obsidian-plugin/` companion plugin can open/copy Signboard links, attach active notes, ask before removing links to deleted notes, and create a Signboard board from an Obsidian folder after confirmation.
-
-That makes boards easy to inspect, back up, sync, and automate with standard filesystem tools.
-
-## Improvements in 1.7.3
-
-- Long card titles and previews wrap inside the card. Drag empty board background with a mouse to scroll a wide board horizontally.
-- Large boards use bounded file reads. Kanban, Table, and Planner show a warning if some files cannot be read instead of presenting a partial view without explanation.
-- Exact CLI card filenames with a list selection avoid loading unrelated cards. Numbered lists/cards continue working beyond 999.
-- Explicit list/board renames reconcile stored card metadata; list renames preserve explicit completed-list workflow choices. Failed metadata writes attempt to restore the original directory and file contents.
-- Atomic saves preserve existing file permission bits. MCP uses a standalone headless launcher, checks real filesystem paths against allowed roots, validates explicit dates, and keeps copied/moved card IDs, links, and list properties consistent.
-- Card links open the requested trusted board reliably during startup or when the window was hidden. Use Help → Copy MCP Config to refresh existing agent configurations for the new launcher.
-
-Build identity is shown in About and by `signboard --version` (`--json` for structured details). Copy Build Details includes the source fingerprint for support. The build ID is separate from the release version.
+Public contributor docs describe reusable development practices. Machine access instructions, local research, QA reports, and handoff notes stay in ignored local directories.
