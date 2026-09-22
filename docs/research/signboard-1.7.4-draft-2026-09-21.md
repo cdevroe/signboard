@@ -22,4 +22,13 @@ The final-source Babu/Xvfb run passed **95 of 96** tests in 5.9 minutes. The onl
 
 Build identity, CLI, maintenance, packaging configuration, release-artifact validation, update notes, and previous appearance/palette/board/Omarchy checks passed. The earlier focused Appearance/Planner/shortcut run passed all 11 tests. Native platform package checks are separate from physical desktop tests.
 
-Automatic approval review rejected the planned Apple notarization upload because the user had not explicitly authorized sending the application to Apple. Explicit approval was requested for that upload and separately for the native Mac packaged launch/Appearance/menu/Planner test run, as required by the repository's focus-interruption policy. These approvals remain pending. Finish notarization, final Mac packaging/launch checks, checksum generation, complete asset verification, and draft attachments before treating the download set as complete. Keep the release a draft until the remaining tests and soak are reviewed.
+Automatic approval review initially rejected the Apple submission pending explicit user authorization. On September 22 the user approved the remaining build/tests/uploads, PR merge, release publication once ready, and subsequent integration into `beta/2.0.0`.
+
+## September 22 completion checks
+
+- The universal Mac app completed notarization. `stapler validate` passed and macOS Gatekeeper accepted it as `Notarized Developer ID`. The normal `npm run dist` completed its packaged desktop/CLI/MCP gate; all 12 focused native Mac Appearance/Planner/menu/editor/build tests passed.
+- Babu was rediscovered as `babu-2.local` at `192.168.68.77` and verified against the saved `babu.local` SSH host key. Both interrupted tests passed, including the full eight-lap drag sequence in approximately 72 seconds. The original 95/96 run and this focused rerun together cover all 96 tests.
+- All 16 distribution/updater files pass complete `release:verify`; `SHA256SUMS` supplies their checksums. All 17 GitHub draft attachments match local sizes and GitHub SHA-256 digests. The user's edited notes were preserved, with only the pending Mac line replaced by its download link.
+- The exact uploaded Linux x64 AppImage passed a fresh packaged desktop/CLI/MCP gate and a two-minute mutation smoke on Babu. Its supervised two-hour disposable-data soak began at `2026-09-22T11:36:37.433Z`. It is isolated under `release-candidate-1.7.4-20260922`, uses a private Xvfb desktop, and has a 135-minute service ceiling. Existing release/development profiles and the development symlink remain unchanged.
+
+Publication remains pending the completed soak result and final remote state check. Preserve Marcus's co-authored commit with a normal PR merge, target the resulting main commit for tag `1.7.4`, and preserve the user's current release body when publishing. After publication pull `main`, integrate it into `beta/2.0.0`, and restore the saved 2.0 checklist edit.

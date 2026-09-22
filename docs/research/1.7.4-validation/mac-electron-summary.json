@@ -1,0 +1,62 @@
+{
+  "platform": "darwin-arm64",
+  "buildId": "20260921.1",
+  "stats": {
+    "startTime": "2026-09-22T11:39:50.197Z",
+    "duration": 20758.161,
+    "expected": 12,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "About reports and copies the shared build identity",
+      "ok": true
+    },
+    {
+      "title": "installs native application menu actions",
+      "ok": true
+    },
+    {
+      "title": "refreshes an unchanged open card editor after external markdown edits",
+      "ok": true
+    },
+    {
+      "title": "follows detected Omarchy colors and theme replacements until manually overridden",
+      "ok": true
+    },
+    {
+      "title": "cycles board color schemes without closing an active editor",
+      "ok": true
+    },
+    {
+      "title": "color scheme search filters names and applies only a chosen result",
+      "ok": true
+    },
+    {
+      "title": "native color scheme command closes a Planner card and targets the selected board",
+      "ok": true
+    },
+    {
+      "title": "Appearance previews choose Light Dark and Auto and preserve the preference",
+      "ok": true
+    },
+    {
+      "title": "Appearance migrates an existing dark choice without changing the board scheme",
+      "ok": true
+    },
+    {
+      "title": "Planner card editing preserves the Kanban board its scheme and filters",
+      "ok": true
+    },
+    {
+      "title": "Planner restores the selected board after a failed card open or same-board switch",
+      "ok": true
+    },
+    {
+      "title": "Planner label settings update the card board and restore the selected board",
+      "ok": true
+    }
+  ]
+}

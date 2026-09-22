@@ -1,0 +1,22 @@
+{
+  "platform": "linux-x64",
+  "buildId": "20260921.1",
+  "stats": {
+    "startTime": "2026-09-22T11:31:55.359Z",
+    "duration": 88169.17899999999,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "About reports and copies the shared build identity",
+      "ok": true
+    },
+    {
+      "title": "keeps slow cross-list dragging healthy over blank board areas",
+      "ok": true
+    }
+  ]
+}

@@ -1,8 +1,6 @@
 {
-  "complete": false,
-  "pending": [
-    "macOS universal DMG and ZIP, blockmaps, latest-mac.yml"
-  ],
+  "complete": true,
+  "pending": [],
   "build": {
     "schemaVersion": 1,
     "version": "1.7.4",
@@ -24,6 +22,11 @@
       "name": "latest-linux.yml",
       "size": 719,
       "sha256": "e704cf97447ff0eb821092fec34bbc81fa2fe948e2fae925de93c085d016f5f3"
+    },
+    {
+      "name": "latest-mac.yml",
+      "size": 527,
+      "sha256": "2c30068d78f78578630f0cc7abb55ba174e0ab3126a4d8758e4b03d6d2778611"
     },
     {
       "name": "latest.yml",
@@ -59,6 +62,26 @@
       "name": "signboard_1.7.4_linux_x86_64.AppImage",
       "size": 118504315,
       "sha256": "dab8fd5308007319508f4214e750e9b85d7120dfa0d1ef28a132646e2a1a7813"
+    },
+    {
+      "name": "signboard_1.7.4_mac_universal.dmg",
+      "size": 207878684,
+      "sha256": "0c940d705ff9fbb3b304b9c483a401f3523b00f63e4796954a7252ed16ac114e"
+    },
+    {
+      "name": "signboard_1.7.4_mac_universal.dmg.blockmap",
+      "size": 217858,
+      "sha256": "d123a6429a0148ef55e09f144ada799c8ac393c5f9bb3e3aca23cc7f12a69e75"
+    },
+    {
+      "name": "signboard_1.7.4_mac_universal.zip",
+      "size": 200807451,
+      "sha256": "ce5b0a3f808a902962033871b822d2c813313f183ea7ff6c8e194f2804c768fa"
+    },
+    {
+      "name": "signboard_1.7.4_mac_universal.zip.blockmap",
+      "size": 210755,
+      "sha256": "0f6a6e02b70e4a4c55a3dd0cd20ebc12e2e3c4c73f74da581f8162abe68dbbe4"
     },
     {
       "name": "signboard_1.7.4_win.exe",
