@@ -4199,7 +4199,7 @@ test('second-instance card links without an argument separator reach the existin
   });
   await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].hide());
   const args = ['.', 'signboard://open-card?id=Sc123'];
-  if (process.platform === 'linux') args.unshift('--ozone-platform=x11');
+  if (process.platform === 'linux') args.push('--ozone-platform=x11');
   const child = spawn(electronBinary, args, {
     cwd: repoRoot,
     env: { ...process.env, SIGNBOARD_USER_DATA_DIR: userDataDir, SIGNBOARD_TEST_DISABLE_FAVICON_FETCH: '1' },
