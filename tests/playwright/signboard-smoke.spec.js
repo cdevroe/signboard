@@ -4219,6 +4219,9 @@ test('second-instance card links without an argument separator reach the existin
     await expect.poll(() => child.exitCode).toBe(0);
     expect(await exited, output).toBe(0);
     expect(output).not.toContain('Unknown command group');
+  } catch (error) {
+    console.error(`Second-instance exit ${child.exitCode}; output: ${output}`);
+    throw error;
   } finally {
     if (child.exitCode === null) child.kill();
     await exited;
