@@ -5,6 +5,26 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const cardFrontmatter = require('../lib/cardFrontmatter');
 const boardLabels = require('../lib/boardLabels');
+const { isCliInvocation } = require('../lib/cliApp');
+
+// Windows/Linux protocol registrations pass URLs directly, without `--`.
+for (const url of [
+  'signboard://open-card?id=ABCDE',
+  'SIGNBOARD://open-card?id=ABCDE',
+  'signboard://open-board?path=C%3A%5CMy%20Vault%5CBoard',
+  'signboard://unknown-action',
+]) {
+  assert.strictEqual(isCliInvocation([url]), false, url);
+  assert.strictEqual(isCliInvocation(['--', url]), false, url);
+}
+for (const args of [[], ['--mcp-server'], ['--mcp-config'], ['--packaged-smoke-test'], ['-psn_123']]) {
+  assert.strictEqual(isCliInvocation(args), false, JSON.stringify(args));
+}
+for (const args of [['cards', 'list'], ['boards', 'list'], ['help'], ['--help'], ['--version'],
+  ['card'], ['typo'], ['https://example.com'], ['signboard://[invalid'],
+  ['cards', 'create', '--title', 'signboard://open-card?id=ABCDE']]) {
+  assert.strictEqual(isCliInvocation(args), true, JSON.stringify(args));
+}
 const {
   archiveCard,
   archiveList: archiveListOnDisk,

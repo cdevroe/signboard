@@ -69,6 +69,8 @@ yay -S signboard-appimage
 paru -S signboard-appimage
 ```
 
+Kanban cards remain draggable while label, date, or search filters are active, preserving the relative order of hidden cards. Signboard links open cards in the desktop app on Windows without an argument-separator workaround.
+
 ## Documentation
 
 - [Documentation hub](./docs/README.md)

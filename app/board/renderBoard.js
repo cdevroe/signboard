@@ -452,6 +452,8 @@ async function renderBoard() {
 
       activeSortables.push(new Sortable(boardEl, {
         group: 'lists',
+        filter: '.cards',
+        preventOnFilter: false,
         animation: (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) ? 0 : 150,
         onEnd: async (evt) => {
           const finalOrder = [...evt.to.querySelectorAll('.list')]

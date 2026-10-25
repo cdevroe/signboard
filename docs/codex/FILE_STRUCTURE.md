@@ -202,3 +202,10 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `docs/file-format.md` — public board/card format, managed metadata, backups, restore, and sync guidance.
 - `docs/codex/README.md` — contributor documentation entry point and local/public scope.
+
+## 1.7.5 maintenance coverage
+
+- `scripts/test-cli.js` — protocol URL versus CLI argument classification, including direct Windows-style launches.
+- `tests/playwright/signboard-smoke.spec.js` — filtered same-list/cross-list dragging, hidden-card order and content, completed-list visibility, and cold/second-instance protocol delivery.
+- `.github/workflows/maintenance-tests.yml` — Linux Node/full Electron regressions on Xvfb plus focused native Windows protocol/drag regressions.
+- `docs/releases/1.7.5.md` — 1.7.5 release notes.

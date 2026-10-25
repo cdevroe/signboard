@@ -1,0 +1,64 @@
+name: Maintenance regressions
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:js
+      - name: Storage and CLI regressions
+        run: |
+          npm run test:maintenance
+          npm run test:cli
+          npm run test:desktop-cli
+          npm run test:card-ordering
+          npm run test:board-card-metadata
+      - name: Prepare isolated Electron desktop
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes xvfb openbox libnss3 libasound2t64 libgbm1
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+      - name: Electron regressions
+        env:
+          SIGNBOARD_PLAYWRIGHT_VIRTUAL_DESKTOP: '1'
+        run: |
+          xvfb-run --auto-servernum --server-args='-screen 0 1440x1000x24 -nolisten tcp' dbus-run-session -- bash -e -c '
+            openbox --sm-disable &
+            wm_pid=$!
+            trap "kill $wm_pid || true" EXIT
+            npx playwright test
+          '
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: bash ./buildjs.sh
+      - name: Protocol argument classification and CLI
+        run: npm run test:cli
+      - name: Native Windows protocol and filtered drag regressions
+        env:
+          # Explicit opt-in applies only to this disposable hosted Windows desktop.
+          SIGNBOARD_PLAYWRIGHT_ALLOW_LOCAL: '1'
+        run: npx playwright test --grep 'card links|drags filtered cards|date-filtered card drops'

@@ -580,7 +580,7 @@ async function createCardElement(cardPath, options = {}) {
     : null;
   const card = suppliedCard || await window.board.readCard(cardPath);
   const listDirectoryName = String(cardPath || '').replace(/\\/g, '/').split('/').slice(-2, -1)[0] || '';
-  const isCompletedList = typeof isBoardListCompletedByWorkflow === 'function'
+  let isCompletedList = typeof isBoardListCompletedByWorkflow === 'function'
     ? isBoardListCompletedByWorkflow(listDirectoryName)
     : false;
   const titleContent = card.frontmatter.title || '';
@@ -620,6 +620,11 @@ async function createCardElement(cardPath, options = {}) {
     }
     cardPath = normalizedNextPath;
     cardEl.dataset.path = normalizedNextPath;
+    const nextListName = normalizedNextPath.replace(/\\/g, '/').split('/').slice(-2, -1)[0] || '';
+    isCompletedList = typeof isBoardListCompletedByWorkflow === 'function'
+      ? isBoardListCompletedByWorkflow(nextListName)
+      : false;
+    updateFilterVisibility();
   };
   cardEl.setAttribute('role', 'listitem');
 
@@ -909,17 +914,17 @@ async function createCardElement(cardPath, options = {}) {
 
   cardFrame.appendChild(body);
 
-  const matchesLabelFilter = cardMatchesBoardLabelFilter(
-    selectedLabelIds,
-    getAllCardFilterDates(),
-    getActiveCardFilterDates(),
-    { isCompletedList },
-  );
-  const matchesSearchFilter = cardMatchesBoardSearch(card.frontmatter.title, card.body);
-
-  if (!matchesLabelFilter || !matchesSearchFilter) {
-    cardEl.classList.add('card-filtered-out');
+  function updateFilterVisibility() {
+    const matchesLabelFilter = cardMatchesBoardLabelFilter(
+      selectedLabelIds,
+      getAllCardFilterDates(),
+      getActiveCardFilterDates(),
+      { isCompletedList },
+    );
+    const matchesSearchFilter = cardMatchesBoardSearch(card.frontmatter.title, card.body);
+    cardEl.classList.toggle('card-filtered-out', !matchesLabelFilter || !matchesSearchFilter);
   }
+  updateFilterVisibility();
 
   const openCardEditor = async () => {
     let modalEditCard = document.getElementById('modalEditCard');

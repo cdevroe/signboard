@@ -46,3 +46,7 @@ The Linux host needs Node/npm, rsync, flock, an available systemd user manager, 
 A dependency cache seed must have a matching lockfile hash. Set `SIGNBOARD_PLAYWRIGHT_DEPENDENCY_SEED` in the remote user service environment to select a source tree with Linux dependencies; otherwise a lockfile-based `npm ci` populates a new cache. The cache identity includes lockfile hash, Node major version, and architecture. For launch diagnostics, set `SIGNBOARD_PLAYWRIGHT_DEBUG=1` on the calling computer to include Playwright's browser-process logs in that run.
 
 The worker sets `SHARP_IGNORE_GLOBAL_LIBVIPS=1` when installing dependencies so Sharp uses its bundled binary rather than an unrelated system libvips build.
+
+## Pull request checks
+
+The Maintenance regressions workflow runs the full Electron suite on a disposable GitHub-hosted Linux Xvfb/Openbox desktop and focused protocol/filtered-drag tests on a disposable Windows runner. Windows explicitly opts into its own test desktop. This does not authorize foreground tests on a contributor's working Mac. Test diagnostics remain local to the runner; public PRs summarize results rather than uploading research reports.

@@ -4,6 +4,7 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 const electronBinary = require('electron');
+const { spawn } = require('child_process');
 const { test: base, expect, _electron: electron } = require('@playwright/test');
 const { createFixtureBoard, createFixtureBoardAt } = require('./helpers/fixtureBoard');
 const cardFrontmatter = require('../../lib/cardFrontmatter');
@@ -1530,6 +1531,130 @@ test('renders card drag ghost as an empty drop slot', async ({ page }) => {
   await expect(frame).toHaveCSS('border-top-style', 'dashed');
   await expect(card.locator('h3')).toHaveCSS('visibility', 'hidden');
   await expect(card.locator('.card-body')).toHaveCSS('visibility', 'hidden');
+});
+
+for (const filterMode of ['label', 'date', 'search']) {
+  test(`drags filtered cards with ${filterMode} filters while preserving hidden cards and list order`, async ({ page, boardRoot }) => {
+    const todo = path.join(boardRoot, '000-To-do-stock');
+    const doing = path.join(boardRoot, '001-Doing-stock');
+    const today = formatLocalIsoDate();
+    await cardFrontmatter.writeCard(path.join(todo, '000-plan-release-stock.md'), {
+      frontmatter: { title: 'Plan release notes', labels: ['launch'], due: today },
+      body: 'Visible triage card.',
+    });
+    for (const [file, title, visible] of [
+      ['001-hidden-first-Hd001.md', 'Hidden first', false],
+      ['002-release-followup-Vs001.md', 'Release followup', true],
+      ['003-hidden-last-Hd002.md', 'Hidden last', false],
+    ]) {
+      await cardFrontmatter.writeCard(path.join(todo, file), {
+        frontmatter: { title, ...(visible ? { labels: ['launch'], due: today } : {}) },
+        body: `Original body for ${title}.`,
+      });
+    }
+    await page.evaluate(async (mode) => {
+      if (mode === 'label') getBoardLabelState().filterIds = ['launch'];
+      if (mode === 'date') getBoardLabelState().activeDateFilter = 'today';
+      if (mode === 'search') setBoardSearchQuery('release');
+      await renderBoard();
+    }, filterMode);
+    const listPaths = await page.locator('.list').evaluateAll((lists) => lists.map((list) => list.dataset.path));
+    const source = page.locator('.list').nth(0);
+    const target = page.locator('.list').nth(1);
+    const visibleCards = source.locator('.card:not(.card-filtered-out)');
+    await expect(visibleCards).toHaveCount(2);
+    await expect(target.locator('.card:not(.card-filtered-out)')).toHaveCount(0);
+    // Keep a reference to prove that successful moves update the existing DOM.
+    await source.evaluate((element) => { window.filteredDragSource = element; });
+
+    const drag = async (card, destination) => {
+      const box = await card.boundingBox();
+      expect(box).toBeTruthy();
+      const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(start.x + 8, start.y + 8, { steps: 3 });
+      await expect(page.locator('.card-sortable--fallback')).toHaveCount(1);
+      await page.mouse.move(destination.x, destination.y, { steps: 12 });
+      await page.mouse.up();
+      await expect(page.locator('.card-sortable--fallback')).toHaveCount(0);
+    };
+
+    // Reorder within the filtered list, across a hidden card.
+    const firstBox = await visibleCards.first().boundingBox();
+    await drag(visibleCards.nth(1), { x: firstBox.x + firstBox.width / 2, y: firstBox.y + 4 });
+    await expect(visibleCards.first().locator('h3')).toHaveText('Release followup');
+    await expect.poll(async () => (await fs.readdir(todo)).filter((name) => name.endsWith('.md')).sort()[0])
+      .toContain('release-followup');
+
+    // The destination has cards, but every one is hidden by the filter.
+    const targetBox = await target.boundingBox();
+    await drag(visibleCards.first(), { x: targetBox.x + targetBox.width / 2, y: targetBox.y + targetBox.height - 12 });
+    const moved = target.locator('.card:not(.card-filtered-out)');
+    await expect(moved.locator('h3')).toHaveText('Release followup');
+    await expect.poll(async () => (await fs.readdir(doing)).filter((name) => name.endsWith('.md')).length).toBe(2);
+    await expect.poll(async () => {
+      const cardPath = await moved.getAttribute('data-path');
+      try { return (await cardFrontmatter.readCard(cardPath)).frontmatter.signboard_list; }
+      catch { return ''; }
+    }).toBe('Doing');
+    expect(await source.evaluate((element) => element === window.filteredDragSource)).toBe(true);
+    expect(await page.locator('.list').evaluateAll((lists) => lists.map((list) => list.dataset.path))).toEqual(listPaths);
+    expect((await fs.readdir(boardRoot)).filter((name) => /^\d+-/.test(name)).sort())
+      .toEqual(['000-To-do-stock', '001-Doing-stock', '002-Done-stock']);
+
+    // Clearing filters must reveal every hidden card in its original relative order.
+    await page.evaluate(async () => {
+      getBoardLabelState().filterIds = [];
+      getBoardLabelState().activeDateFilter = '';
+      setBoardSearchQuery('');
+      await renderBoard();
+    });
+    await expect(source.locator('.card h3')).toHaveText(['Plan release notes', 'Hidden first', 'Hidden last']);
+    for (const list of [source, target]) {
+      const diskPath = await list.getAttribute('data-path');
+      const domPaths = await list.locator('.card').evaluateAll((cards) => cards.map((card) => card.dataset.path));
+      const diskPaths = (await fs.readdir(diskPath)).filter((name) => name.endsWith('.md')).sort().map((name) => path.join(diskPath, name));
+      expect(domPaths).toEqual(diskPaths);
+      for (const cardPath of diskPaths) {
+        const card = await cardFrontmatter.readCard(cardPath);
+        if (card.frontmatter.title.startsWith('Hidden')) {
+          expect(card.body.trim()).toBe(`Original body for ${card.frontmatter.title}.`);
+        }
+      }
+    }
+    await target.locator('.card').filter({ hasText: 'Release followup' }).locator('.card-title-button').click();
+    await expect(page.locator('#cardEditorTitle')).toHaveText('Release followup');
+  });
+}
+
+test('date-filtered card drops into completed lists refresh visibility without rerendering', async ({ page, boardRoot }) => {
+  const cardPath = path.join(boardRoot, '000-To-do-stock', '000-plan-release-stock.md');
+  const card = await cardFrontmatter.readCard(cardPath);
+  card.frontmatter.due = formatLocalIsoDate();
+  await cardFrontmatter.writeCard(cardPath, card);
+  await page.evaluate(async () => {
+    getBoardLabelState().activeDateFilter = 'today';
+    await renderBoard();
+    window.completedDropCard = document.querySelector('.card:not(.card-filtered-out)');
+  });
+  const source = page.locator('.list').first().locator('.card:not(.card-filtered-out)');
+  const target = page.locator('.list').nth(2);
+  const box = await source.boundingBox();
+  const targetBox = await target.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 8, box.y + box.height / 2 + 8);
+  await expect(page.locator('.card-sortable--fallback')).toHaveCount(1);
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height - 12, { steps: 15 });
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => ({
+    path: window.completedDropCard.dataset.path.includes('/002-Done-stock/'),
+    hidden: window.completedDropCard.classList.contains('card-filtered-out'),
+    connected: window.completedDropCard.isConnected,
+  }))).toEqual({ path: true, hidden: true, connected: true });
+  const movedPath = await page.evaluate(() => window.completedDropCard.dataset.path);
+  expect((await cardFrontmatter.readCard(movedPath)).frontmatter.due).toBe(formatLocalIsoDate());
 });
 
 test('does not leave duplicate card nodes after rapid cross-list dragging', async ({ page }) => {
@@ -4059,7 +4184,40 @@ test('card links reopen a closed trusted board and reveal the desktop window', a
 
 });
 
-test('cold-start card links wait for demo workspace restoration', async ({ userDataDir, boardRoot }) => {
+test('second-instance card links without an argument separator reach the existing desktop', async ({ electronApp, page, boardRoot, userDataDir }) => {
+  await cardFrontmatter.writeCard(path.join(boardRoot, '000-To-do-stock', '004-second-link-Sc123.md'), {
+    frontmatter: { title: 'Second instance handoff', signboard_id: 'Sc123' },
+    body: 'Disposable second-instance protocol regression.',
+  });
+  await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].hide());
+  const args = ['.', 'signboard://open-card?id=Sc123'];
+  if (process.platform === 'linux') args.unshift('--ozone-platform=x11');
+  const child = spawn(electronBinary, args, {
+    cwd: repoRoot,
+    env: { ...process.env, SIGNBOARD_USER_DATA_DIR: userDataDir, SIGNBOARD_TEST_DISABLE_FAVICON_FETCH: '1' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  child.stdout.on('data', (chunk) => { output += chunk; });
+  child.stderr.on('data', (chunk) => { output += chunk; });
+  const exited = new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('exit', (code) => resolve(code));
+  });
+  try {
+    await expect(page.locator('#cardEditorTitle')).toHaveText('Second instance handoff');
+    await expect(page.locator('#modalEditCard')).toBeVisible();
+    expect(await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible())).toBe(true);
+    await expect.poll(() => child.exitCode).toBe(0);
+    expect(await exited, output).toBe(0);
+    expect(output).not.toContain('Unknown command group');
+  } finally {
+    if (child.exitCode === null) child.kill();
+    await exited;
+  }
+});
+
+test('cold-start card links without an argument separator wait for demo workspace restoration', async ({ userDataDir, boardRoot }) => {
   const targetBoard = await createFixtureBoardAt(path.dirname(boardRoot), 'Cold handoff board');
   await cardFrontmatter.writeCard(path.join(targetBoard, '000-To-do-stock', '004-handoff-Hd456.md'), {
     frontmatter: { title: 'Cold start handoff card', signboard_id: 'Hd456' },
