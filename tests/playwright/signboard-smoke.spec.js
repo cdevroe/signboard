@@ -1666,6 +1666,8 @@ test('date-filtered card drops into completed lists refresh visibility without r
 });
 
 test('does not leave duplicate card nodes after rapid cross-list dragging', async ({ page }) => {
+  // This exercises a settled board; startup theme/watch refreshes have their own tests.
+  await page.waitForTimeout(650);
   const card = page.locator('.list').first().locator('.card').first();
   const firstList = page.locator('.list').first();
   const secondList = page.locator('.list').nth(1);
