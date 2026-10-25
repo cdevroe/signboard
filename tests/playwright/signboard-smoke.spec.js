@@ -1552,6 +1552,9 @@ for (const filterMode of ['label', 'date', 'search']) {
         body: `Original body for ${title}.`,
       });
     }
+    // Reload after fixture writes so their watch events cannot replace a drag target.
+    await seedBoardState(page, boardRoot);
+    await page.waitForTimeout(650);
     await page.evaluate(async (mode) => {
       if (mode === 'label') getBoardLabelState().filterIds = ['launch'];
       if (mode === 'date') getBoardLabelState().activeDateFilter = 'today';
@@ -1568,6 +1571,8 @@ for (const filterMode of ['label', 'date', 'search']) {
     await source.evaluate((element) => { window.filteredDragSource = element; });
 
     const drag = async (card, destination) => {
+      // Wait for Sortable's previous move animation before measuring the next drag.
+      await card.click({ trial: true });
       const box = await card.boundingBox();
       expect(box).toBeTruthy();
       const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
@@ -1615,7 +1620,8 @@ for (const filterMode of ['label', 'date', 'search']) {
       const diskPath = await list.getAttribute('data-path');
       const domPaths = await list.locator('.card').evaluateAll((cards) => cards.map((card) => card.dataset.path));
       const diskPaths = (await fs.readdir(diskPath)).filter((name) => name.endsWith('.md')).sort().map((name) => path.join(diskPath, name));
-      expect(domPaths).toEqual(diskPaths);
+      expect(domPaths.map((entry) => entry.replace(/\\/g, '/')))
+        .toEqual(diskPaths.map((entry) => entry.replace(/\\/g, '/')));
       for (const cardPath of diskPaths) {
         const card = await cardFrontmatter.readCard(cardPath);
         if (card.frontmatter.title.startsWith('Hidden')) {
@@ -1633,6 +1639,8 @@ test('date-filtered card drops into completed lists refresh visibility without r
   const card = await cardFrontmatter.readCard(cardPath);
   card.frontmatter.due = formatLocalIsoDate();
   await cardFrontmatter.writeCard(cardPath, card);
+  await seedBoardState(page, boardRoot);
+  await page.waitForTimeout(650);
   await page.evaluate(async () => {
     getBoardLabelState().activeDateFilter = 'today';
     await renderBoard();
@@ -1649,7 +1657,7 @@ test('date-filtered card drops into completed lists refresh visibility without r
   await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height - 12, { steps: 15 });
   await page.mouse.up();
   await expect.poll(() => page.evaluate(() => ({
-    path: window.completedDropCard.dataset.path.includes('/002-Done-stock/'),
+    path: window.completedDropCard.dataset.path.replace(/\\/g, '/').includes('/002-Done-stock/'),
     hidden: window.completedDropCard.classList.contains('card-filtered-out'),
     connected: window.completedDropCard.isConnected,
   }))).toEqual({ path: true, hidden: true, connected: true });
