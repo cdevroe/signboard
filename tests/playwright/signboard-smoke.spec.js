@@ -3634,6 +3634,9 @@ test('persists the global quick add shortcut setting', async ({ page }) => {
   await openBoardMenu(page);
   await page.locator('#openBoardSettings').click();
   await expect(page.locator('#modalBoardSettings')).toBeVisible();
+  // Finish the initial appearance migration save before editing another field;
+  // its response redraws these controls and can otherwise race fill()/blur().
+  await page.evaluate(() => flushAppSettingsSave());
 
   const shortcutInput = page.locator('#boardSettingsQuickAddShortcut');
   const shortcutStatus = page.locator('#boardSettingsQuickAddShortcutStatus');
