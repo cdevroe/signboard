@@ -1794,6 +1794,8 @@ test('keeps slow cross-list dragging healthy over blank board areas', async ({ p
   await expect(firstList.locator('.card')).toHaveCount(2);
   await expect(doingList.locator('.card')).toHaveCount(0);
   await expect(doneList.locator('.card')).toHaveCount(4);
+  // Let fixture reload/theme callbacks settle before sampling a continuous drag.
+  await page.waitForTimeout(650);
 
   const cardBox = await draggedCard.boundingBox();
   const firstListBox = await firstList.boundingBox();
@@ -1956,8 +1958,10 @@ test('drops cards into the lower area of an empty list column', async ({ page, b
   await page.evaluate(() => {
     const originalRenderBoard = window.renderBoard;
     window.__postDropRenderCount = 0;
+    window.__postDropRenderStacks = [];
     window.renderBoard = async (...args) => {
       window.__postDropRenderCount += 1;
+      window.__postDropRenderStacks.push(new Error().stack);
       return originalRenderBoard(...args);
     };
   });
@@ -2037,10 +2041,11 @@ test('drops cards into the lower area of an empty list column', async ({ page, b
 
   await page.waitForTimeout(800);
   const postDropRenderCount = await page.evaluate(() => Number(window.__postDropRenderCount || 0));
-  expect(postDropRenderCount).toBe(0);
+  expect(postDropRenderCount, (await page.evaluate(() => window.__postDropRenderStacks)).join('\n')).toBe(0);
 });
 
 test('drops cards into the lower area of a short non-empty list column', async ({ page }) => {
+  await page.waitForTimeout(650);
   const firstList = page.locator('.list').first();
   const doneList = page.locator('.list').nth(2);
   const card = firstList.locator('.card').first();
