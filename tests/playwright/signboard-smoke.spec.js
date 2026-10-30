@@ -4504,7 +4504,9 @@ test('Planner card editing preserves the Kanban board its scheme and filters', a
   const sourceRoot = normalizeBoardRoot(boardRoots[0]);
   const cardRoot = normalizeBoardRoot(boardRoots[1]);
   const cardPath = path.join(boardRoots[1], '001-Doing-stock', '000-polish-copy-stock.md');
-  await cardFrontmatter.updateFrontmatter(cardPath, { due: formatLocalIsoDate() });
+  // This tests editor context, not calendar-edge layout. Keep the fixture in a
+  // middle row so month-end dates do not place its click under the fixed dock.
+  await cardFrontmatter.updateFrontmatter(cardPath, { due: formatLocalIsoDate(getCurrentMonthDate(15)) });
   await page.evaluate(async ({ sourceRoot, cardRoot }) => {
     await window.board.updateBoardSettings(sourceRoot, { colorScheme: 'lavender' });
     await window.board.updateBoardSettings(cardRoot, { colorScheme: 'cozy-blush' });
