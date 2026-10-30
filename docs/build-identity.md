@@ -1,6 +1,6 @@
 # Build identity
 
-The release version is `1.7.4`; build identity is separate from updater versions. Each prepared source snapshot gets a separate build such as `20260917.1`, using the UTC date and the next sequence after the previous stamp for that date. The Mac and Linux packages reuse the same stamp. Treat the build ID plus source fingerprint as the identity; different branches/checkouts can otherwise independently allocate the same daily sequence.
+The release version is `1.7.5`; build identity is separate from updater versions. Each prepared source snapshot gets a separate build such as `20260917.1`, using the UTC date and the next sequence after the previous stamp for that date. The Mac and Linux packages reuse the same stamp. Treat the build ID plus source fingerprint as the identity; different branches/checkouts can otherwise independently allocate the same daily sequence.
 
 ## Prepare once, build on every platform
 

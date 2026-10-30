@@ -26,6 +26,8 @@ signboard --version
 signboard --version --json
 ```
 
+When invoking the Windows `Signboard.exe` directly, a `signboard://open-card?id=...` or `signboard://open-board?path=...` argument opens the desktop protocol handler. No `--` separator is required. Ordinary CLI command groups still run as terminal commands.
+
 The installed wrapper runs the packaged CLI in Electron's Node mode, so terminal commands do not open or quit the desktop app window.
 
 Version output includes the release version and build identity. Use `--version --json` when collecting build details for a bug report or comparing installations.

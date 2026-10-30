@@ -630,3 +630,9 @@ Ignore these unless task explicitly requires them:
 - `saveEditorCard` skips unchanged body/title/frontmatter writes against the loaded disk state, so initialization/theme callbacks cannot overwrite an external edit with cached content.
 
 - Release builds share one stamp in `config/build-info.json`: run `npm run build:stamp -- --channel release` once after source changes, commit it, and reuse it on every builder. The packaging hook rejects stale/missing stamps. About and `signboard --version [--json]` report the build and source fingerprint; updater versions remain unchanged. See `docs/build-identity.md`.
+
+## 1.7.5 maintenance behavior
+
+Desktop launch arguments containing a leading `signboard:` URL bypass CLI detection and reach the existing trusted-root protocol handlers. Both initial startup and second-instance delivery are covered.
+
+Kanban filters hide card elements without removing them. Dragging remains enabled, and the full DOM order (including hidden cards) goes to `reorderCardsInList`. The list Sortable excludes the cards area. Updating returned card paths also reconciles completed-list state and filter visibility without rebuilding the board.

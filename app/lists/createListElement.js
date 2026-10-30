@@ -92,9 +92,10 @@ async function createListElement(name, listPath, cardNames, options = {}) {
       group: 'cards',
       animation: 150,
       draggable: '.card',
-      disabled: isBoardLabelFilterActive(),
       onEnd: async (evt) => {
           const targetListPath = evt && evt.to ? evt.to.dataset.path : '';
+          // Filtered cards stay in the DOM. Include them in the persisted order
+          // so moving visible cards does not push every hidden card to the end.
           const finalOrder = [...evt.to.querySelectorAll('.card')]
             .map((card) => card.getAttribute('data-path'))
             .filter(Boolean);

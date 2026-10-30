@@ -134,7 +134,7 @@ Right-click in editable areas of the card title or body to use the native cut, c
 
 Drag a card between lists in Kanban view. You can also move it from the card editor by changing its list in the dropdown menu at the top of the card modal, or from Table view by changing the row's list dropdown.
 
-While dragging, the board shows an empty insertion slot where the card would land; the card is moved only after you drop it.
+While dragging, the board shows an empty insertion slot where the card would land; the card is moved only after you drop it. You can reorder cards or move them between lists while label, date, or search filters are active. Hidden cards retain their relative order. With a date filter active, a card moved into a completed list disappears from the filtered view while keeping its dates.
 
 The list dropdown, arrow action, and card move keyboard shortcuts in the editor place moved cards at the top of the destination list.
 
@@ -149,6 +149,8 @@ The CLI can also duplicate cards and create cards from templates with `cards dup
 Use the share action in the card editor to hand the underlying Markdown file to another app using the operating system share flow when supported.
 
 ### Use Obsidian with Signboard
+
+Signboard card links open the desktop app and reveal the linked card, including on Windows and when the app is already running. Windows protocol launches do not require a `--` argument separator or a registry workaround.
 
 You can keep a board inside an Obsidian vault. A practical layout is `Vault/Signboard/<Board Name>/`. Do not make the board a nested vault with its own `.obsidian` folder. If you already created the board elsewhere, use `Settings > General > Move Board` and choose a folder inside the vault.
 

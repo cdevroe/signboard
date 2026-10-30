@@ -122,3 +122,8 @@ Start here before opening source files.
 - Skip unchanged card-editor saves against `activeEditorDiskState`; initialization/theme callbacks must not rewrite cached content over an external edit. Keep the external-editor-refresh regression aligned.
 
 - Release builds share one stamp in `config/build-info.json`: run `npm run build:stamp -- --channel release` once after source changes, commit it, and reuse it on every builder. The packaging hook rejects stale/missing stamps. About and `signboard --version [--json]` report the build and source fingerprint; updater versions remain unchanged. See `docs/build-identity.md`.
+
+## Protocol links and filtered dragging — 1.7.5
+
+- `lib/cliApp.js` must leave valid `signboard:` URLs to desktop protocol dispatch, including launches without `--`; preserve normal CLI commands and typo diagnostics. Keep CLI classification, cold-start, and second-instance regressions aligned.
+- Kanban card dragging stays enabled with label, date, and search filters. Persist the full DOM card order including hidden cards through the existing transactional helper; list dragging excludes the cards area. Returned-path updates must refresh completed-list filter visibility in place.
