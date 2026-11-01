@@ -636,3 +636,7 @@ Ignore these unless task explicitly requires them:
 Desktop launch arguments containing a leading `signboard:` URL bypass CLI detection and reach the existing trusted-root protocol handlers. Both initial startup and second-instance delivery are covered.
 
 Kanban filters hide card elements without removing them. Dragging remains enabled, and the full DOM order (including hidden cards) goes to `reorderCardsInList`. The list Sortable excludes the cards area. Updating returned card paths also reconciles completed-list state and filter visibility without rebuilding the board.
+
+## CLI/MCP parity
+
+CLI/MCP parity uses `lib/automation.js` for validated board relocation/duplication and complete card/list ordering. Keep CLI archive/settings/board commands, MCP search/pagination/list rename/order/board duplication, the inventory in `MCP_README.md` and `skills/signboard-mcp/SKILL.md`, and `test:automation-parity` aligned. Preserve exact MCP names, allowed-tree checks, read-only gates, shared archive metadata, duplicate IDs/link remapping, and transactional order rollback including completed-list settings. See `docs/automation.md` for the capability matrix.

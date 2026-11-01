@@ -9,6 +9,7 @@ This guide covers the Signboard 1.7.x command-line interface. For structured age
 - [Command Groups](#command-groups)
 - [Reference Matching](#reference-matching)
 - [Machine-Readable Output for Agents](#machine-readable-output-for-agents)
+- [Board Management and Ordering](#board-management-and-ordering)
 - [Common Workflows](#common-workflows)
 - [Archive Workflows](#archive-workflows)
 - [Settings and Imports](#settings-and-imports)
@@ -411,7 +412,14 @@ signboard cards --sort created-oldest --limit 20 --json
 
 ## Archive Workflows
 
-The CLI can find and restore archived cards and lists.
+The CLI can archive, find, and restore cards and lists.
+
+```bash
+signboard cards archive --card ab123 --list "To do" --json
+signboard lists archive "Completed Sprint" --json
+```
+
+Both commands preserve restore metadata. References must resolve uniquely.
 
 ### List archived cards
 
@@ -525,3 +533,19 @@ Checklist items may also contain start and due dates in the body:
 ```
 
 Task due dates participate in CLI due-date filtering. Start/scheduled task dates are returned in JSON metadata for agents and used by the desktop Planner/date-filter views. Use `--task-status open` to limit task due matches to unchecked items, or `--task-status any` to include checked task due markers when you want historical matches.
+
+## Board Management and Ordering
+
+```bash
+signboard boards rename "Launch plan" --board /path/to/Board --json
+signboard boards move --parent /path/to/Projects --json
+signboard boards duplicate --parent /path/to/Templates --name "Launch template" --json
+signboard cards reorder --list "To do" --card ab123 --card cd456 --json
+signboard cards reorder --list "To do" --by due --json
+signboard lists reorder --list "To do" --list Doing --list Done --json
+signboard settings update --file /path/to/patch.json --json
+```
+
+Explicit reorders must name every current item exactly once. Use returned paths after ordering. Rename/move preserve managed metadata and update the CLI selection when applicable; duplication leaves the original unchanged and assigns fresh IDs. Settings updates accept `labels`, `themeOverrides`, `workflow`, and `externalPublishedCalendar`, replacing supplied fields after normalization.
+
+See [CLI/MCP board operations](./automation.md) for the full parity matrix, settings JSON examples, destination rules, and ordering behavior. These mutation commands execute immediately.

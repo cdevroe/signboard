@@ -26,3 +26,7 @@ The optional [Signboard MCP skill](../skills/signboard-mcp/SKILL.md) supplies a 
 People and coding agents changing the app should use the [contributor documentation](./codex/README.md), starting with [AGENTS.md](../AGENTS.md) and [CODEX.md](../CODEX.md). It covers architecture, the source map, testing, and build identity.
 
 Public contributor docs describe reusable development practices. Machine access instructions, local research, QA reports, and handoff notes stay in ignored local directories.
+
+## CLI and MCP board operations
+
+The CLI and MCP support archiving/restoration, filtered card queries, list renaming, board settings updates, board rename/move/duplication, and persisted card/list ordering. See the [operation matrix and examples](./automation.md).

@@ -516,3 +516,7 @@ You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 - Use labels for durable categories and use lists for workflow stages.
 - Archive aggressively. The archive browser makes restoring easy.
 - If you want automation or scripting, pair this guide with [Signboard CLI](./signboard-cli.md) or [MCP Server](../MCP_README.md).
+
+## CLI and MCP board operations
+
+The CLI and MCP support archiving/restoration, filtered card queries, list renaming, board settings updates, board rename/move/duplication, and persisted card/list ordering. See the [operation matrix and examples](./automation.md).

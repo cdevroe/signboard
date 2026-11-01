@@ -33,6 +33,8 @@ jobs:
         run: |
           npm run test:maintenance
           npm run test:cli
+          npm run test:mcp
+          npm run test:automation-parity
           npm run test:desktop-cli
           npm run test:card-ordering
           npm run test:board-card-metadata

@@ -127,3 +127,7 @@ Start here before opening source files.
 
 - `lib/cliApp.js` must leave valid `signboard:` URLs to desktop protocol dispatch, including launches without `--`; preserve normal CLI commands and typo diagnostics. Keep CLI classification, cold-start, and second-instance regressions aligned.
 - Kanban card dragging stays enabled with label, date, and search filters. Persist the full DOM card order including hidden cards through the existing transactional helper; list dragging excludes the cards area. Returned-path updates must refresh completed-list filter visibility in place.
+
+## CLI/MCP parity
+
+CLI/MCP parity uses `lib/automation.js` for validated board relocation/duplication and complete card/list ordering. Keep CLI archive/settings/board commands, MCP search/pagination/list rename/order/board duplication, the inventory in `MCP_README.md` and `skills/signboard-mcp/SKILL.md`, and `test:automation-parity` aligned. Preserve exact MCP names, allowed-tree checks, read-only gates, shared archive metadata, duplicate IDs/link remapping, and transactional order rollback including completed-list settings. See `docs/automation.md` for the capability matrix.

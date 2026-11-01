@@ -301,7 +301,73 @@ async function testReorderListDirectories() {
   }
 }
 
+async function testListWorkflowRollback() {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-list-workflow-'));
+  const originalRename = fs.rename;
+  try {
+    const first = path.join(root, '000-Review-stock');
+    const second = path.join(root, '001-Queue-stock');
+    await fs.mkdir(first);
+    await fs.mkdir(second);
+    await fs.writeFile(path.join(first, '000-card-abcde.md'), 'untouched');
+    const settingsPath = path.join(root, 'board-settings.md');
+    const settings = '---\nworkflow:\n  completedListNames: [000-Review-stock]\ncustom: keep\n---\nUser notes\n';
+    await fs.writeFile(settingsPath, settings);
+    fs.rename = async (from, to) => {
+      if (to === settingsPath) throw new Error('Injected settings write failure');
+      return originalRename(from, to);
+    };
+    await assert.rejects(reorderListDirectories(root, [second, first]), /Injected settings write failure/);
+    assert.deepStrictEqual(await listEntries(root), ['000-Review-stock', '001-Queue-stock', 'board-settings.md']);
+    assert.strictEqual(await fs.readFile(settingsPath, 'utf8'), settings);
+    assert.strictEqual(await fs.readFile(path.join(first, '000-card-abcde.md'), 'utf8'), 'untouched');
+    fs.rename = originalRename;
+    await reorderListDirectories(root, [second, first]);
+    const updated = await fs.readFile(settingsPath, 'utf8');
+    assert.match(updated, /001-Review-stock/);
+    assert.match(updated, /custom: keep/);
+    assert.ok(updated.endsWith('User notes\n'));
+  } finally {
+    fs.rename = originalRename;
+    await fs.rm(root, { recursive: true, force: true });
+  }
+}
+
+async function testAutomationReadsOneInventory() {
+  const { orderCards } = require('../lib/automation');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-bulk-order-'));
+  const list = path.join(root, '000-Tasks-stock');
+  const originalReadFile = fs.readFile;
+  try {
+    await fs.mkdir(list);
+    const ids = [];
+    const titles = [];
+    for (let i = 0; i < 20; i++) {
+      const id = String(i).padStart(5, '0');
+      ids.push(id);
+      titles.push(`Task title ${i}`);
+      await cardFrontmatter.writeCard(path.join(list, `${String(i).padStart(3, '0')}-task-${id}.md`), {
+        frontmatter: { title: titles[i] }, body: `Notes ${i}`,
+      });
+    }
+    let reads = 0;
+    fs.readFile = async (file, ...args) => {
+      if (path.dirname(String(file)) === list) reads++;
+      return originalReadFile(file, ...args);
+    };
+    await orderCards(root, 'Tasks', ids.slice().reverse());
+    assert.strictEqual(reads, 0, 'Exact IDs should reorder without reading card bodies.');
+    await orderCards(root, 'Tasks', titles);
+    assert.strictEqual(reads, 20, 'Title references should load each card only once for the request.');
+  } finally {
+    fs.readFile = originalReadFile;
+    await fs.rm(root, { recursive: true, force: true });
+  }
+}
+
 async function run() {
+  await testAutomationReadsOneInventory();
+  await testListWorkflowRollback();
   await testInsertCardFileAtTop();
   await testInsertCardFileAtTopRollback();
   await testReorderCardFilesInList();

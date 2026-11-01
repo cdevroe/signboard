@@ -20,7 +20,7 @@ Try a read-only request first: “List my Signboard boards, then show the cards 
 
 1. Read `signboard_get_config` for access mode and allowed roots.
 2. Discover the board with `signboard_list_boards` or `signboard_resolve_board_by_name`; resolve ambiguous names before writing.
-3. Call `signboard_list_lists`, then `signboard_list_cards`, and use the returned directory names and filenames. MCP's `listName` and `cardFile` take exact names, unlike the CLI's flexible references.
+3. Use `signboard_search_cards` for board-wide text/label/due queries; follow `nextOffset` for additional pages. Call `signboard_list_lists`, then `signboard_list_cards`, and use the returned directory names and filenames. MCP's `listName` and `cardFile` take exact names, unlike the CLI's flexible references.
 4. Read an existing card before editing it. Prefer targeted changes such as `addNote`, label operations, or `replaceSection` when the request does not replace the whole body.
 5. Use `dryRun: true` on create, update, or duplicate when a preview is useful. These previews also work in read-only mode; committing the change requires write mode.
 6. After writing, read the result and report the board and card changed. Use returned filenames after moves or creation instead of guessing paths.
@@ -127,6 +127,11 @@ The server currently exposes these tools:
 - `signboard_resolve_board_by_name`
 - `signboard_create_board` (write mode only)
 - `signboard_list_lists`
+- `signboard_search_cards`: Search/filter cards across a board with CLI-equivalent date, label and text filters; returns paginated summaries.
+- `signboard_rename_list`: Rename a list while preserving metadata and workflow references.
+- `signboard_duplicate_board`: Copy a board with fresh card IDs and remapped internal links.
+- `signboard_reorder_cards`: Persist a complete explicit card order or orderBy: due; returns updated paths.
+- `signboard_reorder_lists`: Persist the complete active-list order and retain completed-list workflow references.
 - `signboard_list_cards`
 - `signboard_read_card` (includes `timestamps`, `taskSummary`, `taskStartDates`, and `taskDueDates`)
 - `signboard_create_card` (writes require write mode; supports read-only `dryRun` previews)
@@ -263,3 +268,7 @@ The generated JSON uses this structure. This macOS example is illustrative; copy
 - Board settings use Signboard's existing settings logic (`lib/boardLabels.js`).
 - Trello/Obsidian/Tasks.md import tools reuse the same importer modules as the desktop app (`lib/importers/*`).
 - When the desktop app is open, external board edits (including MCP edits) are watched and auto-refreshed.
+
+## Board operation parity
+
+See [CLI/MCP board operations](./docs/automation.md) for the capability matrix, examples, pagination, complete-order requirements, and settings replacement semantics. New mutations require write mode. Reordering returns new paths; refresh references before subsequent operations.

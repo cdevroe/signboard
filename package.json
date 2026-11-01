@@ -38,6 +38,7 @@
     "mcp:config": "node bin/signboard-mcp-config.js",
     "build:icons": "node scripts/generate-icons.js",
     "build:js": "./buildjs.sh",
+    "test:automation-parity": "node scripts/test-automation-parity.js",
     "test:cli": "node scripts/test-cli.js",
     "test:cli-install": "node scripts/test-cli-install.js",
     "test:desktop-cli": "node scripts/test-desktop-cli.js",

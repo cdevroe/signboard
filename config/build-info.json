@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "version": "1.7.5",
-  "buildId": "20261025.1",
-  "channel": "release",
-  "builtAt": "2026-10-25T11:39:09.971Z",
-  "sourceFingerprint": "62e6952612f6ad24a8fa7b61a2352b608695cf75ae4e35acf69ceb0e631dffb4",
-  "sourceFileCount": 171,
-  "commit": "90ca02ccd290722bf6e8f2eb1ca63fadaf2a6e33",
+  "buildId": "20261101.1",
+  "channel": "development",
+  "builtAt": "2026-11-01T20:04:17.714Z",
+  "sourceFingerprint": "5c461b4ec6683f7dbdb87d053675545a8e57d4bc6e302acd043c7f6162b8884b",
+  "sourceFileCount": 173,
+  "commit": "b59cfc9df08cbe3d140a2bc1e09b7ebe3f4f11ad",
   "dirty": true
 }
