@@ -2,7 +2,7 @@
 
 Signboard stores boards as folders and cards as Markdown files. These guides describe the 1.7.x app and its automation interfaces.
 
-The 1.7.5 maintenance update fixes direct Windows Signboard links and card dragging in filtered Kanban boards. See the [1.7.5 release notes](./releases/1.7.5.md).
+The upcoming 1.7.6 update closes gaps between the CLI and MCP for archiving, card queries, list and board management, settings, and persisted ordering. See the [1.7.6 release notes](./releases/1.7.6.md).
 
 ## Choose a guide
 
