@@ -72,6 +72,9 @@ async function prepareDependencies() {
         ...process.env, PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1', SHARP_IGNORE_GLOBAL_LIBVIPS: '1',
       });
     }
+    // Electron 44+ downloads its binary on demand. Populate it before marking
+    // the dependency cache ready or copying it into the isolated test profile.
+    await launch(process.execPath, [path.join(cache, 'node_modules/electron/install.js')]);
     fs.writeFileSync(path.join(cache, 'ready'), `${lockHash}\n`);
   }
   await launch('cp', ['-a', '--reflink=auto', path.join(cache, 'node_modules'), path.join(source, 'node_modules')]);

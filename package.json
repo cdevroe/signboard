@@ -115,7 +115,7 @@
     "@fiahfy/icns": "^0.0.7",
     "@playwright/test": "^1.58.2",
     "dotenv": "^17.3.1",
-    "electron": "^40.10.1",
+    "electron": "45.2.1",
     "electron-builder": "^26.8.1",
     "png-to-ico": "^3.0.1",
     "sharp": "^0.34.5"
@@ -138,5 +138,8 @@
     "electron-updater": "^6.8.3",
     "js-yaml": "^4.1.1",
     "turndown": "^7.2.2"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

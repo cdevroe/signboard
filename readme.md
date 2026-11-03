@@ -53,7 +53,7 @@ The package installs Signboard, its launcher entry, its `signboard://` URL handl
 
 For standard releases, Signboard intentionally promotes a smaller public download set:
 
-- macOS: universal build
+- macOS: universal build (macOS 13 Ventura or later)
 - Windows: single installer
 - Linux: separate `x64` and `ARM64` AppImage, deb, and Arch/Omarchy packages
 
@@ -238,6 +238,8 @@ Example task checklist syntax:
 ---
 
 ## 🛠 Development
+
+Use Node.js 22.12 or later. Electron 45.2.1 is pinned in the dependency lockfile.
 
 ```bash
 git clone https://github.com/cdevroe/signboard.git

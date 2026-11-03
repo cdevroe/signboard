@@ -1,5 +1,7 @@
 # Signboard Agent Guide
 
+Electron is pinned to 45.2.1 (Chromium 156.0.8078.75). Development requires Node.js 22.12 or later; packaged macOS apps require macOS 13 or later. The isolated Linux test runner installs the Electron binary before marking its dependency cache ready.
+
 This repository keeps its primary Codex-specific instructions in [CODEX.md](./CODEX.md).
 
 If you are an agent or tool that looks for `AGENTS.md`, use `CODEX.md` as the canonical source of repo guidance.

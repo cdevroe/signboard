@@ -1,5 +1,7 @@
 # Codex Quick Context - Signboard
 
+Electron is pinned to 45.2.1 (Chromium 156.0.8078.75). Development requires Node.js 22.12 or later; packaged macOS apps require macOS 13 or later. The isolated Linux test runner installs the Electron binary before marking its dependency cache ready.
+
 Start here before opening source files.
 
 - Read `docs/codex/PROJECT_CONTEXT.md` for architecture, data model, and behavior.

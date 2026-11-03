@@ -1,5 +1,7 @@
 # Signboard Project Context
 
+Electron is pinned to 45.2.1 (Chromium 156.0.8078.75). Development requires Node.js 22.12 or later; packaged macOS apps require macOS 13 or later. The isolated Linux test runner installs the Electron binary before marking its dependency cache ready.
+
 ## What this app is
 Signboard is a local-first board app built with Electron and plain JavaScript. Boards render as Kanban by default and can switch to a board-scoped Table view; Calendar, This Week, Day, and Agenda dated workflows live in the workspace-level Planner overlay.
 
