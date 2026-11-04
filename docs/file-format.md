@@ -20,6 +20,8 @@ Lists are directories. Cards are Markdown files inside those directories. Numeri
 
 The final card filename suffix supplies its identity. Changing a card's title does not rename its file, but moving or reordering cards can change their paths. Use the app, CLI, or MCP to move and duplicate cards so destination metadata and copied IDs remain correct.
 
+`.signboard-list-order.json` is a temporary list-order recovery record containing original, temporary, and final directory names. It is removed after a successful reorder or rollback. If it remains after a failure, back up the board including this file before recovery; do not delete the temporary list folders or guess their names. This record does not automatically repair boards damaged by older releases.
+
 `board-settings.md` contains the board's labels, color scheme, completed-list workflow, and calendar inclusion setting. `XXX-Archive` retains archived cards and lists. Archived lists can also contain a hidden `.signboard-archive.json` recovery file.
 
 ## Card content

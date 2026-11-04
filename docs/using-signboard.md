@@ -76,6 +76,8 @@ Lists can be reordered visually in the board. Since list order is stored in the 
 
 You can also open a list's actions menu and choose `Move list left` or `Move list right`.
 
+List ordering retries temporary folder locks and restores the previous names if it cannot complete. If a new list was created but positioning failed, it remains at the end after a successful rollback; check the board before adding it again. Signboard displays a failure message. If recovery itself is blocked, preserve the entire board and its hidden `.signboard-list-order.json` file, which records the original folder names, before attempting repairs. Further reordering is blocked until recovery is resolved.
+
 ### Order a list by due date
 
 Open a list's actions menu and choose `Order cards by due date`. After you confirm, Signboard performs a one-time reorder from earliest to latest. A card's main due date is used first; if it has no main due date, its earliest incomplete task due date is used. Cards with the same due date keep their existing relative order, and cards without due dates stay in their existing relative order at the end.

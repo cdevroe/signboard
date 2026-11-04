@@ -219,3 +219,8 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/cardOrdering.js` — transactional card/list reordering, with completed-list settings remapped before a successful list-order commit and directory rollback if that write fails.
 - `scripts/test-automation-parity.js` — end-to-end CLI/MCP archive/restore, search/pagination, settings, rename/move, duplication/link identity, ordering, read-only, and allowed-root workflows on disposable boards.
 - `docs/automation.md` — public capability matrix, CLI examples, MCP query/ordering contracts, and settings patch semantics.
+
+## List ordering recovery
+
+- `lib/listOrderRecovery.js` — bounded list-rename retries and an exclusive recovery record preserving original, temporary, and final folder names.
+- `scripts/test-list-actions.js` — real-filesystem renderer action regressions for insertion and left/right moves, staging/final failures, retries, card/settings preservation, and incomplete recovery. Run with `npm run test:list-actions`.

@@ -352,7 +352,13 @@ async function handleMoveListByOffset(listPath, offset) {
   nextOrder.splice(targetIndex, 0, movedList);
 
   closeListActionsPopover();
-  await reorderBoardLists(normalizedBoardRoot, nextOrder);
+  try {
+    await reorderBoardLists(normalizedBoardRoot, nextOrder);
+  } catch (error) {
+    await renderBoard();
+    reportListOperationError(`Could not move list ${direction}. Check the board before trying again.`, error);
+    return;
+  }
   await renderBoard();
   if (typeof announceSignboardStatus === 'function') {
     announceSignboardStatus(`Moved list ${direction}.`);

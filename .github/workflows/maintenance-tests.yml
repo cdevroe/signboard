@@ -37,6 +37,7 @@ jobs:
           npm run test:automation-parity
           npm run test:desktop-cli
           npm run test:card-ordering
+          npm run test:list-actions
           npm run test:board-card-metadata
       - name: Prepare isolated Electron desktop
         run: |
@@ -83,8 +84,10 @@ jobs:
       - run: bash ./buildjs.sh
       - name: Protocol argument classification and CLI
         run: npm run test:cli
-      - name: Native Windows protocol and filtered drag regressions
+      - name: List rename rollback regressions
+        run: npm run test:list-actions
+      - name: Native Windows protocol, list actions and filtered drag regressions
         env:
           # Explicit opt-in applies only to this disposable hosted Windows desktop.
           SIGNBOARD_PLAYWRIGHT_ALLOW_LOCAL: '1'
-        run: npx playwright test --grep 'card links|drags filtered cards|date-filtered card drops'
+        run: npx playwright test --grep 'card links|drags filtered cards|date-filtered card drops|list rename|moves lists left and right|adds a new list to the right'

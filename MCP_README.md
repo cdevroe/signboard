@@ -272,3 +272,5 @@ The generated JSON uses this structure. This macOS example is illustrative; copy
 ## Board operation parity
 
 See [CLI/MCP board operations](./docs/automation.md) for the capability matrix, examples, pagination, complete-order requirements, and settings replacement semantics. New mutations require write mode. Reordering returns new paths; refresh references before subsequent operations.
+
+List reordering uses bounded retries and rollback. If `.signboard-list-order.json` remains after incomplete recovery, preserve that record and the board folders before repairs. Further list reorders are rejected until recovery is resolved.

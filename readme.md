@@ -408,3 +408,5 @@ Signboard includes the following open source libraries:
 ## CLI and MCP board operations
 
 The CLI and MCP support archiving/restoration, filtered card queries, list renaming, board settings updates, board rename/move/duplication, and persisted card/list ordering. See the [operation matrix and examples](./docs/automation.md).
+
+List insertion and left/right moves preserve existing names when a rename fails, with bounded retries and rollback. See [list recovery](docs/using-signboard.md#move-lists) for recovery messages and retained new lists.

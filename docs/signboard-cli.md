@@ -549,3 +549,5 @@ signboard settings update --file /path/to/patch.json --json
 Explicit reorders must name every current item exactly once. Use returned paths after ordering. Rename/move preserve managed metadata and update the CLI selection when applicable; duplication leaves the original unchanged and assigns fresh IDs. Settings updates accept `labels`, `themeOverrides`, `workflow`, and `externalPublishedCalendar`, replacing supplied fields after normalization.
 
 See [CLI/MCP board operations](./automation.md) for the full parity matrix, settings JSON examples, destination rules, and ordering behavior. These mutation commands execute immediately.
+
+List ordering shares desktop rename retries and rollback. If an incomplete reorder leaves `.signboard-list-order.json`, preserve it with a board backup before recovery; subsequent list reorders will fail until the record is resolved.

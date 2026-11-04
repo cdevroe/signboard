@@ -109,7 +109,8 @@
     "test:board-theme-palettes": "node scripts/test-board-theme-palettes.js",
     "build:stamp": "npm run build:js && node scripts/stamp-build.js",
     "build:check": "node scripts/stamp-build.js --check",
-    "test:build-info": "node scripts/test-build-info.js"
+    "test:build-info": "node scripts/test-build-info.js",
+    "test:list-actions": "node scripts/test-list-actions.js"
   },
   "devDependencies": {
     "@fiahfy/icns": "^0.0.7",
