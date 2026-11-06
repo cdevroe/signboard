@@ -1,5 +1,7 @@
 # Signboard File Structure (Annotated)
 
+Electron is pinned to 45.2.1 (Chromium 156.0.8078.75). Development requires Node.js 22.12 or later; packaged macOS apps require macOS 13 or later. The isolated Linux test runner installs the Electron binary before marking its dependency cache ready.
+
 This map focuses on source and operational files. Large generated/vendor folders are summarized.
 
 ## Top level
@@ -209,3 +211,16 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `tests/playwright/signboard-smoke.spec.js` — filtered same-list/cross-list dragging, hidden-card order and content, completed-list visibility, and cold/second-instance protocol delivery.
 - `.github/workflows/maintenance-tests.yml` — Linux Node/full Electron regressions on Xvfb plus focused native Windows protocol/drag regressions.
 - `docs/releases/1.7.5.md` — 1.7.5 release notes.
+
+## CLI/MCP parity
+
+- `lib/cliBoard.js` — shared reference matchers let bulk ordering reuse one inventory; exact filenames/IDs require no card body reads.
+- `lib/automation.js` — shared validation and operations for board relocation/duplication, complete-order requests, and CLI settings patches.
+- `lib/cardOrdering.js` — transactional card/list reordering, with completed-list settings remapped before a successful list-order commit and directory rollback if that write fails.
+- `scripts/test-automation-parity.js` — end-to-end CLI/MCP archive/restore, search/pagination, settings, rename/move, duplication/link identity, ordering, read-only, and allowed-root workflows on disposable boards.
+- `docs/automation.md` — public capability matrix, CLI examples, MCP query/ordering contracts, and settings patch semantics.
+
+## List ordering recovery
+
+- `lib/listOrderRecovery.js` — bounded list-rename retries and an exclusive recovery record preserving original, temporary, and final folder names.
+- `scripts/test-list-actions.js` — real-filesystem renderer action regressions for insertion and left/right moves, staging/final failures, retries, card/settings preservation, and incomplete recovery. Run with `npm run test:list-actions`.

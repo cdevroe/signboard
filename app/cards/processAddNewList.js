@@ -32,12 +32,6 @@ function formatListIndex(index) {
     });
 }
 
-function buildReindexedListDirectoryName(directoryName, index) {
-    const suffixMatch = String(directoryName || '').match(/^\d{3,}(.*)$/);
-    const suffix = suffixMatch ? suffixMatch[1] : `-${String(directoryName || '').replace(/^\d+-?/, '')}`;
-    return `${formatListIndex(index)}${suffix}`;
-}
-
 async function reorderBoardLists(boardRoot, orderedDirectoryNames) {
     const normalizedBoardRoot = normalizeBoardRootPath(boardRoot);
     const names = Array.isArray(orderedDirectoryNames)
@@ -48,22 +42,21 @@ async function reorderBoardLists(boardRoot, orderedDirectoryNames) {
         return;
     }
 
-    const temporaryEntries = [];
-    for (const [index, directoryName] of names.entries()) {
-        const tempDirectoryName = `__sbtmp-${formatListIndex(index)}-${await rand5()}`;
-        await window.board.moveList(
-            `${normalizedBoardRoot}${directoryName}`,
-            `${normalizedBoardRoot}${tempDirectoryName}`,
-        );
-        temporaryEntries.push({ directoryName, tempDirectoryName });
+    // One main-process transaction owns staging, retries and rollback. Never
+    // reconcile card metadata against temporary directory names in the renderer.
+    if (window.listOrderInProgress) throw new Error('Another list reorder is still running. Please try again shortly.');
+    window.listOrderInProgress = true;
+    try {
+        return await window.board.reorderLists(names.map((name) => `${normalizedBoardRoot}${name}`));
+    } finally {
+        window.listOrderInProgress = false;
     }
+}
 
-    for (const [index, entry] of temporaryEntries.entries()) {
-        await window.board.moveList(
-            `${normalizedBoardRoot}${entry.tempDirectoryName}`,
-            `${normalizedBoardRoot}${buildReindexedListDirectoryName(entry.directoryName, index)}`,
-        );
-    }
+function reportListOperationError(message, error) {
+    console.error(message, error);
+    if (typeof announceSignboardStatus === 'function') announceSignboardStatus(message);
+    window.alert(`${message}\n\n${String(error?.message || error || 'Unknown error')}`);
 }
 
 function getAddListModalCoordinates(anchorElement) {
@@ -116,8 +109,13 @@ function openAddListModal(options = {}) {
             return;
         }
 
-        await processAddNewList(listNameInput.value, { afterListPath });
-        listNameInput.value = '';
+        if (addListButton.disabled) return;
+        addListButton.disabled = true;
+        try {
+            if (await processAddNewList(listNameInput.value, { afterListPath })) listNameInput.value = '';
+        } finally {
+            addListButton.disabled = false;
+        }
     };
 
     listNameInput.onkeydown = (key) => {
@@ -153,20 +151,32 @@ async function processAddNewList(listName, options = {}){
     const userCreatedListName = await sanitizeFileName(listName.slice(0,25) + '-' + await rand5());
     const createdDirectoryName = `${nextListNumber}-${userCreatedListName}`;
 
-    await window.board.createList(`${normalizedBoardRoot}${createdDirectoryName}`);
+    try {
+        await window.board.createList(`${normalizedBoardRoot}${createdDirectoryName}`);
+    } catch (error) {
+        reportListOperationError('The list could not be created. Please try again.', error);
+        return false;
+    }
 
+    let orderError;
     if (afterListIndex >= 0 && insertionIndex < countLists) {
         const reorderedLists = [
             ...currentLists.slice(0, insertionIndex),
             createdDirectoryName,
             ...currentLists.slice(insertionIndex),
         ];
-        await reorderBoardLists(normalizedBoardRoot, reorderedLists);
+        try {
+            await reorderBoardLists(normalizedBoardRoot, reorderedLists);
+        } catch (error) {
+            orderError = error;
+        }
     }
     
     await closeAllModals(createCloseAllModalsRequest(), { rerender: true });
-    if (typeof announceSignboardStatus === 'function') {
+    if (orderError) {
+        reportListOperationError(`Created list "${listName}", but could not finish positioning it. Check the board before trying again.`, orderError);
+    } else if (typeof announceSignboardStatus === 'function') {
         announceSignboardStatus(`Created list "${listName}".`);
     }
-    return;
+    return true;
 }

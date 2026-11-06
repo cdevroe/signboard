@@ -393,6 +393,11 @@ async function runForTransport(transportMode, fixture) {
   const toolNames = new Set(tools.map((tool) => tool && tool.name).filter(Boolean));
 
   const requiredToolNames = [
+    'signboard_search_cards',
+    'signboard_rename_list',
+    'signboard_duplicate_board',
+    'signboard_reorder_cards',
+    'signboard_reorder_lists',
     'signboard_get_config',
     'signboard_list_boards',
     'signboard_list_board_views',

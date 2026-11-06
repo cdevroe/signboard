@@ -53,7 +53,7 @@ The package installs Signboard, its launcher entry, its `signboard://` URL handl
 
 For standard releases, Signboard intentionally promotes a smaller public download set:
 
-- macOS: universal build
+- macOS: universal build (macOS 13 Ventura or later)
 - Windows: single installer
 - Linux: separate `x64` and `ARM64` AppImage, deb, and Arch/Omarchy packages
 
@@ -239,6 +239,8 @@ Example task checklist syntax:
 
 ## 🛠 Development
 
+Use Node.js 22.12 or later. Electron 45.2.1 is pinned in the dependency lockfile.
+
 ```bash
 git clone https://github.com/cdevroe/signboard.git
 cd signboard
@@ -402,3 +404,9 @@ Signboard includes the following open source libraries:
 - [SortableJS](https://github.com/SortableJS/Sortable) – [MIT License](https://github.com/SortableJS/Sortable/blob/master/LICENSE)
 - [Feather Icons](https://github.com/feathericons/feather) – [MIT License](https://github.com/feathericons/feather/blob/master/LICENSE)
 - [fDatepicker](https://github.com/liedekef/fdatepicker) – [MIT License](https://github.com/liedekef/fdatepicker/blob/master/LICENSE.md)
+
+## CLI and MCP board operations
+
+The CLI and MCP support archiving/restoration, filtered card queries, list renaming, board settings updates, board rename/move/duplication, and persisted card/list ordering. See the [operation matrix and examples](./docs/automation.md).
+
+List insertion and left/right moves preserve existing names when a rename fails, with bounded retries and rollback. See [list recovery](docs/using-signboard.md#move-lists) for recovery messages and retained new lists.

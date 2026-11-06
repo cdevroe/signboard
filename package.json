@@ -1,7 +1,7 @@
 {
   "name": "signboard",
   "productName": "Signboard",
-  "version": "1.7.5",
+  "version": "1.7.6",
   "description": "A fast, local-first Kanban board for Markdown files.",
   "homepage": "https://github.com/cdevroe/signboard",
   "repository": {
@@ -38,6 +38,7 @@
     "mcp:config": "node bin/signboard-mcp-config.js",
     "build:icons": "node scripts/generate-icons.js",
     "build:js": "./buildjs.sh",
+    "test:automation-parity": "node scripts/test-automation-parity.js",
     "test:cli": "node scripts/test-cli.js",
     "test:cli-install": "node scripts/test-cli-install.js",
     "test:desktop-cli": "node scripts/test-desktop-cli.js",
@@ -108,13 +109,14 @@
     "test:board-theme-palettes": "node scripts/test-board-theme-palettes.js",
     "build:stamp": "npm run build:js && node scripts/stamp-build.js",
     "build:check": "node scripts/stamp-build.js --check",
-    "test:build-info": "node scripts/test-build-info.js"
+    "test:build-info": "node scripts/test-build-info.js",
+    "test:list-actions": "node scripts/test-list-actions.js"
   },
   "devDependencies": {
     "@fiahfy/icns": "^0.0.7",
     "@playwright/test": "^1.58.2",
     "dotenv": "^17.3.1",
-    "electron": "^40.10.1",
+    "electron": "45.2.1",
     "electron-builder": "^26.8.1",
     "png-to-ico": "^3.0.1",
     "sharp": "^0.34.5"
@@ -137,5 +139,8 @@
     "electron-updater": "^6.8.3",
     "js-yaml": "^4.1.1",
     "turndown": "^7.2.2"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

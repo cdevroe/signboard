@@ -287,6 +287,7 @@ function isBoardDragInProgress() {
 
 function isExternalBoardRefreshBlocked() {
     return isBoardDragInProgress()
+        || Boolean(window.listOrderInProgress)
         || (typeof isCardDatePopoverOpen === 'function' && isCardDatePopoverOpen())
         || (typeof isCardLabelPopoverOpen === 'function' && isCardLabelPopoverOpen())
         || (typeof isListActionsPopoverOpen === 'function' && isListActionsPopoverOpen())

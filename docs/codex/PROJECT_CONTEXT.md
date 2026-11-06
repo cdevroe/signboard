@@ -1,5 +1,7 @@
 # Signboard Project Context
 
+Electron is pinned to 45.2.1 (Chromium 156.0.8078.75). Development requires Node.js 22.12 or later; packaged macOS apps require macOS 13 or later. The isolated Linux test runner installs the Electron binary before marking its dependency cache ready.
+
 ## What this app is
 Signboard is a local-first board app built with Electron and plain JavaScript. Boards render as Kanban by default and can switch to a board-scoped Table view; Calendar, This Week, Day, and Agenda dated workflows live in the workspace-level Planner overlay.
 
@@ -636,3 +638,11 @@ Ignore these unless task explicitly requires them:
 Desktop launch arguments containing a leading `signboard:` URL bypass CLI detection and reach the existing trusted-root protocol handlers. Both initial startup and second-instance delivery are covered.
 
 Kanban filters hide card elements without removing them. Dragging remains enabled, and the full DOM order (including hidden cards) goes to `reorderCardsInList`. The list Sortable excludes the cards area. Updating returned card paths also reconciles completed-list state and filter visibility without rebuilding the board.
+
+## CLI/MCP parity
+
+CLI/MCP parity uses `lib/automation.js` for validated board relocation/duplication and complete card/list ordering. Keep CLI archive/settings/board commands, MCP search/pagination/list rename/order/board duplication, the inventory in `MCP_README.md` and `skills/signboard-mcp/SKILL.md`, and `test:automation-parity` aligned. Preserve exact MCP names, allowed-tree checks, read-only gates, shared archive metadata, duplicate IDs/link remapping, and transactional order rollback including completed-list settings. See `docs/automation.md` for the capability matrix.
+
+## List rename failure recovery
+
+List insertion and Move list left/right must use the main-process `reorderLists` transaction, like drag-and-drop. Never stage list renames in the renderer or reconcile card metadata against temporary names. `lib/listOrderRecovery.js` retries transient rename failures and records original/temporary/final names in an exclusively created, fsynced `.signboard-list-order.json` before staging. Successful commit or rollback removes it; incomplete recovery retains it and blocks further reorders. Do not overwrite this record or guess names for legacy `__sbtmp-*` directories. Failed insertion positioning retains the newly created list; the UI refreshes and reports the failure without a success announcement or duplicate submission. Keep `test:list-actions`, the Electron list-action regressions, and deferred external refresh aligned.

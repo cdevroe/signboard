@@ -2,7 +2,7 @@
 
 Signboard stores boards as folders and cards as Markdown files. These guides describe the 1.7.x app and its automation interfaces.
 
-The 1.7.5 maintenance update fixes direct Windows Signboard links and card dragging in filtered Kanban boards. See the [1.7.5 release notes](./releases/1.7.5.md).
+The upcoming 1.7.6 update closes gaps between the CLI and MCP for archiving, card queries, list and board management, settings, and persisted ordering. See the [1.7.6 release notes](./releases/1.7.6.md).
 
 ## Choose a guide
 
@@ -26,3 +26,9 @@ The optional [Signboard MCP skill](../skills/signboard-mcp/SKILL.md) supplies a 
 People and coding agents changing the app should use the [contributor documentation](./codex/README.md), starting with [AGENTS.md](../AGENTS.md) and [CODEX.md](../CODEX.md). It covers architecture, the source map, testing, and build identity.
 
 Public contributor docs describe reusable development practices. Machine access instructions, local research, QA reports, and handoff notes stay in ignored local directories.
+
+## CLI and MCP board operations
+
+The CLI and MCP support archiving/restoration, filtered card queries, list renaming, board settings updates, board rename/move/duplication, and persisted card/list ordering. See the [operation matrix and examples](./automation.md).
+
+List insertion and left/right moves preserve existing names when a rename fails, with bounded retries and rollback. See [list recovery](./using-signboard.md#move-lists) for recovery messages and retained new lists.

@@ -2400,6 +2400,69 @@ test('adds a new list to the right of the invoking list from the list actions po
   }).toMatch(/^001-Review-[A-Za-z0-9]{5}$/);
 });
 
+test('moves lists left and right through the list actions popover', async ({ page, boardRoot }) => {
+  const titles = page.locator('.list .list-header span[contenteditable="true"]');
+  await page.locator('.list-actions-button').nth(1).click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Move list right' }).click();
+  await expect(titles).toHaveText(['To-do', 'Done', 'Doing']);
+  await page.locator('.list-actions-button').nth(2).click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Move list left' }).click();
+  await expect(titles).toHaveText(['To-do', 'Doing', 'Done']);
+  expect((await fs.readdir(boardRoot)).some((name) => name.startsWith('__sbtmp-') || name === '.signboard-list-order.json')).toBe(false);
+});
+
+for (const operation of ['add', 'left', 'right']) {
+  test(`recovers from a failed list rename during ${operation}`, async ({ page, boardRoot, electronApp }) => {
+    const originals = ['000-To-do-stock', '001-Doing-stock', '002-Done-stock'];
+    const cards = [];
+    for (const list of originals) {
+      for (const name of await fs.readdir(path.join(boardRoot, list))) {
+        cards.push({ list, name, content: await fs.readFile(path.join(boardRoot, list, name), 'utf8') });
+      }
+    }
+    await page.evaluate(() => {
+      window.__listRenameAlerts = [];
+      window.alert = (message) => window.__listRenameAlerts.push(message);
+    });
+    await electronApp.evaluate((_, action) => {
+      const promises = process.getBuiltinModule('fs').promises;
+      const basename = process.getBuiltinModule('path').basename;
+      globalThis.__listRenameOriginal = promises.rename;
+      promises.rename = async (from, to) => {
+        const target = basename(to);
+        const fail = action === 'add' ? /^001-Review-/.test(target)
+          : target === (action === 'left' ? '000-Doing-stock' : '002-Doing-stock');
+        if (basename(from).startsWith('__sbtmp-') && fail) {
+          throw Object.assign(new Error('Injected list rename lock'), { code: 'EPERM' });
+        }
+        return globalThis.__listRenameOriginal(from, to);
+      };
+    }, operation);
+    try {
+      await page.locator('.list-actions-button').nth(operation === 'add' ? 0 : 1).click();
+      if (operation === 'add') {
+        await page.locator('#listActionsPopover').getByRole('button', { name: 'Add new list' }).click();
+        await page.locator('#userInputListName').fill('Review');
+        await page.locator('#btnAddList').click();
+      } else {
+        await page.locator('#listActionsPopover').getByRole('button', { name: `Move list ${operation}` }).click();
+      }
+      await expect.poll(() => page.evaluate(() => window.__listRenameAlerts.length)).toBe(1);
+      await expect(page.locator('.list .list-header span[contenteditable="true"]')).toHaveText(
+        operation === 'add' ? ['To-do', 'Doing', 'Done', 'Review'] : ['To-do', 'Doing', 'Done']);
+      expect(await page.evaluate(() => window.__listRenameAlerts[0])).toContain('Injected list rename lock');
+      for (const card of cards) expect(await fs.readFile(path.join(boardRoot, card.list, card.name), 'utf8')).toBe(card.content);
+      expect((await fs.readdir(boardRoot)).some((name) => name.startsWith('__sbtmp-') || name === '.signboard-list-order.json')).toBe(false);
+      if (operation === 'add') await expect(page.locator('#btnAddList')).toBeEnabled();
+    } finally {
+      await electronApp.evaluate(() => {
+        process.getBuiltinModule('fs').promises.rename = globalThis.__listRenameOriginal;
+        delete globalThis.__listRenameOriginal;
+      });
+    }
+  });
+}
+
 test('orders cards in a list by due date as a one-time action', async ({ page, boardRoot }) => {
   const listPath = path.join(boardRoot, '000-To-do-stock');
   await cardFrontmatter.writeCard(path.join(listPath, '001-later-card-aaaaa.md'), {
