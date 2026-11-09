@@ -39,6 +39,7 @@ jobs:
           npm run test:card-ordering
           npm run test:list-actions
           npm run test:editor-paths
+          npm run test:board-refresh
           npm run test:board-card-metadata
       - name: Prepare isolated Electron desktop
         run: |
@@ -89,8 +90,10 @@ jobs:
         run: npm run test:list-actions
       - name: Editor path regressions
         run: npm run test:editor-paths
+      - name: Board refresh regressions
+        run: npm run test:board-refresh
       - name: Native Windows editor moves, protocol, list actions and filtered drag regressions
         env:
           # Explicit opt-in applies only to this disposable hosted Windows desktop.
           SIGNBOARD_PLAYWRIGHT_ALLOW_LOCAL: '1'
-        run: npx playwright test --grep 'card links|drags filtered cards|date-filtered card drops|list rename|moves lists left and right|adds a new list to the right|moves the active card|keeps card move shortcuts|keeps editor list controls|switches to table view and moves|bulk manages selected table cards'
+        run: npx playwright test --grep 'card links|drags filtered cards|date-filtered card drops|list rename|moves lists left and right|adds a new list to the right|moves the active card|keeps card move shortcuts|keeps editor list controls|switches to table view and moves|bulk manages selected table cards|drops cards into the lower area of an empty list column|refreshes board card previews after external markdown edits'

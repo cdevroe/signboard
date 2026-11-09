@@ -1954,7 +1954,23 @@ test('drops cards into the lower area of an empty list column', async ({ page, b
     emptyListCards.map((fileName) => fs.rm(path.join(emptyListPath, fileName), { force: true }))
   );
   await seedBoardState(page, boardRoot);
-  await page.waitForTimeout(650);
+  // Deleting the fixture card and reopening the board queue filesystem events.
+  // Observe a quiet watch cycle before measuring renders caused by the drop;
+  // a fixed startup delay can count a late setup refresh as a drop regression.
+  let quietSince = 0;
+  let lastToken;
+  await expect.poll(async () => {
+    const state = await page.evaluate(async () => ({
+      token: Number(await window.board.getBoardWatchToken()),
+      acknowledged: externalBoardWatchToken,
+      busy: externalBoardSyncInFlight || externalBoardRenderInFlight
+        || externalBoardRefreshPending || Boolean(externalBoardRenderTimeoutId),
+    }));
+    const settled = !state.busy && state.token === state.acknowledged;
+    if (!settled || state.token !== lastToken) quietSince = Date.now();
+    lastToken = state.token;
+    return settled && Date.now() - quietSince >= 750;
+  }, { timeout: 10_000, intervals: [100] }).toBe(true);
   await page.evaluate(() => {
     const originalRenderBoard = window.renderBoard;
     window.__postDropRenderCount = 0;

@@ -111,7 +111,8 @@
     "build:check": "node scripts/stamp-build.js --check",
     "test:build-info": "node scripts/test-build-info.js",
     "test:list-actions": "node scripts/test-list-actions.js",
-    "test:editor-paths": "node scripts/test-editor-paths.js"
+    "test:editor-paths": "node scripts/test-editor-paths.js",
+    "test:board-refresh": "node scripts/test-board-refresh.js"
   },
   "devDependencies": {
     "@fiahfy/icns": "^0.0.7",

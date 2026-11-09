@@ -138,7 +138,7 @@ Drag a card between lists in Kanban view. You can also move it from the card edi
 
 While dragging, the board shows an empty insertion slot where the card would land; the card is moved only after you drop it. You can reorder cards or move them between lists while label, date, or search filters are active. Hidden cards retain their relative order. With a date filter active, a card moved into a completed list disappears from the filtered view while keeping its dates.
 
-The list dropdown, arrow action, and card move keyboard shortcuts in the editor place moved cards at the top of the destination list.
+The list dropdown, arrow action, and card move keyboard shortcuts in the editor place moved cards at the top of the destination list. Successful Kanban drops update the moved cards in place while filesystem notifications from that move settle.
 
 Starting with 1.7.7, these editor controls correctly recognize native Windows paths, including cards on network shares, and keep the current list selected after a move.
 

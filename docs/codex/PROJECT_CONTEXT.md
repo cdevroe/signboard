@@ -652,3 +652,5 @@ List insertion and Move list left/right must use the main-process `reorderLists`
 Card snapshots and move results retain native filesystem paths. Normalize separators when deriving the editor list for comparison with renderer board roots; preserve the native path used for IPC/saving. Linked-note picker parents must retain UNC double slashes and the slash on drive roots. Keep `npm run test:editor-paths`, editor move Electron regressions, and the Windows maintenance workflow filter aligned.
 
 External board refresh must wait while a Table bulk menu is open so draft dates and label choices survive. Keep the forced-refresh bulk-date Electron regression in both Linux and Windows CI.
+
+Card drag/drop increments `window.cardOrderInProgress` through the transaction and watch acknowledgement, with `finally` cleanup for overlapping or failed drops. External sync defers token sampling during that interval (including a drop that starts during token IPC), while previously pending refreshes and later external edits remain deliverable. Keep `test:board-refresh` and the no-redraw/external-edit Electron regressions aligned.

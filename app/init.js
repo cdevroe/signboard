@@ -288,6 +288,7 @@ function isBoardDragInProgress() {
 function isExternalBoardRefreshBlocked() {
     return isBoardDragInProgress()
         || Boolean(window.listOrderInProgress)
+        || Boolean(window.cardOrderInProgress)
         || (typeof isCardDatePopoverOpen === 'function' && isCardDatePopoverOpen())
         || (typeof isCardLabelPopoverOpen === 'function' && isCardLabelPopoverOpen())
         || (typeof isListActionsPopoverOpen === 'function' && isListActionsPopoverOpen())
@@ -984,11 +985,21 @@ async function externalBoardSyncTick() {
             return;
         }
 
+        // The drop handler updates paths in place and acknowledges its own
+        // watch events after the transaction. Do not queue a redundant refresh
+        // from those events while the asynchronous drop is still finishing.
+        if (window.cardOrderInProgress) {
+            return;
+        }
+
         if (externalBoardRefreshPending && !isExternalBoardRefreshBlocked()) {
             scheduleExternalBoardRefresh();
         }
 
         const latestToken = Number(await window.board.getBoardWatchToken());
+        if (window.cardOrderInProgress) {
+            return;
+        }
         if (!Number.isFinite(latestToken) || latestToken <= externalBoardWatchToken) {
             return;
         }

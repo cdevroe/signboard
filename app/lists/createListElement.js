@@ -100,6 +100,7 @@ async function createListElement(name, listPath, cardNames, options = {}) {
             .map((card) => card.getAttribute('data-path'))
             .filter(Boolean);
 
+          window.cardOrderInProgress = (window.cardOrderInProgress || 0) + 1;
           try {
             if (!window.board || typeof window.board.reorderCardsInList !== 'function') {
               throw new Error('Card reorder is unavailable.');
@@ -129,6 +130,8 @@ async function createListElement(name, listPath, cardNames, options = {}) {
               announceSignboardStatus('Card order could not be saved.');
             }
             await renderBoard();
+          } finally {
+            window.cardOrderInProgress -= 1;
           }
       }
     }));
