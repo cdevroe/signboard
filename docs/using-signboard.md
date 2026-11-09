@@ -253,6 +253,8 @@ When a board has more lists than fit the window, you can drag the empty board su
 
 Table is an active-board view for scanning and bulk-managing cards in board/list order. It uses the same board search, label filters, date filters, task progress badges, linked-object counts, and completed-list workflow rules as Kanban.
 
+Filesystem refreshes wait while a bulk-edit menu is open, preserving unfinished date and label selections until you apply or close the menu.
+
 Use the bottom view dock to switch to Table. Click a card title or row to open the normal card editor. Use the row's list dropdown to move a card to another list; moved cards land at the top of the destination list.
 
 Table includes `Start`, `Due`, `Updated`, and `Created` columns plus list filtering and sorting. Filter to one list, all completed lists, or all lists. Sort by `Updated, oldest first` to find cards you have not touched in a while, or by `Created, oldest first` to find your oldest cards. Search and filters apply first, then the Table sort orders the visible cards.

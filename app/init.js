@@ -291,6 +291,7 @@ function isExternalBoardRefreshBlocked() {
         || (typeof isCardDatePopoverOpen === 'function' && isCardDatePopoverOpen())
         || (typeof isCardLabelPopoverOpen === 'function' && isCardLabelPopoverOpen())
         || (typeof isListActionsPopoverOpen === 'function' && isListActionsPopoverOpen())
+        || Boolean(document.querySelector('#board.board-view-table .board-table-bulk-menu'))
         || isModalOpen('modalEditCard')
         || isModalOpen('modalBoardSettings')
         || isModalOpen('modalArchiveBrowser')

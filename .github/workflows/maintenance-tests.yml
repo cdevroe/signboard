@@ -93,4 +93,4 @@ jobs:
         env:
           # Explicit opt-in applies only to this disposable hosted Windows desktop.
           SIGNBOARD_PLAYWRIGHT_ALLOW_LOCAL: '1'
-        run: npx playwright test --grep 'card links|drags filtered cards|date-filtered card drops|list rename|moves lists left and right|adds a new list to the right|moves the active card|keeps card move shortcuts|keeps editor list controls|switches to table view and moves'
+        run: npx playwright test --grep 'card links|drags filtered cards|date-filtered card drops|list rename|moves lists left and right|adds a new list to the right|moves the active card|keeps card move shortcuts|keeps editor list controls|switches to table view and moves|bulk manages selected table cards'

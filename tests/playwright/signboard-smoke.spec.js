@@ -2247,6 +2247,13 @@ test('bulk manages selected table cards', async ({ page, boardRoot }) => {
   await expectBulkDateRowControlsDoNotOverlap(datesMenu.locator('.board-table-bulk-date-row').nth(1));
   const dueRow = datesMenu.locator('.board-table-bulk-date-row').filter({ hasText: 'Due' });
   await dueRow.locator('input').fill('2026-04-20');
+  await expect(dueRow.locator('input')).toHaveValue('2026-04-20');
+  // A queued filesystem refresh must not replace the draft date input.
+  await page.evaluate(async () => {
+    externalBoardRefreshPending = true;
+    await runExternalBoardRefresh();
+  });
+  await expect(dueRow.locator('input')).toHaveValue('2026-04-20');
   await dueRow.getByRole('button', { name: 'Set' }).click();
   await expect.poll(async () => {
     const planCard = await cardFrontmatter.readCard(planPath);
