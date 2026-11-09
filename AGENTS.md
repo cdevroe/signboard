@@ -98,3 +98,7 @@ CLI/MCP parity uses `lib/automation.js` for validated board relocation/duplicati
 ## List rename failure recovery
 
 List insertion and Move list left/right must use the main-process `reorderLists` transaction, like drag-and-drop. Never stage list renames in the renderer or reconcile card metadata against temporary names. `lib/listOrderRecovery.js` retries transient rename failures and records original/temporary/final names in an exclusively created, fsynced `.signboard-list-order.json` before staging. Successful commit or rollback removes it; incomplete recovery retains it and blocks further reorders. Do not overwrite this record or guess names for legacy `__sbtmp-*` directories. Failed insertion positioning retains the newly created list; the UI refreshes and reports the failure without a success announcement or duplicate submission. Keep `test:list-actions`, the Electron list-action regressions, and deferred external refresh aligned.
+
+## Windows editor paths — 1.7.7
+
+Card snapshots and move results retain native filesystem paths. Normalize separators when deriving the editor list for comparison with renderer board roots; preserve the native path used for IPC/saving. Linked-note picker parents must retain UNC double slashes and the slash on drive roots. Keep `npm run test:editor-paths`, editor move Electron regressions, and the Windows maintenance workflow filter aligned.

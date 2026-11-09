@@ -140,6 +140,8 @@ While dragging, the board shows an empty insertion slot where the card would lan
 
 The list dropdown, arrow action, and card move keyboard shortcuts in the editor place moved cards at the top of the destination list.
 
+Starting with 1.7.7, these editor controls correctly recognize native Windows paths, including cards on network shares, and keep the current list selected after a move.
+
 ### Duplicate a card
 
 Use the duplicate action in the card editor when you want a copy of the card, including its content and metadata. You can use this to make it quick and easy to create new cards from templates. That's what I do!
@@ -161,6 +163,8 @@ When Signboard detects that the board is inside a vault, the card editor's Open 
 The same paperclip menu can link local files, folders, web URLs, app deep links, and `signboard://` links. You can also drag local files onto the open card editor to link them to that card. Local files and folders stay wherever they are on your computer; Signboard stores the path and opens the item in your default app. Web links open in your default browser, accept entries like `example.com/page`, and Signboard caches site favicons locally when possible so linked URL chips stay fast.
 
 Linked objects appear in the card editor as removable chips. Click the object name to open it, or click its remove control to unlink it from the card without deleting the underlying file, folder, or note. If a linked Obsidian note cannot be found, Signboard keeps the link, marks the chip as missing, and offers controls to recreate the note, relink it to another Markdown note, or remove the link. Cards with linked objects also show a small paperclip count in Kanban and Table views.
+
+The relink picker starts in the previous note's parent folder, preserving Windows drive roots and network-share paths.
 
 New or edited cards include flat Obsidian-friendly properties such as `title`, `signboard_id`, `signboard_board`, `signboard_list`, `status`, `signboard_uri`, and `related`, plus structured `linked_objects` when the card has linked files, folders, URLs, app links, or Obsidian notes. The CLI maintains these properties when it creates, duplicates, edits, adds notes to, or moves cards, so those cards remain visible in the board's managed Obsidian Base. When a board is inside a vault, Signboard automatically creates `Signboard Board.base` for Obsidian Bases and keeps it current while it is still Signboard-managed. If you customize the Base in Obsidian, Signboard leaves it alone until you choose `Settings > Obsidian > Generate Base` again.
 

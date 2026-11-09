@@ -2,7 +2,7 @@
 
 Signboard stores boards as folders and cards as Markdown files. These guides describe the 1.7.x app and its automation interfaces.
 
-The upcoming 1.7.6 update closes gaps between the CLI and MCP for archiving, card queries, list and board management, settings, and persisted ordering. See the [1.7.6 release notes](./releases/1.7.6.md).
+The upcoming 1.7.7 update fixes Windows card-editor moves and the starting folder for relinking missing Obsidian notes on network shares or drive roots. See the [1.7.7 release notes](./releases/1.7.7.md).
 
 ## Choose a guide
 

@@ -3257,6 +3257,36 @@ test('moves the active card to the top of the selected list from the editor drop
   await expect(page.locator('.list').nth(1).locator('.card').first()).toContainText('Plan release notes');
 });
 
+test('keeps editor list controls and saved notes correct after repeated moves', async ({ page, boardRoot }) => {
+  await openCardInEditor(page, 1, 0);
+  const select = page.locator('#cardEditorListSelect');
+  const cardPath = page.locator('#cardEditorCardPath');
+  const doing = path.join(boardRoot, '001-Doing-stock', '000-polish-copy-stock.md');
+  const done = path.join(boardRoot, '002-Done-stock', '000-polish-copy-stock.md');
+  const before = await cardFrontmatter.readCard(doing);
+
+  await expect(select).toHaveValue(`${normalizeBoardRoot(boardRoot)}001-Doing-stock`);
+  await select.selectOption({ label: 'Done' });
+  await expect(cardPath).toHaveValue(done);
+  await expect(select).toHaveValue(`${normalizeBoardRoot(boardRoot)}002-Done-stock`);
+  await expect(page.locator('#cardEditorMoveListLink')).toHaveAttribute('aria-label', 'Move to previous list');
+
+  await page.locator('#cardEditorMoveListLink').click();
+  await expect(cardPath).toHaveValue(doing);
+  await expect(select).toHaveValue(`${normalizeBoardRoot(boardRoot)}001-Doing-stock`);
+  await page.keyboard.press(getShortcut('Shift+]'));
+  await expect(cardPath).toHaveValue(done);
+
+  const body = `${before.body}\nSaved after moving twice on native paths.`;
+  await setEditorBody(page, body);
+  await page.locator('#cardEditorClose').click();
+  await expect.poll(async () => (await cardFrontmatter.readCard(done)).body.trim()).toBe(body.trim());
+  const after = await cardFrontmatter.readCard(done);
+  expect(after.frontmatter.title).toBe(before.frontmatter.title);
+  expect(after.frontmatter.labels).toEqual(before.frontmatter.labels);
+  await expect(page.locator('.list').nth(2).locator('.card').first()).toContainText('Polish homepage copy');
+});
+
 test('rejects top-of-list card moves outside the active board', async ({ page, boardRoot }) => {
   const outsideBoardPath = path.dirname(boardRoot);
 

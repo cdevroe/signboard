@@ -49,4 +49,4 @@ The worker sets `SHARP_IGNORE_GLOBAL_LIBVIPS=1` when installing dependencies so 
 
 ## Pull request checks
 
-The Maintenance regressions workflow runs the full Electron suite on a disposable GitHub-hosted Linux Xvfb/Openbox desktop and focused protocol/filtered-drag tests on a disposable Windows runner. Windows explicitly opts into its own test desktop. This does not authorize foreground tests on a contributor's working Mac. Test diagnostics remain local to the runner; public PRs summarize results rather than uploading research reports.
+The Maintenance regressions workflow runs the full Electron suite on a disposable GitHub-hosted Linux Xvfb/Openbox desktop and focused editor-move, Table-move, protocol, list-action, and filtered-drag tests on a disposable Windows runner. Windows explicitly opts into its own test desktop. This does not authorize foreground tests on a contributor's working Mac. Test diagnostics remain local to the runner; public PRs summarize results rather than uploading research reports.

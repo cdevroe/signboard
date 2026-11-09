@@ -1,7 +1,7 @@
 {
   "name": "signboard",
   "productName": "Signboard",
-  "version": "1.7.6",
+  "version": "1.7.7",
   "description": "A fast, local-first Kanban board for Markdown files.",
   "homepage": "https://github.com/cdevroe/signboard",
   "repository": {
@@ -110,7 +110,8 @@
     "build:stamp": "npm run build:js && node scripts/stamp-build.js",
     "build:check": "node scripts/stamp-build.js --check",
     "test:build-info": "node scripts/test-build-info.js",
-    "test:list-actions": "node scripts/test-list-actions.js"
+    "test:list-actions": "node scripts/test-list-actions.js",
+    "test:editor-paths": "node scripts/test-editor-paths.js"
   },
   "devDependencies": {
     "@fiahfy/icns": "^0.0.7",
