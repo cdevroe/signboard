@@ -333,7 +333,7 @@ Archiving removes things from the active board without deleting them.
 
 ### Archive a card
 
-Open the card editor and choose the archive action.
+Open the card editor and choose the archive action. Opening another panel immediately afterward waits for archiving and editor cleanup to finish.
 
 ### Archive all cards in a list
 

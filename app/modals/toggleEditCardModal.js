@@ -3094,7 +3094,21 @@ async function handleChangeCardListSelect(e) {
     return;
 }
 
-async function archiveActiveEditorCard() {
+let activeEditorArchivePromise = null;
+
+function waitForEditorArchiveIfNeeded() {
+    return activeEditorArchivePromise;
+}
+
+function archiveActiveEditorCard() {
+    if (activeEditorArchivePromise) return activeEditorArchivePromise;
+    activeEditorArchivePromise = performActiveEditorCardArchive().finally(() => {
+        activeEditorArchivePromise = null;
+    });
+    return activeEditorArchivePromise;
+}
+
+async function performActiveEditorCardArchive() {
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
     const cardPath = cardEditorCardPath ? String(cardEditorCardPath.value || '').trim() : '';
     if (!cardPath || !isCardEditorActive()) {
@@ -3105,7 +3119,7 @@ async function archiveActiveEditorCard() {
     await window.board.archiveCard(cardPath);
     clearQueuedEditorSave();
     cardEditorCardPath.value = '';
-    await closeAllModals(createCloseAllModalsRequest());
+    await closeAllModals(createCloseAllModalsRequest(), { skipEditorArchiveWait: true });
     if (typeof announceSignboardStatus === 'function') {
         announceSignboardStatus('Archived card.');
     }

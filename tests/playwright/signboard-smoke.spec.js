@@ -3423,6 +3423,49 @@ test('opens the archive browser from the keyboard shortcut', async ({ page }) =>
   await expect(page.locator('#archiveBrowserSearchInput')).toBeFocused();
 });
 
+test('keeps Archive open when requested before the card archive finishes', async ({ page, electronApp }) => {
+  await openFirstCardInEditor(page);
+  await page.evaluate(() => {
+    const original = archiveActiveEditorCard;
+    archiveActiveEditorCard = async () => {
+      try { return await original(); }
+      finally { window.__archiveActionFinished = true; }
+    };
+  });
+  await electronApp.evaluate(() => {
+    const promises = process.getBuiltinModule('fs').promises;
+    const original = promises.rename;
+    globalThis.__archiveOriginalRename = original;
+    promises.rename = async (from, to) => {
+      const result = await original(from, to);
+      if (!globalThis.__releaseArchiveRename && String(to).includes('XXX-Archive') && String(to).endsWith('.md')) {
+        await new Promise((resolve) => { globalThis.__releaseArchiveRename = resolve; });
+      }
+      return result;
+    };
+  });
+  try {
+    await page.keyboard.press(getArchiveCardShortcut());
+    await expect.poll(() => electronApp.evaluate(() => typeof globalThis.__releaseArchiveRename)).toBe('function');
+    await page.keyboard.press(getShortcut('Shift+A'));
+    // Let the shortcut handler reach its first modal-close await before IPC completes.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await electronApp.evaluate(() => globalThis.__releaseArchiveRename());
+    await expect.poll(() => page.evaluate(() => window.__archiveActionFinished)).toBe(true);
+    await expect(page.locator('#modalEditCard')).toBeHidden();
+    await expect(page.locator('#modalArchiveBrowser')).toBeVisible();
+    await page.locator('#archiveBrowserSearchInput').fill('release');
+    await expect(page.locator('.archive-browser-row').filter({ hasText: 'Plan release notes' })).toBeVisible();
+  } finally {
+    await electronApp.evaluate(() => {
+      globalThis.__releaseArchiveRename?.();
+      process.getBuiltinModule('fs').promises.rename = globalThis.__archiveOriginalRename;
+      delete globalThis.__archiveOriginalRename;
+      delete globalThis.__releaseArchiveRename;
+    });
+  }
+});
+
 test('navigates archive browser results from search with the keyboard', async ({ page, boardRoot }) => {
   await openFirstCardInEditor(page);
   await page.keyboard.press(getArchiveCardShortcut());

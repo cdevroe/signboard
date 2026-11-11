@@ -98,7 +98,41 @@ async function testMoves(root, nativePath) {
   assert.equal(select.disabled, false);
 }
 
+async function testArchiveLifecycle() {
+  const { context, card, reset } = fixture('C:/Board/', (p) => p.replace(/\//g, '\\'));
+  await reset(0);
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let archives = 0;
+  let closes = 0;
+  context.window.board.archiveCard = async () => { archives += 1; await gate; };
+  context.clearQueuedEditorSave = () => {};
+  context.createCloseAllModalsRequest = () => ({ key: 'Escape' });
+  context.closeAllModals = async (_event, options) => {
+    assert.equal(options.skipEditorArchiveWait, true, 'Archive cleanup must not await itself');
+    closes += 1;
+  };
+  const first = context.archiveActiveEditorCard();
+  assert.equal(context.archiveActiveEditorCard(), first, 'Repeated archive requests share one operation');
+  assert.equal(context.waitForEditorArchiveIfNeeded(), first);
+  release();
+  assert.equal(await first, true);
+  assert.equal(archives, 1);
+  assert.equal(closes, 1);
+  assert.equal(card.value, '');
+  assert.equal(context.waitForEditorArchiveIfNeeded(), null);
+
+  await reset(0);
+  context.window.board.archiveCard = async () => { throw new Error('Archive locked'); };
+  await assert.rejects(context.archiveActiveEditorCard(), /Archive locked/);
+  assert.equal(context.waitForEditorArchiveIfNeeded(), null, 'Failure releases the modal transition guard');
+  assert.notEqual(card.value, '', 'Failure keeps the editor card available');
+  context.window.board.archiveCard = async () => {};
+  assert.equal(await context.archiveActiveEditorCard(), true, 'Retry succeeds after failure');
+}
+
 async function main() {
+  await testArchiveLifecycle();
   for (const [root, nativePath] of [
     ['/tmp/Board with spaces/', (p) => p],
     ['C:/Users/Test/Board with spaces/', (p) => p.replace(/\//g, '\\')],

@@ -113,4 +113,6 @@ The renderer filename sanitizer also creates list folders. Sanitize the entire i
 
 `lib/directoryRename.js` allows case-only renames only when filesystem entry identities match; keep unrelated-destination rejection and metadata rollback intact. CLI list renames share that check. Planner filter menus constrain their height on open, content changes, and resize, with scrolling for all labels and Clear filters. Maintenance/Electron regressions cover both behaviors.
 
-Linux CI installs its minimal Xvfb/Openbox dependencies from the signed Ubuntu archive directly, with bounded network retries, rather than the hosted image’s Azure mirror list.
+Linux CI installs only the required Xvfb/Openbox dependencies, with bounded network retries and timeouts.
+
+Editor archive actions share one pending promise through final modal cleanup. Other modal transitions wait for it; archive cleanup bypasses its own wait. Preserve failure cleanup, duplicate-request handling, and the delayed-archive Electron regression.
