@@ -654,3 +654,5 @@ Card snapshots and move results retain native filesystem paths. Normalize separa
 External board refresh must wait while a Table bulk menu is open so draft dates and label choices survive. Keep the forced-refresh bulk-date Electron regression in both Linux and Windows CI.
 
 Card drag/drop increments `window.cardOrderInProgress` through the transaction and watch acknowledgement, with `finally` cleanup for overlapping or failed drops. External sync defers token sampling during that interval (including a drop that starts during token IPC), while previously pending refreshes and later external edits remain deliverable. Keep `test:board-refresh` and the no-redraw/external-edit Electron regressions aligned.
+
+Windows maintenance CI runs the full Electron suite plus storage, archive, board duplication, import, Obsidian, CLI/MCP, and updater helper regressions on a disposable native Windows runner. Keep coverage aligned with Linux instead of restricting Windows to selected test titles.

@@ -232,3 +232,5 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `tests/playwright/signboard-smoke.spec.js` — native editor dropdown/arrow/shortcut moves and saving after repeated moves; included in Windows maintenance CI alongside Table list moves.
 - `app/init.js` — defers external board refresh during Table bulk-menu edits; refresh resumes through the existing pending-watch lifecycle after the menu closes.
 - `scripts/test-board-refresh.js` — token IPC/drop races, pending external refresh preservation, bulk-menu guards, and overlapping/failed drop cleanup.
+
+Windows maintenance CI runs the full Electron suite plus storage, archive, board duplication, import, Obsidian, CLI/MCP, and updater helper regressions on a disposable native Windows runner. Keep coverage aligned with Linux instead of restricting Windows to selected test titles.

@@ -75,7 +75,7 @@ jobs:
   windows:
     if: ${{ !inputs.source_ref }}
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -92,8 +92,17 @@ jobs:
         run: npm run test:editor-paths
       - name: Board refresh regressions
         run: npm run test:board-refresh
-      - name: Native Windows editor moves, protocol, list actions and filtered drag regressions
+      - name: Full native Windows Electron regressions
         env:
           # Explicit opt-in applies only to this disposable hosted Windows desktop.
           SIGNBOARD_PLAYWRIGHT_ALLOW_LOCAL: '1'
-        run: npx playwright test --grep 'card links|drags filtered cards|date-filtered card drops|list rename|moves lists left and right|adds a new list to the right|moves the active card|keeps card move shortcuts|keeps editor list controls|switches to table view and moves|bulk manages selected table cards|drops cards into the lower area of an empty list column|refreshes board card previews after external markdown edits'
+        run: npx playwright test
+      - name: Windows storage, automation and integration regressions
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          failed=0
+          for suite in maintenance mcp automation-parity desktop-cli card-ordering board-snapshot board-duplication archive obsidian-integration import-trello import-obsidian import-tasksmd app-settings update-release-notes update-errors packaging-config; do
+            npm run "test:$suite" || failed=1
+          done
+          exit "$failed"
