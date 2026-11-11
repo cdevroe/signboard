@@ -105,6 +105,26 @@ async function run() {
     await renameManagedDirectory(renameBoard, renameBoard, movedBoard);
     assert.equal((await cards.readCard(path.join(movedBoard, renamedList, one.fileName))).frontmatter.signboard_board, 'Renamed board');
 
+    // Case-insensitive filesystems resolve the requested spelling to the source
+    // entry. That is a rename, not a collision with an unrelated directory.
+    const caseBoard = path.join(temp, 'Case Board');
+    const caseList = '000-Todo-stock';
+    const upperList = '000-TODO-stock';
+    await fs.mkdir(path.join(caseBoard, caseList), { recursive: true });
+    const caseCard = await cli.createCard(caseBoard, { listRef: caseList, title: 'Keep case rename', body: 'Preserve notes.' });
+    await labels.writeBoardSettings(caseBoard, { workflow: { completedListNames: [caseList] } });
+    await cli.renameList(caseBoard, caseList, 'TODO');
+    assert((await fs.readdir(caseBoard)).includes(upperList));
+    assert(!(await fs.readdir(caseBoard)).includes(caseList));
+    assert.equal((await cards.readCard(path.join(caseBoard, upperList, caseCard.fileName))).body, 'Preserve notes.');
+    assert.deepEqual((await labels.readBoardSettings(caseBoard)).workflow.completedListNames, [upperList]);
+    const renamedCaseBoard = path.join(temp, 'CASE BOARD');
+    await renameManagedDirectory(caseBoard, caseBoard, renamedCaseBoard);
+    assert((await fs.readdir(temp)).includes('CASE BOARD'));
+    assert.equal((await cards.readCard(path.join(renamedCaseBoard, upperList, caseCard.fileName))).frontmatter.signboard_board, 'CASE BOARD');
+    await fs.mkdir(path.join(renamedCaseBoard, '001-Other-stock'));
+    await assert.rejects(renameManagedDirectory(renamedCaseBoard, path.join(renamedCaseBoard, upperList), path.join(renamedCaseBoard, '001-Other-stock')), /Destination already exists/);
+
     const outside = path.join(temp, 'Outside');
     await fs.mkdir(outside);
     await fs.writeFile(path.join(outside, 'outside.md'), '---\ntitle: Outside\n---\n');

@@ -140,7 +140,7 @@ List insertion and Move list left/right must use the main-process `reorderLists`
 
 ## Windows editor paths — 1.7.7
 
-Card snapshots and move results retain native filesystem paths. Normalize separators when deriving the editor list for comparison with renderer board roots; preserve the native path used for IPC/saving. Linked-note picker parents must retain UNC double slashes and the slash on drive roots. Keep `npm run test:editor-paths`, editor move Electron regressions, and the Windows maintenance workflow filter aligned.
+Card snapshots and move results retain native filesystem paths. Normalize separators when deriving the editor list for comparison with renderer board roots; preserve the native path used for IPC/saving. Linked-note picker parents must retain UNC double slashes and the slash on drive roots. Keep `npm run test:editor-paths`, editor move Electron regressions, and the Windows maintenance workflow aligned.
 
 External board refresh must wait while a Table bulk menu is open so draft dates and label choices survive. Keep the forced-refresh bulk-date Electron regression in both Linux and Windows CI.
 
@@ -149,3 +149,5 @@ Card drag/drop increments `window.cardOrderInProgress` through the transaction a
 Windows maintenance CI runs the full Electron suite plus storage, archive, board duplication, import, Obsidian, CLI/MCP, and updater helper regressions on a disposable native Windows runner. Keep coverage aligned with Linux instead of restricting Windows to selected test titles.
 
 The renderer filename sanitizer also creates list folders. Sanitize the entire input before separating an extension so punctuation after a period cannot create Windows-invalid paths. `test:list-actions` loads the real sanitizer; the Electron suite covers dotted list names.
+
+`lib/directoryRename.js` allows case-only renames only when filesystem entry identities match; keep unrelated-destination rejection and metadata rollback intact. CLI list renames share that check. Planner filter menus constrain their height on open, content changes, and resize, with scrolling for all labels and Clear filters. Maintenance/Electron regressions cover both behaviors.

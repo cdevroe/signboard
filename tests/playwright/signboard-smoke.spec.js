@@ -241,6 +241,9 @@ async function seedOpenBoardState(page, boardRoots, activeBoardRoot) {
   const normalizedBoardRoots = boardRoots.map(normalizeBoardRoot);
   const normalizedActiveBoardRoot = normalizeBoardRoot(activeBoardRoot || boardRoots[0]);
 
+  // Use the same roomy fixture viewport on every hosted desktop. Compact
+  // layout tests explicitly resize afterward; runner monitor size is incidental.
+  await page.setViewportSize({ width: 1280, height: 860 });
   await page.waitForLoadState('domcontentloaded');
   await page.waitForSelector('#board');
   await page.evaluate(({ openBoards, activeBoard }) => {
@@ -2433,6 +2436,18 @@ test('creates lists with punctuation after a period using portable folder names'
   expect((await fs.readdir(boardRoot)).some((name) => /^001-Release 1\.7 QA-[A-Za-z0-9]{5}$/.test(name))).toBe(true);
 });
 
+test('renames a list when only letter case changes', async ({ page, boardRoot }) => {
+  const title = page.locator('.list').first().getByRole('textbox', { name: 'List name' });
+  await title.fill('TO-DO');
+  await title.press('Enter');
+  await expect.poll(() => fs.readdir(boardRoot)).toContain('000-TO-DO-stock');
+  expect(await fs.readdir(boardRoot)).not.toContain('000-To-do-stock');
+  const card = await cardFrontmatter.readCard(path.join(boardRoot, '000-TO-DO-stock', '000-plan-release-stock.md'));
+  expect(card.body).toBe('Outline the next release notes draft.');
+  expect(card.frontmatter.signboard_list).toBe('TO-DO');
+  await expect(page.locator('.list').first().getByRole('textbox', { name: 'List name' })).toHaveText('TO-DO');
+});
+
 test('moves lists left and right through the list actions popover', async ({ page, boardRoot }) => {
   const titles = page.locator('.list .list-header span[contenteditable="true"]');
   await page.locator('.list-actions-button').nth(1).click();
@@ -2873,6 +2888,29 @@ test('refreshes current Planner dates after a local day rollover without moving 
   });
 
   expect(pinnedResult.renderedWeek).toBe(pinnedResult.expectedPinnedWeek);
+});
+
+test('keeps Planner filters reachable in a compact window with many labels', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 640 });
+  await page.evaluate(async () => {
+    await window.board.updateBoardSettings(window.boardRoot, {
+      labels: Array.from({ length: 24 }, (_, index) => ({ id: `qa-${index}`, name: `QA Label ${index}`, colorLight: '#fb923c', colorDark: '#f97316' })),
+    });
+    await renderBoard();
+  });
+  await page.keyboard.press(getCurrentBoardPlannerShortcut('2'));
+  await page.locator('#plannerFilterButton').click();
+  const popover = page.locator('#plannerFilterPopover');
+  await expect(popover).toBeVisible();
+  const bounds = await popover.boundingBox();
+  expect(bounds.y).toBeGreaterThanOrEqual(0);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(640);
+  await page.setViewportSize({ width: 960, height: 520 });
+  await expect.poll(async () => { const rect = await popover.boundingBox(); return rect.y + rect.height; }).toBeLessThanOrEqual(520);
+  await popover.getByText('QA Label 23', { exact: true }).click();
+  await expect(popover.getByRole('checkbox', { name: 'QA Label 23' })).toBeChecked();
+  await popover.getByRole('button', { name: 'Clear filters' }).click();
+  await expect(popover.getByRole('checkbox', { name: 'QA Label 23' })).not.toBeChecked();
 });
 
 test('opens Planner across currently open boards', async ({ electronApp, boardRoot }) => {
@@ -4654,7 +4692,7 @@ test('Planner card editing preserves the Kanban board its scheme and filters', a
   const dueColor = await planner.evaluate(el => getComputedStyle(el).getPropertyValue('--due-date-today-color'));
   await entry.click();
   await expect(page.locator('#modalEditCard')).toBeVisible();
-  await expect(page.locator('#cardEditorListSelect')).toHaveValue(path.join(cardRoot, '001-Doing-stock'));
+  await expect(page.locator('#cardEditorListSelect')).toHaveValue(`${cardRoot}001-Doing-stock`);
   expect(await page.evaluate(() => getStoredActiveBoard())).toBe(sourceRoot);
   expect(await planner.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(plannerBackground);
   await expect.poll(() => frame.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(frameBackground);

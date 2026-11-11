@@ -50,3 +50,5 @@ The worker sets `SHARP_IGNORE_GLOBAL_LIBVIPS=1` when installing dependencies so 
 ## Pull request checks
 
 The Maintenance regressions workflow runs the full Electron suite on a disposable GitHub-hosted Linux Xvfb/Openbox desktop and the full Electron suite and storage/integration regressions on a disposable Windows runner. Windows explicitly opts into its own test desktop. This does not authorize foreground tests on a contributor's working Mac. Test diagnostics remain local to the runner; public PRs summarize results rather than uploading research reports.
+
+Board fixtures set a shared 1280×860 viewport across platforms; compact-layout tests resize explicitly. Assertions distinguish normalized renderer paths from native filesystem paths.

@@ -530,3 +530,5 @@ You can also open the shortcut helper from `Help > Keyboard Shortcuts`.
 The CLI and MCP support archiving/restoration, filtered card queries, list renaming, board settings updates, board rename/move/duplication, and persisted card/list ordering. See the [operation matrix and examples](./automation.md).
 
 List folder names remove Windows-invalid punctuation throughout the name, including after periods; for example, `Release 1.7: QA` becomes `Release 1.7 QA`.
+
+Board and list names can be renamed by changing only their capitalization. Planner filter menus scroll when needed so every label and Clear filters remain reachable in smaller windows.
