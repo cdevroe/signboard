@@ -238,3 +238,5 @@ Windows maintenance CI runs the full Electron suite plus storage, archive, board
 The renderer filename sanitizer also creates list folders. Sanitize the entire input before separating an extension so punctuation after a period cannot create Windows-invalid paths. `test:list-actions` loads the real sanitizer; the Electron suite covers dotted list names.
 
 `lib/directoryRename.js` allows case-only renames only when filesystem entry identities match; keep unrelated-destination rejection and metadata rollback intact. CLI list renames share that check. Planner filter menus constrain their height on open, content changes, and resize, with scrolling for all labels and Clear filters. Maintenance/Electron regressions cover both behaviors.
+
+Linux CI installs its minimal Xvfb/Openbox dependencies from the signed Ubuntu archive directly, with bounded network retries, rather than the hosted image’s Azure mirror list.
