@@ -98,3 +98,23 @@ CLI/MCP parity uses `lib/automation.js` for validated board relocation/duplicati
 ## List rename failure recovery
 
 List insertion and Move list left/right must use the main-process `reorderLists` transaction, like drag-and-drop. Never stage list renames in the renderer or reconcile card metadata against temporary names. `lib/listOrderRecovery.js` retries transient rename failures and records original/temporary/final names in an exclusively created, fsynced `.signboard-list-order.json` before staging. Successful commit or rollback removes it; incomplete recovery retains it and blocks further reorders. Do not overwrite this record or guess names for legacy `__sbtmp-*` directories. Failed insertion positioning retains the newly created list; the UI refreshes and reports the failure without a success announcement or duplicate submission. Keep `test:list-actions`, the Electron list-action regressions, and deferred external refresh aligned.
+
+## Windows editor paths — 1.7.7
+
+Card snapshots and move results retain native filesystem paths. Normalize separators when deriving the editor list for comparison with renderer board roots; preserve the native path used for IPC/saving. Linked-note picker parents must retain UNC double slashes and the slash on drive roots. Keep `npm run test:editor-paths`, editor move Electron regressions, and the Windows maintenance workflow aligned.
+
+External board refresh must wait while a Table bulk menu is open so draft dates and label choices survive. Keep the forced-refresh bulk-date Electron regression in both Linux and Windows CI.
+
+Card drag/drop increments `window.cardOrderInProgress` through the transaction and watch acknowledgement, with `finally` cleanup for overlapping or failed drops. External sync defers token sampling during that interval (including a drop that starts during token IPC), while previously pending refreshes and later external edits remain deliverable. Keep `test:board-refresh` and the no-redraw/external-edit Electron regressions aligned.
+
+Windows maintenance CI runs the full Electron suite plus storage, archive, board duplication, import, Obsidian, CLI/MCP, and updater helper regressions on a disposable native Windows runner. Keep coverage aligned with Linux instead of restricting Windows to selected test titles.
+
+The renderer filename sanitizer also creates list folders. Sanitize the entire input before separating an extension so punctuation after a period cannot create Windows-invalid paths. `test:list-actions` loads the real sanitizer; the Electron suite covers dotted list names.
+
+`lib/directoryRename.js` allows case-only renames only when filesystem entry identities match; keep unrelated-destination rejection and metadata rollback intact. CLI list renames share that check. Planner filter menus constrain their height on open, content changes, and resize, with scrolling for all labels and Clear filters. Maintenance/Electron regressions cover both behaviors.
+
+Linux CI installs only the required Xvfb/Openbox dependencies, with bounded network retries and timeouts.
+
+Editor archive actions share one pending promise through final modal cleanup. Other modal transitions wait for it; archive cleanup bypasses its own wait. Preserve failure cleanup, duplicate-request handling, and the delayed-archive Electron regression.
+
+App settings save responses reconcile against the submitted snapshot: preserve newer renderer edits while accepting server-generated values for unchanged fields. Keep the deferred-save regression in `test:app-settings` and Smart Actions Electron coverage aligned.

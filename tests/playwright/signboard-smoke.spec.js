@@ -241,6 +241,9 @@ async function seedOpenBoardState(page, boardRoots, activeBoardRoot) {
   const normalizedBoardRoots = boardRoots.map(normalizeBoardRoot);
   const normalizedActiveBoardRoot = normalizeBoardRoot(activeBoardRoot || boardRoots[0]);
 
+  // Use the same roomy fixture viewport on every hosted desktop. Compact
+  // layout tests explicitly resize afterward; runner monitor size is incidental.
+  await page.setViewportSize({ width: 1280, height: 860 });
   await page.waitForLoadState('domcontentloaded');
   await page.waitForSelector('#board');
   await page.evaluate(({ openBoards, activeBoard }) => {
@@ -1954,7 +1957,23 @@ test('drops cards into the lower area of an empty list column', async ({ page, b
     emptyListCards.map((fileName) => fs.rm(path.join(emptyListPath, fileName), { force: true }))
   );
   await seedBoardState(page, boardRoot);
-  await page.waitForTimeout(650);
+  // Deleting the fixture card and reopening the board queue filesystem events.
+  // Observe a quiet watch cycle before measuring renders caused by the drop;
+  // a fixed startup delay can count a late setup refresh as a drop regression.
+  let quietSince = 0;
+  let lastToken;
+  await expect.poll(async () => {
+    const state = await page.evaluate(async () => ({
+      token: Number(await window.board.getBoardWatchToken()),
+      acknowledged: externalBoardWatchToken,
+      busy: externalBoardSyncInFlight || externalBoardRenderInFlight
+        || externalBoardRefreshPending || Boolean(externalBoardRenderTimeoutId),
+    }));
+    const settled = !state.busy && state.token === state.acknowledged;
+    if (!settled || state.token !== lastToken) quietSince = Date.now();
+    lastToken = state.token;
+    return settled && Date.now() - quietSince >= 750;
+  }, { timeout: 10_000, intervals: [100] }).toBe(true);
   await page.evaluate(() => {
     const originalRenderBoard = window.renderBoard;
     window.__postDropRenderCount = 0;
@@ -2247,6 +2266,13 @@ test('bulk manages selected table cards', async ({ page, boardRoot }) => {
   await expectBulkDateRowControlsDoNotOverlap(datesMenu.locator('.board-table-bulk-date-row').nth(1));
   const dueRow = datesMenu.locator('.board-table-bulk-date-row').filter({ hasText: 'Due' });
   await dueRow.locator('input').fill('2026-04-20');
+  await expect(dueRow.locator('input')).toHaveValue('2026-04-20');
+  // A queued filesystem refresh must not replace the draft date input.
+  await page.evaluate(async () => {
+    externalBoardRefreshPending = true;
+    await runExternalBoardRefresh();
+  });
+  await expect(dueRow.locator('input')).toHaveValue('2026-04-20');
   await dueRow.getByRole('button', { name: 'Set' }).click();
   await expect.poll(async () => {
     const planCard = await cardFrontmatter.readCard(planPath);
@@ -2398,6 +2424,28 @@ test('adds a new list to the right of the invoking list from the list actions po
     const entries = await fs.readdir(boardRoot);
     return entries.find((entry) => /^001-Review-[A-Za-z0-9]{5}$/.test(entry)) || '';
   }).toMatch(/^001-Review-[A-Za-z0-9]{5}$/);
+});
+
+test('creates lists with punctuation after a period using portable folder names', async ({ page, boardRoot }) => {
+  await page.locator('.list-actions-button').first().click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Add new list' }).click();
+  await page.locator('#userInputListName').fill('Release 1.7: QA');
+  await page.locator('#btnAddList').click();
+  await expect(page.locator('.list')).toHaveCount(4);
+  await expect(page.locator('.list .list-header span[contenteditable="true"]').nth(1)).toHaveText('Release 1.7 QA');
+  expect((await fs.readdir(boardRoot)).some((name) => /^001-Release 1\.7 QA-[A-Za-z0-9]{5}$/.test(name))).toBe(true);
+});
+
+test('renames a list when only letter case changes', async ({ page, boardRoot }) => {
+  const title = page.locator('.list').first().getByRole('textbox', { name: 'List name' });
+  await title.fill('TO-DO');
+  await title.press('Enter');
+  await expect.poll(() => fs.readdir(boardRoot)).toContain('000-TO-DO-stock');
+  expect(await fs.readdir(boardRoot)).not.toContain('000-To-do-stock');
+  const card = await cardFrontmatter.readCard(path.join(boardRoot, '000-TO-DO-stock', '000-plan-release-stock.md'));
+  expect(card.body).toBe('Outline the next release notes draft.');
+  expect(card.frontmatter.signboard_list).toBe('TO-DO');
+  await expect(page.locator('.list').first().getByRole('textbox', { name: 'List name' })).toHaveText('TO-DO');
 });
 
 test('moves lists left and right through the list actions popover', async ({ page, boardRoot }) => {
@@ -2842,6 +2890,29 @@ test('refreshes current Planner dates after a local day rollover without moving 
   expect(pinnedResult.renderedWeek).toBe(pinnedResult.expectedPinnedWeek);
 });
 
+test('keeps Planner filters reachable in a compact window with many labels', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 640 });
+  await page.evaluate(async () => {
+    await window.board.updateBoardSettings(window.boardRoot, {
+      labels: Array.from({ length: 24 }, (_, index) => ({ id: `qa-${index}`, name: `QA Label ${index}`, colorLight: '#fb923c', colorDark: '#f97316' })),
+    });
+    await renderBoard();
+  });
+  await page.keyboard.press(getCurrentBoardPlannerShortcut('2'));
+  await page.locator('#plannerFilterButton').click();
+  const popover = page.locator('#plannerFilterPopover');
+  await expect(popover).toBeVisible();
+  const bounds = await popover.boundingBox();
+  expect(bounds.y).toBeGreaterThanOrEqual(0);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(640);
+  await page.setViewportSize({ width: 960, height: 520 });
+  await expect.poll(async () => { const rect = await popover.boundingBox(); return rect.y + rect.height; }).toBeLessThanOrEqual(520);
+  await popover.getByText('QA Label 23', { exact: true }).click();
+  await expect(popover.getByRole('checkbox', { name: 'QA Label 23' })).toBeChecked();
+  await popover.getByRole('button', { name: 'Clear filters' }).click();
+  await expect(popover.getByRole('checkbox', { name: 'QA Label 23' })).not.toBeChecked();
+});
+
 test('opens Planner across currently open boards', async ({ electronApp, boardRoot }) => {
   const { page, boardRoots } = await prepareOpenBoardsPage(electronApp, boardRoot, ['Roadmap Board']);
   const todayIso = formatLocalIsoDate();
@@ -3257,6 +3328,36 @@ test('moves the active card to the top of the selected list from the editor drop
   await expect(page.locator('.list').nth(1).locator('.card').first()).toContainText('Plan release notes');
 });
 
+test('keeps editor list controls and saved notes correct after repeated moves', async ({ page, boardRoot }) => {
+  await openCardInEditor(page, 1, 0);
+  const select = page.locator('#cardEditorListSelect');
+  const cardPath = page.locator('#cardEditorCardPath');
+  const doing = path.join(boardRoot, '001-Doing-stock', '000-polish-copy-stock.md');
+  const done = path.join(boardRoot, '002-Done-stock', '000-polish-copy-stock.md');
+  const before = await cardFrontmatter.readCard(doing);
+
+  await expect(select).toHaveValue(`${normalizeBoardRoot(boardRoot)}001-Doing-stock`);
+  await select.selectOption({ label: 'Done' });
+  await expect(cardPath).toHaveValue(done);
+  await expect(select).toHaveValue(`${normalizeBoardRoot(boardRoot)}002-Done-stock`);
+  await expect(page.locator('#cardEditorMoveListLink')).toHaveAttribute('aria-label', 'Move to previous list');
+
+  await page.locator('#cardEditorMoveListLink').click();
+  await expect(cardPath).toHaveValue(doing);
+  await expect(select).toHaveValue(`${normalizeBoardRoot(boardRoot)}001-Doing-stock`);
+  await page.keyboard.press(getShortcut('Shift+]'));
+  await expect(cardPath).toHaveValue(done);
+
+  const body = `${before.body}\nSaved after moving twice on native paths.`;
+  await setEditorBody(page, body);
+  await page.locator('#cardEditorClose').click();
+  await expect.poll(async () => (await cardFrontmatter.readCard(done)).body.trim()).toBe(body.trim());
+  const after = await cardFrontmatter.readCard(done);
+  expect(after.frontmatter.title).toBe(before.frontmatter.title);
+  expect(after.frontmatter.labels).toEqual(before.frontmatter.labels);
+  await expect(page.locator('.list').nth(2).locator('.card').first()).toContainText('Polish homepage copy');
+});
+
 test('rejects top-of-list card moves outside the active board', async ({ page, boardRoot }) => {
   const outsideBoardPath = path.dirname(boardRoot);
 
@@ -3320,6 +3421,49 @@ test('opens the archive browser from the keyboard shortcut', async ({ page }) =>
 
   await expect(page.locator('#modalArchiveBrowser')).toBeVisible();
   await expect(page.locator('#archiveBrowserSearchInput')).toBeFocused();
+});
+
+test('keeps Archive open when requested before the card archive finishes', async ({ page, electronApp }) => {
+  await openFirstCardInEditor(page);
+  await page.evaluate(() => {
+    const original = archiveActiveEditorCard;
+    archiveActiveEditorCard = async () => {
+      try { return await original(); }
+      finally { window.__archiveActionFinished = true; }
+    };
+  });
+  await electronApp.evaluate(() => {
+    const promises = process.getBuiltinModule('fs').promises;
+    const original = promises.rename;
+    globalThis.__archiveOriginalRename = original;
+    promises.rename = async (from, to) => {
+      const result = await original(from, to);
+      if (!globalThis.__releaseArchiveRename && String(to).includes('XXX-Archive') && String(to).endsWith('.md')) {
+        await new Promise((resolve) => { globalThis.__releaseArchiveRename = resolve; });
+      }
+      return result;
+    };
+  });
+  try {
+    await page.keyboard.press(getArchiveCardShortcut());
+    await expect.poll(() => electronApp.evaluate(() => typeof globalThis.__releaseArchiveRename)).toBe('function');
+    await page.keyboard.press(getShortcut('Shift+A'));
+    // Let the shortcut handler reach its first modal-close await before IPC completes.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await electronApp.evaluate(() => globalThis.__releaseArchiveRename());
+    await expect.poll(() => page.evaluate(() => window.__archiveActionFinished)).toBe(true);
+    await expect(page.locator('#modalEditCard')).toBeHidden();
+    await expect(page.locator('#modalArchiveBrowser')).toBeVisible();
+    await page.locator('#archiveBrowserSearchInput').fill('release');
+    await expect(page.locator('.archive-browser-row').filter({ hasText: 'Plan release notes' })).toBeVisible();
+  } finally {
+    await electronApp.evaluate(() => {
+      globalThis.__releaseArchiveRename?.();
+      process.getBuiltinModule('fs').promises.rename = globalThis.__archiveOriginalRename;
+      delete globalThis.__archiveOriginalRename;
+      delete globalThis.__releaseArchiveRename;
+    });
+  }
 });
 
 test('navigates archive browser results from search with the keyboard', async ({ page, boardRoot }) => {
@@ -4591,7 +4735,7 @@ test('Planner card editing preserves the Kanban board its scheme and filters', a
   const dueColor = await planner.evaluate(el => getComputedStyle(el).getPropertyValue('--due-date-today-color'));
   await entry.click();
   await expect(page.locator('#modalEditCard')).toBeVisible();
-  await expect(page.locator('#cardEditorListSelect')).toHaveValue(path.join(cardRoot, '001-Doing-stock'));
+  await expect(page.locator('#cardEditorListSelect')).toHaveValue(`${cardRoot}001-Doing-stock`);
   expect(await page.evaluate(() => getStoredActiveBoard())).toBe(sourceRoot);
   expect(await planner.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(plannerBackground);
   await expect.poll(() => frame.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(frameBackground);

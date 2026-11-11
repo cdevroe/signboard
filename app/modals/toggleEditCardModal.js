@@ -780,13 +780,14 @@ async function recreateLinkedObsidianNoteForActiveCard(linkedObject) {
 
 function getLinkedObjectDefaultPickerPath(linkedObject = {}) {
     const filePath = String(linkedObject.path || '').replace(/\\/g, '/').trim();
-    const parts = filePath.split('/').filter(Boolean);
-    if (parts.length <= 1) {
+    const lastSlash = filePath.lastIndexOf('/');
+    if (lastSlash === -1) {
         return '';
     }
 
-    const prefix = filePath.startsWith('/') ? '/' : '';
-    return `${prefix}${parts.slice(0, -1).join('/')}`;
+    // Preserve UNC's leading // and keep drive roots absolute (C:/, not C:).
+    const parentPath = filePath.slice(0, lastSlash);
+    return /^[A-Za-z]:$/.test(parentPath) ? `${parentPath}/` : parentPath || '/';
 }
 
 async function relinkLinkedObsidianNoteForActiveCard(linkedObject) {
@@ -2765,7 +2766,9 @@ async function handleMetadataSave(value,metaName) {
 };
 
 function getCardListPath(cardPath) {
-    const normalized = String(cardPath || '');
+    // Snapshots and move results contain native Windows separators, while
+    // renderer board roots and dropdown values use forward slashes.
+    const normalized = String(cardPath || '').replace(/\\/g, '/');
     const lastSlash = normalized.lastIndexOf('/');
     if (lastSlash === -1) {
         return '';
@@ -3091,7 +3094,21 @@ async function handleChangeCardListSelect(e) {
     return;
 }
 
-async function archiveActiveEditorCard() {
+let activeEditorArchivePromise = null;
+
+function waitForEditorArchiveIfNeeded() {
+    return activeEditorArchivePromise;
+}
+
+function archiveActiveEditorCard() {
+    if (activeEditorArchivePromise) return activeEditorArchivePromise;
+    activeEditorArchivePromise = performActiveEditorCardArchive().finally(() => {
+        activeEditorArchivePromise = null;
+    });
+    return activeEditorArchivePromise;
+}
+
+async function performActiveEditorCardArchive() {
     const cardEditorCardPath = document.getElementById('cardEditorCardPath');
     const cardPath = cardEditorCardPath ? String(cardEditorCardPath.value || '').trim() : '';
     if (!cardPath || !isCardEditorActive()) {
@@ -3102,7 +3119,7 @@ async function archiveActiveEditorCard() {
     await window.board.archiveCard(cardPath);
     clearQueuedEditorSave();
     cardEditorCardPath.value = '';
-    await closeAllModals(createCloseAllModalsRequest());
+    await closeAllModals(createCloseAllModalsRequest(), { skipEditorArchiveWait: true });
     if (typeof announceSignboardStatus === 'function') {
         announceSignboardStatus('Archived card.');
     }

@@ -224,3 +224,23 @@ This map focuses on source and operational files. Large generated/vendor folders
 
 - `lib/listOrderRecovery.js` — bounded list-rename retries and an exclusive recovery record preserving original, temporary, and final folder names.
 - `scripts/test-list-actions.js` — real-filesystem renderer action regressions for insertion and left/right moves, staging/final failures, retries, card/settings preservation, and incomplete recovery. Run with `npm run test:list-actions`.
+
+## Windows editor path coverage
+
+- `app/modals/toggleEditCardModal.js` — separator-aware list lookup for editor moves and UNC/drive-root-preserving linked-note picker parents.
+- `scripts/test-editor-paths.js` — actual renderer handlers exercised with POSIX, Windows, mixed-separator, and UNC paths, including repeat moves, boundary no-ops, failures, and picker roots.
+- `tests/playwright/signboard-smoke.spec.js` — native editor dropdown/arrow/shortcut moves and saving after repeated moves; included in Windows maintenance CI alongside Table list moves.
+- `app/init.js` — defers external board refresh during Table bulk-menu edits; refresh resumes through the existing pending-watch lifecycle after the menu closes.
+- `scripts/test-board-refresh.js` — token IPC/drop races, pending external refresh preservation, bulk-menu guards, and overlapping/failed drop cleanup.
+
+Windows maintenance CI runs the full Electron suite plus storage, archive, board duplication, import, Obsidian, CLI/MCP, and updater helper regressions on a disposable native Windows runner. Keep coverage aligned with Linux instead of restricting Windows to selected test titles.
+
+The renderer filename sanitizer also creates list folders. Sanitize the entire input before separating an extension so punctuation after a period cannot create Windows-invalid paths. `test:list-actions` loads the real sanitizer; the Electron suite covers dotted list names.
+
+`lib/directoryRename.js` allows case-only renames only when filesystem entry identities match; keep unrelated-destination rejection and metadata rollback intact. CLI list renames share that check. Planner filter menus constrain their height on open, content changes, and resize, with scrolling for all labels and Clear filters. Maintenance/Electron regressions cover both behaviors.
+
+Linux CI installs only the required Xvfb/Openbox dependencies, with bounded network retries and timeouts.
+
+Editor archive actions share one pending promise through final modal cleanup. Other modal transitions wait for it; archive cleanup bypasses its own wait. Preserve failure cleanup, duplicate-request handling, and the delayed-archive Electron regression.
+
+App settings save responses reconcile against the submitted snapshot: preserve newer renderer edits while accepting server-generated values for unchanged fields. Keep the deferred-save regression in `test:app-settings` and Smart Actions Electron coverage aligned.

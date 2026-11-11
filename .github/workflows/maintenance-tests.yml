@@ -38,11 +38,13 @@ jobs:
           npm run test:desktop-cli
           npm run test:card-ordering
           npm run test:list-actions
+          npm run test:editor-paths
+          npm run test:board-refresh
           npm run test:board-card-metadata
       - name: Prepare isolated Electron desktop
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes xvfb openbox libnss3 libasound2t64 libgbm1
+          sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install --yes --no-install-recommends xvfb openbox libnss3 libasound2t64 libgbm1
           sudo chown root:root node_modules/electron/dist/chrome-sandbox
           sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Electron regressions
@@ -73,7 +75,7 @@ jobs:
   windows:
     if: ${{ !inputs.source_ref }}
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -86,8 +88,21 @@ jobs:
         run: npm run test:cli
       - name: List rename rollback regressions
         run: npm run test:list-actions
-      - name: Native Windows protocol, list actions and filtered drag regressions
+      - name: Editor path regressions
+        run: npm run test:editor-paths
+      - name: Board refresh regressions
+        run: npm run test:board-refresh
+      - name: Full native Windows Electron regressions
         env:
           # Explicit opt-in applies only to this disposable hosted Windows desktop.
           SIGNBOARD_PLAYWRIGHT_ALLOW_LOCAL: '1'
-        run: npx playwright test --grep 'card links|drags filtered cards|date-filtered card drops|list rename|moves lists left and right|adds a new list to the right'
+        run: npx playwright test
+      - name: Windows storage, automation and integration regressions
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          failed=0
+          for suite in maintenance mcp automation-parity desktop-cli card-ordering board-snapshot board-duplication archive obsidian-integration import-trello import-obsidian import-tasksmd app-settings update-release-notes update-errors packaging-config; do
+            npm run "test:$suite" || failed=1
+          done
+          exit "$failed"

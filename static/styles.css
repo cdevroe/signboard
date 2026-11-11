@@ -1017,6 +1017,8 @@ body[data-workspace-transition="exit-right"] main#board {
 }
 
 .planner-filter-popover {
+  overflow-y: auto;
+  overscroll-behavior: contain;
   top: calc(100% + 8px);
   right: 0;
   min-width: 250px;

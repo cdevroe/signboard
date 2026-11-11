@@ -1866,6 +1866,14 @@ function renderPlannerFilterPopover() {
     clearPlannerFilters();
   });
   popover.appendChild(clearButton);
+  constrainPlannerFilterPopover();
+}
+
+function constrainPlannerFilterPopover() {
+  const popover = document.getElementById('plannerFilterPopover');
+  if (!popover || popover.classList.contains('hidden')) return;
+  const availableHeight = Math.max(0, window.innerHeight - popover.getBoundingClientRect().top - 8);
+  popover.style.maxHeight = `${Math.floor(availableHeight)}px`;
 }
 
 function closePlannerFilterPopover() {
@@ -1989,6 +1997,7 @@ function togglePlannerFilterPopover() {
   popover.classList.toggle('hidden', !isHidden);
   popover.setAttribute('aria-hidden', isHidden ? 'false' : 'true');
   if (isHidden) {
+    constrainPlannerFilterPopover();
     focusPlannerFilterControl(0);
   }
 }
@@ -2177,6 +2186,7 @@ function initializePlannerControls() {
     return;
   }
 
+  window.addEventListener('resize', constrainPlannerFilterPopover);
   const closeButton = document.getElementById('plannerCloseButton');
   const filterButton = document.getElementById('plannerFilterButton');
   const filterPopover = document.getElementById('plannerFilterPopover');

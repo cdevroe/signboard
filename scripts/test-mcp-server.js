@@ -21,7 +21,7 @@ function assertHeadlessMcpLaunchConfig() {
   if (!server || server.env.ELECTRON_RUN_AS_NODE !== '1') {
     throw new Error(`MCP config did not enable Electron Node mode: ${JSON.stringify(config)}`);
   }
-  if (server.args[0] !== '/Applications/Signboard.app/Contents/Resources/app.asar/bin/signboard-mcp.js') {
+  if (server.args[0] !== path.resolve('/Applications/Signboard.app/Contents/Resources/app.asar', 'bin/signboard-mcp.js')) {
     throw new Error(`MCP config did not target the headless entrypoint: ${JSON.stringify(config)}`);
   }
   if (server.args.includes('--mcp-server')) {

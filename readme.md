@@ -2,6 +2,8 @@
 
 Signboard is a local-first desktop kanban app that stores your lists as directories and cards as Markdown files on disk.
 
+The upcoming [1.7.7 maintenance update](./docs/releases/1.7.7.md) fixes Windows card-editor moves and Obsidian-note relink picker paths, and preserves Table bulk-edit drafts during filesystem refreshes. Dotted list names also remove Windows-invalid punctuation correctly; capitalization-only renames and scrolling Planner filters work on smaller Windows desktops.
+
 Signboard is free for personal use. If you are using Signboard for your work, it would be appreciated if you make the commercial-use sponsorship payment to support future development. See the app's "Sponsor" button.
 
 Signboard is over 1 year old now. Starting in Signboard 2.0.0 there will be Pro-only features. Signboard Pro will cost $49/year.

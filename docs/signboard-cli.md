@@ -551,3 +551,5 @@ Explicit reorders must name every current item exactly once. Use returned paths 
 See [CLI/MCP board operations](./automation.md) for the full parity matrix, settings JSON examples, destination rules, and ordering behavior. These mutation commands execute immediately.
 
 List ordering shares desktop rename retries and rollback. If an incomplete reorder leaves `.signboard-list-order.json`, preserve it with a board backup before recovery; subsequent list reorders will fail until the record is resolved.
+
+List and board rename commands support capitalization-only changes on case-insensitive filesystems, while still rejecting a distinct existing destination.

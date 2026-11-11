@@ -136,6 +136,12 @@ async function closeAllModals(e, options = {}){
         return;
     }
 
+    // Modal transitions must not overtake an archive's final editor cleanup.
+    // The archive itself skips this wait to avoid awaiting its own promise.
+    if (!options.skipEditorArchiveWait && typeof waitForEditorArchiveIfNeeded === 'function') {
+        await waitForEditorArchiveIfNeeded();
+    }
+
     if (!options.skipPlannerCardOpenWait && typeof getPlannerState === 'function') {
         const pendingOpen = getPlannerState().cardOpenPromise;
         if (pendingOpen) await pendingOpen.catch(() => {});
