@@ -2,7 +2,7 @@
 
 Signboard stores boards as folders and cards as Markdown files. These guides describe the 1.7.x app and its automation interfaces.
 
-The upcoming 1.7.7 update fixes Windows card-editor moves and the starting folder for relinking missing Obsidian notes on network shares or drive roots. It also preserves Table bulk-edit drafts during filesystem refreshes. See the [1.7.7 release notes](./releases/1.7.7.md).
+The upcoming 1.7.7 update fixes Windows card-editor moves and the starting folder for relinking missing Obsidian notes on network shares or drive roots. It also preserves Table bulk-edit drafts during filesystem refreshes. See the [1.7.7 release notes](./releases/1.7.7.md). Dotted list names also remove Windows-invalid punctuation correctly.
 
 ## Choose a guide
 

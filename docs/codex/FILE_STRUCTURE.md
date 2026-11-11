@@ -234,3 +234,5 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-board-refresh.js` — token IPC/drop races, pending external refresh preservation, bulk-menu guards, and overlapping/failed drop cleanup.
 
 Windows maintenance CI runs the full Electron suite plus storage, archive, board duplication, import, Obsidian, CLI/MCP, and updater helper regressions on a disposable native Windows runner. Keep coverage aligned with Linux instead of restricting Windows to selected test titles.
+
+The renderer filename sanitizer also creates list folders. Sanitize the entire input before separating an extension so punctuation after a period cannot create Windows-invalid paths. `test:list-actions` loads the real sanitizer; the Electron suite covers dotted list names.

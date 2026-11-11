@@ -108,3 +108,5 @@ External board refresh must wait while a Table bulk menu is open so draft dates 
 Card drag/drop increments `window.cardOrderInProgress` through the transaction and watch acknowledgement, with `finally` cleanup for overlapping or failed drops. External sync defers token sampling during that interval (including a drop that starts during token IPC), while previously pending refreshes and later external edits remain deliverable. Keep `test:board-refresh` and the no-redraw/external-edit Electron regressions aligned.
 
 Windows maintenance CI runs the full Electron suite plus storage, archive, board duplication, import, Obsidian, CLI/MCP, and updater helper regressions on a disposable native Windows runner. Keep coverage aligned with Linux instead of restricting Windows to selected test titles.
+
+The renderer filename sanitizer also creates list folders. Sanitize the entire input before separating an extension so punctuation after a period cannot create Windows-invalid paths. `test:list-actions` loads the real sanitizer; the Electron suite covers dotted list names.

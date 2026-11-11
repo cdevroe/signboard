@@ -1,4 +1,8 @@
 async function sanitizeFileName(rawName) {
+  // Lists also use this helper: a period does not make the remaining text a
+  // trusted extension. Remove unsafe characters from the whole name first.
+  rawName = String(rawName || '').replace(/[^\p{L}\p{N}_\-. ]/gu, '');
+
   // 1. Split into base name + extension (if any)
   const lastDot = rawName.lastIndexOf('.');
   const ext = (lastDot !== -1) ? rawName.slice(lastDot) : '';

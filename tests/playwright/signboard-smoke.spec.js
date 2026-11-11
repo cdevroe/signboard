@@ -2423,6 +2423,16 @@ test('adds a new list to the right of the invoking list from the list actions po
   }).toMatch(/^001-Review-[A-Za-z0-9]{5}$/);
 });
 
+test('creates lists with punctuation after a period using portable folder names', async ({ page, boardRoot }) => {
+  await page.locator('.list-actions-button').first().click();
+  await page.locator('#listActionsPopover').getByRole('button', { name: 'Add new list' }).click();
+  await page.locator('#userInputListName').fill('Release 1.7: QA');
+  await page.locator('#btnAddList').click();
+  await expect(page.locator('.list')).toHaveCount(4);
+  await expect(page.locator('.list .list-header span[contenteditable="true"]').nth(1)).toHaveText('Release 1.7 QA');
+  expect((await fs.readdir(boardRoot)).some((name) => /^001-Release 1\.7 QA-[A-Za-z0-9]{5}$/.test(name))).toBe(true);
+});
+
 test('moves lists left and right through the list actions popover', async ({ page, boardRoot }) => {
   const titles = page.locator('.list .list-header span[contenteditable="true"]');
   await page.locator('.list-actions-button').nth(1).click();

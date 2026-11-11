@@ -31,14 +31,15 @@ async function fixture(action) {
         reorderLists: (paths) => reorderListDirectories(root, paths),
         moveList: () => { throw new Error('Renderer must never stage list renames'); },
       } },
-      console: { error() {} }, rand5: async () => 'abcde', sanitizeFileName: async (text) => text,
+      console: { error() {} }, rand5: async () => 'abcde',
       closeAllModals: async () => { renders++; }, createCloseAllModalsRequest: () => ({}),
       renderBoard: async () => { renders++; },
       announceSignboardStatus: (text) => announcements.push(text),
     });
-    for (const file of ['app/cards/processAddNewList.js', 'app/lists/listActionsPopover.js']) {
+    for (const file of ['app/utilities/santizeFileName.js', 'app/cards/processAddNewList.js', 'app/lists/listActionsPopover.js']) {
       vm.runInContext(await fs.readFile(path.join(__dirname, '..', file), 'utf8'), context);
     }
+    context.rand5 = async () => 'abcde';
     context.closeListActionsPopover = () => {};
     const invoke = (operation) => operation === 'add'
       ? context.processAddNewList('Today', { afterListPath: path.join(root, names[0]) })
@@ -56,6 +57,18 @@ async function assertOriginalCards(root) {
 }
 
 async function run() {
+  for (const [input, expected] of [
+    ['Release 1.7: QA', 'Release 1.7 QA'],
+    ['Phase.2/3', 'Phase.23'],
+    ['Notes.2?*<>|', 'Notes.2'],
+    ['Café.2: revisión', 'Café.2 revisión'],
+  ]) {
+    await fixture(async ({ context, lists, alerts }) => {
+      await context.processAddNewList(input);
+      assert.deepEqual(await lists(), [...names, `004-${expected}-abcde`]);
+      assert.equal(alerts.length, 0);
+    });
+  }
   for (const operation of ['add', 'left', 'right']) {
     await fixture(async ({ root, lists, invoke, alerts, announcements }) => {
       await invoke(operation);
