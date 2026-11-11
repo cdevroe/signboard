@@ -368,6 +368,8 @@ Open `Settings` from the board menu or press `Cmd/Ctrl + ,`.
 
 ### App Settings
 
+Settings edits made while an earlier save is finishing are retained and included in the next save, including newly created custom Smart Actions.
+
 The `App Settings` group controls settings that apply across Signboard:
 
 - `General`: tooltips and the optional global Quick Add shortcut while Signboard is open

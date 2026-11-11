@@ -2,6 +2,7 @@ const assert = require('assert');
 const fs = require('fs').promises;
 const os = require('os');
 const path = require('path');
+const vm = require('node:vm');
 
 const {
   DEFAULT_SMART_CARD_ACTIONS,
@@ -40,7 +41,53 @@ function assertDefaultSmartCardActions(actions) {
   assert.strictEqual(questionAction.type, 'question');
 }
 
+async function testPendingRendererSettings() {
+  let release;
+  let started;
+  const requestStarted = new Promise((resolve) => { started = resolve; });
+  const requests = [];
+  const context = vm.createContext({
+    console, setTimeout: () => 1, clearTimeout: () => {},
+    localStorage: { getItem: () => 'light' },
+    window: { electronAPI: { updateAppSettings: async (settings) => {
+      const snapshot = JSON.parse(JSON.stringify(settings));
+      requests.push(snapshot);
+      if (requests.length === 1) {
+        started();
+        await new Promise((resolve) => { release = resolve; });
+      }
+      return { ...snapshot, externalPublishedCalendar: { ...snapshot.externalPublishedCalendar, token: 'server-generated-token' } };
+    } } },
+  });
+  for (const filename of ['shared/appSettingsSchema.js', 'app/appSettings.js']) {
+    vm.runInContext(await fs.readFile(path.join(__dirname, '..', filename), 'utf8'), context);
+  }
+  context.renderAppSettingsControls = () => {};
+  context.setAppAppearanceSettings({ mode: 'light', themeSource: 'signboard' });
+  const pending = context.persistAppSettings();
+  await requestStarted;
+  context.addAppSmartCardAction();
+  context.setAppTooltipsEnabled(false);
+  context.setAppNotificationSettings({ enabled: true, time: '10:30' });
+  context.setAppQuickAddSettings({ globalShortcut: 'Control+Alt+N' });
+  context.setAppAppearanceSettings({ mode: 'dark', themeSource: 'signboard' });
+  context.setAppExternalPublishedCalendarSettings({ enabled: true, port: 48274, token: '' });
+  release();
+  await pending;
+  assert.strictEqual(context.getAppAiSettings().smartCardActions[0].label, 'Custom action 1', 'Older saves must not discard newly added Smart Actions');
+  assert.strictEqual(context.getAppTooltipsEnabled(), false);
+  assert.strictEqual(context.getAppNotificationSettings().time, '10:30');
+  assert.strictEqual(context.getAppQuickAddSettings().globalShortcut, 'Control+Alt+N');
+  assert.strictEqual(context.getAppAppearanceSettings().mode, 'dark');
+  assert.strictEqual(context.getAppExternalPublishedCalendarSettings().port, 48274);
+  assert.strictEqual(context.getAppExternalPublishedCalendarSettings().token, 'server-generated-token', 'Unedited server-generated fields must survive');
+  await context.flushAppSettingsSave();
+  assert.strictEqual(requests[1].ai.smartCardActions[0].label, 'Custom action 1', 'Follow-up save must persist the newer action');
+  assert.strictEqual(requests[1].externalPublishedCalendar.token, 'server-generated-token');
+}
+
 async function run() {
+  await testPendingRendererSettings();
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'signboard-app-settings-'));
 
   try {

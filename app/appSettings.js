@@ -1185,6 +1185,30 @@ function scheduleAppSettingsSave() {
   }, 250);
 }
 
+function getEditableAppSettingsSnapshot() {
+  return {
+    notifications: getAppNotificationSettings(),
+    tooltipsEnabled: getAppTooltipsEnabled(),
+    quickAdd: getAppQuickAddSettings(),
+    appearance: getAppAppearanceSettings(),
+    externalPublishedCalendar: getAppExternalPublishedCalendarSettings(),
+    ai: getAppAiSettings(),
+  };
+}
+
+function preservePendingAppSettingChanges(requested, current, saved) {
+  if (JSON.stringify(current) === JSON.stringify(requested)) return saved;
+  if (current && requested && saved && typeof current === 'object' &&
+      typeof requested === 'object' && typeof saved === 'object' && !Array.isArray(current)) {
+    const merged = { ...saved };
+    for (const key of Object.keys(current)) {
+      merged[key] = preservePendingAppSettingChanges(requested[key], current[key], saved[key]);
+    }
+    return merged;
+  }
+  return current;
+}
+
 function persistAppSettings() {
   const state = getAppSettingsState();
 
@@ -1194,19 +1218,13 @@ function persistAppSettings() {
         return;
       }
 
-      const requestedAppearance = getAppAppearanceSettings();
-      const result = await window.electronAPI.updateAppSettings({
-        notifications: getAppNotificationSettings(),
-        tooltipsEnabled: getAppTooltipsEnabled(),
-        quickAdd: getAppQuickAddSettings(),
-        appearance: getAppAppearanceSettings(),
-        externalPublishedCalendar: getAppExternalPublishedCalendarSettings(),
-        ai: getAppAiSettings(),
-      });
-      // A quick second mode selection must survive an older save response.
-      const currentAppearance = getAppAppearanceSettings();
-      if (JSON.stringify(currentAppearance) !== JSON.stringify(requestedAppearance)) {
-        result.appearance = currentAppearance;
+      const requested = getEditableAppSettingsSnapshot();
+      const result = await window.electronAPI.updateAppSettings(requested);
+      const current = getEditableAppSettingsSnapshot();
+      // Preserve edits made during IPC without losing server-generated values,
+      // such as the published-calendar token, in fields the user did not edit.
+      for (const key of Object.keys(requested)) {
+        result[key] = preservePendingAppSettingChanges(requested[key], current[key], result[key]);
       }
       applyAppSettings(result);
       renderAppSettingsControls();

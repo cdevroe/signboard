@@ -116,3 +116,5 @@ The renderer filename sanitizer also creates list folders. Sanitize the entire i
 Linux CI installs only the required Xvfb/Openbox dependencies, with bounded network retries and timeouts.
 
 Editor archive actions share one pending promise through final modal cleanup. Other modal transitions wait for it; archive cleanup bypasses its own wait. Preserve failure cleanup, duplicate-request handling, and the delayed-archive Electron regression.
+
+App settings save responses reconcile against the submitted snapshot: preserve newer renderer edits while accepting server-generated values for unchanged fields. Keep the deferred-save regression in `test:app-settings` and Smart Actions Electron coverage aligned.
