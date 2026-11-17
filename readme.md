@@ -378,7 +378,7 @@ Thanks to [Marcus Holtz (@MarcusHoltz)](https://github.com/MarcusHoltz) for cont
 
 Signboard 1.7.x includes an in-app sponsorship modal with two options:
 
-- Personal use: free, with an optional tip in any amount
+- Personal use: free, with an optional [tip](https://donate.stripe.com/fZu8wQd19ah801MaSM8N207) starting at $10 USD, with $15 USD suggested
 - Commercial use: requested one-time payment
 
 ---
