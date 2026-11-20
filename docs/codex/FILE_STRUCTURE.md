@@ -81,7 +81,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `lib/omarchyTheme.js` - Canonical Omarchy active-theme path resolution, restricted TOML palette parsing, contrast-safe token derivation, and read status.
 - `lib/releaseArtifactValidation.js` - Debian/ar and Pacman archive recognition, minimum release-artifact sizing, and SHA-512 helpers shared by runtime download checks and release validation.
 - `lib/cardOrdering.js` - Shared transactional ordering helpers used by main-process/MCP restore and move flows to insert a card at the top, reorder cards in a list, perform stable due-date ordering, and reorder list directories while staging only changed entries and rolling back on failures.
-- `lib/archive.js` - Archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
+- `lib/archive.js` - Atomic cross-list move activity plus destination metadata, archive/archive-list filesystem operations plus archive listing/detail/restore helpers and legacy archive fallback handling.
 - `lib/boardLabels.js` - Board-level label/theme/workflow/External Published Calendar inclusion settings read/write/defaults/filter helpers (`board-settings.md`) plus legacy app-setting extraction for migration.
 - `lib/boardDuplication.js` - Board folder duplication helper used by desktop Settings; copies board contents, assigns fresh copied-card IDs, refreshes copied Signboard metadata, rewrites internal `signboard://open-card` references, rewrites copied local linked-object paths, and resets copied managed Base state.
 - `lib/appSettings.js` - App-wide tooltip/notification/appearance-source/Quick Add global shortcut/AI assistance and External Published Calendar JSON persistence under Electron `userData`, delegating defaults and normalization to `shared/appSettingsSchema.js`.
@@ -120,7 +120,7 @@ This map focuses on source and operational files. Large generated/vendor folders
 - `scripts/test-release-artifact-validation.js` - Valid, malformed, incomplete, and file-backed Debian/Pacman archive inspection assertions.
 - `scripts/test-packaging-config.js` - Required electron-builder runtime-source glob validation, including `bin/**` and `shared/**`.
 - `scripts/test-packaged-app-launch.js` - Isolated packaged-app smoke test that requires the packaged main process and renderer bridge to load before macOS distribution builds succeed.
-- `scripts/test-archive.js` - Archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.
+- `scripts/test-archive.js` - Single-write move metadata, failed-write preservation, archive metadata, archive-browser data, restore flow, empty archived-list cleanup, and legacy archive fallback assertions.
 - `scripts/test-due-notifications.js` - Due-notification assertions for task due item collection and notification body formatting.
 - `scripts/test-external-published-calendar.js` - External Published Calendar assertions for ICS generation, completed-list skipping, checked-task skipping, and board opt-out.
 - `scripts/test-import-trello.js` - Trello importer assertions for order, label reuse, archive routing, and metadata preservation.

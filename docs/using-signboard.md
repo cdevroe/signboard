@@ -534,3 +534,5 @@ The CLI and MCP support archiving/restoration, filtered card queries, list renam
 List folder names remove Windows-invalid punctuation throughout the name, including after periods; for example, `Release 1.7: QA` becomes `Release 1.7 QA`.
 
 Board and list names can be renamed by changing only their capitalization. Planner filter menus scroll when needed so every label and Clear filters remain reachable in smaller windows.
+
+Card moves between lists save the move activity and destination `status` / `signboard_list` properties together, including drag-and-drop. Notes, labels, dates, and custom properties are preserved.
