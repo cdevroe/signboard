@@ -157,3 +157,7 @@ Linux CI installs only the required Xvfb/Openbox dependencies, with bounded netw
 Editor archive actions share one pending promise through final modal cleanup. Other modal transitions wait for it; archive cleanup bypasses its own wait. Preserve failure cleanup, duplicate-request handling, and the delayed-archive Electron regression.
 
 App settings save responses reconcile against the submitted snapshot: preserve newer renderer edits while accepting server-generated values for unchanged fields. Keep the deferred-save regression in `test:app-settings` and Smart Actions Electron coverage aligned.
+
+## Card move metadata — 1.7.8
+
+`lib/archive.js` records cross-list move activity and normalizes destination Signboard properties in one atomic card write. Desktop drag/drop and move-to-top must not follow it with a second metadata write. Same-list drag reorders leave card contents unchanged. Preserve body/custom fields and the atomic-failure regression in `test:archive`; filtered-drag Electron tests assert both `status` and `signboard_list` before opening the editor.

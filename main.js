@@ -4601,7 +4601,6 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
         if (sourceListPath !== targetListPath) {
           movedAcrossLists = true;
           await recordCardListMove(boardRoot, cardEntry.cardPath, sourceListPath, targetListPath);
-          await refreshCardSignboardMetadata(boardRoot, cardEntry.cardPath);
         }
       }
 
@@ -4688,9 +4687,10 @@ ipcMain.handle('board-call', async (event, payload = {}) => {
 
       if (sourceListPath !== targetListPath) {
         await recordCardListMove(boardRoot, movedCardPath, sourceListPath, targetListPath);
+      } else {
+        await refreshCardSignboardMetadata(boardRoot, movedCardPath);
       }
 
-      await refreshCardSignboardMetadata(boardRoot, movedCardPath);
       await autoSyncManagedObsidianBaseForBoard(boardRoot);
 
       return {

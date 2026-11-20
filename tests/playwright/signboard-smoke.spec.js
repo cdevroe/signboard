@@ -1551,7 +1551,10 @@ for (const filterMode of ['label', 'date', 'search']) {
       ['003-hidden-last-Hd002.md', 'Hidden last', false],
     ]) {
       await cardFrontmatter.writeCard(path.join(todo, file), {
-        frontmatter: { title, ...(visible ? { labels: ['launch'], due: today } : {}) },
+        frontmatter: {
+          title, status: 'To-do', signboard_list: 'To-do', custom: 'Preserve on move',
+          ...(visible ? { labels: ['launch'], due: today } : {}),
+        },
         body: `Original body for ${title}.`,
       });
     }
@@ -1603,9 +1606,18 @@ for (const filterMode of ['label', 'date', 'search']) {
     await expect.poll(async () => (await fs.readdir(doing)).filter((name) => name.endsWith('.md')).length).toBe(2);
     await expect.poll(async () => {
       const cardPath = await moved.getAttribute('data-path');
-      try { return (await cardFrontmatter.readCard(cardPath)).frontmatter.signboard_list; }
-      catch { return ''; }
-    }).toBe('Doing');
+      try {
+        const { frontmatter, body } = await cardFrontmatter.readCard(cardPath);
+        return {
+          status: frontmatter.status, list: frontmatter.signboard_list,
+          moves: (frontmatter.activity || []).filter((event) => event.type === 'moved-list').length,
+          custom: frontmatter.custom, body: body.trim(),
+        };
+      } catch { return null; }
+    }).toEqual({
+      status: 'Doing', list: 'Doing', moves: 1,
+      custom: 'Preserve on move', body: 'Original body for Release followup.',
+    });
     expect(await source.evaluate((element) => element === window.filteredDragSource)).toBe(true);
     expect(await page.locator('.list').evaluateAll((lists) => lists.map((list) => list.dataset.path))).toEqual(listPaths);
     expect((await fs.readdir(boardRoot)).filter((name) => /^\d+-/.test(name)).sort())

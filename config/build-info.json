@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "version": "1.7.7",
-  "buildId": "20261111.4",
+  "version": "1.7.8",
+  "buildId": "20261120.1",
   "channel": "release",
-  "builtAt": "2026-11-11T15:09:58.648Z",
-  "sourceFingerprint": "b36621c24a6fb0f9bc164088203fd26e85788b45b56635f99c8d75588cf6f5b9",
+  "builtAt": "2026-11-20T09:20:39.136Z",
+  "sourceFingerprint": "3de83b023a4a0a600a5fb60bac620a8c6461c49006225ddcfc47ba8cf5dac30b",
   "sourceFileCount": 177,
-  "commit": "b971c0a6c2d2876e739d1438815cea929bb8dc8d",
+  "commit": "b70b112c850688ebef15a9e2865032818b324cf6",
   "dirty": true
 }

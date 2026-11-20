@@ -219,15 +219,60 @@ async function testRecordCardListMoveAppendsLifecycleEvent(root) {
   await fs.mkdir(doingList, { recursive: true });
 
   const cardPath = path.join(doingList, '000-track-progress-stock.md');
-  await writeCard(cardPath, { title: 'Track progress' }, 'Update the thread');
+  await writeCard(cardPath, {
+    title: 'Track progress', status: 'To-do', signboard_list: 'To-do',
+    due: '2026-12-01', labels: ['work'], custom: 'Keep me',
+  }, 'Update the thread');
 
-  const moved = await recordCardListMove(boardRoot, cardPath, todoList, doingList);
+  // A sync client can observe every atomic replacement. No committed move
+  // event may still describe the source list, even before a later refresh.
+  const originalWrite = cardFrontmatter.writeCard;
+  let writes = 0;
+  let moved;
+  cardFrontmatter.writeCard = async (file, card) => {
+    await originalWrite(file, card);
+    writes += 1;
+    const saved = await cardFrontmatter.readCard(file);
+    assert.strictEqual(saved.frontmatter.status, 'Doing');
+    assert.strictEqual(saved.frontmatter.signboard_list, 'Doing');
+  };
+  try {
+    moved = await recordCardListMove(boardRoot, cardPath, todoList, doingList);
+  } finally {
+    cardFrontmatter.writeCard = originalWrite;
+  }
+  assert.strictEqual(writes, 1, 'Save lifecycle and destination metadata together');
   assert.strictEqual(moved.moved, true);
 
   const movedCard = await cardFrontmatter.readCard(cardPath);
   assert.deepStrictEqual(getActivityTypes(movedCard.frontmatter), ['moved-list']);
   assert.strictEqual(movedCard.frontmatter.activity[0].fromListDisplayName, 'To-do');
   assert.strictEqual(movedCard.frontmatter.activity[0].toListDisplayName, 'Doing');
+  assert.strictEqual(movedCard.frontmatter.status, 'Doing');
+  assert.strictEqual(movedCard.frontmatter.signboard_list, 'Doing');
+  assert.strictEqual(movedCard.frontmatter.signboard_board, 'Archive Move Metadata Board');
+  assert.strictEqual(movedCard.frontmatter.custom, 'Keep me');
+  assert.strictEqual(movedCard.frontmatter.due, '2026-12-01');
+  assert.deepStrictEqual(movedCard.frontmatter.labels, ['work']);
+  assert.strictEqual(movedCard.body, 'Update the thread');
+
+  const before = await fs.readFile(cardPath, 'utf8');
+  assert.strictEqual((await recordCardListMove(boardRoot, cardPath, doingList, doingList)).moved, false);
+  assert.strictEqual(await fs.readFile(cardPath, 'utf8'), before, 'Same-list reorders do not rewrite metadata');
+
+  // A failed atomic replacement must not commit just the lifecycle event.
+  const originalRename = fs.rename;
+  fs.rename = async (from, to) => {
+    if (to === cardPath && from.endsWith('.tmp')) throw new Error('Simulated sync-client file lock');
+    return originalRename(from, to);
+  };
+  try {
+    await assert.rejects(recordCardListMove(boardRoot, cardPath, todoList, doingList), /Simulated sync-client file lock/);
+  } finally {
+    fs.rename = originalRename;
+  }
+  assert.strictEqual(await fs.readFile(cardPath, 'utf8'), before);
+  assert.deepStrictEqual(await fs.readdir(doingList), [path.basename(cardPath)], 'Failed writes clean up temporary files');
 }
 
 async function main() {
