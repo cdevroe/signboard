@@ -8,7 +8,7 @@ const DUE_NOTIFICATION_LAST_RUN_DATE_KEY = 'dueCardsNotificationLastRunDate';
 const DEFAULT_DUE_NOTIFICATION_TIME = '09:00';
 const SIGNBOARD_COMMERCIAL_LICENSE_PRICE = 49;
 const SIGNBOARD_COMMERCIAL_LICENSE_PAYMENT_URL = 'https://buy.stripe.com/7sY4gAaT14WO3dY2mg8N205';
-const SIGNBOARD_TIP_JAR_PAYMENT_URL = 'https://donate.stripe.com/14A3cw1ircpgeWGf928N206';
+const SIGNBOARD_TIP_JAR_PAYMENT_URL = 'https://donate.stripe.com/fZu8wQd19ah801MaSM8N207';
 const SPONSOR_PILL_DISMISSED_KEY = 'signboardSponsorPillDismissed';
 const ABOUT_SIGNBOARD_FALLBACK_INFO = Object.freeze({
     appName: 'Signboard',
